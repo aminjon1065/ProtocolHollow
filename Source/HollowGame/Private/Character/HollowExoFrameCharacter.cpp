@@ -1,11 +1,13 @@
 #include "Character/HollowExoFrameCharacter.h"
 
+#include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Framework/HollowPlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "HollowGameLog.h"
 #include "Input/HollowInputConfig.h"
@@ -20,8 +22,6 @@ const FName AHollowExoFrameCharacter::CameraSocketName(TEXT("head"));
 AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UHollowCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
-	PrimaryActorTick.bCanEverTick = false;   // CLAUDE.md sec. 1: event-driven, no Tick
-
 	// Everyone else sees the body; its owner only gets its shadow (also implies bOwnerNoSee).
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
 
@@ -37,6 +37,54 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->bEnableFirstPersonFieldOfView = true;
 	FirstPersonCamera->bEnableFirstPersonScale = true;
+}
+
+void AHollowExoFrameCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);   // assigns the player state
+	InitializeFromPlayerState();
+
+	if (UHollowAbilitySystemComponent* AbilitySystem = GetHollowAbilitySystemComponent())
+	{
+		for (const UHollowAbilitySet* AbilitySet : AbilitySets)
+		{
+			if (AbilitySet)
+			{
+				AbilitySet->GiveToAbilitySystem(AbilitySystem, &GrantedAbilitySetHandles, this);
+			}
+		}
+	}
+}
+
+void AHollowExoFrameCharacter::UnPossessed()
+{
+	GrantedAbilitySetHandles.TakeFromAbilitySystem(GetHollowAbilitySystemComponent());
+	UninitializeAbilitySystem();
+	Super::UnPossessed();
+}
+
+void AHollowExoFrameCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	if (GetPlayerState())
+	{
+		InitializeFromPlayerState();
+	}
+	else
+	{
+		UninitializeAbilitySystem();
+	}
+}
+
+void AHollowExoFrameCharacter::InitializeFromPlayerState()
+{
+	AHollowPlayerState* HollowPlayerState = GetPlayerState<AHollowPlayerState>();
+	if (!HollowPlayerState)
+	{
+		UE_LOG(LogHollowGame, Error, TEXT("%s: needs an AHollowPlayerState (check the game mode's PlayerStateClass)."), *GetName());
+		return;
+	}
+	InitializeAbilitySystem(HollowPlayerState->GetHollowAbilitySystemComponent(), HollowPlayerState);
 }
 
 UHollowCharacterMovementComponent* AHollowExoFrameCharacter::GetHollowMovement() const

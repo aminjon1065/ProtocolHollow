@@ -17,6 +17,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Session", meta = (ClampMin = "1", ClampMax = "4"))
 	int32 MaxPlayers = 4;
 
+	/** Net update rate of player states, which own the ability system (attributes, effects). 0 keeps the engine default. */
+	UPROPERTY(Config, EditAnywhere, Category = "Replication", meta = (ClampMin = "0", Units = "Hertz"))
+	float PlayerStateNetUpdateFrequency = 0.f;
+
 	/** Map opened after leaving a session or on startup (front-end). */
 	UPROPERTY(Config, EditAnywhere, Category = "Maps")
 	TSoftObjectPtr<UWorld> FrontEndMap;

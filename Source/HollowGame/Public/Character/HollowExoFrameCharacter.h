@@ -1,6 +1,7 @@
 #pragma once
 
-#include "GameFramework/Character.h"
+#include "Abilities/HollowAbilitySet.h"
+#include "Characters/HollowCharacterBase.h"
 
 #include "HollowExoFrameCharacter.generated.h"
 
@@ -15,10 +16,11 @@ struct FInputActionValue;
  * Player character (ExoFrame). First-person arms and the third-person body use the engine first-person rendering
  * (ADR-0011): the owner sees FirstPersonMesh with its own FOV, everyone else sees the character mesh.
  * Movement is UHollowCharacterMovementComponent; all tuning, meshes and offsets are data (BP_ExoFrame).
- * Reparented onto AHollowCharacterBase when the ability system arrives (S1-05).
+ * The ability system lives on AHollowPlayerState; this pawn becomes its avatar while possessed, and the server grants
+ * AbilitySets for exactly that time (attributes re-initialize on every spawn).
  */
 UCLASS()
-class HOLLOWGAME_API AHollowExoFrameCharacter : public ACharacter
+class HOLLOWGAME_API AHollowExoFrameCharacter : public AHollowCharacterBase
 {
 	GENERATED_BODY()
 
@@ -33,10 +35,16 @@ public:
 	static const FName CameraSocketName;
 
 protected:
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void UnPossessed() override;
+	virtual void OnRep_PlayerState() override;
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
+	/** Binds the player state's ability system to this pawn (server and owning client). */
+	void InitializeFromPlayerState();
+
 	void HandleMove(const FInputActionValue& Value);
 	void HandleLook(const FInputActionValue& Value);
 	void HandleJumpStarted();
@@ -60,4 +68,11 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Input")
 	int32 DefaultMappingPriority = 0;
+
+	/** Abilities and effects granted by the server while this pawn is possessed (e.g. DA_AbilitySet_ExoFrame). */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Abilities")
+	TArray<TObjectPtr<const UHollowAbilitySet>> AbilitySets;
+
+	/** What AbilitySets granted, taken back on unpossess (server only). */
+	FHollowAbilitySetHandles GrantedAbilitySetHandles;
 };

@@ -171,11 +171,13 @@ UAbilitySystemComponent
 UAttributeSet
 └─ UHollowAttributeSetBase            ATTRIBUTE_ACCESSORS, clamp-хелперы
    ├─ UHollowHealthSet      Health, MaxHealth, Armor; meta: IncomingDamage, IncomingHealing          rep: всем (тиммейтам на визор)
-   ├─ UHollowSurvivalSet    Stamina, MaxStamina, Oxygen, MaxOxygen, Thermal, ThermalResistance       rep: COND_OwnerOnly
+   ├─ UHollowSurvivalSet    Stamina, MaxStamina, Oxygen, MaxOxygen, Thermal, MaxThermal              rep: COND_OwnerOnly   (ThermalResistance — с крио-биомом)
    ├─ UHollowResonanceSet   Resonance, MaxResonance, ResonanceGainMultiplier                         rep: всем
-   ├─ UHollowCarrySet       CarryWeight, CarryCapacity                                               rep: COND_OwnerOnly
+   ├─ UHollowCarrySet       CarryWeight, CarryCapacity                                               rep: COND_OwnerOnly   (S3-02, вместе с переноской)
    └─ UHollowToolSet        ToolFuel, MaxToolFuel, ToolHeat, MaxToolHeat                             rep: COND_OwnerOnly
    (наборы разбиты в том числе по условию репликации: приватные данные не уходят чужим клиентам)
+   Общая база UHollowAttributeSetBase: пары «текущее/максимум» зажаты в [0, Max], прочие атрибуты ≥ 0, снижение максимума подтягивает текущее
+   (через ASC). Наборы — default subobjects владельца: у игрока AHollowPlayerState, у врага — сам персонаж.
 
 UGameplayAbility
 └─ UHollowGameplayAbility             ActivationPolicy {OnInputTriggered, WhileInputActive, OnSpawn}, cost и cooldown из данных
@@ -189,7 +191,7 @@ UGameplayEffectExecutionCalculation
 └─ UHollowResonanceGainExecution      прирост × ResonanceGainMultiplier × кривая сложности контракта
 
 UPrimaryDataAsset
-├─ UHollowAbilitySet                  способности, эффекты и AttributeSets к выдаче (как в Lyra)
+├─ UHollowAbilitySet                  способности (+InputTag) и эффекты к выдаче; только сервер; handles для снятия. Наборы атрибутов НЕ выдаёт (S1-05)
 ├─ UHollowExoFrameDefinition          класс: AbilitySet, init-GE, ветки талантов, фирменный инструмент
 └─ UHollowToolDefinition              темп сварки и резки, частота сэмплов, дальность, GE топлива и нагрева, кьюшки, шумы
 ```

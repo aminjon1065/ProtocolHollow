@@ -1,6 +1,7 @@
 #include "Framework/HollowGameModeBase.h"
 
 #include "Engine/GameInstance.h"
+#include "Framework/HollowPlayerState.h"
 #include "HollowGameLog.h"
 #include "Session/HollowNetworkSettings.h"
 #include "Session/HollowSessionRules.h"
@@ -8,6 +9,12 @@
 #include "Util/HollowEnumUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowGameModeBase)
+
+AHollowGameModeBase::AHollowGameModeBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	PlayerStateClass = AHollowPlayerState::StaticClass();   // owns the player's ability system
+}
 
 void AHollowGameModeBase::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {

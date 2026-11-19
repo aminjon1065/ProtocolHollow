@@ -15,6 +15,8 @@ class HOLLOWGAME_API AHollowGameModeBase : public AGameModeBase
 	GENERATED_BODY()
 
 public:
+	explicit AHollowGameModeBase(const FObjectInitializer& ObjectInitializer);
+
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
 	EHollowSessionPhase GetSessionPhase() const { return SessionPhase; }

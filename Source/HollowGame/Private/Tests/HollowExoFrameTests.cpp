@@ -2,10 +2,17 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Attributes/HollowHealthSet.h"
+#include "Attributes/HollowResonanceSet.h"
+#include "Attributes/HollowSurvivalSet.h"
+#include "Attributes/HollowToolSet.h"
 #include "Camera/CameraComponent.h"
 #include "Character/HollowExoFrameCharacter.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "Framework/HollowPlayerState.h"
+#include "GameFramework/PlayerController.h"
 #include "Input/HollowInputConfig.h"
 #include "InputAction.h"
 #include "Movement/HollowCharacterMovementComponent.h"
@@ -29,6 +36,7 @@ namespace HollowExoFrameTests
 			World.ForwardErrorMessages(&Test);
 			return nullptr;
 		}
+		World.GetTestWorld()->InitializeActorsForPlay(FURL());   // components initialize as in a running game
 		return World.GetTestWorld()->SpawnActor<AHollowExoFrameCharacter>();
 	}
 }
@@ -61,6 +69,42 @@ bool FHollowExoFrameCompositionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Camera uses the control rotation"), Camera->bUsePawnControlRotation);
 	TestTrue(TEXT("First-person FOV is enabled"), Camera->bEnableFirstPersonFieldOfView);
 	TestTrue(TEXT("First-person scale is enabled"), Camera->bEnableFirstPersonScale);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowExoFrameAbilitySystemLifecycleTest, "Hollow.Game.ExoFrame.AbilitySystemLifecycle",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowExoFrameAbilitySystemLifecycleTest::RunTest(const FString& Parameters)
+{
+	FTestWorldWrapper World;
+	AHollowExoFrameCharacter* Character = HollowExoFrameTests::SpawnCharacter(*this, World);
+	if (!TestNotNull(TEXT("ExoFrame spawns"), Character))
+	{
+		return false;
+	}
+
+	UWorld* TestWorld = World.GetTestWorld();
+	APlayerController* Controller = TestWorld->SpawnActor<APlayerController>();
+	AHollowPlayerState* PlayerState = TestWorld->SpawnActor<AHollowPlayerState>();
+	PlayerState->SetOwner(Controller);
+	Controller->PlayerState = PlayerState;
+
+	UHollowAbilitySystemComponent* AbilitySystem = PlayerState->GetHollowAbilitySystemComponent();
+	TestNotNull(TEXT("Health set lives on the player state"), AbilitySystem->GetSet<UHollowHealthSet>());
+	TestNotNull(TEXT("Survival set lives on the player state"), AbilitySystem->GetSet<UHollowSurvivalSet>());
+	TestNotNull(TEXT("Resonance set lives on the player state"), AbilitySystem->GetSet<UHollowResonanceSet>());
+	TestNotNull(TEXT("Tool set lives on the player state"), AbilitySystem->GetSet<UHollowToolSet>());
+	TestNull(TEXT("No ability system before possession"), Character->GetAbilitySystemComponent());
+
+	Controller->Possess(Character);
+	TestTrue(TEXT("Possessed ExoFrame uses the player state's ability system"), Character->GetAbilitySystemComponent() == AbilitySystem);
+	TestTrue(TEXT("The player state owns the ability system"), AbilitySystem->GetOwnerActor() == PlayerState);
+	TestTrue(TEXT("The ExoFrame is the avatar"), AbilitySystem->GetAvatarActor() == Character);
+
+	Controller->UnPossess();
+	TestNull(TEXT("Unpossessed ExoFrame releases the ability system"), Character->GetAbilitySystemComponent());
+	TestTrue(TEXT("The ability system no longer uses the ExoFrame as avatar"), AbilitySystem->GetAvatarActor() != Character);
 	return true;
 }
 
