@@ -1,0 +1,42 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Protocol: Hollow - 1-4 player co-op techno-occult extraction survival-horror.",
+	"Modules": [
+		{ "Name": "HollowCore",    "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowGAS",     "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowEconomy", "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowNetwork", "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowPhysics", "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowPCG",     "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowAI",      "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowGame",    "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowUI",      "Type": "Runtime", "LoadingPhase": "Default" },
+		{ "Name": "HollowEditor",  "Type": "Editor",  "LoadingPhase": "Default" }
+	],
+	"Plugins": [
+		{ "Name": "GameplayAbilities",        "Enabled": true },
+		{ "Name": "EnhancedInput",            "Enabled": true },
+		{ "Name": "CommonUI",                 "Enabled": true },
+		{ "Name": "StateTree",                "Enabled": true },
+		{ "Name": "GameplayStateTree",        "Enabled": true },
+		{ "Name": "GeometryCollectionPlugin", "Enabled": true },
+		{ "Name": "ChaosCaching",             "Enabled": true },
+		{ "Name": "PCG",                      "Enabled": true },
+		{ "Name": "OnlineSubsystem",          "Enabled": true },
+		{ "Name": "OnlineSubsystemUtils",     "Enabled": true },
+		{ "Name": "OnlineSubsystemSteam",     "Enabled": true },
+		{ "Name": "SteamSockets",             "Enabled": true },
+		{ "Name": "GameFeatures",             "Enabled": true },
+		{ "Name": "ModularGameplay",          "Enabled": true },
+		{ "Name": "MotionWarping",            "Enabled": true },
+		{ "Name": "Metasound",                "Enabled": true },
+		{ "Name": "AudioModulation",          "Enabled": true },
+		{ "Name": "AudioGameplayVolume",      "Enabled": true },
+		{ "Name": "SignificanceManager",      "Enabled": true },
+		{ "Name": "AnimationBudgetAllocator", "Enabled": true },
+		{ "Name": "DataValidation",           "Enabled": true },
+		{ "Name": "AndroidFileServer",        "Enabled": false }
+	]
+}

@@ -1,0 +1,400 @@
+# Блок 2 — Структура папок и иерархия ключевых C++ классов
+
+> Статус: **Proposed v0.1** · 2026-11-19 · Модули описаны в [Блоке 1](01_Module_and_Plugin_Map.md)
+
+---
+
+## 2.1 Репозиторий
+
+```
+ProtocolHollow/
+├─ ProtocolHollow.uproject
+├─ Config/
+│  ├─ DefaultEngine.ini · DefaultGame.ini · DefaultInput.ini
+│  ├─ DefaultScalability.ini · DefaultDeviceProfiles.ini     (пресеты 3060 / Steam Deck)
+│  └─ Tags/HollowContentTags.ini                            (только не-нативные теги контента)
+├─ Source/
+│  ├─ ProtocolHollow.Target.cs · ProtocolHollowEditor.Target.cs
+│  ├─ HollowCore/     Public/{Tags, Interfaces, Data, Net, Noise, Math}  Private/{…, Tests}   (в каждом модуле: Public/<Module>Log.h)
+│  ├─ HollowGAS/      Public/{AbilitySystem, Attributes, Abilities, Effects, Characters, Data}
+│  ├─ HollowEconomy/  Public/{Items, Inventory, Crafting, Insurance, Extraction, Profile}
+│  ├─ HollowNetwork/  Public/{Session, Voice, Entitlements, Diagnostics}
+│  ├─ HollowPhysics/  Public/{Doors, Cutting, Breach, Carry, Movement, Gravity, Props, Destruction, Navigation}
+│  ├─ HollowPCG/      Public/{Generator (чистый C++), Data, Assembly, Dressing}
+│  ├─ HollowAI/       Public/{Characters, Controllers, StateTree, EQS, Perception, Director, Heatmap, Vents}
+│  ├─ HollowGame/     Public/{Framework, Character, Tools, Interaction, Raid, Hub}
+│  ├─ HollowUI/       Public/{Foundation, Visor, Hub, ViewModels}
+│  └─ HollowEditor/   Private/{Validation, Visualizers, SectorPreview}
+├─ Plugins/
+│  ├─ GameFeatures/
+│  │  ├─ HollowSector_Docks/        Сектор I — базовая игра, тот же пайплайн, что у DLC
+│  │  ├─ HollowSector_Cathedral/    Сектор II (позже)
+│  │  └─ HollowSector_CryoArchive/  Сектор III, база для DLC (позже)
+│  └─ Lyra/  CommonUser · CommonLoadingScreen · ModularGameplayActors
+├─ Content/Hollow/
+│  ├─ Core/        Input/ · Data/Global/ · Materials/Master/ · Audio/{Mix, Buses}/
+│  ├─ Characters/  ExoFrame/ · Enemies/{Whisperer, IronPilgrim, EchoStalker}/
+│  ├─ Tools/       PlasmaCutter/ · Welder/ · Gadgets/
+│  ├─ GAS/         Abilities/ · Effects/ · Cues/
+│  ├─ Items/ · Recipes/ · ExoFrames/
+│  ├─ World/Kit/   общий модульный кит: стены, проёмы, двери, переборки (Nanite)
+│  ├─ Maps/        L_Boot · L_Hub_Skit · L_Raid_Persistent · L_Transition · Dev/ · Tests/
+│  ├─ UI/
+│  └─ Developers/  личные песочницы (исключены из кука)
+├─ Docs/          Architecture/ · ADR/ · Sprints/ · QA/
+└─ Build/         скрипты: прогон тестов, BuildGraph и упаковка (позже)
+```
+
+### Префиксы ассетов
+
+| Префикс | Тип | Префикс | Тип |
+|---|---|---|---|
+| `BP_` | Blueprint-актёр | `DA_` | Primary Data Asset |
+| `DT_` | DataTable | `CT_` / `CF_` | CurveTable / CurveFloat |
+| `GA_` | Gameplay Ability | `GE_` | Gameplay Effect |
+| `GCN_` | GameplayCue Notify | `GC_` | Geometry Collection |
+| `ST_` | StateTree | `EQS_` | Environment Query |
+| `LV_` | уровень-комната | `PLA_` | Packed Level Actor |
+| `M_` / `MI_` | материал / инстанс | `MPC_` | Material Parameter Collection |
+| `NS_` | Niagara System | `MSS_` | MetaSound Source |
+| `W_` | UMG/CommonUI-виджет | `IA_` / `IMC_` | Input Action / Mapping Context |
+| `NAV_` | NavArea / NavQueryFilter (BP-тюнинг) | `CCC_` | Chaos Cache Collection |
+
+### Primary Asset Types (`UHollowAssetManager`)
+`HollowItem`, `HollowToolModule`, `HollowRecipe`, `HollowExoFrame`, `HollowRoom`, `HollowBiome`, `HollowContract`, `HollowEnemy`, `HollowDoor`, `HollowBreachable`, `HollowCarryable`.
+Все `*Definition` — **лёгкие DataAssets**: тяжёлые меши, VFX и уровни внутри них хранятся только как `TSoftObjectPtr`/`TSoftClassPtr`. Поэтому определения предметов можно целиком предзагрузить при старте и **реплицировать указателями** (NetGUID), а не строками (см. §2.6).
+
+### Дерево GameplayTags (нативные, `HollowCore/Public/Tags/HollowGameplayTags.h`)
+
+```
+Hollow.Ability.Tool.{PlasmaCutter, Welder}      Hollow.Ability.Gadget.PulseMine
+Hollow.Ability.{Interact, Carry.Heavy, Sprint}  Hollow.Ability.Enemy.{Pilgrim.Breach, Pilgrim.Melee, Stalker.Ambush}
+Hollow.State.CarryingHeavy.{Solo, Coop}         Hollow.State.Resonance.{Low, Medium, High, Critical}
+Hollow.State.{Stunned, Downed, Dead, Tool.Overheated, Invulnerable.Kinetic}
+Hollow.Damage.{Kinetic, Occult, Thermal, Structural}
+Hollow.Noise.{Voice, Footstep, Tool.Cutter, Tool.Welder, Impact.Heavy, Structural.Breach, Core.Drop}
+Hollow.Event.{Door.Welded, Door.Breached, Bulkhead.Breached, Core.PickedUp, Raid.Extracted}
+Hollow.Input.{Move, Look, PrimaryUse, SecondaryUse, Interact, Sprint, Crouch, Gadget}
+Hollow.Room.Type.{Spawn, Extraction, CoreVault, Hangar, Corridor, Airlock}
+Hollow.Item.Type.{Tool, ToolModule, Consumable, Artifact, AetherCore}
+Hollow.Data.{Damage, ResonanceGain, FuelCost, ToolStat.*}       ← ключи SetByCaller
+GameplayCue.Hollow.{Tool.Beam, Door.WeldSparks, Bulkhead.Breach, Stalker.Presence}
+```
+🔶 **Исключение из правила `Hollow.*`:** GAS ищет GameplayCue только под корнем `GameplayCue.`, поэтому теги кьюшек живут в `GameplayCue.Hollow.*`. Это единственное исключение, его нужно внести в CLAUDE.md §4.
+
+```cpp
+// HollowCore/Public/Tags/HollowGameplayTags.h
+#pragma once
+#include "NativeGameplayTags.h"
+
+namespace HollowTags
+{
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Tool_PlasmaCutter); // Hollow.Ability.Tool.PlasmaCutter
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Tool_Welder);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_CarryingHeavy_Solo);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Noise_Tool_Welder);
+	// …
+}
+```
+
+---
+
+## 2.2 Game Framework
+
+```
+UGameInstance
+└─ UHollowGameInstance                         [Game]  тонкий: маршрутизирует NetworkFailure/TravelFailure → UHollowSessionSubsystem
+
+AGameModeBase
+└─ AHollowGameModeBase                         [Game]  спавн, выдача ExoFrame, общие правила
+   ├─ AHollowHubGameMode                       [Game]  «Скит»: лобби, контракт, верстак, готовность
+   └─ AHollowRaidGameMode                      [Game]  без логики внутри; вся логика в server-only компонентах:
+        ├─ UHollowRaidFlowComponent            фазы Assembling → Deploying → InRaid → Extraction → Debrief
+        ├─ UHollowSectorAuthorityComponent     [PCG]   Seed → Generate → Manifest → GameState
+        └─ UHollowRaidOutcomeComponent         [Game]  смерть/эвакуация → FHollowRaidResult каждому игроку
+
+AGameStateBase
+└─ AHollowGameState                            [Game]  тоже тонкий; состояние живёт в UGameStateComponent'ах:
+   ├─ UHollowSectorStateComponent    [PCG]  Rep: int32 Seed, FHollowSectorManifest Manifest, uint32 LayoutHash
+   ├─ UHollowRaidPhaseComponent      [Game] Rep: EHollowRaidPhase Phase, float PhaseEndServerTime
+   ├─ UHollowSquadResonanceComponent [GAS]  Rep: uint8 SquadResonanceQ, EHollowResonanceTier Tier
+   └─ UHollowExtractionStateComponent[Game] Rep: активная точка эвакуации, время отлёта (server time)
+
+APlayerState
+└─ AHollowPlayerState : IAbilitySystemInterface   [Game]
+   ├─ UHollowAbilitySystemComponent (Mixed) + AttributeSets   ← ASC на PlayerState переживает смерть и респаун Pawn
+   ├─ UHollowInventoryComponent     [Economy] FFastArray, COND_OwnerOnly
+   ├─ UHollowLoadoutComponent       [Economy] публичная часть: что видно другим (сборка инструмента в руках)
+   └─ ExoFrameId · InsuredSlots (OwnerOnly) · FHollowRaidStats (для дебрифа)
+   ⚠ SetNetUpdateFrequency(30…60): дефолт у PlayerState очень низкий, атрибуты будут «лагать»
+
+APlayerController
+└─ AHollowPlayerController                     [Game]  маршрутизация CommonUI, Client_ReceiveRaidResult(), Server_ReportSectorReady()
+   └─ UHollowVoiceLoudnessComponent            [Net]   громкость микрофона → сервер (§3.8)
+
+ACharacter
+└─ AHollowCharacterBase : IAbilitySystemInterface, IGameplayTagAssetInterface   [GAS]
+   ├─ AHollowExoFrameCharacter                 [Game]  игрок (композиция в §2.3)
+   └─ AHollowEnemyCharacter                    [AI]    свой ASC (Minimal), данные из UHollowEnemyDefinition
+      ├─ AHollowWhispererCharacter · AHollowIronPilgrimCharacter · AHollowEchoStalkerCharacter
+
+AAIController
+└─ AHollowAIController                         [AI]    UStateTreeAIComponent, UAIPerceptionComponent, TeamId, NavQueryFilter из DA
+```
+
+Почему GameMode и GameState тонкие: по CLAUDE.md §8 монолиты запрещены. Каждая подсистема рейда — отдельный компонент, у которого есть своя спецификация и свой тест.
+
+---
+
+## 2.3 Персонаж ExoFrame — композиция компонентов
+
+| Компонент | Модуль | Роль | Сеть |
+|---|---|---|---|
+| `UHollowCharacterMovementComponent` | Physics | ходьба, low-G и zero-G, штрафы переноски через **кастомные saved moves** | предсказание CMC |
+| `UHollowInteractionComponent` | Game | локальный фокус-трейс по таймеру 15 Гц (без Tick), подсказки, `Server_Interact` с серверной проверкой | RPC |
+| `UHollowEquipmentComponent` | Game | инструмент в руках, сокеты FP и TP, точка луча | публичный rep сборки |
+| `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели | state через `UHollowCarryableComponent` |
+| `UHollowExoFrameComponent` | Game | применяет `UHollowExoFrameDefinition`: AbilitySet, init-GE, таланты | на сервере |
+| `UHollowVisorComponent` | UI | диегетика шлема: здоровье, связь, Резонанс; только косметика и только локально | — |
+| `UVOIPTalker` (движковый) | Net | 3D-голос с аттенюацией и эффектами шлема и рации | движковый VOIP |
+
+Камера от первого лица: FP-руки (`OnlyOwnerSee`) и TP-тело (`OwnerNoSee`), тело видят тиммейты. **Гейплейная** привязка к позе руками не делается никогда, руки — чистая косметика (важно для переноски, §3.5).
+
+---
+
+## 2.4 Слой GAS
+
+```
+UAbilitySystemComponent
+└─ UHollowAbilitySystemComponent      привязка ввода к способностям по Hollow.Input.*, политики активации, tag relationships
+
+UAttributeSet
+└─ UHollowAttributeSetBase            ATTRIBUTE_ACCESSORS, clamp-хелперы
+   ├─ UHollowHealthSet      Health, MaxHealth, Armor; meta: IncomingDamage, IncomingHealing          rep: всем (тиммейтам на визор)
+   ├─ UHollowSurvivalSet    Stamina, MaxStamina, Oxygen, MaxOxygen, Thermal, ThermalResistance       rep: COND_OwnerOnly
+   ├─ UHollowResonanceSet   Resonance, MaxResonance, ResonanceGainMultiplier                         rep: всем
+   ├─ UHollowCarrySet       CarryWeight, CarryCapacity                                               rep: COND_OwnerOnly
+   └─ UHollowToolSet        ToolFuel, MaxToolFuel, ToolHeat, MaxToolHeat                             rep: COND_OwnerOnly
+   (наборы разбиты в том числе по условию репликации: приватные данные не уходят чужим клиентам)
+
+UGameplayAbility
+└─ UHollowGameplayAbility             ActivationPolicy {OnInputTriggered, WhileInputActive, OnSpawn}, cost и cooldown из данных
+   ├─ UHollowGA_ContinuousTool        [Game] база луча: серверный трейс 10 Гц, прогресс по серверному времени (§3.2)
+   │  ├─ UHollowGA_PlasmaCutter · UHollowGA_Welder
+   ├─ UHollowGA_Interact · UHollowGA_CarryHeavy · UHollowGA_PulseMine
+   └─ (враги, [AI]) UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee · UHollowGA_StalkerAmbush
+
+UGameplayEffectExecutionCalculation
+├─ UHollowDamageExecution             Kinetic, Occult, Structural; броня; иммунитеты по тегам (Echo-Stalker)
+└─ UHollowResonanceGainExecution      прирост × ResonanceGainMultiplier × кривая сложности контракта
+
+UPrimaryDataAsset
+├─ UHollowAbilitySet                  способности, эффекты и AttributeSets к выдаче (как в Lyra)
+├─ UHollowExoFrameDefinition          класс: AbilitySet, init-GE, ветки талантов, фирменный инструмент
+└─ UHollowToolDefinition              темп сварки и резки, частота сэмплов, дальность, GE топлива и нагрева, кьюшки, шумы
+```
+
+```cpp
+// HollowGAS/Public/Attributes/HollowResonanceSet.h  (шаблон для всех наборов)
+UCLASS()
+class HOLLOWGAS_API UHollowResonanceSet : public UHollowAttributeSetBase
+{
+	GENERATED_BODY()
+public:
+	ATTRIBUTE_ACCESSORS(UHollowResonanceSet, Resonance);
+	ATTRIBUTE_ACCESSORS(UHollowResonanceSet, MaxResonance);
+	ATTRIBUTE_ACCESSORS(UHollowResonanceSet, ResonanceGainMultiplier);
+
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;         // clamp [0, Max]
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;            // пороги тиров → Hollow.State.Resonance.*
+
+	UFUNCTION() void OnRep_Resonance(const FGameplayAttributeData& OldValue);   // GAMEPLAYATTRIBUTE_REPNOTIFY внутри
+	UFUNCTION() void OnRep_MaxResonance(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_ResonanceGainMultiplier(const FGameplayAttributeData& OldValue);
+
+private:
+	UPROPERTY(ReplicatedUsing = OnRep_Resonance)               FGameplayAttributeData Resonance;
+	UPROPERTY(ReplicatedUsing = OnRep_MaxResonance)            FGameplayAttributeData MaxResonance;
+	UPROPERTY(ReplicatedUsing = OnRep_ResonanceGainMultiplier) FGameplayAttributeData ResonanceGainMultiplier;
+};
+```
+
+**Где *не* используем атрибуты GAS** 🔶: целостность дверей, переборок и баррикад. Это **состояние мировых объектов**, а не статы актёров. Давать ASC каждой двери (а их 30–60 на сектор) дорого по памяти и трафику. Двери принимают работу через `IHollowToolTarget` и `IHollowStructural`, темпы и множители берутся из данных, расчёт идёт только на сервере. GE при этом остаются у **инициатора**: топливо, нагрев, Резонанс. Правило CLAUDE.md §4 «никаких прямых мутаций атрибутов» выполняется полностью, потому что у дверей атрибутов нет.
+
+---
+
+## 2.5 Предметы, инвентарь, крафт, экономика
+
+```
+UPrimaryDataAsset
+├─ UHollowItemDefinition       DisplayName, Icon (soft), Fragments: TArray<TObjectPtr<UHollowItemFragment>> (Instanced)
+│    фрагменты: _Stack · _Weight · _Equippable(→UHollowToolDefinition) · _Resonance · _Value · _Insurable · _HeavyCarry(→TSoftClassPtr<AActor>)
+├─ UHollowToolModuleDefinition слот {Frame, Core, Relic, Attachment} + модификаторы статов (данные, не код)
+├─ UHollowRecipeDefinition     входы, выходы, требуемый чертёж, уровень верстака
+└─ UHollowEconomyConfig        цены (CurveTable), стоимость страховки, налог корпорации, кривые наград по угрозе
+
+Чистая логика (без UWorld, покрыта тестами):
+├─ HollowToolMath::ComputeStats(const FHollowToolAssembly&, const UHollowToolDefinition&) → FHollowToolStats
+├─ FHollowCraftingRules::Validate/Execute(FHollowProfileTransaction&, const UHollowRecipeDefinition&)
+└─ FHollowExtractionResolver::Resolve(const FHollowRaidContext&, EHollowRaidOutcome) → FHollowProfileDelta
+
+Компоненты и подсистемы:
+├─ UHollowInventoryComponent   [PlayerState] серверный API: TryAdd, TryRemove, Transfer, DropToWorld
+├─ UHollowLoadoutComponent     [PlayerState] публичная сборка в руках (видят все)
+└─ UHollowProfileSubsystem     [GameInstanceSubsystem, ЛОКАЛЬНЫЙ] SaveGame с версией, Steam Cloud, escrow рейда 🔶 ADR-0005
+```
+
+```cpp
+// HollowEconomy/Public/Inventory/HollowInventoryList.h
+USTRUCT()
+struct FHollowItemEntry : public FFastArraySerializerItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY() int32 InstanceId = INDEX_NONE;                          // уникален в рамках рейда
+	UPROPERTY() TObjectPtr<const UHollowItemDefinition> Definition;     // NetGUID; все определения предзагружены
+	UPROPERTY() int32 Count = 0;
+	UPROPERTY() FHollowToolAssembly Assembly;                           // пусто для не-инструментов
+	UPROPERTY() bool bInsured = false;
+
+	void PostReplicatedAdd(const struct FHollowInventoryList& InArraySerializer);
+	void PostReplicatedChange(const struct FHollowInventoryList& InArraySerializer);
+	void PreReplicatedRemove(const struct FHollowInventoryList& InArraySerializer);
+};
+
+USTRUCT()
+struct FHollowInventoryList : public FFastArraySerializer
+{
+	GENERATED_BODY()
+
+	UPROPERTY() TArray<FHollowItemEntry> Items;
+	UPROPERTY(NotReplicated) TObjectPtr<UActorComponent> OwnerComponent = nullptr;
+
+	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
+	{
+		return FFastArraySerializer::FastArrayDeltaSerialize<FHollowItemEntry, FHollowInventoryList>(Items, DeltaParms, *this);
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHollowInventoryList> : public TStructOpsTypeTraitsBase2<FHollowInventoryList>
+{
+	enum { WithNetDeltaSerializer = true };
+};
+
+// UHollowInventoryComponent::GetLifetimeReplicatedProps:
+//   FDoRepLifetimeParams P; P.bIsPushBased = true; P.Condition = COND_OwnerOnly;
+//   DOREPLIFETIME_WITH_PARAMS_FAST(UHollowInventoryComponent, InventoryList, P);
+```
+
+**Экземпляры предметов — структуры, а не UObject** (в отличие от Lyra). Это дешевле по трафику и памяти, а SaveGame и тесты становятся проще. Если когда-нибудь понадобится сложное поведение экземпляра, оно будет жить во фрагменте определения, а не в инстансе.
+
+---
+
+## 2.6 PCG / сборка сектора
+
+```
+UPrimaryDataAsset
+├─ UHollowBiomeDefinition     пул комнат (TArray<TSoftObjectPtr<UHollowRoomDefinition>>), FHollowSectorGenRules,
+│                             таблицы врагов, пресеты света и звука, классы дверей и переборок (TSoftClassPtr)
+├─ UHollowRoomDefinition      TSoftObjectPtr<UWorld> RoomLevel; FIntVector GridSize (клетки по 400 uu);
+│                             TArray<FHollowRoomConnector> {LocalCell, Facing, Size, AllowedKinds}
+│                             TArray<FHollowRoomSocket>    {Transform, Type: Loot|EnemySpawn|CoreSpawn|VentNode|Extraction|PropAnchor}
+│                             FGameplayTagContainer RoomTags; Weight; MinCount/MaxCount; DressingVariants
+└─ UHollowContractDefinition  биом, уровень угрозы, модификаторы аномалий, цели добычи
+
+Чистый C++ (без UObject, тесты Блока 7.1 CLAUDE.md):
+├─ FHollowRoomTemplate        POD-снимок RoomDefinition для генератора (сортировка по PrimaryAssetId!)
+├─ FHollowSectorGenRules      длина критического пути, ветки, MinLoops, MaxDeadEndDepth, квоты типов комнат
+└─ FHollowSectorGenerator::Generate(const FHollowSectorGenInput&, FHollowSectorLayout& Out) → EHollowGenResult
+
+USTRUCT (реплицируется):
+└─ FHollowSectorManifest      Seed, ContentVersion, LayoutHash,
+                              TArray<FHollowPlacedRoom>{TObjectPtr<const UHollowRoomDefinition> Room; FIntVector Cell; uint8 Yaw90; uint8 DressingVariant}
+                              TArray<FHollowPlacedConnection>{RoomA, ConnA, RoomB, ConnB, EHollowConnectionKind: Door|Bulkhead|Open|Vent}
+
+UWorldSubsystem
+└─ UHollowSectorAssemblySubsystem   Assemble(Manifest): async-стрим комнат (ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr,
+                                    детерминированные имена "Sector_<Idx>"), на сервере спавн геймплейных актёров по сокетам и коннекторам,
+                                    ожидание NavMesh (OnNavigationGenerationFinishedDelegate) → OnSectorReady
+```
+
+**Алгоритм генератора (v0, только целочисленная сетка):**
+1. Критический путь Spawn → … → CoreVault → … → Extraction: случайное блуждание по коннекторам с проверкой пересечений целочисленных AABB.
+2. Ветки: тайники и опциональные комнаты, глубина ограничена `MaxDeadEndDepth` (по умолчанию 1).
+3. Петли: соединяем соседние совместимые свободные коннекторы, пока `E − V + 1 ≥ MinLoops`. Это гарантирует, что от Сталкера всегда есть второй путь.
+4. Валидация: связность, петли, тупики, квоты (≥1 CoreVault, ≥2 соединения типа Bulkhead, Extraction на расстоянии ≥ N от Spawn). При провале повторяем с `Seed' = HashCombine(Seed, Attempt)` до 32 раз. Всё детерминировано.
+5. Запреты, которые ломают детерминизм: `FMath::Rand`, порядок `TMap`/`TSet`, порядок выдачи Asset Registry, float-математика в топологии.
+
+**Где работает PCG Framework:** только **внутри комнат**, для декора (кабели, трубы, мусор, биомеханика). Варианты декора по возможности запекаются в редакторе в `DressingVariants`. Рантайм-PCG допускается для косметики с `RoomSeed = Hash(Seed, RoomIdx)` без коллизий, влияющих на геймплей. Геймплейные объекты (укрытия, лут, двери) **всегда** спавнит сервер как реплицируемые актёры. Подробнее и про отклонение от CLAUDE.md §5 — в [ADR-0003](../ADR/ADR-0003-sector-manifest-replication.md).
+
+---
+
+## 2.7 ИИ
+
+```
+AHollowEnemyCharacter (ASC Minimal, UHollowEnemyDefinition) → Whisperer · IronPilgrim · EchoStalker
+AHollowAIController  → UStateTreeAIComponent (ST_ из DA) · UAIPerceptionComponent (Hearing + Sight) · фильтр навигации из DA
+
+StateTree (USTRUCT, FStateTreeTaskCommonBase и т.п.):
+  Tasks:      FHollowSTTask_MoveToRoom · _BreachObstacle · _InvestigateNoise · _TraverseVent · _Ambush · _Retreat · _PlayAbility
+  Conditions: FHollowSTCond_HasStimulus · _SquadResonanceAbove · _PathBlockedByDoor · _IsStunned
+  Global:     FHollowSTEval_DirectorBudget · _BestHeatRoom
+
+EQS: UHollowEnvQueryGenerator_RoomSockets · UHollowEnvQueryTest_OutOfFlashlightCone · UHollowEnvQueryTest_HeatScore
+
+UWorldSubsystem (server-only):
+  UHollowThreatDirectorSubsystem    кривая напряжения, пейсинг спавнов, «поводок» агрессии Сталкера (UHollowDirectorConfig)
+  UHollowActivityHeatmapSubsystem   тепло по комнатам и порталам графа сектора, затухание (данные из шума и перемещений)
+  UHollowVentNetworkSubsystem       абстрактный граф вентиляции из манифеста (Connection = Vent), без навмеша
+```
+
+---
+
+## 2.8 Подсистемы: сводка
+
+| Подсистема | Тип | Где активна | Модуль |
+|---|---|---|---|
+| `UHollowSessionSubsystem` | GameInstance | везде | Network |
+| `UHollowVoiceSubsystem` | GameInstance | везде (локальный микрофон) | Network |
+| `UHollowEntitlementSubsystem` | GameInstance | везде | Network |
+| `UHollowProfileSubsystem` | GameInstance | везде (**только свой профиль**) | Economy |
+| `UHollowNoiseSubsystem` | World | сервер | Core |
+| `UHollowSectorAssemblySubsystem` | World | везде (спавн — только на сервере) | PCG |
+| `UHollowDestructionBudgetSubsystem` | World | везде (косметический бюджет у каждой машины свой) | Physics |
+| `UHollowNavUpdateSubsystem` | World | сервер (навмеш только на хосте) | Physics |
+| `UHollowThreatDirectorSubsystem` | World | сервер | AI |
+| `UHollowActivityHeatmapSubsystem` | World | сервер | AI |
+| `UHollowVentNetworkSubsystem` | World | сервер (клиентам — только косметика звука) | AI |
+
+---
+
+## 2.9 Жизненный цикл: Хаб → Рейд → Дебриф
+
+```mermaid
+sequenceDiagram
+  participant H as Хост (Listen Server)
+  participant C as Клиент
+  Note over H,C: Хаб «Скит» (listen-сессия; соло = приватная сессия на 1 игрока)
+  C->>H: Server_SubmitLoadout(FHollowLoadoutSnapshot) — проверка по реестру предметов и лимитам стаков
+  C->>C: ProfileSubsystem: escrow-маркер «рейд начат» и снимок лоадаута в SaveGame
+  H->>C: ServerTravel L_Raid_Persistent?Contract=…&Seed=… (seamless, лоадаут переносится через CopyProperties)
+  H->>H: SectorAuthority: Generate(Seed) → Manifest (+ретраи по производному seed)
+  H-->>C: GameState: Seed + Manifest + LayoutHash (push, один раз)
+  par сборка на каждой машине
+    H->>H: стрим комнат, спавн геймплейных актёров, построение NavMesh
+    C->>C: стрим комнат по манифесту, локальный декор по RoomSeed
+  end
+  C->>H: Server_ReportSectorReady(LayoutHash)
+  H->>H: все готовы и NavMesh готов → Phase = Deploying → InRaid
+  Note over H,C: рейд 15–30 минут
+  H->>C: Client_ReceiveRaidResult(FHollowRaidResult)
+  C->>C: Resolver → FHollowProfileDelta → Apply → SaveGame (+Steam Cloud), escrow снят
+  H->>C: ServerTravel обратно в хаб
+```
+
+- **Seed** выбирает только хост, один раз, в хабе. Это единственное место с недетерминированным источником. Для «ежедневных контрактов» seed берётся как хеш даты.
+- **Seamless travel:** нужна `L_Transition`, а в PIE включается `net.AllowPIESeamlessTravel 1`.
+- **Сборка «Хост и клиенты»:** в PIE прогоняем каждый день, в Steam — раз в неделю (Блок 4).
