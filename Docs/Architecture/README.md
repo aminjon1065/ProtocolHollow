@@ -36,4 +36,5 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0009, все в статусе *Accepted*
 
 ## Прогресс
 - **S1-01 «Бутстрап»** — `.uproject` (UE 5.8), 10 модулей, лог-категории, нативные теги с compile-time проверкой неймспейса, `UHollowAssetManager`, автотесты `Hollow.Core.*`, Git + LFS, скрипты `Build/Scripts/` (Mac-сборка с гейтом warnings, упаковка Win64 под 16 ГБ RAM).
-- Далее: S1-02 (тест-харнесс CLI) → S1-03 (Steam) → S1-04…S1-07.
+- **S1-02 «Тест-харнесс»** — `Build/Scripts/run-tests-mac.sh` и парный `run-tests-win64.ps1` (+ `.cmd`) на общем модуле `HollowBuild.psm1`: инкрементальная сборка с гейтом warnings → headless `Automation RunTests Hollow.` → сводка `index.json`/`index.html`. Коды выхода: 0 ok · 1 упал/не запущен тест · 2 окружение · 3 нет отчёта · 4 фильтр пуст · 5 редактор вернул ≠0 · 6 таймаут · 7 сборка. На Mac проверены ветки 0/1/4/6 и `--strict`.
+- Далее: S1-03 (Steam) → S1-04…S1-07.

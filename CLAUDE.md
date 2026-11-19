@@ -104,7 +104,7 @@ Every new core system must include lightweight **UE5 Automation / Functional Tes
 - Compiles cleanly with zero new compiler warnings.
 - No `LogTemp`, dead code, or hardcoded magic numbers.
 - Replication verified in PIE with **2+ players (Listen Server + Client)** for any networked feature.
-- Relevant automation tests added or updated and passing.
+- Relevant automation tests added or updated and passing: `Build/Scripts/run-tests-mac.sh` (macOS) / `Build\Scripts\run-tests-win64.cmd` (Windows) must exit `0` — they build the editor with the zero-warning gate, run `Hollow.*` headless and fail on any failed/not-run test, empty filter, editor crash or timeout.
 
 ---
 

@@ -3,7 +3,7 @@
     Packages Protocol: Hollow for Win64 on a memory-constrained (16 GB RAM) Windows machine.
 
 .DESCRIPTION
-    Wrapper over RunUAT BuildCookRun (ADR-0009). Limits derived from installed RAM:
+    Wrapper over RunUAT BuildCookRun (ADR-0009). Limits derived from installed RAM (HollowBuild.psm1):
       * C++ compile actions      (UBT -MaxParallelActions)                     ~2.5 GB each -> 4 at 16 GB
       * ShaderCompileWorkers     ([DevOptions.Shaders] NumUnused... threads)  ~1.25 GB each -> 6 at 16 GB
       * Cooker garbage collection when free physical memory < 3 GB            ([CookSettings])
@@ -41,54 +41,24 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'HollowBuild.psm1') -Force
 
-# Tuning constants - rationale in Docs/ADR/ADR-0009-cross-platform-toolchain.md.
-$EngineVersion           = '5.8'
-$ReservedForOsGB         = 4.0
-$GBPerCompileAction      = 2.5
-$ReservedForCookerGB     = 8.0
-$GBPerShaderWorker       = 1.25
 $ShaderCoreThreshold     = 1024    # forces the absolute NumUnusedShaderCompilingThreads instead of the 50% default
 $CookerMinFreePhysicalMB = 3072
 $RecommendedFreeDiskGB   = 40
 
-if ($env:OS -ne 'Windows_NT') {
-    throw 'package-win64.ps1 must run on Windows: Win64 cannot be built from macOS.'
-}
-
-$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$UProject    = Join-Path $ProjectRoot 'ProtocolHollow.uproject'
-if (-not (Test-Path $UProject)) { throw "Project file not found: $UProject" }
-
-function Resolve-EngineRoot([string] $Candidate) {
-    if ($Candidate) { return $Candidate }
-    $Manifest = Join-Path $env:ProgramData 'Epic\UnrealEngineLauncher\LauncherInstalled.dat'
-    if (Test-Path $Manifest) {
-        $Install = (Get-Content $Manifest -Raw | ConvertFrom-Json).InstallationList |
-            Where-Object { $_.AppName -eq "UE_$EngineVersion" } | Select-Object -First 1
-        if ($Install) { return $Install.InstallLocation }
-    }
-    throw "UE $EngineVersion not found. Pass -EngineRoot or set UE_ROOT."
-}
-
-$EngineRoot = Resolve-EngineRoot $EngineRoot
+Assert-HollowWindows
+$ProjectRoot = Get-HollowProjectRoot
+$UProject    = Get-HollowUProject
+$EngineRoot  = Resolve-HollowEngineRoot $EngineRoot
 $RunUAT = Join-Path $EngineRoot 'Engine\Build\BatchFiles\RunUAT.bat'
 if (-not (Test-Path $RunUAT)) { throw "RunUAT.bat not found: $RunUAT" }
 
 # --- Memory-aware limits -------------------------------------------------------------------------
-$TotalRamGB   = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
-$LogicalCores = [Environment]::ProcessorCount
-
-if ($MaxCompileActions -eq 0) {
-    $MaxCompileActions = [int][math]::Floor(($TotalRamGB - $ReservedForOsGB) / $GBPerCompileAction)
-}
-$MaxCompileActions = [math]::Max(1, [math]::Min($MaxCompileActions, $LogicalCores))
-
-if ($ShaderWorkers -eq 0) {
-    $ShaderWorkers = [int][math]::Floor(($TotalRamGB - $ReservedForCookerGB) / $GBPerShaderWorker)
-}
-$ShaderWorkers = [math]::Max(1, [math]::Min($ShaderWorkers, $LogicalCores - 1))
-$UnusedShaderThreads = [math]::Max(0, $LogicalCores - $ShaderWorkers)
+$Machine             = Get-HollowMachineInfo
+$MaxCompileActions   = Get-HollowCompileActions $MaxCompileActions $Machine
+$ShaderWorkers       = Get-HollowShaderWorkers $ShaderWorkers $Machine
+$UnusedShaderThreads = [math]::Max(0, $Machine.LogicalCores - $ShaderWorkers)
 
 # --- Preflight warnings ---------------------------------------------------------------------------
 $Drive = (Get-Item $ProjectRoot).PSDrive
@@ -99,7 +69,7 @@ if ($FreeDiskGB -lt $RecommendedFreeDiskGB) {
 $PageFileMB = (@(Get-CimInstance Win32_PageFileUsage -ErrorAction SilentlyContinue) |
     Measure-Object -Property AllocatedBaseSize -Sum).Sum
 $PageFileGB = [math]::Round([double]$PageFileMB / 1024, 1)
-if ($PageFileGB -lt $TotalRamGB) {
+if ($PageFileGB -lt $Machine.TotalRamGB) {
     Write-Warning "Page file is $PageFileGB GB. Keep it system-managed (>= RAM) so link and cook peaks do not fail with out-of-memory."
 }
 
@@ -131,27 +101,21 @@ $UatArgs = @(
 if ($Clean) { $UatArgs += '-clean' } else { $UatArgs += '-iterate' }
 
 Write-Host "Protocol: Hollow -> Win64 $Configuration"
-Write-Host ("  RAM {0} GB, {1} logical cores -> {2} compile actions, {3} shader workers" -f $TotalRamGB, $LogicalCores, $MaxCompileActions, $ShaderWorkers)
+Write-Host ("  RAM {0} GB, {1} logical cores -> {2} compile actions, {3} shader workers" -f $Machine.TotalRamGB, $Machine.LogicalCores, $MaxCompileActions, $ShaderWorkers)
 Write-Host "  Engine: $EngineRoot"
 Write-Host "  Output: $OutputDir"
 Write-Host "  Log:    $LogFile"
 
-# Native stderr must not become terminating errors under 'Stop' (Windows PowerShell 5.1).
-$ErrorActionPreference = 'Continue'
-& $RunUAT @UatArgs 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $LogFile
-$ExitCode = $LASTEXITCODE
-$ErrorActionPreference = 'Stop'
-
+$ExitCode = Invoke-HollowNative $RunUAT $UatArgs $LogFile
 if ($ExitCode -ne 0) {
     Write-Host "FAILED: BuildCookRun exit code $ExitCode. See $LogFile" -ForegroundColor Red
     exit $ExitCode
 }
 
-# Zero-warning gate (CLAUDE.md sec. 7): MSVC/UHT warnings located in project modules fail the package.
-$ProjectWarnings = @(Select-String -Path $LogFile -Pattern '[\\/]Source[\\/]Hollow.*warning')
+$ProjectWarnings = @(Get-HollowProjectWarnings $LogFile)
 if ($ProjectWarnings.Count -gt 0) {
     Write-Host "FAILED: $($ProjectWarnings.Count) warning(s) in project sources:" -ForegroundColor Red
-    $ProjectWarnings | ForEach-Object { Write-Host "  $($_.Line)" }
+    $ProjectWarnings | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
 
