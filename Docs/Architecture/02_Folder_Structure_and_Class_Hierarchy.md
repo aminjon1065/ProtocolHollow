@@ -30,7 +30,7 @@ ProtocolHollow/
 │  │  ├─ HollowSector_Docks/        Сектор I — базовая игра, тот же пайплайн, что у DLC
 │  │  ├─ HollowSector_Cathedral/    Сектор II (позже)
 │  │  └─ HollowSector_CryoArchive/  Сектор III, база для DLC (позже)
-│  └─ Lyra/  CommonUser · CommonLoadingScreen · ModularGameplayActors
+│  └─ Lyra/  CommonLoadingScreen · ModularGameplayActors   (CommonUser не берём, ADR-0006)
 ├─ Content/Hollow/
 │  ├─ Core/        Input/ · Data/Global/ · Materials/Master/ · Audio/{Mix, Buses}/
 │  ├─ Characters/  ExoFrame/ · Enemies/{Whisperer, IronPilgrim, EchoStalker}/

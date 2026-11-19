@@ -12,16 +12,13 @@
 # Exit codes: 0 all passed | 1 test failed / not run | 2 usage or environment | 3 no report produced
 #             4 no test matched the filter | 5 editor exited non-zero | 6 timeout | 7 build failed
 set -euo pipefail
+# shellcheck source=hollow-common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/hollow-common.sh"
 
-UE_ROOT="${UE_ROOT:-/Users/Shared/Epic Games/UE_5.8}"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-UPROJECT="${PROJECT_ROOT}/ProtocolHollow.uproject"
 FILTER="Hollow."
 DO_BUILD=1
 STRICT=0
 TIMEOUT_SEC=1800
-POLL_SEC=2
-KILL_GRACE_SEC=10
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -34,57 +31,35 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-EDITOR_CMD="${UE_ROOT}/Engine/Binaries/Mac/UnrealEditor-Cmd"
-PYTHON="${UE_ROOT}/Engine/Binaries/ThirdParty/Python3/Mac/bin/python3"
-for TOOL in "${EDITOR_CMD}" "${PYTHON}"; do
-	if [[ ! -x "${TOOL}" ]]; then
-		echo "Not found: ${TOOL} (set UE_ROOT)" >&2
-		exit 2
-	fi
-done
+hollow_require_tools "${HOLLOW_EDITOR_CMD}" "${HOLLOW_PYTHON}"
 
-if [[ ${DO_BUILD} -eq 1 ]]; then
-	if ! UE_ROOT="${UE_ROOT}" "${PROJECT_ROOT}/Build/Scripts/build-editor-mac.sh"; then
-		echo "FAILED: editor build (or zero-warning gate) failed, tests not run." >&2
-		exit 7
-	fi
+if [[ ${DO_BUILD} -eq 1 ]] && ! hollow_build_editor; then
+	echo "FAILED: editor build (or zero-warning gate) failed, tests not run." >&2
+	exit 7
 fi
 
-RUN_ID="$(date +%Y%m%d-%H%M%S)"
-RUN_DIR="${PROJECT_ROOT}/Saved/Automation/${RUN_ID}"
+RUN_DIR="${HOLLOW_PROJECT_ROOT}/Saved/Automation/$(date +%Y%m%d-%H%M%S)"
 REPORT_DIR="${RUN_DIR}/Report"
 EDITOR_LOG="${RUN_DIR}/Editor.log"
-CONSOLE_LOG="${RUN_DIR}/Console.txt"
 mkdir -p "${REPORT_DIR}"
 
 echo "Running automation tests '${FILTER}' (timeout ${TIMEOUT_SEC}s) -> ${RUN_DIR}"
-"${EDITOR_CMD}" "${UPROJECT}" \
+EDITOR_EXIT=0
+hollow_run_with_timeout "${TIMEOUT_SEC}" "${RUN_DIR}/Console.txt" \
+	"${HOLLOW_EDITOR_CMD}" "${HOLLOW_UPROJECT}" \
 	-ExecCmds="Automation RunTests ${FILTER}; Quit" \
 	-TestExit="Automation Test Queue Empty" \
 	-unattended -nullrhi -nosplash -nosound -nop4 \
 	-abslog="${EDITOR_LOG}" \
-	-ReportExportPath="${REPORT_DIR}" \
-	> "${CONSOLE_LOG}" 2>&1 &
-EDITOR_PID=$!
-
-WAITED=0
-while kill -0 "${EDITOR_PID}" 2>/dev/null; do
-	if [[ ${WAITED} -ge ${TIMEOUT_SEC} ]]; then
-		echo "FAILED: timeout after ${TIMEOUT_SEC}s, killing editor (pid ${EDITOR_PID}). Log: ${EDITOR_LOG}" >&2
-		kill -TERM "${EDITOR_PID}" 2>/dev/null || true
-		sleep "${KILL_GRACE_SEC}"
-		kill -KILL "${EDITOR_PID}" 2>/dev/null || true
-		exit 6
-	fi
-	sleep "${POLL_SEC}"
-	WAITED=$((WAITED + POLL_SEC))
-done
-EDITOR_EXIT=0
-wait "${EDITOR_PID}" || EDITOR_EXIT=$?
+	-ReportExportPath="${REPORT_DIR}" || EDITOR_EXIT=$?
+if [[ ${EDITOR_EXIT} -eq ${HOLLOW_TIMEOUT_EXIT} ]]; then
+	echo "FAILED: timeout after ${TIMEOUT_SEC}s, editor killed. Log: ${EDITOR_LOG}" >&2
+	exit 6
+fi
 
 # Summarize the report and map it to an exit code (UE-bundled Python: no external dependencies).
 REPORT_EXIT=0
-"${PYTHON}" - "${REPORT_DIR}/index.json" "${STRICT}" "${EDITOR_LOG}" <<'PY' || REPORT_EXIT=$?
+"${HOLLOW_PYTHON}" - "${REPORT_DIR}/index.json" "${STRICT}" "${EDITOR_LOG}" <<'PY' || REPORT_EXIT=$?
 import json, os, sys
 
 report_path, strict, editor_log = sys.argv[1], sys.argv[2] == "1", sys.argv[3]

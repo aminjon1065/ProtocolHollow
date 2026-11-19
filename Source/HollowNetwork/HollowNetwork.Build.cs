@@ -8,17 +8,20 @@ public class HollowNetwork : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		IWYUSupport = IWYUSupport.Full;
 
+		// OnlineSubsystem / CoreOnline are public: session types appear in HollowSessionSubsystem.h.
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"DeveloperSettings",
+			"CoreOnline",
+			"OnlineSubsystem",
 			"HollowCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"OnlineSubsystem",
 			"OnlineSubsystemUtils"
 		});
 	}

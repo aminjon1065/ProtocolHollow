@@ -6,10 +6,10 @@
 #   --no-unity   disable unity batching to catch missing includes hidden by unity files
 # Env:    UE_ROOT  engine root (default: /Users/Shared/Epic Games/UE_5.8)
 set -euo pipefail
-
-UE_ROOT="${UE_ROOT:-/Users/Shared/Epic Games/UE_5.8}"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-UPROJECT="${PROJECT_ROOT}/ProtocolHollow.uproject"
+# shellcheck source=hollow-common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/hollow-common.sh"
+PROJECT_ROOT="${HOLLOW_PROJECT_ROOT}"
+UPROJECT="${HOLLOW_UPROJECT}"
 CONFIG="Development"
 EXTRA_ARGS=()
 

@@ -113,3 +113,4 @@ Every new core system must include lightweight **UE5 Automation / Functional Tes
 - Before implementing a new module or refactoring core classes, output a concise **Architecture Plan** (files to create/modify, class signatures, replication flow) and wait for confirmation if the change spans multiple modules.
 - Keep classes focused and modular (avoid monolithic `Character` or `GameMode` classes — extract logic into `UActorComponent` and `UWorldSubsystem` / `UGameInstanceSubsystem`).
 - Whenever a new architectural decision or plugin dependency is finalized, update `CLAUDE_ARCHITECT_BRIEF.md` or add an ADR note under `Docs/ADR/`.
+- **Binary content** (maps, DataAssets) is produced by idempotent editor Python scripts in `Build/Python/`, run headless with `Build/Scripts/run-editor-python.sh <script.py>` (ADR-0010). Never write gameplay logic in Python.

@@ -66,7 +66,7 @@ graph TD
 | **HollowCore** | Runtime | Лог-категории, нативные GameplayTags, интерфейсы взаимодействия (§1.4), `UHollowAssetManager`, `UHollowDeveloperSettings`, сетевая квантизация, детерминированный RNG и хеши, `UHollowNoiseSubsystem` (единая точка шума для AI Hearing) | — | Core, CoreUObject, Engine, GameplayTags, DeveloperSettings, NetCore, AIModule *(private, ради `UAISense_Hearing`)* | `LogHollowCore` |
 | **HollowGAS** | Runtime | `UHollowAbilitySystemComponent`, AttributeSets, базовые Ability/Effect/Execution, `UHollowAbilitySet`, `AHollowCharacterBase` (общая база игрока и врага: ASC-интерфейс, смерть, теги) | Core | GameplayAbilities, GameplayTasks, GameplayTags | `LogHollowGAS` |
 | **HollowEconomy** | Runtime | DataAssets предметов, рецептов и модулей, инвентарь на FastArray, валидация крафта, страховка, `FHollowExtractionResolver`, профиль и SaveGame | Core, GAS | NetCore | `LogHollowEconomy` |
-| **HollowNetwork** | Runtime | Steam-сессии, лобби, инвайты, голос (VOIP-talkers и громкость → шум), DLC-entitlements, сетевая диагностика. **Репликация геймплея здесь не живёт**, она остаётся в своих доменах | Core | OnlineSubsystem, OnlineSubsystemUtils, Voice, AudioMixer, CommonUser, Steamworks *(private, для DLC)* | `LogHollowNet` |
+| **HollowNetwork** | Runtime | Steam-сессии, лобби, инвайты, голос (VOIP-talkers и громкость → шум), DLC-entitlements, сетевая диагностика. **Репликация геймплея здесь не живёт**, она остаётся в своих доменах | Core | OnlineSubsystem, OnlineSubsystemUtils, Voice, AudioMixer, Steamworks *(private, для DLC)* | `LogHollowNet` |
 | **HollowPhysics** | Runtime | State machines дверей, сварки и резки, Chaos-переборки, переноска ядер, гравитационные зоны, баррикады, бюджет разрушений, nav-links и nav-обновления, `UHollowCharacterMovementComponent` | Core, GAS | PhysicsCore, Chaos, ChaosSolverEngine, GeometryCollectionEngine, FieldSystemEngine, ChaosCaching, NavigationSystem | `LogHollowPhysics` |
 | **HollowPCG** | Runtime | Чистый генератор графа сектора, DataAssets Room/Biome/Contract, манифест сектора, сборка (стриминг комнат и спавн геймплейных актёров), PCG-ноды декора | Core | PCG, NavigationSystem, ModularGameplay | `LogHollowPCG` |
 | **HollowAI** | Runtime | `AHollowEnemyCharacter` и наследники, `AHollowAIController`, задачи и условия StateTree, EQS, перцепция, Threat Director, Heatmap, граф вентиляции | Core, GAS | AIModule, StateTreeModule, GameplayStateTreeModule, NavigationSystem, MotionWarping | `LogHollowAI` |
@@ -117,9 +117,10 @@ graph TD
 | ModelViewViewModel | биндинг Visor и HUD без Tick в виджетах | Could |
 | PoseSearch (Motion Matching) | TP-локомоция тиммейтов на базе Epic Game Animation Sample | Could |
 | DataValidation (editor) | валидаторы контента | Must |
+| PythonScriptPlugin (**только Editor**, `TargetAllowList: [Editor]`) | headless-автоматизация контента: карты, DataAssets, greybox-кит ([ADR-0010](../ADR/ADR-0010-editor-python-automation.md)) | Must |
 
 ### Берём из Lyra Starter Game (код Epic, разрешён к использованию в UE-проектах)
-- **CommonUser** — обёртка над OSS: логин, сессии, инвайты. Экономит 1–2 недели.
+- ~~CommonUser~~ — **не берём** (решение 2026-11-19, [ADR-0006](../ADR/ADR-0006-online-stack-steam.md)): у нас только Steam на PC, а ценность CommonUser — мультиплатформенный логин, привилегии и OSSv2. Вместо него — свой тонкий `UHollowSessionSubsystem` поверх OSSv1.
 - **CommonLoadingScreen** — экран загрузки на время сборки сектора и построения навмеша.
 - **ModularGameplayActors** — базовые актёры, которые понимают компоненты из GameFeature.
 - *(опционально)* **GameplayMessageRouter**, если UI понадобится шина сообщений.

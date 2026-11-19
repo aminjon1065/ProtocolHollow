@@ -41,7 +41,7 @@
 |---|---|---|---|---|---|
 | S1-01 | Бутстрап: .uproject, 10 модулей с Build.cs, лог-категории, нативные теги, `UHollowAssetManager`, git + LFS (`.gitattributes` для uasset/umap) | все | 1.0 | M | собирается без warnings; теги видны в редакторе |
 | S1-02 | Тест-харнесс: категория `Hollow.*`, скрипт `Build/RunTests.sh` (`UnrealEditor-Cmd … -ExecCmds="Automation RunTests Hollow;Quit" -unattended -nullrhi`) | Core | 0.5 | M | один скрипт → отчёт, код выхода ≠ 0 при падении |
-| S1-03 | Сеть: OSS Steam + SteamSockets, `UHollowSessionSubsystem` на CommonUser (host, invite, join), соло как приватный listen, Null OSS в PIE | Network | 1.5 | M | инвайт через оверлей Steam работает на 2 ПК |
+| S1-03 | Сеть: OSS Steam + SteamSockets, свой `UHollowSessionSubsystem` поверх OSSv1 (host, invite, join; вход только в хаб), соло как приватный listen, Null OSS в PIE | Network | 1.5 | M | инвайт через оверлей Steam работает на 2 ПК |
 | S1-04 | ExoFrame: FP-руки + TP-тело (манекен или GASP), Enhanced Input (IMC рейда), каркас `UHollowCharacterMovementComponent` с custom saved move | Game, Physics | 1.5 | M | в PIE с 2 клиентами и Network Emulation *Bad* без дёрганий |
 | S1-05 | GAS: ASC на PlayerState (Mixed, NetUpdateFrequency), наборы Health/Survival/Resonance/Tool, `UHollowGameplayAbility`, `UHollowAbilitySet`, init-GE | GAS | 1.5 | M | тест `Hollow.GAS.AttributeClamp` зелёный |
 | S1-06 | Взаимодействие: `UHollowInteractionComponent` (таймер 15 Гц), `IHollowInteractable`, серверная проверка | Game | 0.75 | M | кнопка на тест-карте работает у обоих |

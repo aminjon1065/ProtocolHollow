@@ -14,6 +14,7 @@
 *.uplugin  text eol=lf
 *.md       text eol=lf
 *.sh       text eol=lf
+*.py       text eol=lf
 
 # Windows entry points
 *.bat      text eol=crlf

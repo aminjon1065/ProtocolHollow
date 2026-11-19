@@ -37,6 +37,7 @@
 		{ "Name": "SignificanceManager",      "Enabled": true },
 		{ "Name": "AnimationBudgetAllocator", "Enabled": true },
 		{ "Name": "DataValidation",           "Enabled": true },
-		{ "Name": "AndroidFileServer",        "Enabled": false }
+		{ "Name": "AndroidFileServer",        "Enabled": false },
+		{ "Name": "PythonScriptPlugin",       "Enabled": true, "TargetAllowList": [ "Editor" ] }
 	]
 }
