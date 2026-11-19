@@ -24,7 +24,7 @@ struct FHollowInputAction
 
 /**
  * Tag -> input action table of an input context (e.g. DA_InputConfig_Raid). Code binds by tag, never by asset,
- * so remapping and new contexts are data changes. Ability-driven actions join in S1-05 (GAS).
+ * so remapping and new contexts are data changes. Ability actions are routed to the ability system by tag (S2-03).
  */
 UCLASS(BlueprintType, Const)
 class HOLLOWGAME_API UHollowInputConfig : public UDataAsset
@@ -52,4 +52,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (TitleProperty = "InputTag"))
 	TArray<FHollowInputAction> NativeActions;
+
+	/** Pressed / released go to UHollowAbilitySystemComponent::AbilityInputTag*, which finds abilities by the same tag. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (TitleProperty = "InputTag"))
+	TArray<FHollowInputAction> AbilityActions;
 };

@@ -79,6 +79,7 @@ namespace HollowTags
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Damage);
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_ResonanceGain);
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_FuelCost);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_HeatGain);
 
 	// GameplayCues: the only tags outside Hollow.* (GAS requires the GameplayCue. root, CLAUDE.md sec. 4)
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Tool_Beam);

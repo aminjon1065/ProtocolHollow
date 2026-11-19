@@ -186,8 +186,9 @@ UAttributeSet
 
 UGameplayAbility
 └─ UHollowGameplayAbility             ActivationPolicy {OnInputTriggered, WhileInputActive, OnSpawn}, cost и cooldown из данных
-   ├─ UHollowGA_ContinuousTool        [Game] база луча: серверный трейс 10 Гц, прогресс по серверному времени (§3.2)
-   │  ├─ UHollowGA_PlasmaCutter · UHollowGA_Welder
+   ├─ UHollowGA_ContinuousTool        [Game] (S2-03) база луча: серверный трейс 10 Гц, прогресс по серверному времени (§3.2)
+   │  └─ GA_Tool_Welder · GA_Tool_PlasmaCutter   BP-наследники без своего кода: вся разница в UHollowToolDefinition (DA),
+   │                                             а смысл работы (сварка / резка) решает мишень — двери S2-04, швы S2-07
    ├─ UHollowGA_CarryHeavy · UHollowGA_PulseMine   (взаимодействие — UHollowInteractionComponent, не способность)
    └─ (враги, [AI]) UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee · UHollowGA_StalkerAmbush
 

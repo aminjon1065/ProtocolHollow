@@ -3,6 +3,8 @@
 #include "Abilities/HollowAbilitySet.h"
 #include "Characters/HollowCharacterBase.h"
 
+#include "GameplayTagContainer.h"
+
 #include "HollowExoFrameCharacter.generated.h"
 
 class UCameraComponent;
@@ -56,6 +58,8 @@ private:
 	void HandleSprintStarted();
 	void HandleSprintCompleted();
 	void HandleInteract();
+	void HandleAbilityInputPressed(FGameplayTag InputTag);
+	void HandleAbilityInputReleased(FGameplayTag InputTag);
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonMesh;

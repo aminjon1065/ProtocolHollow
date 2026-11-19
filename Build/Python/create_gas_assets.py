@@ -130,7 +130,8 @@ def validate():
               "init effect overrides %s.%s" % (set_name, attribute))
 
     effects = load(ABILITY_SET_PATH).get_editor_property("granted_effects")
-    check(len(effects) == 1 and effects[0].get_editor_property("gameplay_effect") == load(INIT_EFFECT_PATH).generated_class(),
+    # Later scripts grant more effects (e.g. tool cooling, S2-03): check presence, not an exact count.
+    check(any(e.get_editor_property("gameplay_effect") == load(INIT_EFFECT_PATH).generated_class() for e in effects),
           "ability set grants the init effect")
 
     character = unreal.get_default_object(load(EXOFRAME_BP_PATH).generated_class())

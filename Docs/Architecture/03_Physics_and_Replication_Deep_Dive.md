@@ -56,6 +56,7 @@
   - **Прогресс зависит от времени сервера**, а не от заявок клиента: `Delta = Rate × dt_server × модификаторы сборки`. Ускорить резку спидхаком нельзя.
 - **Чужие клиенты** видят активную кьюшку и сами трейсят из `GetBaseAimRotation()` simulated proxy. Точку попадания реплицировать не нужно.
 - **Топливо и нагрев:** на активации навешивается бесконечный периодический `GE_Tool_FuelDrain` (Period 0.25 с, величина через SetByCaller `Hollow.Data.FuelCost`), на `EndAbility` он снимается. `ToolHeat` растёт с каждым сэмплом. При `ToolHeat ≥ MaxToolHeat` срабатывает `PostGameplayEffectExecute` и вешает `GE_Tool_Overheat`, который даёт тег `Hollow.State.Tool.Overheated` и блокирует активацию. Способность сама завершается по делегату изменения `ToolFuel` ≤ 0.
+- *Реализация S2-03:* все числа в `UHollowToolDefinition` (`DA_Tool_Welder`, `DA_Tool_PlasmaCutter`, тип `HollowTool`, модуль GAS). Перегрев проверяет **способность** сразу после сэмпла нагрева (`GE_Tool_Overheat` с нативной базой `UHollowToolOverheatEffect`, выдающей тег), а не `PostGameplayEffectExecute`: способность — единственный источник нагрева, и набору атрибутов не нужно знать классы GE. Остывание — пассивный периодический `GE_Tool_Cooling` из AbilitySet. Ввод: `UHollowAbilitySystemComponent::AbilityInputTagPressed/Released` по тегу `Hollow.Input.*` (Cutter — ЛКМ/RT, Welder — ПКМ/LT). Проверено двумя процессами с `-PktLag=150`: 52 сэмпла за 5,1 с, максимальный разрыв 0,100 с.
 - **Шум:** каждые `NoiseEveryNSamples` сервер вызывает `ReportNoise({Hollow.Noise.Tool.Welder, Location, Instigator})`. Громкость и радиус задаются в `UHollowNoiseConfig` (§3.8).
 
 ```mermaid
@@ -131,6 +132,14 @@ struct FHollowDoorNetState
 | 9 | Closed + Locked | шов замка готов | — | Closed, `Locked` снят | — |
 
 Математика (`HollowDoorMath::ApplyWeld/ApplyCut/ApplyStructural`) — чистые функции с clamp'ом, покрыты тестами (CLAUDE.md §7.2).
+
+### Реализация S2-04
+- `HollowPhysics/Doors`: `FHollowDoorNetState` со своим `NetSerialize` (состояние и флаги в одном байте, всего 8 байт, атомарно), `UHollowDoorDefinition` (`DA_Door_Standard`), чистые `HollowDoorRules` (вся таблица в `Apply`, `Accepts` = пробный прогон, `LeafAlpha`, `IsFreshTransition`), `UHollowDoorStateComponent`, `AHollowDoor` (`BP_Door`, правило биома Door → `BP_Door`).
+- Реализованы строки 1–6 таблицы. Структурный урон и `Breached` (7–8) — с `IHollowStructural` в S3, замок-шов (9) — S2-07, убывающая отдача нескольких сварщиков — кооп-полировка S3. `StructureQ` уже в формате (всегда 255).
+- Частичный шов ниже `SealThreshold`: дверь остаётся Closed и открывается, открытие сбрасывает шов; резак его тоже снимает. Во время Opening/Closing взаимодействие игнорируется.
+- Створка: `InterpEaseInOut` с экспонентой из DA вместо `OpenCurve` (то же поведение, проще данные и тесты); по таймеру только во время перехода, на NavMesh не влияет (nav — S2-05).
+- Занятость проёма — явный запрос пересечения формы проёма с pawn'ами в момент решения, а не учёт overlap-событий.
+- Проверено двумя процессами (клиент с `-PktLag=150`): все 40 изменений шва (0,2 с троттлинг, финал 255 и 0) дошли до клиента по порядку, все 4 перехода — `fresh`.
 
 ### Детали сети
 - Все двери спавнит **сервер** при сборке сектора (§2.6). Сразу после первой репликации они уходят в `DORM_DormantAll`.

@@ -145,6 +145,32 @@ void AHollowExoFrameCharacter::SetupPlayerInputComponent(UInputComponent* Player
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Sprint, ETriggerEvent::Started, this, &ThisClass::HandleSprintStarted);
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Sprint, ETriggerEvent::Completed, this, &ThisClass::HandleSprintCompleted);
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Interact, ETriggerEvent::Started, this, &ThisClass::HandleInteract);
+
+	for (const FHollowInputAction& Entry : InputConfig->AbilityActions)
+	{
+		if (Entry.InputAction && Entry.InputTag.IsValid())
+		{
+			EnhancedInput->BindAction(Entry.InputAction.Get(), ETriggerEvent::Started, this, &ThisClass::HandleAbilityInputPressed, Entry.InputTag);
+			EnhancedInput->BindAction(Entry.InputAction.Get(), ETriggerEvent::Completed, this, &ThisClass::HandleAbilityInputReleased, Entry.InputTag);
+			EnhancedInput->BindAction(Entry.InputAction.Get(), ETriggerEvent::Canceled, this, &ThisClass::HandleAbilityInputReleased, Entry.InputTag);
+		}
+	}
+}
+
+void AHollowExoFrameCharacter::HandleAbilityInputPressed(const FGameplayTag InputTag)
+{
+	if (UHollowAbilitySystemComponent* AbilitySystem = Cast<UHollowAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		AbilitySystem->AbilityInputTagPressed(InputTag);
+	}
+}
+
+void AHollowExoFrameCharacter::HandleAbilityInputReleased(const FGameplayTag InputTag)
+{
+	if (UHollowAbilitySystemComponent* AbilitySystem = Cast<UHollowAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		AbilitySystem->AbilityInputTagReleased(InputTag);
+	}
 }
 
 void AHollowExoFrameCharacter::HandleMove(const FInputActionValue& Value)

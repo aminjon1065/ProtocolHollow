@@ -26,3 +26,69 @@ void UHollowAbilitySystemComponent::TryActivateAbilitiesOnSpawn()
 		}
 	}
 }
+
+void UHollowAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputTag)
+{
+	if (!InputTag.IsValid())
+	{
+		return;
+	}
+	TArray<FGameplayAbilitySpecHandle> ToActivate;
+	{
+		ABILITYLIST_SCOPE_LOCK();
+		for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+		{
+			const UHollowGameplayAbility* Ability = Cast<UHollowGameplayAbility>(Spec.Ability);
+			if (!Ability || Ability->GetActivationPolicy() == EHollowAbilityActivationPolicy::OnSpawn || !Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+			{
+				continue;
+			}
+			Spec.InputPressed = true;
+			if (Spec.IsActive())
+			{
+				AbilitySpecInputPressed(Spec);
+			}
+			else
+			{
+				ToActivate.Add(Spec.Handle);
+			}
+		}
+	}
+	for (const FGameplayAbilitySpecHandle& Handle : ToActivate)
+	{
+		TryActivateAbility(Handle);
+	}
+}
+
+void UHollowAbilitySystemComponent::AbilityInputTagReleased(const FGameplayTag& InputTag)
+{
+	if (!InputTag.IsValid())
+	{
+		return;
+	}
+	TArray<FGameplayAbilitySpecHandle> ToCancel;
+	{
+		ABILITYLIST_SCOPE_LOCK();
+		for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+		{
+			const UHollowGameplayAbility* Ability = Cast<UHollowGameplayAbility>(Spec.Ability);
+			if (!Ability || !Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+			{
+				continue;
+			}
+			Spec.InputPressed = false;
+			if (Spec.IsActive())
+			{
+				AbilitySpecInputReleased(Spec);
+				if (Ability->GetActivationPolicy() == EHollowAbilityActivationPolicy::WhileInputActive)
+				{
+					ToCancel.Add(Spec.Handle);
+				}
+			}
+		}
+	}
+	for (const FGameplayAbilitySpecHandle& Handle : ToCancel)
+	{
+		CancelAbilityHandle(Handle);   // replicated to the server for predicted abilities
+	}
+}
