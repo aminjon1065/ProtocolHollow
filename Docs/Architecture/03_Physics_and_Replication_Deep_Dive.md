@@ -294,7 +294,7 @@ struct FHollowCarryNetState
 
 - Фильтры — это `UNavigationQueryFilter` (`TravelCostOverride` и `bIsExcluded` по area). Цены живут в BP-наследниках `NAV_`, **тюнинг без пересборки C++**.
 - Когда ИИ доходит до связи (`SetMoveReachedLink`), Пилигрим запускает задачу StateTree `BreachObstacle` → `GA_PilgrimBreach` (монтаж + MotionWarping к якорю двери) → на anim notify сервер вызывает `IHollowStructural::ApplyStructuralDamage`.
-- **Инвалидация путей:** `UHollowNavUpdateSubsystem` рассылает `OnDoorNavStateChanged(DoorId)`. Контроллеры, чей путь проходит через эту связь, перепрашивают маршрут.
+- **Инвалидация путей:** `UHollowNavUpdateSubsystem` рассылает `OnDoorNavChanged(Door, LinkId, Old, New)` и сам вызывает `Invalidate()` у путей, которые ИИ зарегистрировал через `WatchPath` и которые проходят через эту связь (`FNavPathPoint::CustomNavLinkId`). Путь перепрокладывается со своим запросом и фильтром (auto-update on invalidation).
 
 ### Переборки
 - До пролома: стену блокирует **отдельный nav-blocker box**, а у GC и осколков всегда `bCanEverAffectNavigation = false`. NavLink через проём выключен.
@@ -305,6 +305,16 @@ struct FHollowCarryNetState
 
 ### Троттлинг
 `UHollowNavUpdateSubsystem` собирает запросы за кадр, ограничивает тайловые пересборки до N/с и раздаёт приоритеты (проломы важнее прочего). Метрики выводятся в debug-оверлей.
+
+### Реализация S2-05
+- `HollowPhysics/Nav`: пустые нативные `UHollowNavArea_{Doorway, DoorClosed, DoorLocked, DoorWeldedLow, DoorWeldedHigh, DoorBarricaded}` (только цвет отладки), чистая `HollowDoorNav::AreaFor` (Open/Opening/Breached → Doorway; иначе Barricaded > Welded (порог `WeldedHighThreshold` = 0,5 включительно) > Locked > Closed; Closing считается Closed), `UHollowNavUpdateSubsystem` (`WatchPath`, `NotifyLinkChanged`, `PathUsesLink`), `UHollowNavSettings` (фильтры и имена агентов по умолчанию, DefaultGame.ini).
+- Классы area — данные `UHollowDoorDefinition` (по умолчанию нативные), цены и запреты — только в `NAV_Filter_Standard/Heavy` (`/Game/Hollow/AI/Nav`, `create_nav_assets.py`). Вход и пролом Heavy-фильтр не различает: стоимость = длина связи × множитель.
+- Вместо `UNavModifierComponent` полосу режет `NavCut` — `UBoxComponent` без коллизии: `bDynamicObstacle`, `AreaClassOverride = UNavArea_Null`, `HasCustomNavigableGeometry = EvenIfNotCollidable` (иначе компонент без блокировки Pawn не считается релевантным для навигации). Глубина ±2 × `WallThickness`, связь — ±(глубина + 100), то есть концы лежат на навмеше обоих агентов.
+- Area меняет только сервер и только при её смене: `SetEnabledArea` (патч построенных тайлов, O(1)) **и** `K2_ReplaceAreaInOctreeData`. ⚠️ Ловушка движка: `SetEnabledArea` не трогает копию связи в октодереве, и любая последующая пересборка соседнего тайла (пролом, модификатор) вернула бы area на момент регистрации. Тест ловит это полной пересборкой со сваренной дверью.
+- Агенты: `!SupportedAgents=ClearArray` + Standard (r45/h220) и Heavy (r80/h280), шаг 45. `Hollow.PCG.LevelMetrics` проверяет, что крупнейший агент совпадает с `LargestAgentRadius/Height`.
+- Тесты: `Hollow.Physics.Nav.DoorAreas` (таблица) и `Hollow.Physics.Nav.DoorFilters` (тестовый мир без карты, реальный `BP_Door` и фильтры: Closed/Open — оба через дверь; Welded High/Low — Standard в обход, Heavy через дверь; наблюдаемый путь перепрокладывается в обход; тайлы и dirty-флаги не меняются; без обхода у Standard пути нет).
+- Рейд (seed 7, один процесс, `Hollow.Nav.Path`): до сварки путь Spawn → Extraction у обоих агентов идёт через 6 дверей `DoorClosed`; после сварки двери шлюза у Standard пути нет, Heavy идёт через `DoorWeldedHigh`; пересборок навмеша после сборки сектора нет.
+- Троттлинг тайловых пересборок, `SetMoveReachedLink` → `BreachObstacle` и подписка ИИ на `WatchPath` — вместе с ИИ (S3).
 
 ---
 

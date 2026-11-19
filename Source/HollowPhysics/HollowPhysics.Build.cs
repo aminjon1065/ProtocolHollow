@@ -12,6 +12,7 @@ public class HollowPhysics : ModuleRules
 		{
 			"Core",
 			"CoreUObject",
+			"DeveloperSettings",
 			"Engine",
 			"PhysicsCore",
 			"Chaos",

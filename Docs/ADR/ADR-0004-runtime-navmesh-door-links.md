@@ -17,3 +17,9 @@
 ## Последствия
 - (+) Смена состояния двери — O(1); ИИ реагирует в том же кадре; CPU хоста защищён.
 - (−) Дизайнер обязан ставить nav-link'и и блокеры (автоматизируется префабом двери и валидатором).
+
+## Уточнения при реализации (S2-05)
+- Смена area двери — это **две** операции: `UNavLinkCustomComponent::SetEnabledArea` (патч построенных тайлов) и `UNavigationSystemV1::K2_ReplaceAreaInOctreeData` (кешированная копия связи в октодереве, без dirty). Без второй любая пересборка соседнего тайла вернула бы area на момент регистрации связи. `SetEnabled` для дверей не используем: он вызывает `RefreshNavigationModifiers`, а это пересборка тайлов.
+- Движок не инвалидирует пути через связь при смене её area (тайлы не меняются). Это делает `UHollowNavUpdateSubsystem` для путей из `WatchPath`.
+- Null-полоса — `UBoxComponent` без коллизии с `bDynamicObstacle` и `HasCustomNavigableGeometry = EvenIfNotCollidable`, а не `UNavModifierComponent`: размер берётся из BP и метрик кита, а компонент дешевле.
+

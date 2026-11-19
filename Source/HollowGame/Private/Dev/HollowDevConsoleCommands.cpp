@@ -20,6 +20,13 @@
 #include "GameFramework/PlayerController.h"
 #include "Generation/HollowSectorGenerator.h"
 #include "Interfaces/HollowToolTarget.h"
+#include "Nav/HollowNavSettings.h"
+#include "Nav/HollowNavUpdateSubsystem.h"
+#include "NavAreas/NavArea.h"
+#include "NavFilters/NavigationQueryFilter.h"
+#include "NavigationData.h"
+#include "NavigationSystem.h"
+#include "NavLinkCustomComponent.h"
 #include "Tags/HollowGameplayTags.h"
 #include "Generation/HollowSectorTemplates.h"
 #include "HAL/IConsoleManager.h"
@@ -332,6 +339,57 @@ namespace HollowDevConsole
 		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.GoToNearestDoor: %s"), *Nearest->GetName());
 	}
 
+	/**
+	 * Host: path for one nav agent with its default filter (S2-05), from the local pawn to the extraction marker; lists
+	 * the doors on it with their link areas. Usage: Hollow.Nav.Path <Standard|Heavy>
+	 */
+	void NavPath(const TArray<FString>& Args, UWorld* World)
+	{
+		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		const APlayerController* Player = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+		const APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+		UNavigationSystemV1* Navigation = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+		if (!Pawn || !Navigation || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Nav.Path runs on the host with a local pawn and a navigation system."));
+			return;
+		}
+		const UHollowNavSettings* Settings = GetDefault<UHollowNavSettings>();
+		const bool bHeavy = Args.Num() > 0 && Args[0].Equals(Settings->HeavyAgent.ToString(), ESearchCase::IgnoreCase);
+		const FName Agent = bHeavy ? Settings->HeavyAgent : Settings->StandardAgent;
+		const TSubclassOf<UNavigationQueryFilter> Filter = (bHeavy ? Settings->HeavyFilter : Settings->StandardFilter).LoadSynchronous();
+		ANavigationData* NavData = Navigation->GetNavDataForAgentName(Agent);
+		const AHollowSectorMarker* Extraction = nullptr;
+		for (TActorIterator<AHollowSectorMarker> It(World); It && !Extraction; ++It)
+		{
+			Extraction = It->GetLabel() == HollowTags::Socket_Extraction.GetTag().GetTagName() ? *It : nullptr;
+		}
+		if (!NavData || !Extraction)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Nav.Path: no navmesh for agent %s or no extraction marker."), *Agent.ToString());
+			return;
+		}
+		FPathFindingQuery Query(Pawn, *NavData, Pawn->GetNavAgentLocation(), Extraction->GetActorLocation(), UNavigationQueryFilter::GetQueryFilter(*NavData, Pawn, Filter));
+		Query.SetAllowPartialPaths(false);
+		const FPathFindingResult Result = Navigation->FindPathSync(Query);
+		const bool bFound = Result.IsSuccessful() && Result.Path.IsValid() && !Result.IsPartial();
+		FString Doors;
+		int32 DoorCount = 0;
+		if (bFound)
+		{
+			for (TActorIterator<AHollowDoor> It(World); It; ++It)
+			{
+				if (UHollowNavUpdateSubsystem::PathUsesLink(*Result.Path, It->GetNavLink()->GetId()))
+				{
+					Doors += FString::Printf(TEXT(" %s=%s"), *It->GetName(), *GetNameSafe(It->GetNavArea().Get()));
+					++DoorCount;
+				}
+			}
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Nav.Path %s: found %d, length %.0f, %d door(s):%s"), *Agent.ToString(), bFound,
+			bFound ? Result.Path->GetLength() : 0.0, DoorCount, *Doors);
+	}
+
 	void ToolInfo(UWorld* World)
 	{
 		const UHollowAbilitySystemComponent* AbilitySystem = LocalAbilitySystem(World);
@@ -400,6 +458,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.GoToNearestDoor"),
 		TEXT("Host: puts the local pawn in front of the nearest door, facing it."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&GoToNearestDoor));
+
+	FAutoConsoleCommandWithWorldAndArgs NavPathCommand(
+		TEXT("Hollow.Nav.Path"),
+		TEXT("Host: AI path from the local pawn to extraction for a nav agent and its filter. Usage: Hollow.Nav.Path <Standard|Heavy>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&NavPath));
 
 	FAutoConsoleCommandWithWorld ToolInfoCommand(
 		TEXT("Hollow.Tool.Info"),

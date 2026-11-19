@@ -8,6 +8,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Nav/HollowDoorNav.h"
+#include "Nav/HollowNavUpdateSubsystem.h"
+#include "NavAreas/NavArea_Null.h"
+#include "NavLinkCustomComponent.h"
+#include "NavigationSystem.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowDoor)
@@ -35,6 +40,31 @@ AHollowDoor::AHollowDoor(const FObjectInitializer& ObjectInitializer)
 	Doorway->SetGenerateOverlapEvents(false);   // occupancy is an explicit query at decision time (IsDoorwayClear)
 
 	DoorState = CreateDefaultSubobject<UHollowDoorStateComponent>(TEXT("DoorState"));
+
+	NavCut = CreateDefaultSubobject<UBoxComponent>(TEXT("NavCut"));
+	NavCut->SetupAttachment(Root);
+	NavCut->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	NavCut->SetCanEverAffectNavigation(true);
+	NavCut->SetCustomNavigableGeometry(EHasCustomNavigableGeometry::EvenIfNotCollidable);   // relevant without blocking anyone
+	NavCut->bDynamicObstacle = true;
+	NavCut->SetAreaClassOverride(UNavArea_Null::StaticClass());
+
+	NavLink = CreateDefaultSubobject<UNavLinkCustomComponent>(TEXT("NavLink"));
+}
+
+void AHollowDoor::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	// Before the sector's navmesh is built (the server spawns doors first), so the link is part of it from the start.
+	// Area first: SetLinkData refreshes the link's navigation data, so the octree copy starts with this area.
+	if (const UHollowDoorDefinition* Definition = DoorState->GetDefinition())
+	{
+		FHollowDoorNetState Initial;
+		Initial.State = Definition->InitialState;
+		NavArea = HollowDoorNav::AreaFor(Initial, 0.f, *Definition);
+		NavLink->SetEnabledArea(NavArea);
+	}
+	NavLink->SetLinkData(FVector(-NavLinkHalfLength, 0.0, 0.0), FVector(NavLinkHalfLength, 0.0, 0.0), ENavLinkDirection::BothWays);
 }
 
 void AHollowDoor::BeginPlay()
@@ -99,6 +129,10 @@ void AHollowDoor::Interact(AActor* Interactor)
 
 void AHollowDoor::HandleStateChanged(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, const bool bFresh)
 {
+	if (HasAuthority())
+	{
+		UpdateNavArea();   // the navmesh lives on the server only
+	}
 	UpdateWeldColor();
 	UpdateLeaf();
 	const bool bMoving = New.State == EHollowDoorState::Opening || New.State == EHollowDoorState::Closing;
@@ -126,6 +160,29 @@ void AHollowDoor::UpdateLeaf()
 	if (bSettled)
 	{
 		GetWorld()->GetTimerManager().ClearTimer(LeafTimer);
+	}
+}
+
+void AHollowDoor::UpdateNavArea()
+{
+	const UHollowDoorDefinition* Definition = DoorState->GetDefinition();
+	const TSubclassOf<UNavArea> NewArea = Definition ? HollowDoorNav::AreaFor(DoorState->GetNetState(), DoorState->GetWeld(), *Definition) : nullptr;
+	if (!NewArea || NewArea == NavArea)
+	{
+		return;
+	}
+	const TSubclassOf<UNavArea> OldArea = NavArea;
+	NavArea = NewArea;
+	NavLink->SetEnabledArea(NewArea);   // patches the link in built tiles: O(1), no rebuild (ADR-0004)
+	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		// SetEnabledArea leaves the octree's copy of the link alone; without this a later rebuild of a neighbouring tile
+		// (breach, nav modifier) would bring the old area back. Changes cached data only, dirties nothing.
+		NavSys->K2_ReplaceAreaInOctreeData(NavLink, OldArea, NewArea);
+	}
+	if (UHollowNavUpdateSubsystem* Navigation = GetWorld()->GetSubsystem<UHollowNavUpdateSubsystem>())
+	{
+		Navigation->NotifyLinkChanged(this, NavLink->GetId(), OldArea, NewArea);
 	}
 }
 

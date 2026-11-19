@@ -6,6 +6,8 @@
 
 #include "HollowDoorDefinition.generated.h"
 
+class UNavArea;
+
 /** Tuning of a door type, primary asset type HollowDoor (Docs/Architecture/03 sec. 3.3). */
 UCLASS(BlueprintType)
 class HOLLOWPHYSICS_API UHollowDoorDefinition : public UPrimaryDataAsset
@@ -14,6 +16,8 @@ class HOLLOWPHYSICS_API UHollowDoorDefinition : public UPrimaryDataAsset
 
 public:
 	static const FPrimaryAssetType AssetType;
+
+	explicit UHollowDoorDefinition(const FObjectInitializer& ObjectInitializer);
 
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
@@ -63,4 +67,27 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	FText PromptClose;
+
+	/** Nav link areas per door state (Docs/Architecture/03 sec. 3.7); costs and exclusions live in the query filters. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation")
+	TSubclassOf<UNavArea> AreaDoorway;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation")
+	TSubclassOf<UNavArea> AreaClosed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation")
+	TSubclassOf<UNavArea> AreaLocked;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation")
+	TSubclassOf<UNavArea> AreaWeldedLow;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation")
+	TSubclassOf<UNavArea> AreaWeldedHigh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation")
+	TSubclassOf<UNavArea> AreaBarricaded;
+
+	/** Welded doors at or above this integrity use AreaWeldedHigh (dearer to breach). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Navigation", meta = (ClampMin = "0", ClampMax = "1"))
+	float WeldedHighThreshold = 0.f;
 };

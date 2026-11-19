@@ -8,6 +8,7 @@
 #include "Data/HollowRoomDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Misc/PackageName.h"
+#include "NavigationSystem.h"
 #include "Rules/HollowRoomRules.h"
 #include "Tags/HollowGameplayTags.h"
 #include "UObject/Package.h"
@@ -134,6 +135,19 @@ bool FHollowLevelMetricsTest::RunTest(const FString& Parameters)
 		AddError(FString::Printf(TEXT("DefaultGame.ini HollowLevelMetrics: %s"), *HollowEnumToString(Issue)));
 	}
 	TestTrue(TEXT("The test baseline is consistent"), HollowRoomRules::ValidateMetrics(*MakeMetrics()).IsEmpty());
+
+	// The kit is sized for the largest nav agent (DefaultEngine.ini SupportedAgents, ADR-0004): both must say the same.
+	const TArray<FNavDataConfig>& Agents = GetDefault<UNavigationSystemV1>()->GetSupportedAgents();
+	float AgentRadius = 0.f;
+	float AgentHeight = 0.f;
+	for (const FNavDataConfig& Agent : Agents)
+	{
+		AgentRadius = FMath::Max(AgentRadius, Agent.AgentRadius);
+		AgentHeight = FMath::Max(AgentHeight, Agent.AgentHeight);
+	}
+	TestTrue(TEXT("Nav agents are configured"), Agents.Num() > 1);
+	TestEqual(TEXT("Largest nav agent radius = LargestAgentRadius"), AgentRadius, static_cast<float>(GetDefault<UHollowLevelMetrics>()->LargestAgentRadius));
+	TestEqual(TEXT("Largest nav agent height = LargestAgentHeight"), AgentHeight, static_cast<float>(GetDefault<UHollowLevelMetrics>()->LargestAgentHeight));
 
 	auto ExpectOnly = [this](const TCHAR* What, TFunctionRef<void(UHollowLevelMetrics&)> Mutate, const EHollowMetricsIssue Expected)
 	{
