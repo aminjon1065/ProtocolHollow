@@ -13,6 +13,10 @@
 - **Mac:** `./Build/Scripts/import-placeholders.sh` (один раз после клона: плейсхолдер-персонажи из шаблонов движка, ADR-0011), затем `./Build/Scripts/build-editor-mac.sh`.
 - **Windows:** плейсхолдеры `package-win64.cmd` импортирует сам. Для запуска редактора на ноутбуке выполни `Build\Scripts\import-placeholders.cmd` вручную.
 
+## Проверка кука сектор-GFP (с S1-08)
+После `package-win64.cmd` запусти собранную игру с `-log` и в консоли `~` выполни `Hollow.Sector.Status HollowSector_Docks`.
+Ожидаем `state=Registered references=0 rooms=8`. Если `rooms=0` или `state=Unknown`, контент плагина не попал в кук: пришли лог `Saved/Logs`.
+
 ## Тест 1 — хост Windows, клиент Mac (рекомендуемый первый)
 1. **Windows:** запусти `ProtocolHollow.exe`. Брандмауэр Windows: «Разрешить» (частные сети). SmartScreen: «Подробнее → Выполнить в любом случае». Откроется пустая `L_Boot`.
 2. **Mac:** запусти игру в режиме `-game`:

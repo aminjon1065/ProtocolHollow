@@ -12,6 +12,7 @@ public class HollowPCG : ModuleRules
 		{
 			"Core",
 			"CoreUObject",
+			"DeveloperSettings",
 			"Engine",
 			"GameplayTags",
 			"ModularGameplay",
@@ -20,6 +21,7 @@ public class HollowPCG : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			"AssetRegistry",
 			"PCG",
 			"NavigationSystem",
 			"NetCore"

@@ -10,7 +10,7 @@
 - 10 project-модулей в `Source/`: `HollowCore` → `HollowGAS` → {`HollowEconomy`, `HollowPhysics`, `HollowAI`}; `HollowCore` → {`HollowNetwork`, `HollowPCG`}; поверх всех — primary `HollowGame`, затем `HollowUI`; плюс Editor-модуль `HollowEditor`.
 - Зависимости строго ацикличны. Связь «вверх» идёт через интерфейсы `HollowCore` (`IHollowInteractable`, `IHollowToolTarget`, `IHollowStructural`, `IHollowCarryable`), GameplayTags, делегаты и `TSoftClassPtr` в DataAssets.
 - Чистая логика (генератор, математика дверей, резолвер экстракции) живёт в plain C++ и тестируется без `UWorld`.
-- Контент секторов (включая Сектор I) оформлен как content-only GameFeature Plugins.
+- Контент секторов (включая Сектор I) оформлен как content-only GameFeature Plugins. Жизненный цикл плагина — в [ADR-0012](ADR-0012-sector-game-feature-lifecycle.md).
 
 ## Последствия
 - (+) Домены изолированы, тесты получаются точечными, DLC-пайплайн проверяется с первого дня.

@@ -75,7 +75,8 @@ Hollow.Damage.{Kinetic, Occult, Thermal, Structural}
 Hollow.Noise.{Voice, Footstep, Tool.Cutter, Tool.Welder, Impact.Heavy, Structural.Breach, Core.Drop}
 Hollow.Event.{Door.Welded, Door.Breached, Bulkhead.Breached, Core.PickedUp, Raid.Extracted}
 Hollow.Input.{Move, Look, PrimaryUse, SecondaryUse, Interact, Sprint, Crouch, Gadget}
-Hollow.Room.Type.{Spawn, Extraction, CoreVault, Hangar, Corridor, Airlock}
+Hollow.Room.Type.{Spawn, Extraction, CoreVault, Hangar, Corridor, Junction, Storage}
+Hollow.Socket.{PlayerSpawn, Loot, CoreSpawn, EnemySpawn, VentNode, Extraction}
 Hollow.Item.Type.{Tool, ToolModule, Consumable, Artifact, AetherCore}
 Hollow.Data.{Damage, ResonanceGain, FuelCost, ToolStat.*}       ← ключи SetByCaller
 GameplayCue.Hollow.{Tool.Beam, Door.WeldSparks, Bulkhead.Breach, Stalker.Presence}
@@ -110,12 +111,16 @@ AGameModeBase
    ├─ AHollowHubGameMode                       [Game]  «Скит»: лобби, контракт, верстак, готовность
    └─ AHollowRaidGameMode                      [Game]  без логики внутри; вся логика в server-only компонентах:
         ├─ UHollowRaidFlowComponent            фазы Assembling → Deploying → InRaid → Extraction → Debrief
-        ├─ UHollowSectorAuthorityComponent     [PCG]   Seed → Generate → Manifest → GameState
+        ├─ UHollowSectorAuthorityComponent     [Game]  (S2-02) Seed из URL → Generate → Manifest → GameState; после сборки на сервере:
+        │                                              спавн актёров по сокетам/соединениям, NavMesh, сбор Server_ReportSectorReady
+        │                                              (несовпадение хеша и таймаут → кик), затем bSectorReady и pawn'ы
         └─ UHollowRaidOutcomeComponent         [Game]  смерть/эвакуация → FHollowRaidResult каждому игроку
 
 AGameStateBase
 └─ AHollowGameState                            [Game]  тоже тонкий; состояние живёт в UGameStateComponent'ах:
-   ├─ UHollowSectorStateComponent    [PCG]  Rep: int32 Seed, FHollowSectorManifest Manifest, uint32 LayoutHash
+   ├─ UHollowSectorStateComponent    [PCG]  (S2-02) Rep (push): FHollowSectorManifest {Biome, SectorPlugin, Seed, BuildId, LayoutHash,
+   │                                         Rooms, Connections}, bool bSectorReady
+   ├─ UHollowSectorLoaderComponent   [Game] (S2-02) на каждой машине: манифест → ActivateSector → Assemble → Server_ReportSectorReady
    ├─ UHollowRaidPhaseComponent      [Game] Rep: EHollowRaidPhase Phase, float PhaseEndServerTime
    ├─ UHollowSquadResonanceComponent [GAS]  Rep: uint8 SquadResonanceQ, EHollowResonanceTier Tier
    └─ UHollowExtractionStateComponent[Game] Rep: активная точка эвакуации, время отлёта (server time)
@@ -129,7 +134,7 @@ APlayerState
    ⚠ SetNetUpdateFrequency(30…60): дефолт у PlayerState очень низкий, атрибуты будут «лагать»
 
 APlayerController
-└─ AHollowPlayerController                     [Game]  маршрутизация CommonUI, Client_ReceiveRaidResult(), Server_ReportSectorReady()
+└─ AHollowPlayerController                     [Game]  маршрутизация CommonUI, Client_ReceiveRaidResult(), Server_ReportSectorReady(BuildId, LayoutHash) (S2-02)
    └─ UHollowVoiceLoudnessComponent            [Net]   громкость микрофона → сервер (§3.8)
 
 ACharacter
@@ -299,18 +304,31 @@ struct TStructOpsTypeTraits<FHollowInventoryList> : public TStructOpsTypeTraitsB
 
 ```
 UPrimaryDataAsset
-├─ UHollowBiomeDefinition     пул комнат (TArray<TSoftObjectPtr<UHollowRoomDefinition>>), FHollowSectorGenRules,
-│                             таблицы врагов, пресеты света и звука, классы дверей и переборок (TSoftClassPtr)
-├─ UHollowRoomDefinition      TSoftObjectPtr<UWorld> RoomLevel; FIntVector GridSize (клетки по 400 uu);
-│                             TArray<FHollowRoomConnector> {LocalCell, Facing, Size, AllowedKinds}
-│                             TArray<FHollowRoomSocket>    {Transform, Type: Loot|EnemySpawn|CoreSpawn|VentNode|Extraction|PropAnchor}
-│                             FGameplayTagContainer RoomTags; Weight; MinCount/MaxCount; DressingVariants
+├─ UHollowBiomeDefinition     (S2-01, тип HollowBiome, лежит в сектор-GFP) FHollowSectorGenRules GenRules; пул комнат = все
+│                             HollowRoom этого плагина (ADR-0012), без явного списка; позже: таблицы врагов, пресеты света
+│                             и звука, классы дверей и переборок (TSoftClassPtr)
+├─ UHollowRoomDefinition      (S1-07) TSoftObjectPtr<UWorld> RoomLevel; FIntVector Footprint (клетки, в VS Z = 1);
+│                             TArray<FHollowRoomConnector> {Cell, Side: N=+X|E=+Y|S=-X|W=-Y, AllowedKinds: Door|Bulkhead|Open}
+│                               (один стандартный проём 300 x 350 на весь VS, Docs/QA/LevelMetrics.md)
+│                             TArray<FHollowRoomSocket>    {SocketType: Hollow.Socket.*, Transform}
+│                             FGameplayTagContainer RoomTags (ровно один Hollow.Room.Type.*); IsDataValid -> HollowRoomRules
+│                             позже (S2-01): Weight; MinCount/MaxCount; DressingVariants
+├─ UHollowLevelMetrics        (S1-07, UDeveloperSettings) клетка, этаж, стены, проём, вент-люк, крупнейший агент — единый источник чисел
 └─ UHollowContractDefinition  биом, уровень угрозы, модификаторы аномалий, цели добычи
 
 Чистый C++ (без UObject, тесты Блока 7.1 CLAUDE.md):
-├─ FHollowRoomTemplate        POD-снимок RoomDefinition для генератора (сортировка по PrimaryAssetId!)
-├─ FHollowSectorGenRules      длина критического пути, ветки, MinLoops, MaxDeadEndDepth, квоты типов комнат
+├─ HollowRoomRules            (S1-07) ValidateRoom / ValidateMetrics: коннектор на внешнем ребре, дубликаты, сокеты в footprint, тип комнаты
+├─ FHollowRoomTemplate        (S2-01) POD-снимок RoomDefinition: Id, EHollowRoomRole {Spawn, Extraction, CoreVault, Path, Branch},
+│                             Footprint, Connectors; роль по тегу даёт HollowSectorTemplates (генератор тегов не видит)
+├─ FHollowSectorGenRules      (USTRUCT в DA) роли по тегам, CriticalPathMin/Max, CoreVaultCount, OptionalBranchesMin/Max,
+│                             MaxBranchDepth, MinLoops, MaxBridgeRooms, MinBulkheadConnections, MaxRooms, MaxExtentCells,
+│                             MaxAttempts, MaxPlacementsPerAttempt
+├─ FHollowRandom / HollowRandom::DeriveSeed   PCG32 + SplitMix64: только целые числа, бит-в-бит на Mac arm64 и Win64
+├─ HollowGridMath             повороты Yaw90, стороны, PivotOffset для Level Instance (S2-02)
+├─ HollowSectorGraph          BFS, цикломатическое число, глубина тупиков, Analyze(Layout)
 └─ FHollowSectorGenerator::Generate(const FHollowSectorGenInput&, FHollowSectorLayout& Out) → EHollowGenResult
+                              Layout: Rooms {Template, Role, Cell, Size, Yaw90, bCriticalPath}, Connections {RoomA/B,
+                              ConnectorA/B, CellA, SideA, Kind}, Sealed (незанятые коннекторы), TemplateIds, LayoutHash (CRC32)
 
 USTRUCT (реплицируется):
 └─ FHollowSectorManifest      Seed, ContentVersion, LayoutHash,
@@ -318,17 +336,25 @@ USTRUCT (реплицируется):
                               TArray<FHollowPlacedConnection>{RoomA, ConnA, RoomB, ConnB, EHollowConnectionKind: Door|Bulkhead|Open|Vent}
 
 UWorldSubsystem
-└─ UHollowSectorAssemblySubsystem   Assemble(Manifest): async-стрим комнат (ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr,
-                                    детерминированные имена "Sector_<Idx>"), на сервере спавн геймплейных актёров по сокетам и коннекторам,
-                                    ожидание NavMesh (OnNavigationGenerationFinishedDelegate) → OnSectorReady
+└─ UHollowSectorAssemblySubsystem   (S2-02) Assemble(Manifest) на каждой машине: Reconstruct (раскладка из локальных DA, роли по биому)
+                                    → LayoutHash; async-стрим комнат (ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr, имена
+                                    "Sector<BuildId>_<Idx>", трансформ RoomTransform = (Cell + PivotOffset) × CellSize, yaw × 90);
+                                    заглушки Sealed — локальные AStaticMeshActor (меш биома, размер проёма × толщина стены)
+                                    → OnAssembled(BuildId, LocalHash). Геймплейных актёров не трогает — их спавнит SectorAuthority.
+Временные актёры: AHollowSectorMarker (реплицируется, dormant) по правилам биома SocketActors/ConnectionActors, PlayerSpawn → APlayerStart.
 ```
 
-**Алгоритм генератора (v0, только целочисленная сетка):**
-1. Критический путь Spawn → … → CoreVault → … → Extraction: случайное блуждание по коннекторам с проверкой пересечений целочисленных AABB.
-2. Ветки: тайники и опциональные комнаты, глубина ограничена `MaxDeadEndDepth` (по умолчанию 1).
-3. Петли: соединяем соседние совместимые свободные коннекторы, пока `E − V + 1 ≥ MinLoops`. Это гарантирует, что от Сталкера всегда есть второй путь.
-4. Валидация: связность, петли, тупики, квоты (≥1 CoreVault, ≥2 соединения типа Bulkhead, Extraction на расстоянии ≥ N от Spawn). При провале повторяем с `Seed' = HashCombine(Seed, Attempt)` до 32 раз. Всё детерминировано.
-5. Запреты, которые ломают детерминизм: `FMath::Rand`, порядок `TMap`/`TSet`, порядок выдачи Asset Registry, float-математика в топологии.
+**Алгоритм генератора (v0 реализован в S2-01, только целочисленная сетка):**
+0. Пул сортируется по `Id` внутри генератора; комнаты поворачиваются на 0/90/180/270°. Комнаты и связи — стеки, любой шаг поиска откатывается точно.
+1. **Критический путь:** Spawn в (0,0) со случайным поворотом, затем `CriticalPathMin…Max` комнат Path и Extraction. Шаг роста: случайный свободный коннектор, перебор «шаблон × поворот × коннектор» (каждый шаблон получает равный шанс), проверка свободных клеток и `MaxExtentCells`; при тупике — откат.
+2. **Ветки с CoreVault** (решение S2-01): по одной на ядро, от внутренней комнаты критического пути, глубина ≤ `MaxBranchDepth`. Ядро — крюк в сторону, путь к эвакуации через хранилище не проходит.
+3. **Петли**, пока `E − V + 1 < MinLoops`: сначала соединяем уже смотрящие друг на друга свободные коннекторы; затем «мосты» — от свободного коннектора растёт до `MaxBridgeRooms` комнат Path, пока одна из них не встанет напротив **любого** свободного коннектора другой комнаты. Замыкающая комната находится аналитически до размещения, промежуточная ставится только если её выход ещё может дотянуться. Петля не может сократить маршрут Spawn → Extraction ниже `CriticalPathMin + 1` переходов. Петли дают второй путь от Сталкера.
+4. **Опциональные ветки** (Branch, например Storage) — если осталось место (`MaxRooms`).
+5. **Виды проёмов:** `MinBulkheadConnections` случайных соединений, где разрешён Bulkhead; остальные Door, иначе Open. Незанятые коннекторы уходят в `Sealed`: их глушит сборка (S2-02).
+6. **Приёмка** через `HollowSectorGraph::Analyze`: без пересечений, связно, ровно один Spawn и Extraction, число ядер, маршрут, петли, глубина тупиков, лимиты, квота переборок. Провал → повтор с `HollowRandom::DeriveSeed(Seed, Attempt)` (SplitMix64), до `MaxAttempts`.
+7. **Запреты, которые ломают детерминизм:** `FMath::Rand`, `FRandomStream`, итерация `TMap`/`TSet` (только поиск), порядок Asset Registry, float в топологии.
+
+**Замеры (S2-01, Docks, 1000 seed'ов):** при `MinLoops = 2` и мосте ≤ 3 комнат генерируются все seed'ы, в среднем 3,2 попытки и около 2 мс на сектор, 13–14 комнат. С мостом ≤ 2 без раскладки остаются 1,4 % seed'ов; `MinLoops = 3` на текущем ките удаётся лишь в половине случаев (нужны новые коридорные модули).
 
 **Где работает PCG Framework:** только **внутри комнат**, для декора (кабели, трубы, мусор, биомеханика). Варианты декора по возможности запекаются в редакторе в `DressingVariants`. Рантайм-PCG допускается для косметики с `RoomSeed = Hash(Seed, RoomIdx)` без коллизий, влияющих на геймплей. Геймплейные объекты (укрытия, лут, двери) **всегда** спавнит сервер как реплицируемые актёры. Подробнее и про отклонение от CLAUDE.md §5 — в [ADR-0003](../ADR/ADR-0003-sector-manifest-replication.md).
 

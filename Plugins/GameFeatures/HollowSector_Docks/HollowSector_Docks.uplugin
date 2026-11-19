@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1",
+	"FriendlyName": "Hollow Sector: Orbital Docks",
+	"Description": "Sector I content (rooms, sector data) as a content-only Game Feature. Registered at startup, activated for the raid (ADR-0012).",
+	"Category": "Game Features",
+	"CreatedBy": "Protocol: Hollow",
+	"CanContainContent": true,
+	"ExplicitlyLoaded": true,
+	"EnabledByDefault": false,
+	"BuiltInInitialFeatureState": "Registered"
+}

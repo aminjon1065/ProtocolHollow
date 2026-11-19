@@ -31,6 +31,7 @@ public class HollowGame : ModuleRules
 		{
 			"DeveloperSettings",
 			"GameFeatures",
+			"NavigationSystem",
 			"NetCore"
 		});
 	}

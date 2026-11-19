@@ -1,6 +1,8 @@
 #include "Framework/HollowGameModeBase.h"
 
 #include "Engine/GameInstance.h"
+#include "Framework/HollowGameState.h"
+#include "Framework/HollowPlayerController.h"
 #include "Framework/HollowPlayerState.h"
 #include "HollowGameLog.h"
 #include "Session/HollowNetworkSettings.h"
@@ -14,6 +16,9 @@ AHollowGameModeBase::AHollowGameModeBase(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	PlayerStateClass = AHollowPlayerState::StaticClass();   // owns the player's ability system
+	PlayerControllerClass = AHollowPlayerController::StaticClass();
+	GameStateClass = AHollowGameState::StaticClass();       // carries the sector state (ADR-0003)
+	bUseSeamlessTravel = true;                               // hub <-> raid keep their connections (Docs/Architecture/02 sec. 2.9)
 }
 
 void AHollowGameModeBase::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)

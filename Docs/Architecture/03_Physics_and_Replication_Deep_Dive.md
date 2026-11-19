@@ -260,7 +260,7 @@ struct FHollowCarryNetState
 ## 3.7 Runtime NavMesh: двери, проломы, баррикады 🔶 [ADR-0004](../ADR/ADR-0004-runtime-navmesh-door-links.md)
 
 ### Базовые настройки
-- `RecastNavMesh.RuntimeGeneration = Dynamic`. Базовый навмеш строится **после сборки сектора**, потому что геометрия процедурная и запечь её нельзя. Сборка асинхронная и прячется за сценой высадки. Ждём `OnNavigationGenerationFinishedDelegate`.
+- `RecastNavMesh.RuntimeGeneration = Dynamic`. Базовый навмеш строится **после сборки сектора**, потому что геометрия процедурная и запечь её нельзя. Сборка асинхронная и прячется за сценой высадки. *S2-02:* вместо ожидания `OnNavigationGenerationFinishedDelegate` сервер после сборки делает один синхронный `UNavigationSystemV1::Build()` (за кадром загрузки; на Docks 10–25 мс) и проверяет путь Spawn → Extraction запросом `FindPathToLocationSynchronously` — так нет гонки «асинхронная пересборка ещё не началась».
 - **Навмеш существует только на хосте** (`bAllowClientSideNavigation = false`), клиенты за него не платят.
 - Агенты (каждый лишний — это ещё один навмеш, поэтому их два):
 
