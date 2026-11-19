@@ -54,6 +54,12 @@ $EngineRoot  = Resolve-HollowEngineRoot $EngineRoot
 $RunUAT = Join-Path $EngineRoot 'Engine\Build\BatchFiles\RunUAT.bat'
 if (-not (Test-Path $RunUAT)) { throw "RunUAT.bat not found: $RunUAT" }
 
+# The cook needs the placeholder characters, which are not committed (ADR-0011).
+if (-not (Test-HollowPlaceholders)) {
+    Write-Host 'Placeholders missing: importing them from the engine templates...'
+    Import-HollowPlaceholders $EngineRoot
+}
+
 # --- Memory-aware limits -------------------------------------------------------------------------
 $Machine             = Get-HollowMachineInfo
 $MaxCompileActions   = Get-HollowCompileActions $MaxCompileActions $Machine

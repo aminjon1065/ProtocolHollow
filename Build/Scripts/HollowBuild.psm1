@@ -109,6 +109,62 @@ function Invoke-HollowEditorBuild {
     return $true
 }
 
+# --- Placeholder content (ADR-0011): copied from the local UE templates, never committed ---------------------
+
+function Get-HollowPlaceholderPaths {
+    $Root = Get-HollowProjectRoot
+    return [pscustomobject]@{
+        Characters  = Join-Path $Root 'Content\Characters\Mannequins'
+        FirstPerson = Join-Path $Root 'Content\FirstPerson\Anims'
+    }
+}
+
+# True when the assets the project references directly are present (same list as import-placeholders.sh).
+function Test-HollowPlaceholders {
+    $Paths = Get-HollowPlaceholderPaths
+    $Required = @(
+        (Join-Path $Paths.Characters 'Meshes\SKM_Manny_Simple.uasset'),
+        (Join-Path $Paths.Characters 'Anims\Unarmed\ABP_Unarmed.uasset'),
+        (Join-Path $Paths.FirstPerson 'ABP_FP_Copy.uasset')
+    )
+    foreach ($File in $Required) {
+        if (-not (Test-Path $File)) { return $false }
+    }
+    return $true
+}
+
+# robocopy wrapper: exit codes 0-7 are success, 8+ are failures.
+function Copy-HollowTree {
+    param([string] $Source, [string] $Destination, [string] $File = '*.*', [string[]] $ExcludeDirs = @(), [switch] $TopLevelOnly)
+    $RoboArgs = @($Source, $Destination, $File, '/NFL', '/NDL', '/NJH', '/NJS', '/NP')
+    if (-not $TopLevelOnly) { $RoboArgs += '/E' }
+    if ($ExcludeDirs.Count -gt 0) { $RoboArgs += '/XD'; $RoboArgs += $ExcludeDirs }
+    & robocopy @RoboArgs | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed with code $LASTEXITCODE`: $Source -> $Destination" }
+}
+
+# Subset closed over its references: Quinn materials and melee attack anims are left out on purpose.
+function Import-HollowPlaceholders {
+    param([string] $EngineRoot)
+    $CharactersSrc  = Join-Path $EngineRoot 'Templates\TemplateResources\High\Characters\Content\Mannequins'
+    $FirstPersonSrc = Join-Path $EngineRoot 'Templates\TP_FirstPerson\Content\FirstPerson\Anims'
+    foreach ($Src in @($CharactersSrc, $FirstPersonSrc)) {
+        if (-not (Test-Path $Src)) { throw "Template content not found: $Src" }
+    }
+
+    $Paths = Get-HollowPlaceholderPaths
+    Copy-HollowTree (Join-Path $CharactersSrc 'Meshes') (Join-Path $Paths.Characters 'Meshes')
+    Copy-HollowTree (Join-Path $CharactersSrc 'Materials') (Join-Path $Paths.Characters 'Materials') -File 'M_Mannequin.uasset' -TopLevelOnly
+    Copy-HollowTree (Join-Path $CharactersSrc 'Materials\Manny') (Join-Path $Paths.Characters 'Materials\Manny')
+    Copy-HollowTree (Join-Path $CharactersSrc 'Textures\Manny') (Join-Path $Paths.Characters 'Textures\Manny')
+    Copy-HollowTree (Join-Path $CharactersSrc 'Textures\Shared') (Join-Path $Paths.Characters 'Textures\Shared')
+    Copy-HollowTree (Join-Path $CharactersSrc 'Rigs') (Join-Path $Paths.Characters 'Rigs')
+    Copy-HollowTree (Join-Path $CharactersSrc 'Anims\Unarmed') (Join-Path $Paths.Characters 'Anims\Unarmed') -ExcludeDirs @('Attack')
+    Copy-HollowTree $FirstPersonSrc $Paths.FirstPerson
+
+    if (-not (Test-HollowPlaceholders)) { throw 'Import finished but required assets are missing.' }
+}
+
 Export-ModuleMember -Function Assert-HollowWindows, Get-HollowProjectRoot, Get-HollowUProject, Resolve-HollowEngineRoot,
     Get-HollowMachineInfo, Get-HollowCompileActions, Get-HollowShaderWorkers, Invoke-HollowNative,
-    Get-HollowProjectWarnings, Invoke-HollowEditorBuild
+    Get-HollowProjectWarnings, Invoke-HollowEditorBuild, Test-HollowPlaceholders, Import-HollowPlaceholders

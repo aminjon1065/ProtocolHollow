@@ -10,7 +10,8 @@
 ## Сборка
 - **Windows:** `Build\Scripts\run-tests-win64.cmd`. Проверяет MSVC-сборку и тесты, ожидаем `OK`, код 0.
 - **Windows:** `Build\Scripts\package-win64.cmd`. Первая упаковка долгая из-за компиляции шейдеров. Результат: `Packages\Win64\Development\Windows\ProtocolHollow.exe`.
-- **Mac:** `./Build/Scripts/build-editor-mac.sh`.
+- **Mac:** `./Build/Scripts/import-placeholders.sh` (один раз после клона: плейсхолдер-персонажи из шаблонов движка, ADR-0011), затем `./Build/Scripts/build-editor-mac.sh`.
+- **Windows:** плейсхолдеры `package-win64.cmd` импортирует сам. Для запуска редактора на ноутбуке выполни `Build\Scripts\import-placeholders.cmd` вручную.
 
 ## Тест 1 — хост Windows, клиент Mac (рекомендуемый первый)
 1. **Windows:** запусти `ProtocolHollow.exe`. Брандмауэр Windows: «Разрешить» (частные сети). SmartScreen: «Подробнее → Выполнить в любом случае». Откроется пустая `L_Boot`.
@@ -25,7 +26,7 @@
    - `Hollow.Session.Status` → ожидаем `State=InSession … Role=Host OnlineSubsystem=STEAM`.
 4. **Windows:** `Hollow.Session.Invite` (оверлей Steam) → пригласи аккаунт A. Если оверлей не открылся, пригласи из списка друзей Steam: ПКМ по другу → «Пригласить в игру».
 5. **Mac:** в чате Steam прими приглашение. Игра на Mac должна быть уже запущена (под AppID 480 Steam иначе стартует Spacewar). Ожидаем загрузку `L_Hub_Dev`.
-6. **Проверка:** оба видят второго игрока (сфера DefaultPawn, персонаж ExoFrame появится в S1-04) и его движение. В логах ожидаем `Join succeeded` у хоста и `Welcomed by server` у клиента.
+6. **Проверка:** оба видят второго игрока (ExoFrame с манекеном Manny) и его движение: ходьба, бег на `Shift`, присед на `Ctrl`, прыжок на `Space`. В логах `controlled by … (local|remote)` показывает, кто чем управляет. В логах ожидаем `Join succeeded` у хоста и `Welcomed by server` у клиента.
 
 ## Тест 2 — негативные сценарии
 - **Хост уходит:** на Windows `Hollow.Session.Leave` → Mac возвращается в `L_Boot`, в логе `Session error NetworkFailure`.

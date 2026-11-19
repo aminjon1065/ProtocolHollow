@@ -158,7 +158,7 @@ AAIController
 | `UHollowVisorComponent` | UI | диегетика шлема: здоровье, связь, Резонанс; только косметика и только локально | — |
 | `UVOIPTalker` (движковый) | Net | 3D-голос с аттенюацией и эффектами шлема и рации | движковый VOIP |
 
-Камера от первого лица: FP-руки (`OnlyOwnerSee`) и TP-тело (`OwnerNoSee`), тело видят тиммейты. **Гейплейная** привязка к позе руками не делается никогда, руки — чистая косметика (важно для переноски, §3.5).
+Камера от первого лица — штатный First Person Rendering 5.8 ([ADR-0011](../ADR/ADR-0011-first-person-rendering-and-placeholders.md)): FP-руки (`FirstPerson`, `OnlyOwnerSee`, копия позы TP) и TP-тело (`WorldSpaceRepresentation`: владелец видит только тень), камера на сокете `head` FP-меша. До S1-05 `AHollowExoFrameCharacter` наследуется от `ACharacter`, после — от `AHollowCharacterBase`. **Гейплейная** привязка к позе руками не делается никогда, руки — чистая косметика (важно для переноски, §3.5).
 
 ---
 
