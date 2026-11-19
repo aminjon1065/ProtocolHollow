@@ -1,4 +1,4 @@
-#include "Misc/AutomationTest.h"
+#include "Tests/HollowGameTestUtils.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -27,17 +27,7 @@ namespace HollowExoFrameTests
 
 	AHollowExoFrameCharacter* SpawnCharacter(FAutomationTestBase& Test, FTestWorldWrapper& World)
 	{
-		// The bare C++ class has no skeletal mesh (meshes are BP_ExoFrame data), so the camera's socket lookup warns.
-		Test.AddExpectedMessage(FString::Printf(TEXT("GetSocketInfoByName(%s): No SkeletalMesh"), *AHollowExoFrameCharacter::CameraSocketName.ToString()),
-			ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, /*Occurrences=*/0, /*IsRegex=*/false);
-
-		if (!World.CreateTestWorld(EWorldType::Game))
-		{
-			World.ForwardErrorMessages(&Test);
-			return nullptr;
-		}
-		World.GetTestWorld()->InitializeActorsForPlay(FURL());   // components initialize as in a running game
-		return World.GetTestWorld()->SpawnActor<AHollowExoFrameCharacter>();
+		return HollowGameTests::SpawnExoFrame(Test, HollowGameTests::CreateWorld(Test, World));
 	}
 }
 

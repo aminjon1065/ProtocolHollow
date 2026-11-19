@@ -256,10 +256,12 @@ def validate():
 
     mappings = load(IMC_PATH).get_editor_property("default_key_mappings").get_editor_property("mappings")
     mapped_actions = {entry.get_editor_property("action").get_name() for entry in mappings}
-    check(mapped_actions == set(ACTIONS), "IMC_Raid maps every action")
+    check(set(ACTIONS) <= mapped_actions, "IMC_Raid maps every ExoFrame action")
 
+    # Later scripts add more actions (e.g. Interact, S1-06): check presence, not an exact count.
     native = load(INPUT_CONFIG_PATH).get_editor_property("native_actions")
-    check(len(native) == len(ACTIONS) and all(e.get_editor_property("input_action") for e in native), "input config entries")
+    native_tags = {e.get_editor_property("input_tag").export_text() for e in native if e.get_editor_property("input_action")}
+    check(all(make_tag(tag).export_text() in native_tags for _, tag in ACTIONS.values()), "input config maps every ExoFrame action")
 
     character = unreal.get_default_object(load(EXOFRAME_BP_PATH).generated_class())
     check(isinstance(character, unreal.HollowExoFrameCharacter), "BP_ExoFrame parent class")

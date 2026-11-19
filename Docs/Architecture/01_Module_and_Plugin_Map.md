@@ -85,7 +85,7 @@ graph TD
 
 | Механизм | Где объявлен | Кто реализует или использует |
 |---|---|---|
-| `IHollowInteractable`: `GetInteractionInfo`, `CanInteract`, `ServerInteract` | Core | двери, ядра, терминалы, лут; вызывает `UHollowInteractionComponent` (Game) |
+| `IHollowInteractable`: `GetInteractionInfo`, `CanInteract`, `Interact` (только сервер) | Core | двери, ядра, терминалы, лут, `AHollowSwitch`; вызывает `UHollowInteractionComponent` (Game) после серверной проверки |
 | `IHollowToolTarget`: `CanAcceptToolWork`, `ApplyToolWork(const FHollowToolWork&)`, только на сервере | Core | двери и швы (Physics); вызывают GA резака и сварки (Game) |
 | `IHollowStructural`: `ApplyStructuralDamage(const FHollowStructuralHit&)` | Core | двери, переборки, баррикады (Physics); вызывают Пилигрим (AI), молот штурмовика, взрывы |
 | `IHollowCarryable`: `GetCarrySpec`, `GetGripPoints` | Core | ядра (Game/Physics); использует `UHollowCarrierComponent` |

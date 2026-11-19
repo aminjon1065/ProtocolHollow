@@ -29,6 +29,7 @@ public class HollowGame : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			"DeveloperSettings",
 			"GameFeatures",
 			"NetCore"
 		});

@@ -151,7 +151,7 @@ AAIController
 | Компонент | Модуль | Роль | Сеть |
 |---|---|---|---|
 | `UHollowCharacterMovementComponent` | Physics | ходьба, low-G и zero-G, штрафы переноски через **кастомные saved moves** | предсказание CMC |
-| `UHollowInteractionComponent` | Game | локальный фокус-трейс по таймеру 15 Гц (без Tick), подсказки, `Server_Interact` с серверной проверкой | RPC |
+| `UHollowInteractionComponent` | Game | локальный sweep по каналу `Interaction` по таймеру (`UHollowInteractionSettings`, 15 Гц, без Tick) из глаз pawn; `Server_Interact` с мягкой серверной проверкой (линия видимости, дальность + допуск, темп, блокирующие теги ASC). Взаимодействие — компонент, не GAS-способность (S1-06) | RPC |
 | `UHollowEquipmentComponent` | Game | инструмент в руках, сокеты FP и TP, точка луча | публичный rep сборки |
 | `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели | state через `UHollowCarryableComponent` |
 | `UHollowExoFrameComponent` | Game | применяет `UHollowExoFrameDefinition`: AbilitySet, init-GE, таланты | на сервере |
@@ -183,7 +183,7 @@ UGameplayAbility
 └─ UHollowGameplayAbility             ActivationPolicy {OnInputTriggered, WhileInputActive, OnSpawn}, cost и cooldown из данных
    ├─ UHollowGA_ContinuousTool        [Game] база луча: серверный трейс 10 Гц, прогресс по серверному времени (§3.2)
    │  ├─ UHollowGA_PlasmaCutter · UHollowGA_Welder
-   ├─ UHollowGA_Interact · UHollowGA_CarryHeavy · UHollowGA_PulseMine
+   ├─ UHollowGA_CarryHeavy · UHollowGA_PulseMine   (взаимодействие — UHollowInteractionComponent, не способность)
    └─ (враги, [AI]) UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee · UHollowGA_StalkerAmbush
 
 UGameplayEffectExecutionCalculation

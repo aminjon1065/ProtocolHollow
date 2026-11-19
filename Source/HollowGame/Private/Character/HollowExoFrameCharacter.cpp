@@ -12,6 +12,7 @@
 #include "HollowGameLog.h"
 #include "Input/HollowInputConfig.h"
 #include "InputActionValue.h"
+#include "Interaction/HollowInteractionComponent.h"
 #include "Movement/HollowCharacterMovementComponent.h"
 #include "Tags/HollowGameplayTags.h"
 
@@ -37,6 +38,8 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->bEnableFirstPersonFieldOfView = true;
 	FirstPersonCamera->bEnableFirstPersonScale = true;
+
+	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
 }
 
 void AHollowExoFrameCharacter::PossessedBy(AController* NewController)
@@ -97,6 +100,8 @@ void AHollowExoFrameCharacter::NotifyControllerChanged()
 	Super::NotifyControllerChanged();
 	UE_LOG(LogHollowGame, Log, TEXT("%s controlled by %s (%s)"), *GetName(), *GetNameSafe(GetController()),
 		IsLocallyControlled() ? TEXT("local") : TEXT("remote"));
+	// IsPlayerControlled() needs the player state, which a client may receive after the controller: check the controller type.
+	InteractionComponent->SetLocalFocusEnabled(IsLocallyControlled() && Cast<APlayerController>(GetController()) != nullptr);
 
 	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
@@ -139,6 +144,7 @@ void AHollowExoFrameCharacter::SetupPlayerInputComponent(UInputComponent* Player
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Crouch, ETriggerEvent::Completed, this, &ThisClass::HandleCrouchCompleted);
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Sprint, ETriggerEvent::Started, this, &ThisClass::HandleSprintStarted);
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Sprint, ETriggerEvent::Completed, this, &ThisClass::HandleSprintCompleted);
+	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Interact, ETriggerEvent::Started, this, &ThisClass::HandleInteract);
 }
 
 void AHollowExoFrameCharacter::HandleMove(const FInputActionValue& Value)
@@ -183,4 +189,9 @@ void AHollowExoFrameCharacter::HandleSprintStarted()
 void AHollowExoFrameCharacter::HandleSprintCompleted()
 {
 	GetHollowMovement()->SetWantsToSprint(false);
+}
+
+void AHollowExoFrameCharacter::HandleInteract()
+{
+	InteractionComponent->RequestInteract();
 }

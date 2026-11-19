@@ -7,6 +7,7 @@
 
 class UCameraComponent;
 class UHollowCharacterMovementComponent;
+class UHollowInteractionComponent;
 class UHollowInputConfig;
 class UInputMappingContext;
 class USkeletalMeshComponent;
@@ -30,6 +31,7 @@ public:
 	UHollowCharacterMovementComponent* GetHollowMovement() const;
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
 	UCameraComponent* GetFirstPersonCamera() const { return FirstPersonCamera; }
+	UHollowInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
 
 	/** Skeleton socket the first-person camera follows (head bob comes from the animation). */
 	static const FName CameraSocketName;
@@ -53,12 +55,16 @@ private:
 	void HandleCrouchCompleted();
 	void HandleSprintStarted();
 	void HandleSprintCompleted();
+	void HandleInteract();
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonMesh;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
+
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowInteractionComponent> InteractionComponent;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Input")
 	TObjectPtr<const UHollowInputConfig> InputConfig;
