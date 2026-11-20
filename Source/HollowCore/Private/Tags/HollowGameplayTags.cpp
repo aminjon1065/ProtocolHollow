@@ -41,6 +41,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Dead, "Hollow.State.Dead", "Actor is dead.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Tool_Overheated, "Hollow.State.Tool.Overheated", "Tool overheated: blocks tool activation.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Tool_Active, "Hollow.State.Tool.Active", "A continuous tool is running (owned while active; predicted locally).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Invulnerable, "Hollow.State.Invulnerable", "Takes no damage of any type (exact tag only; dev: Hollow.Dev.Invulnerable).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Invulnerable_Kinetic, "Hollow.State.Invulnerable.Kinetic", "Immune to kinetic damage (Echo-Stalker).");
 
 	// Damage types

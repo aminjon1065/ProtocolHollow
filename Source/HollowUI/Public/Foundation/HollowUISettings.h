@@ -28,6 +28,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Layout")
 	TSoftClassPtr<UCommonActivatableWidget> SystemMenuClass;
 
+	/** On the front-end map instead of the visor (S4-06): solo, host co-op, quit. */
+	UPROPERTY(Config, EditAnywhere, Category = "Layout")
+	TSoftClassPtr<UCommonActivatableWidget> MainMenuClass;
+
 	/** Raid debrief on the Menu layer (S3-03). */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout")
 	TSoftClassPtr<UHollowDebriefWidget> DebriefClass;

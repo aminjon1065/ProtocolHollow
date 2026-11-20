@@ -63,6 +63,7 @@
 #include "AudioGameplayVolume.h"
 #include "ReverbVolumeComponent.h"
 #include "Sound/ReverbEffect.h"
+#include "Raid/HollowRaidLauncher.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Sector/HollowSectorFeatureSubsystem.h"
 #include "Sector/HollowSectorSettings.h"
@@ -243,10 +244,8 @@ namespace HollowDevConsole
 			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Raid.Start runs on the host."));
 			return;
 		}
-		const int32 Seed = Args.Num() > 0 && Args[0].IsNumeric() ? FCString::Atoi(*Args[0]) : UHollowSectorAuthorityComponent::MakeRandomSeed();
-		const FString Url = FString::Printf(TEXT("%s?Seed=%d"), *GetDefault<UHollowSectorSettings>()->RaidMap.GetLongPackageName(), Seed);
-		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Raid.Start: travelling to %s"), *Url);
-		World->ServerTravel(Url);
+		// The same path as the menu's "Start raid", from any map (development).
+		HollowRaidLauncher::Travel(World, Args.Num() > 0 && Args[0].IsNumeric() ? TOptional<int32>(FCString::Atoi(*Args[0])) : TOptional<int32>());
 	}
 
 	/** Server only: replaces the sector with a new seed on every machine, without travel. */
@@ -636,6 +635,35 @@ namespace HollowDevConsole
 			Device ? TEXT("on") : TEXT("off"), Device ? Device->GetNumActiveSources() : 0, *Listener.ToCompactString(), *Volume);
 	}
 
+	/**
+	 * Host: makes the local player (every player with All) take no damage, or takes it back with Off: soaks and
+	 * playthroughs keep the AI alive without losing the squad. Usage: Hollow.Dev.Invulnerable [All] [Off]
+	 */
+	void Invulnerable(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.Invulnerable runs on the host."));
+			return;
+		}
+		const bool bAll = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("All"), ESearchCase::IgnoreCase); });
+		const bool bOff = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("Off"), ESearchCase::IgnoreCase); });
+		int32 Changed = 0;
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			const APlayerController* Player = It->Get();
+			const AHollowExoFrameCharacter* Character = Player ? Cast<AHollowExoFrameCharacter>(Player->GetPawn()) : nullptr;
+			UAbilitySystemComponent* AbilitySystem = Character ? Character->GetAbilitySystemComponent() : nullptr;
+			if (!AbilitySystem || (!bAll && !Player->IsLocalController()))
+			{
+				continue;
+			}
+			AbilitySystem->SetLooseGameplayTagCount(HollowTags::State_Invulnerable, bOff ? 0 : 1);   // judged on the server
+			++Changed;
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Dev.Invulnerable: %d player(s) %s"), Changed, bOff ? TEXT("vulnerable again") : TEXT("take no damage"));
+	}
+
 	/** Usage: Hollow.Resonance.Add <Amount> [All|Others] */
 	void ResonanceAdd(const TArray<FString>& Args, UWorld* World)
 	{
@@ -1012,6 +1040,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.Kill"),
 		TEXT("Host: kills the local pawn (every player's with All, the remote players' with Others) with a damage effect of its max health. Usage: Hollow.Dev.Kill [All|Others]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Kill));
+
+	FAutoConsoleCommandWithWorldAndArgs InvulnerableCommand(
+		TEXT("Hollow.Dev.Invulnerable"),
+		TEXT("Host: the local player (every player with All) takes no damage until Off. Usage: Hollow.Dev.Invulnerable [All] [Off]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Invulnerable));
 
 	FAutoConsoleCommandWithWorld AudioDumpCommand(
 		TEXT("Hollow.Audio.Dump"),

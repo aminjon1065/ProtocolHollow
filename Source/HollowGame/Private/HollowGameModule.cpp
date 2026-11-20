@@ -1,7 +1,37 @@
 #include "HollowGameLog.h"
 
+#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
+#include "Settings/HollowGameUserSettings.h"
 
 DEFINE_LOG_CATEGORY(LogHollowGame);
 
-IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, HollowGame, "ProtocolHollow");
+/** The game module: once the engine is up, a game (not the editor, a commandlet or a dedicated server) applies its graphics preset. */
+class FHollowGameModule : public FDefaultGameModuleImpl
+{
+public:
+	virtual void StartupModule() override
+	{
+		PostEngineInitHandle = FCoreDelegates::GetOnPostEngineInit().AddLambda([]
+		{
+			if (GIsEditor || IsRunningCommandlet() || IsRunningDedicatedServer())
+			{
+				return;
+			}
+			if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+			{
+				Settings->InitializePreset();
+			}
+		});
+	}
+
+	virtual void ShutdownModule() override
+	{
+		FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
+	}
+
+private:
+	FDelegateHandle PostEngineInitHandle;
+};
+
+IMPLEMENT_PRIMARY_GAME_MODULE(FHollowGameModule, HollowGame, "ProtocolHollow");

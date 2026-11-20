@@ -99,6 +99,18 @@ bool FHollowDamageExecutionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...but not to occult damage"), Health(), MaxHealth - Base);
 	Rig.AbilitySystem->RemoveLooseGameplayTag(Kinetic->ImmunityTag);
 
+	// S4-06: Hollow.State.Invulnerable (exact) stops every type; the stalker's child tag does not widen to it.
+	Reset(0.f);
+	Rig.AbilitySystem->AddLooseGameplayTag(HollowTags::State_Invulnerable);
+	Hit(Rig, KineticHit, Base);
+	Hit(Rig, OccultHit, Base);
+	TestEqual(TEXT("Invulnerable: no damage of any type"), Health(), MaxHealth);
+	Rig.AbilitySystem->RemoveLooseGameplayTag(HollowTags::State_Invulnerable);
+	Rig.AbilitySystem->AddLooseGameplayTag(HollowTags::State_Invulnerable_Kinetic);
+	Hit(Rig, OccultHit, Base);
+	TestEqual(TEXT("Kinetic immunity is not invulnerability"), Health(), MaxHealth - Base);
+	Rig.AbilitySystem->RemoveLooseGameplayTag(HollowTags::State_Invulnerable_Kinetic);
+
 	Reset(0.f);
 	Hit(Rig, KineticHit, -Base);
 	TestEqual(TEXT("A negative hit heals nothing"), Health(), MaxHealth);

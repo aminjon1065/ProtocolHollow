@@ -18,14 +18,16 @@
 Ожидаем `state=Registered references=0 rooms=8`. Если `rooms=0` или `state=Unknown`, контент плагина не попал в кук: пришли лог `Saved/Logs`.
 
 ## Тест 1 — хост Windows, клиент Mac (рекомендуемый первый)
-1. **Windows:** запусти `ProtocolHollow.exe`. Брандмауэр Windows: «Разрешить» (частные сети). SmartScreen: «Подробнее → Выполнить в любом случае». Откроется пустая `L_Boot`.
-2. **Mac:** запусти игру в режиме `-game`:
+> С S4-06 есть меню (главное: «Host co-op», «Play solo», «Quit»; Esc в хабе: «Invite friends», «Start raid», «Leave session»), а Mac запускает собранную игру `Build/Scripts/package-mac.sh`. Полный прогон E1/E2 — [NetworkChecklist.md](NetworkChecklist.md); консольные команды ниже по-прежнему работают.
+
+1. **Windows:** запусти `ProtocolHollow.exe`. Брандмауэр Windows: «Разрешить» (частные сети). SmartScreen: «Подробнее → Выполнить в любом случае». Откроется главное меню (`L_Boot`).
+2. **Mac:** запусти собранную игру:
    ```bash
-   "/Users/Shared/Epic Games/UE_5.8/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" \
-     ~/Desktop/ProtocolHollow/ProtocolHollow.uproject -game -windowed -ResX=1280 -ResY=720 \
-     -abslog=$HOME/Desktop/ProtocolHollow/Saved/Logs/SteamTest-Mac.log
+   ./Build/Scripts/package-mac.sh   # один раз после pull
+   open Packages/Mac/Development/ProtocolHollow.app
    ```
-3. **Windows**, консоль `~`:
+   Лог: `~/Library/Logs/ProtocolHollow/ProtocolHollow.log`.
+3. **Windows:** «Host co-op» в меню (или в консоли `~`):
    - `Hollow.Session.Host InviteOnly` → загрузится `L_Hub_Dev`.
    - `Hollow.Session.Status` → ожидаем `State=InSession … Role=Host OnlineSubsystem=STEAM`.
 4. **Windows:** `Hollow.Session.Invite` (оверлей Steam) → пригласи аккаунт A. Если оверлей не открылся, пригласи из списка друзей Steam: ПКМ по другу → «Пригласить в игру».
@@ -38,7 +40,7 @@
 - **Смена ролей:** хост — Mac (`Hollow.Session.Host InviteOnly` в консоли `~`), инвайт из списка друзей Steam, клиент — Windows.
 
 ## Если что-то не так — пришли логи
-- **Mac:** `~/Desktop/ProtocolHollow/Saved/Logs/SteamTest-Mac.log`
+- **Mac:** `~/Library/Logs/ProtocolHollow/ProtocolHollow.log` (собранная игра)
 - **Windows:** `Packages\Win64\Development\Windows\ProtocolHollow\Saved\Logs\ProtocolHollow.log`
 
 | Симптом | Вероятная причина |

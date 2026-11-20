@@ -47,7 +47,10 @@ void UHollowDamageExecution::Execute_Implementation(const FGameplayEffectCustomE
 	const FGameplayTag DamageType = Effect ? Effect->DamageType : FGameplayTag();
 	const UHollowDamageSettings* Settings = GetDefault<UHollowDamageSettings>();
 	const FHollowDamageTypeRule* Rule = Settings->FindRule(DamageType);
-	const bool bImmune = Rule && Rule->ImmunityTag.IsValid() && Evaluate.TargetTags && Evaluate.TargetTags->HasTag(Rule->ImmunityTag);
+	// Immune by the type's rule, or to everything with the exact Hollow.State.Invulnerable (its children, such as the
+	// stalker's .Kinetic, only count through their own rule).
+	const bool bInvulnerable = Evaluate.TargetTags && Evaluate.TargetTags->HasTagExact(HollowTags::State_Invulnerable);
+	const bool bImmune = bInvulnerable || (Rule && Rule->ImmunityTag.IsValid() && Evaluate.TargetTags && Evaluate.TargetTags->HasTag(Rule->ImmunityTag));
 	const float Damage = HollowDamageMath::Mitigate(Base, Armor, Settings->ArmorConstant, Rule ? Rule->bArmorApplies : true, bImmune);
 
 	UE_LOG(LogHollowGAS, Verbose, TEXT("Damage %s: %.1f -> %.1f (armor %.1f%s)"), *DamageType.ToString(), Base, Damage, Armor, bImmune ? TEXT(", immune") : TEXT(""));

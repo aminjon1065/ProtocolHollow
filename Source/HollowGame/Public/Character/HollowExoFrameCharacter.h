@@ -81,6 +81,8 @@ private:
 	void BecomeSpectator();
 	/** Every machine: a dead body neither moves nor blocks the living. */
 	void ApplyDeadPresentation();
+	/** The lamp casts shadows (if its data says so) only for the player of this machine, unless bOtherHelmetLampsCastShadows. */
+	void ApplyHelmetShadows();
 
 	UFUNCTION()
 	void OnRep_Dead();
@@ -103,9 +105,19 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
 
-	/** On the camera: its cone, brightness and reach are data (BP_ExoFrame). */
+	/** On the camera: its cone, brightness, reach and shadows are data (BP_ExoFrame). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<USpotLightComponent> HelmetLight;
+
+	/** The lamp's own data (BP_ExoFrame) before ApplyHelmetShadows. */
+	bool bHelmetLampCastsShadows = false;
+
+	/**
+	 * Whether the lamps of the other players cast shadows on this machine (S4-05, Block 3 sec. 3.9): a moving shadowed light
+	 * redraws its shadow pages every frame, and four of them would take the whole budget of a view. Off: only one's own does.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Character")
+	bool bOtherHelmetLampsCastShadows = false;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UHollowInteractionComponent> InteractionComponent;

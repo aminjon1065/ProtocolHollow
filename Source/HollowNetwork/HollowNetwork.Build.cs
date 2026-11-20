@@ -24,5 +24,13 @@ public class HollowNetwork : ModuleRules
 		{
 			"OnlineSubsystemUtils"
 		});
+
+		// A Shipping build started outside the Steam client (the test builds of the Vertical Slice, AppID 480, ADR-0024) finds
+		// its AppID in steam_appid.txt next to the executable: the launcher engine's Steam plugin is precompiled, so the
+		// UE_PROJECT_STEAMSHIPPINGID define cannot reach it. A store release with its own AppID drops this file.
+		if (Target.Configuration == UnrealTargetConfiguration.Shipping && Target.Type == TargetType.Game && Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			RuntimeDependencies.Add("$(TargetOutputDir)/steam_appid.txt", "$(ProjectDir)/Build/Steam/steam_appid.txt", StagedFileType.NonUFS);
+		}
 	}
 }

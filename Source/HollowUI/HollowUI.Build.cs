@@ -24,6 +24,7 @@ public class HollowUI : ModuleRules
 			"HollowCore",
 			"HollowGAS",
 			"HollowEconomy",
+			"HollowNetwork",
 			"HollowGame"
 		});
 

@@ -14,6 +14,7 @@ UHollowDebriefWidget::UHollowDebriefWidget(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	InputMode = EHollowWidgetInputMode::Menu;
+	bIsBackHandler = true;
 }
 
 void UHollowDebriefWidget::NativeOnInitialized()
@@ -96,6 +97,12 @@ FText UHollowDebriefWidget::DescribeItems(const TArray<FHollowItemStack>& Stacks
 		Parts.Add(Stack.Count > 1 ? FText::Format(LOCTEXT("Stack", "{0} x{1}"), Name, Stack.Count) : Name);
 	}
 	return Parts.IsEmpty() ? LOCTEXT("Nothing", "nothing") : FText::Join(LOCTEXT("Separator", ", "), Parts);
+}
+
+bool UHollowDebriefWidget::NativeOnHandleBackAction()
+{
+	Close();   // read, like the button
+	return true;
 }
 
 void UHollowDebriefWidget::Close()

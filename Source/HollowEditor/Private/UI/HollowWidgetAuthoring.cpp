@@ -62,6 +62,24 @@ UWidget* UHollowWidgetAuthoring::AddWidget(UWidgetBlueprint* Blueprint, const TS
 	return Widget;
 }
 
+UWidget* UHollowWidgetAuthoring::InsertWidget(UWidgetBlueprint* Blueprint, const TSubclassOf<UWidget> WidgetClass, const FName Name, const FName Parent,
+	const int32 Index)
+{
+	UPanelWidget* ParentPanel = Blueprint && Blueprint->WidgetTree ? Cast<UPanelWidget>(Blueprint->WidgetTree->FindWidget(Parent)) : nullptr;
+	if (!ParentPanel || !WidgetClass || Name.IsNone() || Blueprint->WidgetTree->FindWidget(Name))
+	{
+		UE_LOG(LogHollowEditor, Error, TEXT("InsertWidget %s into %s: no panel %s, no class, or the name is taken."), *Name.ToString(), *GetNameSafe(Blueprint), *Parent.ToString());
+		return nullptr;
+	}
+	Blueprint->Modify();
+	UWidget* Widget = Blueprint->WidgetTree->ConstructWidget<UWidget>(WidgetClass, Name);
+	Widget->bIsVariable = true;   // C++ binds widgets by name (BindWidget)
+	ParentPanel->InsertChildAt(FMath::Clamp(Index, 0, ParentPanel->GetChildrenCount()), Widget);
+	Blueprint->OnVariableAdded(Widget->GetFName());
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	return Widget;
+}
+
 UWidget* UHollowWidgetAuthoring::FindWidget(UWidgetBlueprint* Blueprint, const FName Name)
 {
 	return Blueprint && Blueprint->WidgetTree ? Blueprint->WidgetTree->FindWidget(Name) : nullptr;

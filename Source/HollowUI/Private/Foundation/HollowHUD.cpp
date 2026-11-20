@@ -12,6 +12,7 @@
 #include "HollowUILog.h"
 #include "HollowUITags.h"
 #include "InputMappingContext.h"
+#include "Menus/HollowMenuRules.h"
 #include "ViewModels/HollowVisorContext.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
@@ -54,8 +55,11 @@ void AHollowHUD::BeginPlay()
 	}
 	Layout = CreateWidget<UHollowPrimaryLayout>(Player, LayoutClass);
 	Layout->AddToPlayerScreen();
-	Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Game, Settings->VisorClass.LoadSynchronous());
-	UE_LOG(LogHollowUI, Log, TEXT("%s: UI up for %s"), *GetName(), *Player->GetName());
+	// The front end has no body to show a visor for: its main menu instead (a debrief below still shows on top of it).
+	const bool bFrontEnd = HollowMenuRules::IsFrontEnd(GetWorld());
+	Layout->PushWidgetToLayer(bFrontEnd ? HollowUITags::UI_Layer_Menu : HollowUITags::UI_Layer_Game,
+		(bFrontEnd ? Settings->MainMenuClass : Settings->VisorClass).LoadSynchronous());
+	UE_LOG(LogHollowUI, Log, TEXT("%s: UI up for %s (%s)"), *GetName(), *Player->GetName(), bFrontEnd ? TEXT("main menu") : TEXT("visor"));
 
 	// A raid resolved now, or one the player has not seen yet (after travel, a lost host, a crash).
 	if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))

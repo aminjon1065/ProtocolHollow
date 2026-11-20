@@ -24,6 +24,9 @@ public:
 	void SetReport(const FHollowRaidReport& InReport);
 
 	UCommonButtonBase* GetCloseButton() const { return CloseButton; }
+
+	/** Back (Esc / B) is Close (S4-06 bug bash: it did nothing, so a debrief closed only with its button). Public for tests. */
+	virtual bool NativeOnHandleBackAction() override;
 	FText GetTitle() const;
 	FText GetDetails() const;
 

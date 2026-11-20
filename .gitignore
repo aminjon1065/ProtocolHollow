@@ -32,3 +32,9 @@ Desktop.ini
 # Placeholder content copied from the local UE 5.8 templates (Build/Scripts/import-placeholders.*, ADR-0011)
 Content/Characters/Mannequins/
 Content/FirstPerson/
+
+# Packaging by-products (S4-06): file-open-order logs, the package version counter, the engine's default Mac entitlements
+# (the project signs with Build/Mac/Resources/Hollow.entitlements, ADR-0024)
+Build/*/FileOpenOrder/
+*.PackageVersionCounter
+Build/Mac/Resources/Sandbox.*.entitlements

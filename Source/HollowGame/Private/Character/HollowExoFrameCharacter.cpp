@@ -70,6 +70,8 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 void AHollowExoFrameCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+	bHelmetLampCastsShadows = HelmetLight->CastShadows;
+	ApplyHelmetShadows();   // a copy no one on this machine controls (yet)
 	CarrierComponent->SetAttachTargets(FirstPersonCamera, GetMesh());
 }
 
@@ -209,6 +211,12 @@ bool AHollowExoFrameCharacter::GetLightCone(FHollowLightCone& OutCone) const
 	return true;
 }
 
+void AHollowExoFrameCharacter::ApplyHelmetShadows()
+{
+	const bool bOwn = IsLocallyControlled() && Cast<APlayerController>(GetController()) != nullptr;
+	HelmetLight->SetCastShadows(bHelmetLampCastsShadows && (bOwn || bOtherHelmetLampsCastShadows));
+}
+
 void AHollowExoFrameCharacter::BecomeSpectator()
 {
 	if (APlayerController* Player = Cast<APlayerController>(GetController()))
@@ -231,6 +239,7 @@ void AHollowExoFrameCharacter::NotifyControllerChanged()
 		IsLocallyControlled() ? TEXT("local") : TEXT("remote"));
 	// IsPlayerControlled() needs the player state, which a client may receive after the controller: check the controller type.
 	InteractionComponent->SetLocalFocusEnabled(IsLocallyControlled() && Cast<APlayerController>(GetController()) != nullptr);
+	ApplyHelmetShadows();
 
 	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;

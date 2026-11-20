@@ -755,8 +755,12 @@ FString AHollowAIController::Describe() const
 {
 	const APawn* Self = GetPawn();
 	const APawn* Current = GetTarget();
+#if WITH_GAMEPLAY_DEBUGGER
+	const FString States = FString::JoinBy(Brain->GetActiveStateNames(), TEXT(" > "), [](const FName& Name) { return Name.ToString(); });
+#else
+	const FString States = TEXT("n/a");   // the StateTree component lists its states only with the gameplay debugger (not in Shipping)
+#endif
 	return FString::Printf(TEXT("%s at %s, activity %s, states [%s], target %s, stimulus %s, obstacle %s"), *GetNameSafe(Self),
-		Self ? *Self->GetActorLocation().ToCompactString() : TEXT("-"), *HollowEnumToString(Activity),
-		*FString::JoinBy(Brain->GetActiveStateNames(), TEXT(" > "), [](const FName& Name) { return Name.ToString(); }),
+		Self ? *Self->GetActorLocation().ToCompactString() : TEXT("-"), *HollowEnumToString(Activity), *States,
 		*GetNameSafe(Current), HasStimulus() ? *StimulusLocation.ToCompactString() : TEXT("none"), *GetNameSafe(Obstacle.Get()));
 }

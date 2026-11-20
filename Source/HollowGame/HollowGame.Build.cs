@@ -37,6 +37,8 @@ public class HollowGame : ModuleRules
 			"AudioModulation",
 			"AudioGameplay",
 			"AudioGameplayVolume",
+			"Json",
+			"RHI",
 			"StateTreeModule",
 			"GameplayStateTreeModule"
 		});

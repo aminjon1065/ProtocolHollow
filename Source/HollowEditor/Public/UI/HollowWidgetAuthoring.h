@@ -26,6 +26,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Widgets")
 	static UWidget* FindWidget(UWidgetBlueprint* Blueprint, FName Name);
 
+	/** Like AddWidget into the panel Parent, at Index among its children (an existing tree gains a widget in its place). */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Widgets")
+	static UWidget* InsertWidget(UWidgetBlueprint* Blueprint, TSubclassOf<UWidget> WidgetClass, FName Name, FName Parent, int32 Index);
+
 	/** Canvas panel slot: one anchor point, alignment (pivot), position and size (or the content's size). */
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Widgets")
 	static bool SetCanvasSlot(UWidget* Widget, FVector2D Anchor, FVector2D Alignment, FVector2D Position, FVector2D Size, bool bAutoSize);

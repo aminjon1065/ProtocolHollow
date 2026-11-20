@@ -2,7 +2,9 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#if WITH_EDITOR
 #include "Misc/DataValidation.h"
+#endif
 #include "Rules/HollowLightBudget.h"
 #include "Tags/HollowGameplayTags.h"
 #include "UObject/Package.h"
@@ -72,11 +74,13 @@ bool FHollowLightBudgetRulesTest::RunTest(const FString& Parameters)
 	FGameplayTagContainer Tags(HollowTags::Room_Type_Corridor);
 	TestTrue(TEXT("Limits are found by the room's type"), Config->FindLimits(Tags) == &Config->Rooms[1]);
 	TestNull(TEXT("...or not at all"), Config->FindLimits(FGameplayTagContainer(HollowTags::Room_Type_Hangar)));
+#if WITH_EDITOR   // Data Validation exists in editor builds only (a packaged Test build runs the rest of this test)
 	FDataValidationContext Valid;
 	TestTrue(TEXT("Shipped-like limits validate"), Config->IsDataValid(Valid) != EDataValidationResult::Invalid);
 	Config->Rooms.Add(Limits(HollowTags::Room_Type_Hangar, 6, 3, 1, 3, 1));
 	FDataValidationContext Invalid;
 	TestTrue(TEXT("A room type that could crowd a view over the frame's limit does not"), Config->IsDataValid(Invalid) == EDataValidationResult::Invalid);
+#endif
 	return true;
 }
 
