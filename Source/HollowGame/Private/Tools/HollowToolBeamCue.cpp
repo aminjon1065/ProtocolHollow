@@ -1,5 +1,7 @@
 #include "Tools/HollowToolBeamCue.h"
 
+#include "Audio/HollowAudioSubsystem.h"
+#include "Components/AudioComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Data/HollowToolDefinition.h"
@@ -50,6 +52,10 @@ bool AHollowToolBeamCue::OnActive_Implementation(AActor* MyTarget, const FGamepl
 	}
 	Glow->SetLightColor(Tool->BeamColor);
 	Beam->SetVisibility(true);
+	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
+	{
+		Sound = Audio->PlayAttached(Tool->NoiseTag, Wielder->GetRootComponent());
+	}
 	UpdateBeam();
 	GetWorld()->GetTimerManager().SetTimer(UpdateTimer, this, &ThisClass::UpdateBeam, 1.f / UpdateRateHz, /*bLoop=*/true);
 	UE_LOG(LogHollowGame, Log, TEXT("Tool beam on: %s (%s, %s)"), *Wielder->GetName(), *Tool->ToolTag.ToString(),
@@ -62,6 +68,11 @@ bool AHollowToolBeamCue::OnRemove_Implementation(AActor* MyTarget, const FGamepl
 	GetWorld()->GetTimerManager().ClearTimer(UpdateTimer);
 	Beam->SetVisibility(false);
 	Glow->SetVisibility(false);
+	if (Sound)
+	{
+		Sound->Stop();
+		Sound = nullptr;
+	}
 	return Super::OnRemove_Implementation(MyTarget, Parameters);
 }
 

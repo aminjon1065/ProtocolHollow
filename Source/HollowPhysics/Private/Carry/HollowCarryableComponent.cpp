@@ -1,5 +1,6 @@
 #include "Carry/HollowCarryableComponent.h"
 
+#include "Audio/HollowAudioSubsystem.h"
 #include "Carry/HollowCarrierComponent.h"
 #include "Carry/HollowCarryableDefinition.h"
 #include "Collision/HollowCollisionChannels.h"
@@ -356,6 +357,13 @@ void UHollowCarryableComponent::HandleStateChanged(const FHollowCarryNetState& O
 		}
 	}
 	ApplyPresentation();
+	if (OldState.IsCarried() && !CarryState.IsCarried())
+	{
+		if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
+		{
+			Audio->Play(HollowTags::Noise_Core_Drop, GetOwner()->GetActorLocation());   // the thud the AI heard
+		}
+	}
 	if (!GetOwner()->HasAuthority() && OldState.IsCarried() && !CarryState.IsCarried() && GetOwner()->IsReplicatingMovement())
 	{
 		// Dropped: start from the server's drop pose (it arrives with this state), not from where this machine held it.

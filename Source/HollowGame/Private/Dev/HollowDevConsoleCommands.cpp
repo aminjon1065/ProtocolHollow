@@ -58,6 +58,11 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/PostProcessVolume.h"
+#include "Audio/HollowAudioSubsystem.h"
+#include "AudioDevice.h"
+#include "AudioGameplayVolume.h"
+#include "ReverbVolumeComponent.h"
+#include "Sound/ReverbEffect.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Sector/HollowSectorFeatureSubsystem.h"
 #include "Sector/HollowSectorSettings.h"
@@ -599,6 +604,38 @@ namespace HollowDevConsole
 		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Light.Dump: atmosphere %d height fog(s), %d volumetric, %d unbound post-process volume(s)"), Fogs, VolumetricFogs, Unbound);
 	}
 
+	/** Any machine: the gameplay sounds this machine played (by tag), its active voices and the room volume it hears from. */
+	void AudioDump(UWorld* World)
+	{
+		const UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(World);
+		if (!Audio)
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Audio.Dump: no audio here (dedicated server)."));
+			return;
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Audio.Dump: %s"), *Audio->Describe());
+		const FAudioDeviceHandle Device = World->GetAudioDevice();
+		const APlayerController* Player = World->GetFirstPlayerController();
+		FVector Listener = FVector::ZeroVector;
+		FRotator Unused;
+		if (Player)
+		{
+			Player->GetPlayerViewPoint(Listener, Unused);
+		}
+		FString Volume = TEXT("none");
+		for (TActorIterator<AAudioGameplayVolume> It(World); It; ++It)
+		{
+			if (It->EncompassesPoint(Listener))
+			{
+				const UReverbVolumeComponent* Reverb = It->FindComponentByClass<UReverbVolumeComponent>();
+				Volume = FString::Printf(TEXT("%s (%s), reverb %s"), *It->GetActorNameOrLabel(), *GetNameSafe(static_cast<const UObject*>(It->GetLevel()->GetOuter())),
+					Reverb ? *GetNameSafe(Reverb->GetReverbSettings().ReverbEffect) : TEXT("none"));
+			}
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Audio.Dump: audio device %s, %d active source(s), listener at %s in %s"),
+			Device ? TEXT("on") : TEXT("off"), Device ? Device->GetNumActiveSources() : 0, *Listener.ToCompactString(), *Volume);
+	}
+
 	/** Usage: Hollow.Resonance.Add <Amount> [All|Others] */
 	void ResonanceAdd(const TArray<FString>& Args, UWorld* World)
 	{
@@ -975,6 +1012,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.Kill"),
 		TEXT("Host: kills the local pawn (every player's with All, the remote players' with Others) with a damage effect of its max health. Usage: Hollow.Dev.Kill [All|Others]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Kill));
+
+	FAutoConsoleCommandWithWorld AudioDumpCommand(
+		TEXT("Hollow.Audio.Dump"),
+		TEXT("Prints the gameplay sounds this machine played (per tag), its active voices and the room acoustics volume the listener is in (any machine)."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&AudioDump));
 
 	FAutoConsoleCommandWithWorld LightDumpCommand(
 		TEXT("Hollow.Light.Dump"),

@@ -2,6 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Audio/HollowAudioSubsystem.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Enemies/HollowEnemyCharacter.h"
@@ -11,6 +12,7 @@
 #include "HollowGameLog.h"
 #include "Net/UnrealNetwork.h"
 #include "Noise/HollowNoiseSubsystem.h"
+#include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowPulseMine)
@@ -37,6 +39,7 @@ void AHollowPulseMine::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AHollowPulseMine, bDetonated);
+	DOREPLIFETIME(AHollowPulseMine, bArmed);
 }
 
 void AHollowPulseMine::BeginPlay()
@@ -66,6 +69,8 @@ void AHollowPulseMine::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AHollowPulseMine::Arm()
 {
 	bArmed = true;
+	OnRep_Armed();   // the beep on the host too
+	ForceNetUpdate();
 	UE_LOG(LogHollowGame, Log, TEXT("%s of %s is armed"), *GetName(), *GetNameSafe(GetInstigator()));
 	GetWorldTimerManager().SetTimer(CheckTimer, this, &ThisClass::CheckTrigger, Definition->CheckSeconds, /*bLoop=*/true);
 }
@@ -160,4 +165,18 @@ void AHollowPulseMine::ApplyDetonatedPresentation()
 {
 	Flash->SetVisibility(bDetonated);
 	Body->SetVisibility(!bDetonated);
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	if (Audio && bDetonated && HasActorBegunPlay())   // a first bunch of a spent mine is old news
+	{
+		Audio->Play(HollowTags::Sound_Mine_Blast, GetActorLocation());   // heard by the AI as Impact.Heavy, as far
+	}
+}
+
+void AHollowPulseMine::OnRep_Armed()
+{
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	if (Audio && bArmed && !bDetonated && HasActorBegunPlay())   // the beep, not a mine that was armed before it got here
+	{
+		Audio->Play(HollowTags::Sound_Mine_Arm, GetActorLocation());
+	}
 }

@@ -2,6 +2,7 @@
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowHealthSet.h"
+#include "Audio/HollowFootstepAudioComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Character/HollowFootstepNoiseComponent.h"
 #include "Carry/HollowCarrierComponent.h"
@@ -62,6 +63,8 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
 	CarrierComponent = CreateDefaultSubobject<UHollowCarrierComponent>(TEXT("Carrier"));
 	FootstepNoise = CreateDefaultSubobject<UHollowFootstepNoiseComponent>(TEXT("FootstepNoise"));
+	FootstepAudio = CreateDefaultSubobject<UHollowFootstepAudioComponent>(TEXT("FootstepAudio"));
+	FootstepAudio->SoundTag = HollowTags::Noise_Footstep;   // a player's steps are the noise the AI hears
 }
 
 void AHollowExoFrameCharacter::PostInitializeComponents()

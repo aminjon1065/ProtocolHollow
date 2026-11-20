@@ -1,5 +1,6 @@
 #include "Carry/HollowAetherCore.h"
 
+#include "Audio/HollowAudioSubsystem.h"
 #include "Carry/HollowCarrierComponent.h"
 #include "Carry/HollowCarryableComponent.h"
 #include "Carry/HollowCarryableDefinition.h"
@@ -76,4 +77,13 @@ void AHollowAetherCore::OnRep_ReplicateMovement()
 {
 	Super::OnRep_ReplicateMovement();
 	Carryable->HandleMovementReplicationChanged();
+}
+
+void AHollowAetherCore::BeginPlay()
+{
+	Super::BeginPlay();
+	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
+	{
+		Audio->PlayAttached(HollowTags::Sound_Core_Hum, Visual);   // ends with the core
+	}
 }

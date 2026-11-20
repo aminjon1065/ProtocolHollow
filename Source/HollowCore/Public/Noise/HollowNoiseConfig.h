@@ -5,6 +5,8 @@
 
 #include "HollowNoiseConfig.generated.h"
 
+struct FHollowSectorTopology;
+
 /** How loud one kind of noise is (DA_NoiseConfig). */
 USTRUCT(BlueprintType)
 struct FHollowNoiseRule
@@ -61,4 +63,24 @@ public:
 	/** Speed of a footstep at the rule's loudness (walking); sprinting is louder in proportion. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Footsteps", meta = (ClampMin = "1", Units = "CentimetersPerSecond"))
 	float FootstepReferenceSpeed = 0.f;
+
+	/**
+	 * A noise from another room (the sector topology) carries this fraction of its range for the AI (S4-04, ADR-0022);
+	 * players hear it muffled the same way (each room's acoustics volume filters what comes from outside). 1: no walls.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rooms", meta = (ClampMin = "0", ClampMax = "1"))
+	float InterRoomRange = 1.f;
+
+	/** How far a noise reaches a listener hearing HearingRange: Loudness x LoudnessScale x HearingRange, capped by its MaxRange. */
+	float RangeFor(const FHollowNoiseRule& Rule, float HearingRange, float LoudnessScale = 1.f) const;
+
+	/** Whether a noise Distance away reaches that listener: within RangeFor, InterRoomRange of it from another room. */
+	bool Reaches(const FHollowNoiseRule& Rule, float HearingRange, float LoudnessScale, float Distance, bool bFromAnotherRoom) const;
+
+	/**
+	 * The walls of the sector (ADR-0022): whether a noise at Source reaches a listener at Listener. From another room of
+	 * Topology only within InterRoomRange of its range; in the same room or outside every room the hearing sense decides.
+	 */
+	bool ReachesThroughWalls(const FHollowSectorTopology& Topology, const FHollowNoiseRule& Rule, float HearingRange, float LoudnessScale,
+		const FVector& Source, const FVector& Listener) const;
 };

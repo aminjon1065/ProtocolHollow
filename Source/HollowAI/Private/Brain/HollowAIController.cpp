@@ -14,6 +14,8 @@
 #include "Interfaces/HollowStructural.h"
 #include "NavFilters/NavigationQueryFilter.h"
 #include "NavigationSystem.h"
+#include "Noise/HollowNoiseConfig.h"
+#include "Noise/HollowNoiseSubsystem.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Sight.h"
@@ -258,10 +260,30 @@ void AHollowAIController::HandlePerception(AActor* Actor, const FAIStimulus Stim
 			ReportLost(Pawn, Stimulus.StimulusLocation);
 		}
 	}
-	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Hearing>() && Stimulus.WasSuccessfullySensed())
+	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Hearing>() && Stimulus.WasSuccessfullySensed() && IsAudibleFromItsRoom(Stimulus))
 	{
 		ReportHeard(Stimulus.StimulusLocation);
 	}
+}
+
+bool AHollowAIController::IsAudibleFromItsRoom(const FAIStimulus& Stimulus) const
+{
+	// Walls between rooms (ADR-0022): a noise from another room of the topology carries InterRoomRange of its range.
+	const UHollowSectorTopologySubsystem* Topology = GetTopology();
+	const UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(this);
+	const UHollowNoiseConfig* Config = Noise ? Noise->GetConfig() : nullptr;
+	const APawn* Listener = GetPawn();
+	const FHollowNoiseRule* Rule = Config ? Config->FindRule(FGameplayTag::RequestGameplayTag(Stimulus.Tag, /*ErrorIfNotFound=*/false)) : nullptr;
+	if (!Topology || !Rule || !Listener)
+	{
+		return true;
+	}
+	// Strength is the rule's loudness times the event's scale (footsteps by speed).
+	const float Scale = Rule->Loudness > 0.f ? Stimulus.Strength / Rule->Loudness : 1.f;
+	const bool bAudible = Config->ReachesThroughWalls(Topology->GetTopology(), *Rule, HearingConfig->HearingRange, Scale, Stimulus.StimulusLocation,
+		Listener->GetActorLocation());
+	UE_CLOG(!bAudible, LogHollowAI, Verbose, TEXT("%s: %s from another room, muffled by the walls"), *GetNameSafe(Listener), *Stimulus.Tag.ToString());
+	return bAudible;
 }
 
 void AHollowAIController::ReportSeen(APawn* Pawn)

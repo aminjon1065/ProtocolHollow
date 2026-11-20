@@ -6,6 +6,7 @@
 
 class APawn;
 class UHollowToolDefinition;
+class UAudioComponent;
 class UMaterialInstanceDynamic;
 class UPointLightComponent;
 class UStaticMeshComponent;
@@ -55,4 +56,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BeamMaterial;
+
+	/** The tool's sound while it runs: its noise tag (the AI hears the same, ADR-0022). */
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> Sound;
 };

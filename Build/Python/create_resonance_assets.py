@@ -8,7 +8,7 @@
       DA_ResonancePresentation                         UHollowResonancePresentationConfig
   /Game/Hollow/Audio/Modulation/SMP_Resonance_Lowpass  low-pass frequency parameter of the bus
   /Game/Hollow/Audio/Modulation/CB_Resonance           Audio Modulation control bus the presentation drives
-  /Game/Hollow/Audio/SC_Hollow_World                   sound class whose low-pass follows CB_Resonance (S4-04 sounds use it)
+  /Game/Hollow/Audio/SC_Hollow_World                   sound class whose low-pass follows CB_Resonance; room volumes apply (S4-04)
   BP_ExoFrame                                          M_PP_Resonance on the first-person camera
   DA_Enemy_EchoStalker                                 HearingResonanceCurve
 
@@ -349,14 +349,16 @@ def ensure_audio():
     modulation = properties.get_editor_property("modulation_settings")
     lowpass = modulation.get_editor_property("lowpass_modulation_destination")
     modulators = list(lowpass.get_editor_property("modulators"))
-    if created or modulators != [bus] or not lowpass.get_editor_property("enable_modulation"):
+    ambient = properties.get_editor_property("apply_ambient_volumes")
+    if created or modulators != [bus] or not lowpass.get_editor_property("enable_modulation") or not ambient:
         lowpass.set_editor_property("enable_modulation", True)
         lowpass.set_editor_property("modulators", [bus])
         modulation.set_editor_property("lowpass_modulation_destination", lowpass)
         properties.set_editor_property("modulation_settings", modulation)
+        properties.set_editor_property("apply_ambient_volumes", True)   # S4-04: the room acoustics volumes filter these sounds
         sound_class.set_editor_property("properties", properties)
         save(sound_class)
-        log("SC_Hollow_World: low-pass follows CB_Resonance")
+        log("SC_Hollow_World: low-pass follows CB_Resonance, room volumes apply")
     return bus
 
 

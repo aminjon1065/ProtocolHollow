@@ -132,6 +132,7 @@ AHollowEnemyCharacter* UHollowThreatDirectorSubsystem::SpawnStalker()
 	if (Spawned)
 	{
 		UE_LOG(LogHollowAI, Log, TEXT("Director: %s comes out of the vents at %s"), *Spawned->GetName(), *Spawned->GetActorLocation().ToCompactString());
+		Spawned->EmergeFromVent();
 		Register(Spawned);
 	}
 	return Spawned;

@@ -33,7 +33,8 @@ RULES = [
     ("Hollow.Noise.Structural.Breach", 2.0, 6000.0, 0.0),
 ]
 # Footsteps (data): checked twice a second; crouch-walking (180) stays under the minimum; walking (400) is the reference.
-FOOTSTEPS = {"footstep_interval": 0.5, "footstep_min_speed": 200.0, "footstep_reference_speed": 400.0}
+FOOTSTEPS = {"footstep_interval": 0.5, "footstep_min_speed": 200.0, "footstep_reference_speed": 400.0,
+             "inter_room_range": 0.6}   # S4-04: a noise from another room carries 60 % as far (walls; players hear it muffled too)
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 assets = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)

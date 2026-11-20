@@ -35,6 +35,8 @@ public class HollowGame : ModuleRules
 			"NavigationSystem",
 			"NetCore",
 			"AudioModulation",
+			"AudioGameplay",
+			"AudioGameplayVolume",
 			"StateTreeModule",
 			"GameplayStateTreeModule"
 		});

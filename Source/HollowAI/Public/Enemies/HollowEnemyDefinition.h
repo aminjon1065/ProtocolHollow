@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Audio/HollowFootstepAudioComponent.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 
@@ -108,6 +109,18 @@ public:
 	/** Pause after a failed activity (no path, no target) before the brain decides again; also how long a target it could not reach is ignored. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behaviour", meta = (ClampMin = "0.01", Units = "Seconds"))
 	float RetrySeconds = 0.f;
+
+	/** Its voice as a blow winds up (DA_SoundBank, ADR-0022), on every machine with the wind-up cue. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (Categories = "Hollow.Sound"))
+	FGameplayTag WindupSound;
+
+	/** Its footsteps for players (UHollowFootstepAudioComponent); no AI hears them. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (Categories = "Hollow.Sound"))
+	FGameplayTag FootstepSound;
+
+	/** Their pace and loudness by speed; heard from PatrolSpeed on (a patrol is never silent). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound")
+	FHollowFootstepCadence FootstepCadence;
 
 	/** Gameplay event that triggers its melee attack ability. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (Categories = "Hollow.Event.Enemy"))

@@ -3,10 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Algo/Count.h"
-#include "AssetRegistry/ARFilter.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "Components/LightComponent.h"
-#include "Data/HollowRoomDefinition.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -17,39 +14,17 @@
 #include "Resonance/HollowResonancePresentationConfig.h"
 #include "Rules/HollowLightBudget.h"
 #include "Tags/HollowGameplayTags.h"
+#include "Tests/HollowDocksTestRooms.h"
 
 namespace HollowLightingTests
 {
+	using namespace HollowDocksTestRooms;
+
 	// Content under test (create_lighting_assets.py, create_resonance_assets.py, create_docks_greybox.py).
-	const TCHAR* const DocksRoot = TEXT("/HollowSector_Docks");
-	const TCHAR* const HeroRoom = TEXT("DA_Room_Docks_CoreVault");
 	const TCHAR* const EmergencyFunction = TEXT("/Game/Hollow/World/Lighting/M_LF_Emergency.M_LF_Emergency");
 	const TCHAR* const DyingFunction = TEXT("/Game/Hollow/World/Lighting/M_LF_DyingTube.M_LF_DyingTube");
 	const TCHAR* const Emissive = TEXT("/Game/Hollow/World/Materials/M_Hollow_Emissive.M_Hollow_Emissive");
 	const TCHAR* const EmergencyStrip = TEXT("/Game/Hollow/World/Materials/MI_Strip_Emergency.MI_Strip_Emergency");
-	constexpr int32 DocksRooms = 8;
-
-	TArray<const UHollowRoomDefinition*> DocksRoomDefinitions()
-	{
-		IAssetRegistry& Registry = IAssetRegistry::GetChecked();
-		Registry.ScanPathsSynchronous({FString(DocksRoot)}, /*bForceRescan=*/false);
-		FARFilter Filter;
-		Filter.PackagePaths.Add(FName(DocksRoot));
-		Filter.bRecursivePaths = true;
-		Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
-		TArray<FAssetData> Assets;
-		Registry.GetAssets(Filter, Assets);
-		Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.PackageName.LexicalLess(B.PackageName); });
-		TArray<const UHollowRoomDefinition*> Rooms;
-		for (const FAssetData& Asset : Assets)
-		{
-			if (const UHollowRoomDefinition* Room = Cast<UHollowRoomDefinition>(Asset.GetAsset()))
-			{
-				Rooms.Add(Room);
-			}
-		}
-		return Rooms;
-	}
 
 	TArray<const ULightComponent*> LightsOf(const ULevel& Level)
 	{

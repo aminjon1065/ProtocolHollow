@@ -419,8 +419,14 @@ struct FHollowNoiseEvent
 *Реализация S3-05* ([ADR-0018](../ADR/ADR-0018-noise-to-ai.md)):
 - `UHollowNoiseSubsystem` (Core) и `UHollowNoiseConfig` (`DA_NoiseConfig`, выбор в `UHollowNoiseSettings`). Правило — `{NoiseTag, Loudness, MaxRange, MinInterval}`; интервал считается на пару «инициатор + тег». Кривая Резонанса — с Хищником (S4-01).
 - Источники: инструменты (у игрока), шаги (`UHollowFootstepNoiseComponent`, таймер, громкость пропорциональна скорости), сброс ядра, удары `Impact.Heavy` и проломы `Structural.Breach` у дверей и переборок.
-- Враги слышат только шум живых игроков; шум самих врагов уходит лишь в `OnNoiseReported`. Окклюзии нет (S4-04).
+- Враги слышат только шум живых игроков; шум самих врагов уходит лишь в `OnNoiseReported`. Окклюзии по геометрии нет; стены учитываются по топологии комнат (S4-04, ниже).
 - S4-01: `UHollowActivityHeatmapSubsystem` подписан на `OnNoiseReported`; шум игрока греет его комнату на `NoisePerLoudness × громкость`. Взрыв импульсной мины — шум игрока `Impact.Heavy` (Пилигрим приходит на него).
+
+*Реализация S4-04* ([ADR-0022](../ADR/ADR-0022-procedural-audio-sound-bank.md)) — **звук ↔ шум:**
+- **Один банк.** `DA_SoundBank` (`UHollowSoundBank`) — запись по тегу. `Hollow.Noise.*` для игрока звучит ровно на дальность правила шума для Пилигрима (`UHollowNoiseConfig::RangeFor`, опора `ReferenceHearingRange` = 3000). `Hollow.Sound.*` — только для игрока: своя дальность или ссылка на шум.
+- **Звук — локальное следствие реплицированного состояния.** Двери, переборки, переноска, beam cue, мина (`bArmed` теперь реплицируется), шахты Хищника, wind-up cue. Звуки играет `UHollowAudioSubsystem` на каждой машине, кроме выделенного сервера; новых RPC нет. Звук перехода играет только «свежим», удар звучит в момент удара, опоздавший игрок прошлого не слышит. Хищник выходит из шахты на клиенте новым актором: его первый бандл несёт `VentExitServerTime` (`COND_InitialOnly`).
+- **Шаги** — `UHollowFootstepAudioComponent`. У игрока каденция и громкость шума шагов. У врагов — своя `FHollowFootstepCadence` из DA, слышна уже на скорости патруля.
+- **Стены:** шум из другой комнаты топологии ИИ слышит на `InterRoomRange` (0,6) дальности (`ReachesThroughWalls` в `AHollowAIController`). Игрок слышит его приглушённым: `AAudioGameplayVolume` комнаты режет звук снаружи до 1,5 кГц и даёт реверб по типу комнаты.
 
 **Голос** (backend-агностично) 🔶 [ADR-0006](../ADR/ADR-0006-online-stack-steam.md):
 - Сам звук идёт через движковый VOIP поверх игрового соединения. `UVOIPTalker` на каждого игрока, `FVoiceSettings` с аттенюацией, окклюзией и цепочкой эффектов «шлем/рация».

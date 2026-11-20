@@ -57,6 +57,17 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Impact_Heavy, "Hollow.Noise.Impact.Heavy", "Heavy physical impact.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Structural_Breach, "Hollow.Noise.Structural.Breach", "Door or bulkhead breached.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Core_Drop, "Hollow.Noise.Core.Drop", "Heavy Aether core dropped.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise, "Hollow.Noise", "Parent of noises the AI hears (DA_NoiseConfig) and players hear (DA_SoundBank).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound, "Hollow.Sound", "Parent of sounds no AI hears (or heard as a linked noise): DA_SoundBank.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Door_Servo, "Hollow.Sound.Door.Servo", "A door opening or closing.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Footstep_Heavy, "Hollow.Sound.Footstep.Heavy", "Iron Pilgrim footstep.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Footstep_Stalker, "Hollow.Sound.Footstep.Stalker", "Echo-Stalker footstep (barely there).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Enemy_PilgrimWindup, "Hollow.Sound.Enemy.PilgrimWindup", "Iron Pilgrim winding up a blow.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Enemy_StalkerShriek, "Hollow.Sound.Enemy.StalkerShriek", "Echo-Stalker about to strike.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Stalker_Vent, "Hollow.Sound.Stalker.Vent", "Echo-Stalker slipping into or out of a vent.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Arm, "Hollow.Sound.Mine.Arm", "Pulse mine armed.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Blast, "Hollow.Sound.Mine.Blast", "Pulse mine going off (heard by the AI as Impact.Heavy).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Core_Hum, "Hollow.Sound.Core.Hum", "Aether core hum (loop).");
 
 	// Input
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Move, "Hollow.Input.Move", "Move input.");

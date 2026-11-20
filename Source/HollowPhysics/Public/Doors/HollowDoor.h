@@ -117,6 +117,8 @@ protected:
 
 private:
 	void HandleStateChanged(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, bool bFresh);
+	/** Every machine: servo on a fresh motion, the crash of a fresh breach, a blow as it lands (DA_SoundBank, ADR-0022). */
+	void PlayStateSounds(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, bool bFresh) const;
 	void UpdateLeaf();
 	void UpdateWeldColor();
 	void UpdateNavArea();

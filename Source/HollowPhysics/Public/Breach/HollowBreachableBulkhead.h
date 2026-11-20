@@ -119,6 +119,8 @@ protected:
 
 private:
 	void HandleStateChanged(const FHollowBreachNetState& Old, const FHollowBreachNetState& New);
+	/** Every machine: the crash of a fresh break, a blow as it lands (DA_SoundBank, ADR-0022). */
+	void PlayStateSounds(const FHollowBreachNetState& Old, const FHollowBreachNetState& New) const;
 	void PresentNewBreaks(const FHollowBreachNetState& State);
 	EHollowBreachPresentation ChoosePresentation(int32 Zone, const FHollowBreachNetState& State) const;
 	void UpdateDamageColor();

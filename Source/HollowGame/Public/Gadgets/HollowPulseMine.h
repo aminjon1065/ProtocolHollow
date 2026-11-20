@@ -55,9 +55,14 @@ private:
 	UFUNCTION()
 	void OnRep_Detonated();
 
+	UFUNCTION()
+	void OnRep_Armed();
+
 	UPROPERTY(ReplicatedUsing = OnRep_Detonated)
 	bool bDetonated = false;
 
+	/** Replicated for its beep (S4-04); the trigger check itself stays on the server. */
+	UPROPERTY(ReplicatedUsing = OnRep_Armed)
 	bool bArmed = false;
 	FTimerHandle ArmTimer;
 	FTimerHandle CheckTimer;

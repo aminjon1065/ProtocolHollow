@@ -2,12 +2,17 @@
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowHealthSet.h"
+#include "Audio/HollowAudioSubsystem.h"
+#include "Audio/HollowFootstepAudioComponent.h"
+#include "Audio/HollowSoundBank.h"
 #include "Brain/HollowAIController.h"
 #include "Components/CapsuleComponent.h"
 #include "Enemies/HollowEnemyDefinition.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "HollowAILog.h"
 #include "Net/UnrealNetwork.h"
+#include "Tags/HollowGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowEnemyCharacter)
 
@@ -18,6 +23,7 @@ AHollowEnemyCharacter::AHollowEnemyCharacter(const FObjectInitializer& ObjectIni
 	AbilitySystem->SetIsReplicated(true);
 	AbilitySystem->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 	HealthSet = CreateDefaultSubobject<UHollowHealthSet>(TEXT("HealthSet"));   // found by the ability system as its subobject
+	FootstepAudio = CreateDefaultSubobject<UHollowFootstepAudioComponent>(TEXT("FootstepAudio"));
 
 	AIControllerClass = AHollowAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -43,6 +49,11 @@ void AHollowEnemyCharacter::PostInitializeComponents()
 
 void AHollowEnemyCharacter::BeginPlay()
 {
+	if (Definition)
+	{
+		FootstepAudio->SoundTag = Definition->FootstepSound;   // before the components begin play
+		FootstepAudio->Cadence = Definition->FootstepCadence;
+	}
 	Super::BeginPlay();
 	if (Definition)
 	{
@@ -55,6 +66,11 @@ void AHollowEnemyCharacter::BeginPlay()
 	}
 	// Clients: it comes into relevancy (a stalker hidden in a vent is not relevant to anyone, so it appears anew).
 	UE_CLOG(!HasAuthority(), LogHollowAI, Log, TEXT("%s: appears at %s (replicated)"), *GetName(), *GetActorLocation().ToCompactString());
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	if (!HasAuthority() && !bInVent && GameState && GetDefault<UHollowAudioSettings>()->IsFresh(VentExitServerTime, GameState->GetServerWorldTimeSeconds()))
+	{
+		PlayVentSound();   // it has just come out of a vent here
+	}
 }
 
 void AHollowEnemyCharacter::PossessedBy(AController* NewController)
@@ -77,6 +93,7 @@ void AHollowEnemyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AHollowEnemyCharacter, bDead);
 	DOREPLIFETIME(AHollowEnemyCharacter, bInVent);
+	DOREPLIFETIME_CONDITION(AHollowEnemyCharacter, VentExitServerTime, COND_InitialOnly);
 }
 
 void AHollowEnemyCharacter::HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, const float Damage)
@@ -127,13 +144,48 @@ void AHollowEnemyCharacter::SetInVent(const bool bInside)
 	}
 	bInVent = bInside;
 	ApplyVentPresentation();
+	if (bInside)
+	{
+		PlayVentSound();
+	}
+	else
+	{
+		MarkVentExit();
+	}
 	ForceNetUpdate();
+}
+
+void AHollowEnemyCharacter::EmergeFromVent()
+{
+	if (HasAuthority() && !bInVent)
+	{
+		MarkVentExit();
+	}
+}
+
+void AHollowEnemyCharacter::MarkVentExit()
+{
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+	VentExitServerTime = static_cast<float>(GameState ? GameState->GetServerWorldTimeSeconds() : GetWorld()->GetTimeSeconds());
+	PlayVentSound();
 }
 
 void AHollowEnemyCharacter::OnRep_InVent()
 {
 	UE_LOG(LogHollowAI, Log, TEXT("%s: %s the vents (replicated)"), *GetName(), bInVent ? TEXT("into") : TEXT("out of"));
 	ApplyVentPresentation();
+	if (HasActorBegunPlay())   // not from a first bunch: BeginPlay decides that one
+	{
+		PlayVentSound();
+	}
+}
+
+void AHollowEnemyCharacter::PlayVentSound() const
+{
+	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
+	{
+		Audio->Play(HollowTags::Sound_Stalker_Vent, GetActorLocation());   // the grille rattles where it goes in or comes out
+	}
 }
 
 void AHollowEnemyCharacter::ApplyVentPresentation()

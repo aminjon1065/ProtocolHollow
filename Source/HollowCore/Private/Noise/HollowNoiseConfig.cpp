@@ -1,5 +1,7 @@
 #include "Noise/HollowNoiseConfig.h"
 
+#include "Sector/HollowSectorTopology.h"
+
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
@@ -11,6 +13,30 @@
 const FHollowNoiseRule* UHollowNoiseConfig::FindRule(const FGameplayTag& NoiseTag) const
 {
 	return NoiseTag.IsValid() ? Rules.FindByPredicate([&NoiseTag](const FHollowNoiseRule& Rule) { return Rule.NoiseTag == NoiseTag; }) : nullptr;
+}
+
+float UHollowNoiseConfig::RangeFor(const FHollowNoiseRule& Rule, const float HearingRange, const float LoudnessScale) const
+{
+	const float Range = Rule.Loudness * LoudnessScale * HearingRange;
+	return Rule.MaxRange > 0.f ? FMath::Min(Range, Rule.MaxRange) : Range;
+}
+
+bool UHollowNoiseConfig::Reaches(const FHollowNoiseRule& Rule, const float HearingRange, const float LoudnessScale, const float Distance,
+	const bool bFromAnotherRoom) const
+{
+	return Distance <= RangeFor(Rule, HearingRange, LoudnessScale) * (bFromAnotherRoom ? InterRoomRange : 1.f);
+}
+
+bool UHollowNoiseConfig::ReachesThroughWalls(const FHollowSectorTopology& Topology, const FHollowNoiseRule& Rule, const float HearingRange,
+	const float LoudnessScale, const FVector& Source, const FVector& Listener) const
+{
+	const int32 From = Topology.RoomAt(Source);
+	const int32 To = Topology.RoomAt(Listener);
+	if (From == INDEX_NONE || To == INDEX_NONE || From == To)
+	{
+		return true;
+	}
+	return Reaches(Rule, HearingRange, LoudnessScale, FVector::Dist(Source, Listener), /*bFromAnotherRoom=*/true);
 }
 
 float UHollowNoiseConfig::FootstepLoudnessScale(const float Speed) const

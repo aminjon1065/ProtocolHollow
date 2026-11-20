@@ -1,5 +1,6 @@
 #include "Doors/HollowDoor.h"
 
+#include "Audio/HollowAudioSubsystem.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Collision/HollowCollisionChannels.h"
@@ -206,6 +207,7 @@ void AHollowDoor::HandleStateChanged(const FHollowDoorNetState& Old, const FHoll
 	{
 		TearLeafOff(New.HasFlag(EHollowDoorFlags::BreachedBackwards));
 	}
+	PlayStateSounds(Old, New, bFresh);
 	UpdateWeldColor();
 	UpdateLeaf();
 	const bool bMoving = New.State == EHollowDoorState::Opening || New.State == EHollowDoorState::Closing;
@@ -322,5 +324,34 @@ void AHollowDoor::EndTornLeaf()
 			Budget->EndLive(TornLeafHandle);
 		}
 		TornLeafHandle = INDEX_NONE;
+	}
+}
+
+void AHollowDoor::PlayStateSounds(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, const bool bFresh) const
+{
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	if (!Audio)
+	{
+		return;
+	}
+	if (New.State != Old.State)
+	{
+		if (!bFresh)
+		{
+			return;   // an old transition (a late joiner): nothing to hear
+		}
+		if (New.State == EHollowDoorState::Opening || New.State == EHollowDoorState::Closing)
+		{
+			Audio->Play(HollowTags::Sound_Door_Servo, GetActorLocation());
+		}
+		else if (New.State == EHollowDoorState::Breached)
+		{
+			Audio->Play(HollowTags::Noise_Structural_Breach, GetActorLocation());   // what the AI heard on the server
+		}
+	}
+	else if (New.StructureQ < Old.StructureQ)
+	{
+		// A blow is sent as it lands (no transition, so never "fresh"); a door hears none before its BeginPlay.
+		Audio->Play(HollowTags::Noise_Impact_Heavy, GetActorLocation());
 	}
 }

@@ -12,6 +12,7 @@ class UCameraComponent;
 class UGameplayEffect;
 class UHollowHealthSet;
 class UHollowCarrierComponent;
+class UHollowFootstepAudioComponent;
 class UHollowFootstepNoiseComponent;
 class UHollowCharacterMovementComponent;
 class UHollowInteractionComponent;
@@ -116,6 +117,10 @@ private:
 	/** Footsteps the AI hears (server; ADR-0018). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UHollowFootstepNoiseComponent> FootstepNoise;
+
+	/** Footsteps players hear (every machine; the same cadence and loudness, ADR-0022). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowFootstepAudioComponent> FootstepAudio;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Input")
 	TObjectPtr<const UHollowInputConfig> InputConfig;

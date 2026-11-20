@@ -8,7 +8,8 @@ class UPointLightComponent;
 
 /**
  * Wind-up telegraph of an enemy attack (GameplayCue.Hollow.Enemy.Windup): a glow on the attacker while the blow is
- * coming, on every machine. Greybox: Niagara and sound replace the light on the art pass (GCN_Enemy_Windup is data).
+ * coming, and its voice (UHollowEnemyDefinition::WindupSound, S4-04), on every machine. Greybox: Niagara replaces the
+ * light on the art pass (GCN_Enemy_Windup is data).
  */
 UCLASS(Abstract)
 class HOLLOWAI_API AHollowEnemyWindupCue : public AGameplayCueNotify_Actor
@@ -17,6 +18,9 @@ class HOLLOWAI_API AHollowEnemyWindupCue : public AGameplayCueNotify_Actor
 
 public:
 	explicit AHollowEnemyWindupCue(const FObjectInitializer& ObjectInitializer);
+
+	/** The attacker's WindupSound (its definition) on top of the glow. */
+	virtual bool OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Cue")

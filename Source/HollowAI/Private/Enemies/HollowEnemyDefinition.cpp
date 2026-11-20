@@ -44,6 +44,10 @@ EDataValidationResult UHollowEnemyDefinition::IsDataValid(FDataValidationContext
 	{
 		Fail(LOCTEXT("Events", "MeleeEvent and BreachEvent must name the events of its attack abilities."));
 	}
+	if (FootstepSound.IsValid() && (!FootstepCadence.IsValid() || FootstepCadence.MinSpeed > PatrolSpeed))
+	{
+		Fail(LOCTEXT("Footsteps", "FootstepCadence needs an Interval and a ReferenceSpeed, and a MinSpeed no higher than PatrolSpeed (a patrol is heard)."));
+	}
 	if (Result == EDataValidationResult::NotValidated)
 	{
 		Result = EDataValidationResult::Valid;

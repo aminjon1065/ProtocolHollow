@@ -122,6 +122,8 @@ private:
 	void HandlePerception(AActor* Actor, FAIStimulus Stimulus);
 
 	void HandleStunChanged(const FGameplayTag Tag, int32 Count);
+	/** A heard stimulus from another room counts only within the noise's inter-room range (DA_NoiseConfig). */
+	bool IsAudibleFromItsRoom(const FAIStimulus& Stimulus) const;
 	void ConfigureSenses(const UHollowEnemyDefinition& Definition);
 	void StopAtObstacle();
 	void MarkTargetUnreachable();

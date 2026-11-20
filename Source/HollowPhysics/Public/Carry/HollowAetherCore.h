@@ -35,6 +35,10 @@ public:
 	virtual void PostInitializeComponents() override;
 	virtual void OnRep_ReplicateMovement() override;
 
+protected:
+	/** Every machine: the core hums (Hollow.Sound.Core.Hum), wherever it is carried. */
+	virtual void BeginPlay() override;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Carry")
 	TObjectPtr<UBoxComponent> Body;

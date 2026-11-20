@@ -1,5 +1,6 @@
 #include "Breach/HollowBreachableBulkhead.h"
 
+#include "Audio/HollowAudioSubsystem.h"
 #include "Breach/HollowBreachableDefinition.h"
 #include "Breach/HollowStructuralIntegrityComponent.h"
 #include "Collision/HollowCollisionChannels.h"
@@ -206,8 +207,31 @@ void AHollowBreachableBulkhead::HandleStateChanged(const FHollowBreachNetState& 
 	{
 		OpenPassage();   // the navmesh lives on the server only
 	}
+	PlayStateSounds(Old, New);   // before the breaks are shown: it reads which zones are new here
 	PresentNewBreaks(New);
 	UpdateDamageColor();
+}
+
+void AHollowBreachableBulkhead::PlayStateSounds(const FHollowBreachNetState& Old, const FHollowBreachNetState& New) const
+{
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	const UHollowBreachableDefinition* Definition = Integrity->GetDefinition();
+	if (!Audio || !Definition)
+	{
+		return;
+	}
+	if (const uint8 NewZones = HollowBreachRules::NewlyBroken(ShownMask, New))
+	{
+		// Heard whether or not this machine can afford to show the fracture; an old break (a late joiner) is silent.
+		if (Integrity->GetServerTime() - New.BreachServerTime <= Definition->FreshWindowSeconds)
+		{
+			Audio->Play(HollowTags::Noise_Structural_Breach, GetZoneCenter(FMath::CountTrailingZeros(static_cast<uint32>(NewZones))));
+		}
+	}
+	else if (New.DamageStageQ > Old.DamageStageQ)
+	{
+		Audio->Play(HollowTags::Noise_Impact_Heavy, GetActorLocation());   // a dent, as the AI heard it
+	}
 }
 
 void AHollowBreachableBulkhead::PresentNewBreaks(const FHollowBreachNetState& State)
