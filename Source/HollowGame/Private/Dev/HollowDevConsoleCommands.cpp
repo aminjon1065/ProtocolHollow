@@ -2,6 +2,14 @@
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowToolSet.h"
 #include "Breach/HollowBreachableBulkhead.h"
+#include "Attributes/HollowHealthSet.h"
+#include "Carry/HollowAetherCore.h"
+#include "GameplayEffect.h"
+#include "Profile/HollowProfileSubsystem.h"
+#include "Raid/HollowExtractionZone.h"
+#include "Raid/HollowRaidFlowComponent.h"
+#include "Raid/HollowRaidSettings.h"
+#include "Raid/HollowRaidStateComponent.h"
 #include "Character/HollowExoFrameCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Data/HollowBiomeDefinition.h"
@@ -44,6 +52,12 @@
 
 #if !UE_BUILD_SHIPPING
 
+namespace HollowDevConsolePrivate
+{
+	/** Gameplay ability system levels start at 1; development effects have no levels. */
+	constexpr float EffectLevel = 1.f;
+}
+
 namespace HollowDevConsole
 {
 	/** Same as pressing Interact: asks the server to interact with the local player's focus. */
@@ -51,7 +65,7 @@ namespace HollowDevConsole
 	{
 		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
 		const APlayerController* Controller = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
-		const AHollowExoFrameCharacter* Character = Controller ? Cast<AHollowExoFrameCharacter>(Controller->GetPawn()) : nullptr;
+		AHollowExoFrameCharacter* Character = Controller ? Cast<AHollowExoFrameCharacter>(Controller->GetPawn()) : nullptr;
 		if (!Character)
 		{
 			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Interact: no local ExoFrame."));
@@ -63,7 +77,7 @@ namespace HollowDevConsole
 		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Interact: %s at %s, eyes %s looking %s, requests %s"), *Character->GetName(),
 			*Character->GetActorLocation().ToCompactString(), *EyeLocation.ToCompactString(), *EyeRotation.ToCompactString(),
 			*GetNameSafe(Character->GetInteractionComponent()->GetFocusedActor()));
-		Character->GetInteractionComponent()->RequestInteract();
+		Character->RequestInteract();   // the input's path: drops a carried core first
 	}
 
 	/** Runs a console command later; the timer lives on the game instance, so it survives map travel. */
@@ -84,6 +98,45 @@ namespace HollowDevConsole
 			UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.RunAfter: %s"), *Command);
 			GEngine->Exec(GameInstance->GetWorld(), *Command);
 		}), FMath::Max(DelaySeconds, UE_KINDA_SMALL_NUMBER), /*bLoop=*/false);
+	}
+
+	/** How often Hollow.Dev.RunInRaid checks whether this machine is in a ready raid. */
+	constexpr float RaidReadyPollSeconds = 0.25f;
+
+	/**
+	 * Runs a console command a delay after this machine is in a ready raid (sector ready and its own pawn spawned), so
+	 * scenarios of several processes share one clock whatever their boot and travel times. Survives map travel.
+	 * Usage: Hollow.Dev.RunInRaid <seconds> <command...>
+	 */
+	void RunInRaid(const TArray<FString>& Args, UWorld* World)
+	{
+		UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		if (Args.Num() < 2 || !GameInstance)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Usage: Hollow.Dev.RunInRaid <seconds> <command...>"));
+			return;
+		}
+		const float DelaySeconds = FCString::Atof(*Args[0]);
+		const FString Command = FString::Join(TArrayView<const FString>(Args).RightChop(1), TEXT(" "));
+		const TSharedRef<FTimerHandle> Poll = MakeShared<FTimerHandle>();
+		GameInstance->GetTimerManager().SetTimer(*Poll, FTimerDelegate::CreateWeakLambda(GameInstance, [GameInstance, Command, DelaySeconds, Poll]()
+		{
+			UWorld* Current = GameInstance->GetWorld();
+			const UHollowSectorStateComponent* Sector = UHollowSectorStateComponent::Get(Current);
+			const APlayerController* Player = GameInstance->GetFirstLocalPlayerController(Current);
+			if (!Sector || !Sector->IsSectorReady() || !Player || !Player->GetPawn())
+			{
+				return;
+			}
+			FTimerHandle Run;
+			GameInstance->GetTimerManager().SetTimer(Run, FTimerDelegate::CreateWeakLambda(GameInstance, [GameInstance, Command]()
+			{
+				UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.RunInRaid: %s"), *Command);
+				GEngine->Exec(GameInstance->GetWorld(), *Command);
+			}), FMath::Max(DelaySeconds, UE_KINDA_SMALL_NUMBER), /*bLoop=*/false);
+			// Last: clearing destroys this very delegate and its captures.
+			GameInstance->GetTimerManager().ClearTimer(*Poll);
+		}), RaidReadyPollSeconds, /*bLoop=*/true);
 	}
 
 	/** Hollow.Sector.* commands take the sector plugin name, e.g. HollowSector_Docks. */
@@ -301,9 +354,15 @@ namespace HollowDevConsole
 		}
 	}
 
+	/** Directions tried round a target when the spot in front of it is taken (every 45 degrees). */
+	constexpr int32 PlaceDirections = 8;
+	/** The free-spot probe is this much smaller than the capsule: standing on the floor is not being inside it. */
+	constexpr float PlaceProbeShrink = 2.f;
+
 	/**
 	 * Host: puts Player's pawn in front of its nearest actor of Class (a door or a bulkhead, both face X across their
-	 * opening), facing it, Offset uu sideways along it.
+	 * opening; a core), facing it, Offset uu sideways along it. If the capsule does not fit there, or a wall stands
+	 * between the target and the spot (a core in a corner), the same spot turned round the target, front first.
 	 */
 	void PlaceAtNearest(APlayerController& Player, const double Offset, const TSubclassOf<AActor> Class, const TCHAR* Command)
 	{
@@ -322,16 +381,48 @@ namespace HollowDevConsole
 			UE_LOG(LogHollowGame, Warning, TEXT("%s: no pawn or no target for %s."), Command, *Player.GetName());
 			return;
 		}
-		// Stay on the pawn's side of the door, well inside interaction and tool reach.
-		const FVector Across = Nearest->GetActorForwardVector();
-		const double Side = FVector::DotProduct(Character->GetActorLocation() - Nearest->GetActorLocation(), Across) >= 0.0 ? 1.0 : -1.0;
-		const float Distance = GetDefault<UHollowInteractionSettings>()->InteractionRange * 0.5f;
-		const FVector Stand = Nearest->GetActorLocation() + Across * Side * Distance + Nearest->GetActorRightVector() * Offset
-			+ FVector(0.0, 0.0, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-		Character->SetActorLocation(Stand, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
+		// Stay on the pawn's side of the target, well inside interaction and tool reach, on the floor it stands on (the
+		// bottom of its collision: a door's pivot is on the floor, a core's in its middle).
 		FVector Centre;
 		FVector Extent;
 		Nearest->GetActorBounds(/*bOnlyCollidingComponents=*/true, Centre, Extent);
+		if (Extent.IsNearlyZero())
+		{
+			Nearest->GetActorBounds(/*bOnlyCollidingComponents=*/false, Centre, Extent);   // a volume without collision (extraction zone)
+		}
+		const FVector Across = Nearest->GetActorForwardVector();
+		const double Side = FVector::DotProduct(Character->GetActorLocation() - Nearest->GetActorLocation(), Across) >= 0.0 ? 1.0 : -1.0;
+		const float Distance = GetDefault<UHollowInteractionSettings>()->InteractionRange * 0.5f;
+		const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+		const double StandZ = Centre.Z - Extent.Z + Capsule->GetScaledCapsuleHalfHeight();
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowDevPlace), /*bTraceComplex=*/false, Character);
+		Params.AddIgnoredActor(Nearest);
+		FCollisionResponseParams Responses;
+		Capsule->InitSweepCollisionParams(Params, Responses);
+		auto SpotAt = [&](const FVector& Direction)
+		{
+			FVector Spot = Nearest->GetActorLocation() + Direction * Distance + FVector::CrossProduct(FVector::UpVector, Direction) * Offset;
+			Spot.Z = StandZ;
+			return Spot;
+		};
+		FVector Stand = SpotAt(Across * Side);
+		for (int32 Step = 0; Step < PlaceDirections; ++Step)
+		{
+			const int32 Turn = (Step + 1) / 2 * (Step % 2 == 1 ? 1 : -1);
+			const FVector Spot = SpotAt((Across * Side).RotateAngleAxis(Turn * 360.0 / PlaceDirections, FVector::UpVector));
+			FHitResult Hit;
+			const bool bInside = World->OverlapBlockingTestByChannel(Spot, FQuat::Identity, Capsule->GetCollisionObjectType(),
+				Capsule->GetCollisionShape(-PlaceProbeShrink), Params, Responses);
+			const bool bWall = !bInside && World->LineTraceSingleByChannel(Hit, FVector(Centre.X, Centre.Y, StandZ), Spot, Capsule->GetCollisionObjectType(), Params, Responses);
+			UE_LOG(LogHollowGame, Verbose, TEXT("%s: %s at %s: inside %d, wall %s"), Command, *Player.GetName(), *Spot.ToCompactString(), bInside,
+				bWall ? *GetNameSafe(Hit.GetActor()) : TEXT("none"));
+			if (!bInside && !bWall)
+			{
+				Stand = Spot;
+				break;
+			}
+		}
+		Character->SetActorLocation(Stand, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
 		FVector Eyes;
 		FRotator Unused;
 		Character->GetActorEyesViewPoint(Eyes, Unused);
@@ -385,6 +476,129 @@ namespace HollowDevConsole
 	void GoToNearestBulkhead(const TArray<FString>& Args, UWorld* World)
 	{
 		GoToNearest(Args, World, AHollowBreachableBulkhead::StaticClass(), TEXT("Hollow.Dev.GoToNearestBulkhead"));
+	}
+
+	/** Usage: Hollow.Dev.GoToExtraction [All] */
+	void GoToExtraction(const TArray<FString>& Args, UWorld* World)
+	{
+		GoToNearest(Args, World, AHollowExtractionZone::StaticClass(), TEXT("Hollow.Dev.GoToExtraction"));
+	}
+
+	/**
+	 * Host: kills the local pawn (every player's with All, every remote player's with Others) through the ability system:
+	 * one instant damage effect (UHollowRaidSettings::DevDamageEffect) of the target's max health.
+	 * Usage: Hollow.Dev.Kill [All|Others]
+	 */
+	void Kill(const TArray<FString>& Args, UWorld* World)
+	{
+		const TSubclassOf<UGameplayEffect> Damage = GetDefault<UHollowRaidSettings>()->DevDamageEffect.LoadSynchronous();
+		if (!World || World->GetNetMode() == NM_Client || !Damage)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.Kill runs on the host and needs HollowRaidSettings.DevDamageEffect."));
+			return;
+		}
+		const bool bAll = Args.Num() > 0 && Args[0].Equals(TEXT("All"), ESearchCase::IgnoreCase);
+		const bool bOthers = Args.Num() > 0 && Args[0].Equals(TEXT("Others"), ESearchCase::IgnoreCase);
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			const APlayerController* Player = It->Get();
+			const AHollowExoFrameCharacter* Character = Player ? Cast<AHollowExoFrameCharacter>(Player->GetPawn()) : nullptr;
+			UAbilitySystemComponent* AbilitySystem = Character ? Character->GetAbilitySystemComponent() : nullptr;
+			const bool bTarget = bAll || (bOthers ? !Player->IsLocalController() : Player->IsLocalController());
+			if (!AbilitySystem || !bTarget)
+			{
+				continue;
+			}
+			const FGameplayEffectSpecHandle Spec = AbilitySystem->MakeOutgoingSpec(Damage, HollowDevConsolePrivate::EffectLevel, AbilitySystem->MakeEffectContext());
+			Spec.Data->SetSetByCallerMagnitude(HollowTags::Data_Damage, AbilitySystem->GetNumericAttribute(UHollowHealthSet::GetMaxHealthAttribute()));
+			AbilitySystem->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+			UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.Kill: %s"), *Player->GetName());
+		}
+	}
+
+	/** This machine's view of the raid (phase, timer, zone) and, on the host, every player's outcome. */
+	void RaidDump(UWorld* World)
+	{
+		const UHollowRaidStateComponent* Raid = UHollowRaidStateComponent::Get(World);
+		if (!Raid)
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Raid.Dump: no raid state."));
+			return;
+		}
+		const FHollowRaidNetState& State = Raid->GetState();
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Raid.Dump: raid %s %s, %.1f s left, %d alive, %d in the zone, %d core(s) in the zone"),
+			*State.RaidId.ToString(), *HollowEnumToString(State.Phase), Raid->GetSecondsLeft(), State.LivingPlayers, State.LivingInZone, State.CoresInZone);
+		if (const AHollowRaidGameMode* GameMode = World->GetAuthGameMode<AHollowRaidGameMode>())
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Raid.Dump: %s"), *GameMode->GetRaidFlow()->Describe());
+		}
+	}
+
+	FString DescribeStacks(const TArray<FHollowItemStack>& Stacks)
+	{
+		FString Text;
+		for (const FHollowItemStack& Stack : Stacks)
+		{
+			Text += FString::Printf(TEXT(" %s x%d"), *Stack.Item.PrimaryAssetName.ToString(), Stack.Count);
+		}
+		return Text.IsEmpty() ? FString(TEXT(" -")) : Text;
+	}
+
+	/** This machine's local profile: credits, loadout, escrow, the debrief not seen yet, counters. */
+	void ProfileDump(UWorld* World)
+	{
+		const UHollowProfileSubsystem* Profiles = UHollowProfileSubsystem::Get(World);
+		if (!Profiles)
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: no profile."));
+			return;
+		}
+		const FHollowProfile& Profile = Profiles->GetProfile();
+		FString Loadout;
+		for (int32 Index = 0; Index < Profile.Loadout.Num(); ++Index)
+		{
+			const FHollowLoadoutSlot& Slot = Profile.Loadout[Index];
+			Loadout += FString::Printf(TEXT(" [%d] %s x%d%s"), Index, *Slot.Item.PrimaryAssetName.ToString(), Slot.Count, Slot.bInsured ? TEXT(" insured") : TEXT(""));
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: %d credits, loadout:%s | escrow %s | raids %d, extractions %d, deaths %d, cores %d"),
+			Profile.Credits, Loadout.IsEmpty() ? TEXT(" -") : *Loadout, Profiles->GetEscrow().IsActive() ? *Profiles->GetEscrow().RaidId.ToString() : TEXT("none"),
+			Profile.Stats.Raids, Profile.Stats.Extractions, Profile.Stats.Deaths, Profile.Stats.CoresDelivered);
+		if (const FHollowRaidReport* Report = Profiles->GetPendingReport())
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: debrief pending: %s, credits %d -> %d, kept%s, lost%s, sold%s"),
+				*HollowEnumToString(Report->Result.Outcome), Report->CreditsBefore, Report->CreditsAfter, *DescribeStacks(Report->Delta.Kept),
+				*DescribeStacks(Report->Delta.Lost), *DescribeStacks(Report->Delta.Sold));
+		}
+	}
+
+	/** Usage: Hollow.Profile.Insure <Slot> [Off] */
+	void ProfileInsure(const TArray<FString>& Args, UWorld* World)
+	{
+		UHollowProfileSubsystem* Profiles = UHollowProfileSubsystem::Get(World);
+		if (!Profiles || Args.Num() < 1 || !Args[0].IsNumeric())
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Usage: Hollow.Profile.Insure <Slot> [Off]"));
+			return;
+		}
+		const bool bInsured = !(Args.Num() > 1 && Args[1].Equals(TEXT("Off"), ESearchCase::IgnoreCase));
+		const int32 Slot = FCString::Atoi(*Args[0]);
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Insure: slot %d %s: %s"), Slot, bInsured ? TEXT("insured") : TEXT("uninsured"),
+			Profiles->SetSlotInsured(Slot, bInsured) ? TEXT("done") : TEXT("refused (no such slot or not insurable)"));
+	}
+
+	void ProfileReset(UWorld* World)
+	{
+		if (UHollowProfileSubsystem* Profiles = UHollowProfileSubsystem::Get(World))
+		{
+			Profiles->ResetProfile();
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Reset: new profile"));
+		}
+	}
+
+	/** Usage: Hollow.Dev.GoToNearestCore [All] */
+	void GoToNearestCore(const TArray<FString>& Args, UWorld* World)
+	{
+		GoToNearest(Args, World, AHollowAetherCore::StaticClass(), TEXT("Hollow.Dev.GoToNearestCore"));
 	}
 
 	/**
@@ -451,14 +665,11 @@ namespace HollowDevConsole
 		const FName Agent = bHeavy ? Settings->HeavyAgent : Settings->StandardAgent;
 		const TSubclassOf<UNavigationQueryFilter> Filter = (bHeavy ? Settings->HeavyFilter : Settings->StandardFilter).LoadSynchronous();
 		ANavigationData* NavData = Navigation->GetNavDataForAgentName(Agent);
-		const AHollowSectorMarker* Extraction = nullptr;
-		for (TActorIterator<AHollowSectorMarker> It(World); It && !Extraction; ++It)
-		{
-			Extraction = It->GetLabel() == HollowTags::Socket_Extraction.GetTag().GetTagName() ? *It : nullptr;
-		}
+		TActorIterator<AHollowExtractionZone> ZoneIt(World);
+		const AHollowExtractionZone* Extraction = ZoneIt ? *ZoneIt : nullptr;
 		if (!NavData || !Extraction)
 		{
-			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Nav.Path: no navmesh for agent %s or no extraction marker."), *Agent.ToString());
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Nav.Path: no navmesh for agent %s or no extraction zone."), *Agent.ToString());
 			return;
 		}
 		FPathFindingQuery Query(Pawn, *NavData, Pawn->GetNavAgentLocation(), Extraction->GetActorLocation(), UNavigationQueryFilter::GetQueryFilter(*NavData, Pawn, Filter));
@@ -516,6 +727,11 @@ namespace HollowDevConsole
 		TEXT("Runs a console command after a delay that survives map travel. Usage: Hollow.Dev.RunAfter <seconds> <command...>"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RunAfter));
 
+	FAutoConsoleCommandWithWorldAndArgs RunInRaidCommand(
+		TEXT("Hollow.Dev.RunInRaid"),
+		TEXT("Runs a console command a delay after this machine is in a ready raid with its pawn (a shared clock for multi-process tests). Usage: Hollow.Dev.RunInRaid <seconds> <command...>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RunInRaid));
+
 	FAutoConsoleCommand SectorActivateCommand(
 		TEXT("Hollow.Sector.Activate"),
 		TEXT("Activates a sector Game Feature plugin on this machine (ADR-0012). Usage: Hollow.Sector.Activate <SectorPlugin>"),
@@ -565,6 +781,41 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.GoToNearestBulkhead"),
 		TEXT("Host: puts the local pawn (or every player's, with All) in front of the nearest bulkhead, facing it. Usage: Hollow.Dev.GoToNearestBulkhead [All]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestBulkhead));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToNearestCoreCommand(
+		TEXT("Hollow.Dev.GoToNearestCore"),
+		TEXT("Host: puts the local pawn (or every player's, with All) in front of the nearest Aether core, facing it. Usage: Hollow.Dev.GoToNearestCore [All]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestCore));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToExtractionCommand(
+		TEXT("Hollow.Dev.GoToExtraction"),
+		TEXT("Host: puts the local pawn (or every player's, with All) into the extraction zone. Usage: Hollow.Dev.GoToExtraction [All]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToExtraction));
+
+	FAutoConsoleCommandWithWorldAndArgs KillCommand(
+		TEXT("Hollow.Dev.Kill"),
+		TEXT("Host: kills the local pawn (every player's with All, the remote players' with Others) with a damage effect of its max health. Usage: Hollow.Dev.Kill [All|Others]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Kill));
+
+	FAutoConsoleCommandWithWorld RaidDumpCommand(
+		TEXT("Hollow.Raid.Dump"),
+		TEXT("Prints this machine's raid: phase, time left, players alive and in the zone, cores in the zone; on the host every outcome."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&RaidDump));
+
+	FAutoConsoleCommandWithWorld ProfileDumpCommand(
+		TEXT("Hollow.Profile.Dump"),
+		TEXT("Prints the local profile: credits, loadout and insurance, raid escrow, the debrief not seen yet, counters."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ProfileDump));
+
+	FAutoConsoleCommandWithWorldAndArgs ProfileInsureCommand(
+		TEXT("Hollow.Profile.Insure"),
+		TEXT("Insures (or, with Off, uninsures) a loadout slot of the local profile. Usage: Hollow.Profile.Insure <Slot> [Off]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ProfileInsure));
+
+	FAutoConsoleCommandWithWorld ProfileResetCommand(
+		TEXT("Hollow.Profile.Reset"),
+		TEXT("Replaces the local profile with a new one (DefaultGame.ini starting credits and loadout)."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ProfileReset));
 
 	FAutoConsoleCommandWithWorldAndArgs BreachCommand(
 		TEXT("Hollow.Dev.Breach"),

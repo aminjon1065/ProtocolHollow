@@ -110,7 +110,8 @@ AGameModeBase
 └─ AHollowGameModeBase                         [Game]  спавн, выдача ExoFrame, общие правила
    ├─ AHollowHubGameMode                       [Game]  «Скит»: лобби, контракт, верстак, готовность
    └─ AHollowRaidGameMode                      [Game]  без логики внутри; вся логика в server-only компонентах:
-        ├─ UHollowRaidFlowComponent            фазы Assembling → Deploying → InRaid → Extraction → Debrief
+        ├─ UHollowRaidFlowComponent            фазы Assembling → Deploying → InRaid → Extraction → Debrief; S3-03: опрос зоны,
+        │                                      исходы игроков, итоги, возврат в хаб (ADR-0016; Outcome-компонент слит сюда)
         ├─ UHollowSectorAuthorityComponent     [Game]  (S2-02) Seed из URL → Generate → Manifest → GameState; после сборки на сервере:
         │                                              спавн актёров по сокетам/соединениям, NavMesh, сбор Server_ReportSectorReady
         │                                              (несовпадение хеша и таймаут → кик), затем bSectorReady и pawn'ы
@@ -121,9 +122,10 @@ AGameStateBase
    ├─ UHollowSectorStateComponent    [PCG]  (S2-02) Rep (push): FHollowSectorManifest {Biome, SectorPlugin, Seed, BuildId, LayoutHash,
    │                                         Rooms, Connections}, bool bSectorReady
    ├─ UHollowSectorLoaderComponent   [Game] (S2-02) на каждой машине: манифест → ActivateSector → Assemble → Server_ReportSectorReady
-   ├─ UHollowRaidPhaseComponent      [Game] Rep: EHollowRaidPhase Phase, float PhaseEndServerTime
+   ├─ UHollowRaidStateComponent      [Game] (S3-03) Rep (push): фаза, RaidId, конец фазы, живые / в зоне / ядра в зоне
+   │                                         (одним компонентом вместо RaidPhase + ExtractionState; escrow профиля на OnRep)
    ├─ UHollowSquadResonanceComponent [GAS]  Rep: uint8 SquadResonanceQ, EHollowResonanceTier Tier
-   └─ UHollowExtractionStateComponent[Game] Rep: активная точка эвакуации, время отлёта (server time)
+   (зона эвакуации — AHollowExtractionZone на сокете Extraction: объём без коллизии, явный overlap-запрос сервера)
 
 APlayerState
 └─ AHollowPlayerState : IAbilitySystemInterface   [Game]
@@ -158,7 +160,7 @@ AAIController
 | `UHollowCharacterMovementComponent` | Physics | ходьба, low-G и zero-G, штрафы переноски через **кастомные saved moves** | предсказание CMC |
 | `UHollowInteractionComponent` | Game | локальный sweep по каналу `Interaction` по таймеру (`UHollowInteractionSettings`, 15 Гц, без Tick) из глаз pawn; `Server_Interact` с мягкой серверной проверкой (линия видимости, дальность + допуск, темп, блокирующие теги ASC). Взаимодействие — компонент, не GAS-способность (S1-06) | RPC |
 | `UHollowEquipmentComponent` | Game | инструмент в руках, сокеты FP и TP, точка луча | публичный rep сборки |
-| `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели | state через `UHollowCarryableComponent` |
+| `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели. *S3-02:* предсказание подъёма (заявка в CMC), `Server_Drop`, `GE_Carry_Solo` на ASC, серверный режим для CMC; цели крепления визуала — FP-камера и TP-меш ([ADR-0015](../ADR/ADR-0015-solo-carry-claim.md)) | state через `UHollowCarryableComponent` |
 | `UHollowExoFrameComponent` | Game | применяет `UHollowExoFrameDefinition`: AbilitySet, init-GE, таланты | на сервере |
 | `UHollowVisorComponent` | UI | диегетика шлема поверх моделей визора (S2-06 начал с экранного `W_Visor`, [ADR-0013](../ADR/ADR-0013-ui-foundation-commonui.md)); только косметика и только локально | — |
 | `UVOIPTalker` (движковый) | Net | 3D-голос с аттенюацией и эффектами шлема и рации | движковый VOIP |
@@ -193,7 +195,7 @@ UAttributeSet
    ├─ UHollowHealthSet      Health, MaxHealth, Armor; meta: IncomingDamage, IncomingHealing          rep: всем (тиммейтам на визор)
    ├─ UHollowSurvivalSet    Stamina, MaxStamina, Oxygen, MaxOxygen, Thermal, MaxThermal              rep: COND_OwnerOnly   (ThermalResistance — с крио-биомом)
    ├─ UHollowResonanceSet   Resonance, MaxResonance, ResonanceGainMultiplier                         rep: всем
-   ├─ UHollowCarrySet       CarryWeight, CarryCapacity                                               rep: COND_OwnerOnly   (S3-02, вместе с переноской)
+   ├─ UHollowCarrySet       CarryWeight, CarryCapacity                                               rep: COND_OwnerOnly   (отложен в S3-02: читать некому до веса инвентаря; скорость переноски — в saved moves, ADR-0015)
    └─ UHollowToolSet        ToolFuel, MaxToolFuel, ToolHeat, MaxToolHeat                             rep: COND_OwnerOnly
    (наборы разбиты в том числе по условию репликации: приватные данные не уходят чужим клиентам)
    Общая база UHollowAttributeSetBase: пары «текущее/максимум» зажаты в [0, Max], прочие атрибуты ≥ 0, снижение максимума подтягивает текущее
@@ -204,7 +206,8 @@ UGameplayAbility
    ├─ UHollowGA_ContinuousTool        [Game] (S2-03) база луча: серверный трейс 10 Гц, прогресс по серверному времени (§3.2)
    │  └─ GA_Tool_Welder · GA_Tool_PlasmaCutter   BP-наследники без своего кода: вся разница в UHollowToolDefinition (DA),
    │                                             а смысл работы (сварка / резка) решает мишень — двери S2-04, швы S2-07
-   ├─ UHollowGA_CarryHeavy · UHollowGA_PulseMine   (взаимодействие — UHollowInteractionComponent, не способность)
+   ├─ UHollowGA_PulseMine   (взаимодействие — UHollowInteractionComponent, не способность; переноска тоже: S3-02 обходится без
+   │                         UHollowGA_CarryHeavy, подъём — через Interact, эффекты — UHollowCarrySoloEffect / UHollowStaminaRecoveryEffect)
    └─ (враги, [AI]) UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee · UHollowGA_StalkerAmbush
 
 UGameplayEffectExecutionCalculation
@@ -262,6 +265,11 @@ UPrimaryDataAsset
 ├─ HollowToolMath::ComputeStats(const FHollowToolAssembly&, const UHollowToolDefinition&) → FHollowToolStats
 ├─ FHollowCraftingRules::Validate/Execute(FHollowProfileTransaction&, const UHollowRecipeDefinition&)
 └─ FHollowExtractionResolver::Resolve(const FHollowRaidContext&, EHollowRaidOutcome) → FHollowProfileDelta
+
+Реализовано в S3-03 (ADR-0016): UHollowItemDefinition (тип HollowItem: имя, тип, цена, страхуемость, стек; без фрагментов),
+FHollowItemStack / FHollowLoadoutSlot / FHollowItemCatalog, FHollowExtractionResolver (Extracted: всё + продажа ядер;
+Dead/MIA/Abandoned: только застрахованное; SignalLost: лоадаут цел), HollowProfileRules (Apply, BeginRaid, ApplyResult,
+ResolveEscrow), UHollowProfileSaveGame (версия), UHollowProfileSubsystem (escrow, отчёт для дебрифа), UHollowEconomySettings.
 
 Компоненты и подсистемы:
 ├─ UHollowInventoryComponent   [PlayerState] серверный API: TryAdd, TryRemove, Transfer, DropToWorld
@@ -355,11 +363,13 @@ UWorldSubsystem
 └─ UHollowSectorAssemblySubsystem   (S2-02) Assemble(Manifest) на каждой машине: Reconstruct (раскладка из локальных DA, роли по биому)
                                     → LayoutHash; async-стрим комнат (ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr, имена
                                     "Sector<BuildId>_<Idx>", трансформ RoomTransform = (Cell + PivotOffset) × CellSize, yaw × 90);
-                                    заглушки Sealed — локальные AStaticMeshActor (меш биома, размер проёма × толщина стены)
+                                    заглушки Sealed — локальные AStaticMeshActor (меш биома, размер проёма × толщина стены;
+                                    Movable с S3-02: Static-компонент в начатом мире отказывался от меша, и проёмы были дырами)
                                     → OnAssembled(BuildId, LocalHash). Геймплейных актёров не трогает — их спавнит SectorAuthority.
 Временные актёры: AHollowSectorMarker (реплицируется, dormant) по правилам биома SocketActors/ConnectionActors, PlayerSpawn → APlayerStart.
 Door → BP_Door (S2-04), Bulkhead → BP_Bulkhead_Plate | BP_Bulkhead_Twin (S3-01: FHollowConnectionActorRule::Variants,
-вариант = DeriveSeed(Seed, ConnectionIndex) % N, одинаков для seed).
+вариант = DeriveSeed(Seed, ConnectionIndex) % N, одинаков для seed). CoreSpawn → BP_AetherCore (S3-02, FHollowSocketActorRule::SpawnOffset
+поднимает тело на полвысоты, чтобы оно лежало на полу сокета).
 ```
 
 **Алгоритм генератора (v0 реализован в S2-01, только целочисленная сетка):**
@@ -441,6 +451,9 @@ sequenceDiagram
   H->>C: ServerTravel обратно в хаб
 ```
 
+- *S3-03:* escrow пишется не до `ServerTravel`, а когда машина видит RaidId рейда (фаза после `Assembling`); `Server_SubmitLoadout`
+  перенесён в задачу инвентаря. Итог приходит в `Debrief` (10 с), неподтверждённый дебриф показывается снова в хабе. Уход хоста →
+  `SignalLost` по таймауту соединения, найденный при запуске маркер → `Abandoned` ([ADR-0016](../ADR/ADR-0016-raid-flow-extraction-escrow.md)).
 - **Seed** выбирает только хост, один раз, в хабе. Это единственное место с недетерминированным источником. Для «ежедневных контрактов» seed берётся как хеш даты.
 - **Seamless travel:** нужна `L_Transition`, а в PIE включается `net.AllowPIESeamlessTravel 1`.
 - **Сборка «Хост и клиенты»:** в PIE прогоняем каждый день, в Steam — раз в неделю (Блок 4).

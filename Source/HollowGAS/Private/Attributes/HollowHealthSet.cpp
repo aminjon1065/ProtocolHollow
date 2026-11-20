@@ -30,7 +30,13 @@ void UHollowHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 		SetIncomingDamage(0.f);
 		if (Damage > 0.f)
 		{
-			SetHealth(GetHealth() - Damage);
+			const float HealthBefore = GetHealth();
+			SetHealth(HealthBefore - Damage);
+			if (HealthBefore > 0.f && GetHealth() <= 0.f)
+			{
+				const FGameplayEffectContextHandle& Context = Data.EffectSpec.GetContext();
+				OnOutOfHealth.Broadcast(Context.GetEffectCauser(), Context.GetOriginalInstigator(), Damage);
+			}
 		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetIncomingHealingAttribute())

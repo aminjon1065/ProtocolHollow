@@ -15,6 +15,12 @@ class HOLLOWGAS_API UHollowHealthSet : public UHollowAttributeSetBase
 	GENERATED_BODY()
 
 public:
+	/** The causer of the effect (null for environment or development damage), the effect's instigator, the damage. */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHollowOutOfHealth, AActor* /*EffectCauser*/, AActor* /*Instigator*/, float /*Damage*/);
+
+	/** Server: health reached zero from above (once per life). Mutable: the set is read through const getters. */
+	mutable FOnHollowOutOfHealth OnOutOfHealth;
+
 	ATTRIBUTE_ACCESSORS_BASIC(UHollowHealthSet, Health);
 	ATTRIBUTE_ACCESSORS_BASIC(UHollowHealthSet, MaxHealth);
 	ATTRIBUTE_ACCESSORS_BASIC(UHollowHealthSet, Armor);

@@ -17,4 +17,13 @@ namespace HollowCollision
 
 	/** Collision profile of everything on the Debris channel. */
 	inline FName DebrisProfile() { return FName(TEXT("HollowDebris")); }
+
+	/** Profile of a free heavy carryable (Aether core): a physics body that blocks the world and pawns, focusable. */
+	inline FName CarryableProfile() { return FName(TEXT("HollowCarryable")); }
+
+	/**
+	 * Profile of a carryable while carried (ADR-0015): query only and ignores everything except overlaps with world
+	 * dynamic volumes (extraction zone), so it never blocks its carrier, the world, traces or interaction.
+	 */
+	inline FName CarriedProfile() { return FName(TEXT("HollowCarried")); }
 }

@@ -70,6 +70,12 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_VentNode, "Hollow.Socket.VentNode", "Echo-Stalker vent graph node.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_Extraction, "Hollow.Socket.Extraction", "Extraction zone.");
 
+	// Item types
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type, "Hollow.Item.Type", "Parent of item types; every item definition carries exactly one child.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Tool, "Hollow.Item.Type.Tool", "Signature tool (welder, plasma cutter).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Consumable, "Hollow.Item.Type.Consumable", "Consumable (fuel cell, stim).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_AetherCore, "Hollow.Item.Type.AetherCore", "Heavy Aether core: sold to the corporation on extraction.");
+
 	// SetByCaller
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_Damage, "Hollow.Data.Damage", "SetByCaller: damage magnitude.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_ResonanceGain, "Hollow.Data.ResonanceGain", "SetByCaller: Resonance gain magnitude.");

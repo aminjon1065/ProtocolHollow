@@ -15,6 +15,8 @@
 #include "HollowPCGLog.h"
 #include "Materials/MaterialInterface.h"
 
+#include "Util/HollowEnumUtils.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowSectorAssemblySubsystem)
 
 bool UHollowSectorAssemblySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -159,7 +161,9 @@ void UHollowSectorAssemblySubsystem::SpawnPlugs()
 			continue;
 		}
 		UStaticMeshComponent* Component = Actor->GetStaticMeshComponent();
-		Component->SetMobility(EComponentMobility::Static);
+		// Movable, not Static: the component is already registered, and once the world has begun play (every raid) a
+		// Static one refuses SetStaticMesh, which left every plug without mesh and collision (fixed in S3-02).
+		Component->SetMobility(EComponentMobility::Movable);
 		Component->SetStaticMesh(Mesh);
 		if (UMaterialInterface* Material = Plug.Material.Get())
 		{
@@ -167,6 +171,9 @@ void UHollowSectorAssemblySubsystem::SpawnPlugs()
 		}
 		Actor->FinishSpawning(Transform);
 		Plugs.Add(Actor);
+		UE_CLOG(Component->GetStaticMesh() != Mesh, LogHollowPCG, Error, TEXT("Sector build %d: plug %s did not take its mesh."), Manifest.BuildId, *Actor->GetName());
+		UE_LOG(LogHollowPCG, Verbose, TEXT("Sector build %d: plug for room %d connector %d (cell %s, %s) at %s"), Manifest.BuildId, Sealed.Room,
+			Sealed.Connector, *Sealed.Cell.ToString(), *HollowEnumToString(Sealed.Side), *Transform.GetLocation().ToCompactString());
 	}
 }
 

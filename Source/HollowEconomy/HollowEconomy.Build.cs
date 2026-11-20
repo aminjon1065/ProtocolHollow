@@ -12,6 +12,7 @@ public class HollowEconomy : ModuleRules
 		{
 			"Core",
 			"CoreUObject",
+			"DeveloperSettings",
 			"Engine",
 			"GameplayTags",
 			"NetCore",

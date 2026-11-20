@@ -5,6 +5,8 @@
 #include "HollowHUD.generated.h"
 
 class UCommonActivatableWidget;
+class UHollowDebriefWidget;
+struct FHollowRaidReport;
 class UHollowPrimaryLayout;
 class UHollowVisorContext;
 class UInputMappingContext;
@@ -29,11 +31,16 @@ public:
 	/** Pushes the system menu on the Menu layer unless one is already active there. */
 	UCommonActivatableWidget* OpenSystemMenu();
 
+	/** Shows a resolved raid on the Menu layer (S3-03): the host's result, a lost host, an abandoned raid. */
+	UHollowDebriefWidget* ShowDebrief(const FHollowRaidReport& Report);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	void HandleRaidReport(const FHollowRaidReport& Report);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UHollowPrimaryLayout> Layout;
 
@@ -42,4 +49,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> UIMappingContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHollowDebriefWidget> Debrief;
+
+	FDelegateHandle RaidReportHandle;
 };

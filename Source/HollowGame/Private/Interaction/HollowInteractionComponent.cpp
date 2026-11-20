@@ -97,7 +97,13 @@ AActor* UHollowInteractionComponent::ProbeFocus() const
 		return nullptr;
 	}
 
+	// The same states the server refuses (dead, carrying a core with both hands...) show no focus and no prompt.
 	const UHollowInteractionSettings* Settings = GetDefault<UHollowInteractionSettings>();
+	const IGameplayTagAssetInterface* OwnerTags = Cast<IGameplayTagAssetInterface>(Owner);
+	if (OwnerTags && OwnerTags->HasAnyMatchingGameplayTags(Settings->BlockingTags))
+	{
+		return nullptr;
+	}
 	const FVector End = EyeLocation + EyeRotation.Vector() * Settings->InteractionRange;
 	const FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowInteractionFocus), /*bTraceComplex=*/false, Owner);
 

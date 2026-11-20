@@ -30,6 +30,12 @@ namespace HollowAssemblyTests
 	/** Distance tolerance for transforms built from integer cells, in uu. */
 	constexpr double Tolerance = 0.01;
 	constexpr int32 BuildId = 7;
+	/** A pawn-sized capsule (test data: the ExoFrame's is in BP_ExoFrame) swept across every sealed opening. */
+	constexpr float PawnRadius = 34.f;
+	constexpr float PawnHalfHeight = 96.f;
+	constexpr double SweepReach = 100.0;
+	/** Clearance above the floor, so the sweep starts free and only the opening can stop it. */
+	constexpr double FloorClearance = 10.0;
 
 	struct FDocks
 	{
@@ -246,6 +252,8 @@ bool FHollowSectorAssemblyTest::RunTest(const FString& Parameters)
 		State->World.ForwardErrorMessages(this);
 		return false;
 	}
+	// A raid assembles in a world that has begun play (static components then refuse new meshes): the same here.
+	State->World.GetTestWorld()->SetBegunPlay(true);
 	UHollowSectorAssemblySubsystem* Assembly = State->World.GetTestWorld()->GetSubsystem<UHollowSectorAssemblySubsystem>();
 	if (!TestNotNull(TEXT("Game worlds get the assembly subsystem"), Assembly))
 	{
@@ -263,7 +271,8 @@ bool FHollowSectorAssemblyTest::RunTest(const FString& Parameters)
 	const int32 Rooms = Manifest.Rooms.Num();
 	const int32 Sealed = Layout.Sealed.Num();
 	const uint32 Hash = Manifest.LayoutHash;
-	ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State, Assembly, Rooms, Sealed, Hash]()
+	const TArray<FHollowSealedConnector> SealedConnectors = Layout.Sealed;
+	ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State, Assembly, Rooms, Sealed, Hash, SealedConnectors]()
 	{
 		if (!Assembly->IsAssembled())
 		{
@@ -282,6 +291,23 @@ bool FHollowSectorAssemblyTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Local hash equals the server's"), State->AssembledHash == Hash && Assembly->GetLocalHash() == Hash);
 		TestEqual(TEXT("Every room is a visible level instance"), Assembly->NumVisibleRooms(), Rooms);
 		TestEqual(TEXT("Every unused connector is plugged"), Assembly->NumPlugs(), Sealed);
+
+		// A plug closes its opening for players: a pawn capsule walking out through it is stopped.
+		const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
+		for (const FHollowSealedConnector& Connector : SealedConnectors)
+		{
+			const FTransform Opening = HollowSectorManifest::OpeningTransform(Connector.Cell, Connector.Side, *Metrics, UHollowSectorAssemblySubsystem::GetSectorOrigin());
+			const FIntPoint Step = HollowGridMath::Offset(Connector.Side);
+			const FVector Out(Step.X, Step.Y, 0.0);
+			const FVector Centre = Opening.GetLocation() + FVector(0.0, 0.0, PawnHalfHeight + FloorClearance);
+			FCollisionResponseParams Responses;
+			Responses.CollisionResponse.SetAllChannels(ECR_Block);
+			FHitResult Hit;
+			const bool bBlocked = State->World.GetTestWorld()->SweepSingleByChannel(Hit, Centre - Out * SweepReach, Centre + Out * SweepReach, FQuat::Identity,
+				ECC_Pawn, FCollisionShape::MakeCapsule(PawnRadius, PawnHalfHeight), FCollisionQueryParams(SCENE_QUERY_STAT(HollowPlugTest)), Responses);
+			TestTrue(FString::Printf(TEXT("Room %d connector %d (%s %s): the plug stops a pawn (hit %s)"), Connector.Room, Connector.Connector,
+				*Connector.Cell.ToString(), *UEnum::GetValueAsString(Connector.Side), *GetNameSafe(Hit.GetActor())), bBlocked && !Hit.bStartPenetrating);
+		}
 
 		Assembly->Teardown();
 		TestEqual(TEXT("Teardown unloads the rooms"), Assembly->NumRoomInstances(), 0);

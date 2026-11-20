@@ -1,0 +1,66 @@
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "HollowCarryTypes.generated.h"
+
+class APawn;
+
+/** How a heavy object is carried (Docs/Architecture/03 sec. 3.5). Solo arrives in S3-02, Coop and Dragged in S3-06. */
+UENUM(BlueprintType)
+enum class EHollowCarryMode : uint8
+{
+	None,
+	Solo,
+	Coop,
+	Drone,
+	Winched,
+	Dragged
+};
+
+/**
+ * Carry slowdown a carrier's saved moves claim (two compressed move flags, HollowMoveFlags::Carry). The server
+ * accepts any claim that is at least as slow as its own state (HollowCarryPolicy), so speed changes never correct.
+ */
+UENUM(BlueprintType)
+enum class EHollowCarryClaim : uint8
+{
+	None,
+	Solo,
+	Coop,
+	Dragged
+};
+
+/**
+ * Replicated carry state of a carried object (ADR-0015): mode and carriers. While carried, the object's transform is
+ * a function of the carriers on every machine and is not replicated.
+ */
+USTRUCT()
+struct HOLLOWPHYSICS_API FHollowCarryNetState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EHollowCarryMode Mode = EHollowCarryMode::None;
+
+	/** Solo carrier, or the first one in Coop. */
+	UPROPERTY()
+	TObjectPtr<APawn> Primary = nullptr;
+
+	/** Second carrier in Coop (S3-06). */
+	UPROPERTY()
+	TObjectPtr<APawn> Secondary = nullptr;
+
+	/** Increments on every change, so a repeated pick-up still replicates. */
+	UPROPERTY()
+	uint8 TransitionSerial = 0;
+
+	bool IsCarried() const { return Mode != EHollowCarryMode::None; }
+	bool IsCarriedBy(const APawn* Pawn) const { return Pawn && IsCarried() && (Primary == Pawn || Secondary == Pawn); }
+};
+
+namespace HollowCarry
+{
+	/** The slowdown a carrier in Mode claims: the drone carries alone (Solo); a winched object has no carrier. */
+	HOLLOWPHYSICS_API EHollowCarryClaim ClaimFor(EHollowCarryMode Mode);
+}

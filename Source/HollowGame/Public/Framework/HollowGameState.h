@@ -4,6 +4,7 @@
 
 #include "HollowGameState.generated.h"
 
+class UHollowRaidStateComponent;
 class UHollowSectorLoaderComponent;
 class UHollowSectorStateComponent;
 
@@ -17,6 +18,7 @@ public:
 	explicit AHollowGameState(const FObjectInitializer& ObjectInitializer);
 
 	UHollowSectorStateComponent* GetSectorState() const { return SectorState; }
+	UHollowRaidStateComponent* GetRaidState() const { return RaidState; }
 
 private:
 	/** Replicated manifest and readiness (PCG). */
@@ -26,4 +28,8 @@ private:
 	/** Assembles the sector on this machine and reports it (every machine). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Sector")
 	TObjectPtr<UHollowSectorLoaderComponent> SectorLoader;
+
+	/** Replicated raid phase and extraction (S3-03; idle in the hub). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Raid")
+	TObjectPtr<UHollowRaidStateComponent> RaidState;
 };

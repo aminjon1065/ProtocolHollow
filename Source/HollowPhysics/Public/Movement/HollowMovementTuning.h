@@ -1,8 +1,51 @@
 #pragma once
 
+#include "Carry/HollowCarryTypes.h"
 #include "Engine/DataAsset.h"
 
 #include "HollowMovementTuning.generated.h"
+
+/** Movement of a character while it carries a heavy object in one mode (ADR-0015: per mode, decided by the saved moves). */
+USTRUCT(BlueprintType)
+struct FHollowCarryModeTuning
+{
+	GENERATED_BODY()
+
+	/** Multiplier of the walking (or crouched) max speed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry", meta = (ClampMin = "0.05", ClampMax = "1"))
+	float SpeedScale = 1.f;
+
+	/** Multiplier of the max acceleration: a heavy load starts and turns slowly. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry", meta = (ClampMin = "0.05", ClampMax = "1"))
+	float AccelerationScale = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	bool bAllowSprint = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	bool bAllowJump = false;
+};
+
+/** Carry movement of a character class; a claim of None moves freely (speed and acceleration scale 1). */
+USTRUCT(BlueprintType)
+struct HOLLOWPHYSICS_API FHollowCarryMovementTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	FHollowCarryModeTuning Solo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	FHollowCarryModeTuning Coop;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	FHollowCarryModeTuning Dragged;
+
+	/** Tuning of a claim; null for None (no carry restrictions). */
+	const FHollowCarryModeTuning* Find(EHollowCarryClaim Claim) const;
+
+	float GetSpeedScale(EHollowCarryClaim Claim) const;
+};
 
 /** Ground speeds of a character. Plain struct so the speed model stays unit-testable (HollowMovementMath). */
 USTRUCT(BlueprintType)
@@ -55,4 +98,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Air", meta = (ClampMin = "0", Units = "CentimetersPerSecondSquared"))
 	float BrakingDecelerationFalling = 0.f;
+
+	/**
+	 * Speed, acceleration, sprint and jump while carrying, per mode. Here and not on the carried object: the server
+	 * applies a carrier's claimed mode (two move flags) before, or without, ever seeing the pick-up request.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	FHollowCarryMovementTuning Carry;
 };

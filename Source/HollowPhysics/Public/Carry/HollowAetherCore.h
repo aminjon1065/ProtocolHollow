@@ -1,0 +1,47 @@
+#pragma once
+
+#include "GameFramework/Actor.h"
+#include "Interfaces/HollowInteractable.h"
+
+#include "HollowAetherCore.generated.h"
+
+class UBoxComponent;
+class UHollowCarryableComponent;
+class UStaticMeshComponent;
+
+/**
+ * Heavy Aether core (ADR-0015): the raid's loot, carried with both hands. A box body (root: physics, collision,
+ * Predictive Interpolation while dropped) and a visual mesh that each machine attaches locally while it is carried.
+ * Spawned by the server at a CoreSpawn socket, resting (kinematic, dormant). Lifting goes through the normal
+ * interaction (UHollowInteractionComponent); all carry logic lives in UHollowCarryableComponent. No Tick.
+ */
+UCLASS()
+class HOLLOWPHYSICS_API AHollowAetherCore : public AActor, public IHollowInteractable
+{
+	GENERATED_BODY()
+
+public:
+	explicit AHollowAetherCore(const FObjectInitializer& ObjectInitializer);
+
+	UBoxComponent* GetBody() const { return Body; }
+	UStaticMeshComponent* GetVisual() const { return Visual; }
+	UHollowCarryableComponent* GetCarryable() const { return Carryable; }
+
+	// IHollowInteractable
+	virtual FHollowInteractionInfo GetInteractionInfo(const AActor* Interactor) const override;
+	virtual bool CanInteract(const AActor* Interactor) const override;
+	virtual void Interact(AActor* Interactor) override;
+
+	virtual void PostInitializeComponents() override;
+	virtual void OnRep_ReplicateMovement() override;
+
+private:
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Carry")
+	TObjectPtr<UBoxComponent> Body;
+
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Carry")
+	TObjectPtr<UStaticMeshComponent> Visual;
+
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Carry")
+	TObjectPtr<UHollowCarryableComponent> Carryable;
+};

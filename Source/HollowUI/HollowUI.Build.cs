@@ -23,6 +23,7 @@ public class HollowUI : ModuleRules
 			"DeveloperSettings",
 			"HollowCore",
 			"HollowGAS",
+			"HollowEconomy",
 			"HollowGame"
 		});
 

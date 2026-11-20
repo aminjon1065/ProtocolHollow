@@ -6,6 +6,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "Foundation/HollowPrimaryLayout.h"
 #include "Foundation/HollowUISettings.h"
+#include "Profile/HollowProfileSubsystem.h"
+#include "Raid/HollowDebriefWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "HollowUILog.h"
 #include "HollowUITags.h"
@@ -54,10 +56,24 @@ void AHollowHUD::BeginPlay()
 	Layout->AddToPlayerScreen();
 	Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Game, Settings->VisorClass.LoadSynchronous());
 	UE_LOG(LogHollowUI, Log, TEXT("%s: UI up for %s"), *GetName(), *Player->GetName());
+
+	// A raid resolved now, or one the player has not seen yet (after travel, a lost host, a crash).
+	if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))
+	{
+		RaidReportHandle = Profile->OnRaidReport.AddUObject(this, &ThisClass::HandleRaidReport);
+		if (const FHollowRaidReport* Pending = Profile->GetPendingReport())
+		{
+			ShowDebrief(*Pending);
+		}
+	}
 }
 
 void AHollowHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))
+	{
+		Profile->OnRaidReport.Remove(RaidReportHandle);
+	}
 	if (Layout)
 	{
 		Layout->RemoveFromParent();
@@ -88,4 +104,27 @@ UCommonActivatableWidget* AHollowHUD::OpenSystemMenu()
 		return Active;
 	}
 	return Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Menu, GetDefault<UHollowUISettings>()->SystemMenuClass.LoadSynchronous());
+}
+
+void AHollowHUD::HandleRaidReport(const FHollowRaidReport& Report)
+{
+	ShowDebrief(Report);
+}
+
+UHollowDebriefWidget* AHollowHUD::ShowDebrief(const FHollowRaidReport& Report)
+{
+	if (!Layout)
+	{
+		return nullptr;
+	}
+	if (!Debrief || !Debrief->IsActivated())
+	{
+		Debrief = Cast<UHollowDebriefWidget>(Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Menu, GetDefault<UHollowUISettings>()->DebriefClass.LoadSynchronous()));
+	}
+	if (Debrief)
+	{
+		Debrief->SetReport(Report);
+		UE_LOG(LogHollowUI, Log, TEXT("%s: debrief %s"), *GetName(), *Debrief->GetTitle().ToString());
+	}
+	return Debrief;
 }

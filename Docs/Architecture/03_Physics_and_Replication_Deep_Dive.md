@@ -271,6 +271,35 @@ struct FHollowCarryNetState
 ### Сброс и физика
 Сервер включает `SetSimulatePhysics(true)` и начальную скорость носильщиков, режим Physics Replication — Predictive Interpolation. На сне ядро получает финальный `ForceNetUpdate`, затем `SetReplicateMovement(false)` и dormancy.
 
+### Реализация S3-02 ([ADR-0015](../ADR/ADR-0015-solo-carry-claim.md))
+- **Классы** (`HollowPhysics/Carry`):
+  - `AHollowAetherCore` — бокс-тело (корень: физика, коллизия, Predictive Interpolation) плюс визуальный меш и `IHollowInteractable`;
+  - `UHollowCarryableComponent` — `FHollowCarryNetState` (push), сброс, сон → покой → dormancy, локальное крепление визуала;
+  - `UHollowCarrierComponent` на pawn'е — предсказание подъёма, `Server_Drop`, `GE_Carry_Solo`, серверный режим для CMC;
+  - `UHollowCarryableDefinition` (тип `HollowCarryable`);
+  - `UHollowCarrySettings` (грейс 0.25 с, тайм-аут предсказания 1 с);
+  - чистая `HollowCarryPolicy`.
+- **Скорость — 2 бита в saved move** (`HollowMoveFlags::Carry*`, `FLAG_Custom_1/2`). Сервер берёт более медленный из режимов `max(claim, server)`; строгий серверный режим действует после грейса, мягкий — сразу.
+  - Множители `SpeedScale`, `AccelerationScale`, `bAllowSprint`, `bAllowJump` по режимам лежат в `DA_MovementTuning_ExoFrame` (Solo 0.45 / 0.6, Coop 0.75 / 0.8, Dragged 0.25 / 0.5).
+  - Спринт и прыжок запрещает тот же эффективный режим в CMC: это не способности GAS.
+- **Подъём предсказан (E → заявка `Solo`), сброс нет:** заявка держится до прихода свободного состояния.
+  - Вместо `UHollowGA_CarryHeavy` — обычное взаимодействие S1-06.
+  - `GE_Carry_Solo` даёт тег `Hollow.State.CarryingHeavy.Solo`, блокирует `Hollow.Ability.Tool`, тратит 2 стамины/с и даёт +0.5 Резонанса/с.
+  - `GE_Stamina_Recovery` на паузе, пока ядро в руках.
+- **Крепление:**
+  - корень ядра едет на капсуле в `GripOffset`, сервер прикрепляет его, `AttachmentReplication` повторяет;
+  - визуал своего вида крепится к FP-камере, чужого — к сглаженному TP-мешу (смещение посчитано в `create_carry_assets.py` из меша `BP_ExoFrame`);
+  - профиль коллизии `HollowCarried` — только перекрытия с WorldDynamic.
+- **Сброс:**
+  - сервер ищет место вокруг носильщика: перед ним, затем ±45 … 180°; тело должно помещаться, и между ним и центром капсулы не должно быть стены;
+  - нет места — ядро остаётся в руках; уходящий носильщик оставляет ядро на своём месте;
+  - клиенты сразу встают в серверную позу сброса;
+  - сон → через 0.5 с тело кинематическое, `ReplicateMovement` выключен, `DORM_DormantAll`; клиенты встают в последнюю реплицированную позу; `MaxAwakeSeconds` 6 с.
+- **Найдено по пути (S2-02):**
+  - заглушки Sealed появлялись Static-компонентом, который уже зарегистрирован при deferred spawn; в мире с начатой игрой `SetStaticMesh` молча отказывал;
+  - итог: все закрытые проёмы рейда были дырами из мира;
+  - теперь заглушки Movable, а тест сборки идёт в «начатом» мире и прогоняет капсулу pawn'а через каждую заглушку.
+
 ### Дрон (соло-баланс) и лебёдка (Разведчик) — после VS
 - **Drone:** тот же путь, что `Solo`; носильщик — AI-pawn дрона, хват на его сокете.
 - **Winched:** ядро симулируется на сервере, сила направлена к якорю гарпуна, репликация через Predictive Interpolation. Это редкий режим, бюджет позволяет.
@@ -421,7 +450,13 @@ struct FHollowNoiseEvent
 | `Hollow.Physics.Breach.{DebrisCollision, Bulkhead, LateJoin}` | мир | профиль `HollowDebris` и sweep pawn'а сквозь осколки; настоящие `BP_Bulkhead_*`: панели, Snap, Full с GC, щебень; первичная репликация сломанной переборки → Snap (S3-01) |
 | `Hollow.Physics.Nav.BulkheadBreach` | мир | Standard не проходит, Heavy ломится; после пролома сразу через связь; после снятия блокера навмеш сам проходит проём (S3-01) |
 | `Hollow.PCG.Generator.BulkheadsAreDetours` | Simple | ни одна комната не достижима только через переборку (200 seed'ов; в `DocksPool` — на реальном ките) |
-| `Hollow.Physics.Carry.SlowdownPolicy` | Simple | `max(claimed, server)` и грейс 250 мс |
+| `Hollow.Physics.Carry.SlowdownPolicy` | Simple | `max(claimed, server)` и грейс 250 мс: граница включительно, смягчение сразу, медленная заявка принимается, Coop/Solo/Dragged, отрицательный возраст (S3-02) |
+| `Hollow.Physics.Movement.SavedMoveCarryBits` | мир | 2 бита заявки туда-обратно, без склейки при смене, сервер: грейс → порог, скорость, ускорение, нет прыжка и спринта, replay восстанавливает живую заявку (S3-02) |
+| `Hollow.Game.Carry.{SoloCycle, Presentation, Prediction}` | мир | подъём через Interact, тег и блок инструментов, сброс со скоростью, сквозь стену и в углу, сон → dormancy, принудительный сон, уход носильщика; FP у своего, TP у чужого, первичная репликация несомого ядра; предсказанная заявка, тайм-аут, подтверждение (S3-02) |
+| `Hollow.PCG.Sector.Assembly` | мир | *(S3-02)* сборка в «начатом» мире; капсула pawn'а не проходит ни через одну заглушку Sealed |
+| `Hollow.Economy.Resolver.{ExtractionKeepsEverything, DeathKeepsOnlyInsured, SignalLost}` | Simple | исходы ADR-0016: лоадаут, страховка (нестрахуемое не застраховать), продажа ядер, кредиты не трогаются (S3-03) |
+| `Hollow.Economy.Profile.Escrow` | Simple | маркер и снимок, чужой RaidId игнорируется, новый рейд закрывает висящий как Abandoned, SignalLost, SaveGame туда-обратно и «вылет» (S3-03) |
+| `Hollow.Game.Raid.{Rules, ExtractionZone, Death}` | Simple / мир | таймер отлёта (старт, сброс, ноль), исходы при отлёте; зона видит игроков и свободные и несомые ядра; урон через GE → Dead, тег, ядро упало (S3-03) |
 | `Hollow.Physics.Carry.Tether` | Simple | математика тетера и порог разрыва |
 | `Hollow.Physics.Nav.DoorFilters` | Functional (тест-карта) | `FindPathSync` для фильтров Standard и Heavy по каждому состоянию двери |
 | Ручной | PIE 2+ игрока, Network Emulation *Bad* | сварка, пролом, кооп-переноска без коррекций и рассинхрона (DoD CLAUDE.md) |

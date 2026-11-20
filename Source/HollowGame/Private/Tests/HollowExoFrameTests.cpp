@@ -15,9 +15,12 @@
 #include "GameFramework/PlayerController.h"
 #include "Input/HollowInputConfig.h"
 #include "InputAction.h"
+#include "Carry/HollowCarrySettings.h"
 #include "Movement/HollowCharacterMovementComponent.h"
+#include "Movement/HollowMovementTuning.h"
 #include "Tags/HollowGameplayTags.h"
 #include "Tests/AutomationCommon.h"
+#include "UObject/Package.h"
 
 namespace HollowExoFrameTests
 {
@@ -143,6 +146,108 @@ bool FHollowSavedMoveSprintFlagTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Server decodes the sprint request"), Movement->WantsToSprint());
 	Movement->UpdateFromCompressedFlags(WalkMove->GetCompressedFlags());
 	TestFalse(TEXT("Server clears the sprint request"), Movement->WantsToSprint());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSavedMoveCarryBitsTest, "Hollow.Physics.Movement.SavedMoveCarryBits",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowSavedMoveCarryBitsTest::RunTest(const FString& Parameters)
+{
+	// ADR-0015: the carry claim travels in two move flags; the server simulates a remote carrier (no local controller
+	// here) with max(claim, server state after the grace). Test tuning only: real values are DA_MovementTuning_ExoFrame.
+	using namespace HollowExoFrameTests;
+	using EClaim = EHollowCarryClaim;
+	constexpr float WalkSpeed = 400.f;
+	constexpr float SprintMultiplier = 1.5f;
+	constexpr float Acceleration = 2000.f;
+	constexpr float SoloScale = 0.45f;
+	constexpr float SoloAccelerationScale = 0.6f;
+	constexpr float SprintMaxAngle = 45.f;
+	constexpr double Start = 100.0;
+
+	FTestWorldWrapper World;
+	AHollowExoFrameCharacter* Character = SpawnCharacter(*this, World);
+	if (!TestNotNull(TEXT("ExoFrame spawns"), Character))
+	{
+		return false;
+	}
+	UHollowMovementTuning* Tuning = NewObject<UHollowMovementTuning>(GetTransientPackage());
+	Tuning->Ground.WalkSpeed = WalkSpeed;
+	Tuning->Ground.CrouchSpeed = WalkSpeed;
+	Tuning->Ground.SprintSpeedMultiplier = SprintMultiplier;
+	Tuning->Ground.SprintMaxAngle = SprintMaxAngle;
+	Tuning->MaxAcceleration = Acceleration;
+	Tuning->Carry.Solo.SpeedScale = SoloScale;
+	Tuning->Carry.Solo.AccelerationScale = SoloAccelerationScale;
+	UHollowCharacterMovementComponent* Movement = Character->GetHollowMovement();
+	Movement->SetMovementTuning(Tuning);
+
+	// Encoding: all four claims round-trip and never touch the sprint flag.
+	for (const EClaim Claim : {EClaim::None, EClaim::Solo, EClaim::Coop, EClaim::Dragged})
+	{
+		TestTrue(FString::Printf(TEXT("Claim %d round-trips"), static_cast<int32>(Claim)), HollowMoveFlags::DecodeCarry(HollowMoveFlags::EncodeCarry(Claim)) == Claim);
+		TestEqual(FString::Printf(TEXT("Claim %d keeps clear of the sprint flag"), static_cast<int32>(Claim)),
+			static_cast<int32>(HollowMoveFlags::EncodeCarry(Claim) & HollowMoveFlags::Sprint), 0);
+	}
+
+	// Saved moves record the live claim and never combine across a change.
+	FNetworkPredictionData_Client_Character* ClientData = Movement->GetPredictionData_Client_Character();
+	auto RecordMove = [&]()
+	{
+		FSavedMovePtr Move = ClientData->CreateSavedMove();
+		Move->SetMoveFor(Character, MoveDeltaTime, FVector::ZeroVector, *ClientData);
+		return Move;
+	};
+	Movement->SetClaimedCarry(EClaim::None);
+	const FSavedMovePtr FreeMove = RecordMove();
+	const FSavedMovePtr OtherFreeMove = RecordMove();
+	Movement->SetClaimedCarry(EClaim::Solo);
+	const FSavedMovePtr CarryMove = RecordMove();
+	TestTrue(TEXT("A carrying move claims Solo in its flags"), HollowMoveFlags::DecodeCarry(CarryMove->GetCompressedFlags()) == EClaim::Solo);
+	TestTrue(TEXT("Equal claims still combine"), FreeMove->CanCombineWith(OtherFreeMove, Character, MaxCombineDelta));
+	TestFalse(TEXT("A claim change never combines"), FreeMove->CanCombineWith(CarryMove, Character, MaxCombineDelta));
+
+	// Server: the pick-up was decided at Start (not predicted): the old free state binds through the grace.
+	Movement->SetMovementMode(MOVE_Walking);
+	Movement->Acceleration = Character->GetActorForwardVector();   // moving forward: a sprint request may be honoured
+	UWorld* TestWorld = World.GetTestWorld();
+	const float Grace = GetDefault<UHollowCarrySettings>()->ServerSlowdownGraceSeconds;
+	TestTrue(TEXT("A grace is configured (DefaultGame.ini)"), Grace > 0.f);
+	TestWorld->TimeSeconds = Start;
+	Movement->SetServerCarry(EClaim::Solo);
+	Movement->UpdateFromCompressedFlags(FreeMove->GetCompressedFlags());
+	TestTrue(TEXT("Grace: a move without the claim walks free"), Movement->GetEffectiveCarry() == EClaim::None);
+	TestEqual(TEXT("Grace: full speed"), Movement->GetMaxSpeed(), WalkSpeed);
+	TestWorld->TimeSeconds = Start + Grace;
+	TestTrue(TEXT("After the grace the server state binds a client that never claims"), Movement->GetEffectiveCarry() == EClaim::Solo);
+	TestEqual(TEXT("Carry speed"), Movement->GetMaxSpeed(), WalkSpeed * SoloScale);
+	TestEqual(TEXT("Carry acceleration"), Movement->GetMaxAcceleration(), Acceleration * SoloAccelerationScale);
+	TestFalse(TEXT("No jump while carrying"), Movement->CanAttemptJump());
+	Movement->SetWantsToSprint(true);
+	TestFalse(TEXT("No sprint while carrying"), Movement->IsSprinting());
+	TestEqual(TEXT("A sprint request does not speed a carrier up"), Movement->GetMaxSpeed(), WalkSpeed * SoloScale);
+	Movement->UpdateFromCompressedFlags(CarryMove->GetCompressedFlags());
+	TestTrue(TEXT("The decoded claim agrees"), Movement->GetClaimedCarry() == EClaim::Solo && Movement->GetEffectiveCarry() == EClaim::Solo);
+
+	// Drop decided by the server: the client's slower claim is accepted until it learns it; its free moves at once.
+	TestWorld->TimeSeconds = Start + 2.0 * Grace;
+	Movement->SetServerCarry(EClaim::None);
+	TestTrue(TEXT("Still claiming Solo after the drop: accepted"), Movement->GetEffectiveCarry() == EClaim::Solo);
+	Movement->UpdateFromCompressedFlags(FreeMove->GetCompressedFlags());
+	TestTrue(TEXT("A free move right after the drop walks free"), Movement->GetEffectiveCarry() == EClaim::None);
+	Movement->SetWantsToSprint(true);   // the free move carried no sprint request
+	TestTrue(TEXT("Free again: sprint honoured"), Movement->IsSprinting());
+	TestEqual(TEXT("Free again: sprint speed"), Movement->GetMaxSpeed(), WalkSpeed * SprintMultiplier);
+	TestTrue(TEXT("Free again: jump allowed"), Movement->CanAttemptJump());
+
+	// Client replay: moves replay with their own claims, the live claim survives.
+	Movement->SetWantsToSprint(false);
+	Movement->SetClaimedCarry(EClaim::None);
+	ClientData->SavedMoves.Add(CarryMove);
+	ClientData->bUpdatePosition = true;
+	Movement->ClientUpdatePositionAfterServerUpdate();
+	TestTrue(TEXT("Replay restores the live claim"), Movement->GetClaimedCarry() == EClaim::None);
 	return true;
 }
 

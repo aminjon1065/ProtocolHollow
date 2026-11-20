@@ -8,6 +8,9 @@
 #include "HollowExoFrameCharacter.generated.h"
 
 class UCameraComponent;
+class UGameplayEffect;
+class UHollowHealthSet;
+class UHollowCarrierComponent;
 class UHollowCharacterMovementComponent;
 class UHollowInteractionComponent;
 class UHollowInputConfig;
@@ -34,11 +37,25 @@ public:
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
 	UCameraComponent* GetFirstPersonCamera() const { return FirstPersonCamera; }
 	UHollowInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
+	UHollowCarrierComponent* GetCarrierComponent() const { return CarrierComponent; }
+
+	/** The Interact input: drops a carried core, otherwise interacts with the focus (a free core is predicted as lifted). */
+	void RequestInteract();
+
+	bool IsDead() const { return bDead; }
+
+	/**
+	 * Server: this ExoFrame dies (its health reached zero; ADR-0016). Movement stops, the carried core drops, the
+	 * death effect marks Hollow.State.Dead, the raid learns it, and after a moment the player spectates.
+	 */
+	void Die();
 
 	/** Skeleton socket the first-person camera follows (head bob comes from the animation). */
 	static const FName CameraSocketName;
 
 protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PostInitializeComponents() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
 	virtual void OnRep_PlayerState() override;
@@ -48,6 +65,15 @@ protected:
 private:
 	/** Binds the player state's ability system to this pawn (server and owning client). */
 	void InitializeFromPlayerState();
+
+	void HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, float Damage);
+	void UnbindHealth();
+	void BecomeSpectator();
+	/** Every machine: a dead body neither moves nor blocks the living. */
+	void ApplyDeadPresentation();
+
+	UFUNCTION()
+	void OnRep_Dead();
 
 	void HandleMove(const FInputActionValue& Value);
 	void HandleLook(const FInputActionValue& Value);
@@ -70,6 +96,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UHollowInteractionComponent> InteractionComponent;
 
+	/** Heavy carrying (ADR-0015): carried visuals attach to the camera (own view) and the body (everyone else). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowCarrierComponent> CarrierComponent;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Input")
 	TObjectPtr<const UHollowInputConfig> InputConfig;
 
@@ -85,4 +115,15 @@ private:
 
 	/** What AbilitySets granted, taken back on unpossess (server only). */
 	FHollowAbilitySetHandles GrantedAbilitySetHandles;
+
+	/** Applied by the server on death (GE_State_Dead: Hollow.State.Dead). */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Death")
+	TSubclassOf<UGameplayEffect> DeathEffect;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Dead)
+	bool bDead = false;
+
+	TWeakObjectPtr<const UHollowHealthSet> BoundHealthSet;
+	FDelegateHandle OutOfHealthHandle;
+	FTimerHandle SpectateTimer;
 };

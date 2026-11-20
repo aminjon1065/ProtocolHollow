@@ -6,6 +6,7 @@
   /Game/Hollow/UI/Foundation/BP_ButtonStyle_Menu, W_MenuButton, W_PrimaryLayout
   /Game/Hollow/UI/Visor/W_StatBar, W_InteractionPrompt, W_TargetStatus, W_Visor
   /Game/Hollow/UI/Menus/W_SystemMenu
+  /Game/Hollow/UI/Visor/W_RaidStatus (added to W_Visor), /Game/Hollow/UI/Menus/W_Debrief      (S3-03)
   DA_Tool_Welder/PlasmaCutter ActionLabel, BP_GameMode_Hub/Raid HUDClass = AHollowHUD   (if unset)
 
 Widget trees are composed through UHollowWidgetAuthoring (HollowEditor): editor Python cannot reach a WBP's tree.
@@ -61,6 +62,8 @@ TOOL_BAR_GAP = 36.0                           # fuel sits this far above heat
 TARGET_SIZE = unreal.Vector2D(360.0, 48.0)
 TARGET_OFFSET = 60.0                          # below the crosshair
 PROMPT_OFFSET = 120.0
+RAID_STATUS_OFFSET = 40.0                     # below the top edge
+DEBRIEF_WIDTH = 720.0
 CROSSHAIR_SIZE = 6.0
 MARKER_SIZE = unreal.Vector2D(3.0, 20.0)
 BUTTON_MIN_WIDTH = 280
@@ -418,6 +421,55 @@ def ensure_system_menu():
     finish(blueprint)
 
 
+def ensure_raid_status():
+    blueprint = new_widget_blueprint(VISOR_DIR + "/W_RaidStatus", unreal.HollowRaidStatusWidget)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.VerticalBox, "Root")
+    status = add(blueprint, unreal.TextBlock, "StatusText", "Root")
+    text(status, "", TEXT_SIZE + 4, unreal.TextJustify.CENTER)
+    box_slot(status, H.H_ALIGN_CENTER, V.V_ALIGN_TOP)
+    finish(blueprint)
+
+
+def ensure_visor_raid_status():
+    """W_Visor predates the raid line: add it to the existing tree once."""
+    blueprint = load(VISOR_DIR + "/W_Visor")
+    if author.find_widget(blueprint, "RaidStatus") is not None:
+        return
+    status = add(blueprint, load(VISOR_DIR + "/W_RaidStatus").generated_class(), "RaidStatus", "Root")
+    top_centre = unreal.Vector2D(0.5, 0.0)
+    canvas_slot(status, top_centre, top_centre, unreal.Vector2D(0.0, RAID_STATUS_OFFSET), auto_size=True)
+    if not author.compile(blueprint):
+        raise RuntimeError("W_Visor does not compile with the raid line")
+    save(blueprint)
+    log("W_Visor: raid status line added")
+
+
+def ensure_debrief():
+    blueprint = new_widget_blueprint(MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.Overlay, "Root")
+    backdrop = add(blueprint, unreal.Image, "Backdrop", "Root")
+    image(backdrop, unreal.Vector2D(0.0, 0.0), BACKDROP_COLOR)
+    box_slot(backdrop)
+    panel = add(blueprint, unreal.VerticalBox, "Panel", "Root")
+    box_slot(panel, H.H_ALIGN_CENTER, V.V_ALIGN_CENTER)
+    title = add(blueprint, unreal.TextBlock, "TitleText", "Panel")
+    text(title, "", TITLE_SIZE, unreal.TextJustify.CENTER)
+    box_slot(title, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, 0.0, 0.0, PANEL_PADDING * 3.0))
+    details = add(blueprint, unreal.TextBlock, "DetailsText", "Panel")
+    text(details, "", TEXT_SIZE)
+    details.set_editor_property("auto_wrap_text", True)
+    details.set_editor_property("wrap_text_at", DEBRIEF_WIDTH)
+    box_slot(details, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(0.0, 0.0, 0.0, PANEL_PADDING * 3.0))
+    close = add(blueprint, load(FOUNDATION_DIR + "/W_MenuButton").generated_class(), "CloseButton", "Panel")
+    close.set_editor_property("label", unreal.Text("Continue"))
+    box_slot(close, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
+    finish(blueprint)
+
+
 # ---------------------------------------------------------------- game data
 
 
@@ -466,9 +518,12 @@ def validate():
                          (VISOR_DIR + "/W_InteractionPrompt", unreal.HollowInteractionPromptWidget),
                          (VISOR_DIR + "/W_TargetStatus", unreal.HollowTargetStatusWidget),
                          (VISOR_DIR + "/W_Visor", unreal.HollowVisorWidget),
-                         (MENUS_DIR + "/W_SystemMenu", unreal.HollowSystemMenuWidget)):
+                         (MENUS_DIR + "/W_SystemMenu", unreal.HollowSystemMenuWidget),
+                         (VISOR_DIR + "/W_RaidStatus", unreal.HollowRaidStatusWidget),
+                         (MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)):
         generated = load(path).generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
+    check(author.find_widget(load(VISOR_DIR + "/W_Visor"), "RaidStatus") is not None, "W_Visor shows the raid line")
     for path in TOOL_LABELS:
         check(not load(path).get_editor_property("action_label").is_empty(), path + " action label")
     for path in GAME_MODES:
@@ -488,7 +543,10 @@ def main():
     ensure_prompt()
     ensure_target_status()
     ensure_visor()
+    ensure_raid_status()
+    ensure_visor_raid_status()
     ensure_system_menu()
+    ensure_debrief()
     ensure_tool_labels()
     ensure_hud_class()
     validate()

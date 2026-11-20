@@ -277,12 +277,13 @@ void UHollowSectorAuthorityComponent::SpawnSectorActors()
 		const FTransform RoomTransform = HollowSectorManifest::RoomTransform(Layout.Rooms[RoomIndex], FIntPoint(Room->Footprint.X, Room->Footprint.Y), *Metrics, Origin);
 		for (const FHollowRoomSocket& Socket : Room->Sockets)
 		{
-			UClass* Class = Biome->FindSocketActor(Socket.SocketType).Get();
+			const FHollowSocketActorRule* Rule = Biome->FindSocketRule(Socket.SocketType);
+			UClass* Class = Rule ? Rule->ActorClass.Get() : nullptr;
 			if (!Class)
 			{
 				continue;
 			}
-			FTransform Transform = Socket.Transform * RoomTransform;
+			FTransform Transform = FTransform(Rule->SpawnOffset) * Socket.Transform * RoomTransform;
 			if (Class->IsChildOf<APlayerStart>())
 			{
 				Transform.AddToTranslation(FVector(0.0, 0.0, StartLift));

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Extraction/HollowRaidTypes.h"
 #include "GameFramework/PlayerController.h"
 
 #include "HollowPlayerController.generated.h"
@@ -17,4 +18,8 @@ public:
 	 */
 	UFUNCTION(Server, Reliable)
 	void Server_ReportSectorReady(int32 BuildId, uint32 LayoutHash);
+
+	/** The host's result of this player's raid (ADR-0005): applied to the local profile, which shows the debrief. */
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveRaidResult(const FHollowRaidResult& Result);
 };

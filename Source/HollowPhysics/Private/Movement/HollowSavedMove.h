@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Carry/HollowCarryTypes.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 /** Saved move carrying the Hollow movement requests (see UHollowCharacterMovementComponent, HollowMoveFlags). */
@@ -15,6 +16,7 @@ public:
 
 private:
 	bool bSavedWantsToSprint = false;
+	EHollowCarryClaim SavedClaimedCarry = EHollowCarryClaim::None;
 };
 
 /** Client prediction data that allocates FSavedMove_Hollow. */

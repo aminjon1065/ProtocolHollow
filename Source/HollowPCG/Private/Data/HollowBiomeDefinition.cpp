@@ -15,10 +15,9 @@ FPrimaryAssetId UHollowBiomeDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(AssetType, GetFName());
 }
 
-TSoftClassPtr<AActor> UHollowBiomeDefinition::FindSocketActor(const FGameplayTag& SocketType) const
+const FHollowSocketActorRule* UHollowBiomeDefinition::FindSocketRule(const FGameplayTag& SocketType) const
 {
-	const FHollowSocketActorRule* Rule = SocketActors.FindByPredicate([&SocketType](const FHollowSocketActorRule& R) { return R.SocketType == SocketType; });
-	return Rule ? Rule->ActorClass : TSoftClassPtr<AActor>();
+	return SocketActors.FindByPredicate([&SocketType](const FHollowSocketActorRule& R) { return R.SocketType == SocketType; });
 }
 
 TSoftClassPtr<AActor> UHollowBiomeDefinition::FindConnectionActor(const EHollowConnectorKind Kind, const uint64 VariantKey) const

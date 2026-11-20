@@ -34,6 +34,10 @@ struct FHollowSocketActorRule
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	TSoftClassPtr<AActor> ActorClass;
+
+	/** The actor's pivot relative to the socket (e.g. half the height of a physics body that rests on the floor socket). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly", meta = (Units = "Centimeters"))
+	FVector SpawnOffset = FVector::ZeroVector;
 };
 
 /** Gameplay actor the server spawns in every connection of a kind (door, bulkhead, open frame). */
@@ -85,7 +89,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	TArray<FHollowConnectionActorRule> ConnectionActors;
 
-	TSoftClassPtr<AActor> FindSocketActor(const FGameplayTag& SocketType) const;
+	/** The rule for a socket type, or null. */
+	const FHollowSocketActorRule* FindSocketRule(const FGameplayTag& SocketType) const;
 	/** Class for a connection of Kind; VariantKey (a hash of seed and connection index) picks among the rule's variants. */
 	TSoftClassPtr<AActor> FindConnectionActor(EHollowConnectorKind Kind, uint64 VariantKey = 0) const;
 

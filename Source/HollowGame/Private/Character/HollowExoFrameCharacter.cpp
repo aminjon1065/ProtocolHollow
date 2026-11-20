@@ -1,24 +1,39 @@
 #include "Character/HollowExoFrameCharacter.h"
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Attributes/HollowHealthSet.h"
 #include "Camera/CameraComponent.h"
+#include "Carry/HollowCarrierComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Framework/HollowPlayerState.h"
+#include "Framework/HollowRaidGameMode.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayEffect.h"
 #include "HollowGameLog.h"
 #include "Input/HollowInputConfig.h"
 #include "InputActionValue.h"
 #include "Interaction/HollowInteractionComponent.h"
 #include "Movement/HollowCharacterMovementComponent.h"
+#include "Net/UnrealNetwork.h"
+#include "Raid/HollowRaidFlowComponent.h"
+#include "Raid/HollowRaidSettings.h"
 #include "Tags/HollowGameplayTags.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowExoFrameCharacter)
 
 const FName AHollowExoFrameCharacter::CameraSocketName(TEXT("head"));
+
+namespace HollowExoFramePrivate
+{
+	/** Gameplay ability system levels start at 1; state effects have no levels. */
+	constexpr float EffectLevel = 1.f;
+}
 
 AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UHollowCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -40,6 +55,13 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	FirstPersonCamera->bEnableFirstPersonScale = true;
 
 	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
+	CarrierComponent = CreateDefaultSubobject<UHollowCarrierComponent>(TEXT("Carrier"));
+}
+
+void AHollowExoFrameCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	CarrierComponent->SetAttachTargets(FirstPersonCamera, GetMesh());
 }
 
 void AHollowExoFrameCharacter::PossessedBy(AController* NewController)
@@ -61,6 +83,7 @@ void AHollowExoFrameCharacter::PossessedBy(AController* NewController)
 
 void AHollowExoFrameCharacter::UnPossessed()
 {
+	UnbindHealth();
 	GrantedAbilitySetHandles.TakeFromAbilitySystem(GetHollowAbilitySystemComponent());
 	UninitializeAbilitySystem();
 	Super::UnPossessed();
@@ -88,6 +111,89 @@ void AHollowExoFrameCharacter::InitializeFromPlayerState()
 		return;
 	}
 	InitializeAbilitySystem(HollowPlayerState->GetHollowAbilitySystemComponent(), HollowPlayerState);
+
+	// The server learns of death from the health set (on the player state); clients follow the replicated flag.
+	const UHollowAbilitySystemComponent* AbilitySystem = GetHollowAbilitySystemComponent();
+	const UHollowHealthSet* Health = AbilitySystem ? AbilitySystem->GetSet<UHollowHealthSet>() : nullptr;
+	if (HasAuthority() && Health && BoundHealthSet.Get() != Health)
+	{
+		UnbindHealth();
+		OutOfHealthHandle = Health->OnOutOfHealth.AddUObject(this, &ThisClass::HandleOutOfHealth);
+		BoundHealthSet = Health;
+	}
+}
+
+void AHollowExoFrameCharacter::UnbindHealth()
+{
+	if (const UHollowHealthSet* Health = BoundHealthSet.Get())
+	{
+		Health->OnOutOfHealth.Remove(OutOfHealthHandle);
+	}
+	BoundHealthSet = nullptr;
+	OutOfHealthHandle.Reset();
+}
+
+void AHollowExoFrameCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AHollowExoFrameCharacter, bDead);
+}
+
+void AHollowExoFrameCharacter::HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, const float Damage)
+{
+	UE_LOG(LogHollowGame, Log, TEXT("%s: out of health (%.0f damage from %s)"), *GetName(), Damage, *GetNameSafe(EffectInstigator));
+	Die();
+}
+
+void AHollowExoFrameCharacter::Die()
+{
+	if (!HasAuthority() || bDead)
+	{
+		return;
+	}
+	bDead = true;
+	ApplyDeadPresentation();
+	if (UHollowAbilitySystemComponent* AbilitySystem = GetHollowAbilitySystemComponent())
+	{
+		AbilitySystem->CancelAllAbilities();
+		if (DeathEffect)
+		{
+			AbilitySystem->ApplyGameplayEffectToSelf(DeathEffect.GetDefaultObject(), HollowExoFramePrivate::EffectLevel, AbilitySystem->MakeEffectContext());
+		}
+	}
+	CarrierComponent->ServerDrop(/*bForce=*/true);   // the core stays where its carrier fell
+	UE_LOG(LogHollowGame, Log, TEXT("%s died"), *GetName());
+	if (AHollowRaidGameMode* Raid = GetWorld()->GetAuthGameMode<AHollowRaidGameMode>())
+	{
+		Raid->GetRaidFlow()->HandlePlayerDied(GetController());
+	}
+	GetWorldTimerManager().SetTimer(SpectateTimer, this, &ThisClass::BecomeSpectator,
+		FMath::Max(GetDefault<UHollowRaidSettings>()->DeathSpectateDelaySeconds, UE_KINDA_SMALL_NUMBER), /*bLoop=*/false);
+}
+
+void AHollowExoFrameCharacter::OnRep_Dead()
+{
+	if (bDead)
+	{
+		ApplyDeadPresentation();
+	}
+}
+
+void AHollowExoFrameCharacter::ApplyDeadPresentation()
+{
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+}
+
+void AHollowExoFrameCharacter::BecomeSpectator()
+{
+	if (APlayerController* Player = Cast<APlayerController>(GetController()))
+	{
+		UE_LOG(LogHollowGame, Log, TEXT("%s: %s spectates"), *GetName(), *Player->GetName());
+		Player->ChangeState(NAME_Spectating);
+		Player->ClientGotoState(NAME_Spectating);
+	}
 }
 
 UHollowCharacterMovementComponent* AHollowExoFrameCharacter::GetHollowMovement() const
@@ -219,5 +325,13 @@ void AHollowExoFrameCharacter::HandleSprintCompleted()
 
 void AHollowExoFrameCharacter::HandleInteract()
 {
-	InteractionComponent->RequestInteract();
+	RequestInteract();
+}
+
+void AHollowExoFrameCharacter::RequestInteract()
+{
+	if (!CarrierComponent->HandleInteractInput(InteractionComponent->GetFocusedActor()))
+	{
+		InteractionComponent->RequestInteract();
+	}
 }
