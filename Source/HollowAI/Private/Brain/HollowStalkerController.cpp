@@ -8,6 +8,8 @@
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "HollowAILog.h"
+#include "Resonance/HollowResonanceMath.h"
+#include "Resonance/HollowSquadResonanceComponent.h"
 #include "Sector/HollowSectorTopologySubsystem.h"
 #include "Threat/HollowActivityHeatmapSubsystem.h"
 #include "Threat/HollowAIPlayers.h"
@@ -51,6 +53,12 @@ void AHollowStalkerController::OnPossess(APawn* InPawn)
 	{
 		ModeHandle = Director->OnModeChanged.AddUObject(this, &ThisClass::HandleModeChanged);
 	}
+	if (UHollowSquadResonanceComponent* Found = UHollowSquadResonanceComponent::Get(this))
+	{
+		SquadResonance = Found;
+		SquadHandle = Found->OnSquadResonanceChanged.AddUObject(this, &ThisClass::HandleSquadResonance);
+		HandleSquadResonance(Found->GetState());
+	}
 }
 
 void AHollowStalkerController::OnUnPossess()
@@ -59,6 +67,11 @@ void AHollowStalkerController::OnUnPossess()
 	{
 		Director->OnModeChanged.Remove(ModeHandle);
 	}
+	if (UHollowSquadResonanceComponent* Old = SquadResonance.Get())
+	{
+		Old->OnSquadResonanceChanged.Remove(SquadHandle);
+	}
+	SquadResonance.Reset();
 	Super::OnUnPossess();
 }
 
@@ -67,6 +80,24 @@ void AHollowStalkerController::HandleModeChanged(AHollowEnemyCharacter* Stalker,
 	if (Stalker && Stalker == GetPawn())
 	{
 		Reconsider();
+	}
+}
+
+void AHollowStalkerController::HandleSquadResonance(const FHollowSquadResonanceNetState& State)
+{
+	const UHollowStalkerDefinition* Definition = GetStalkerDefinition();
+	if (!Definition)
+	{
+		return;
+	}
+	const float Normalized = HollowResonanceMath::Dequantize(State.Level);
+	const float Range = Definition->HearingRange * HollowResonanceMath::EvaluateMultiplier(Definition->HearingResonanceCurve, Normalized);
+	if (!FMath::IsNearlyEqual(Range, GetHearingRange()))
+	{
+		UE_CLOG(State.Tier != HearingTier, LogHollowAI, Log, TEXT("%s: squad Resonance %.3f, hears %.0f cm"), *GetNameSafe(GetPawn()), Normalized, Range);
+		UE_CLOG(State.Tier == HearingTier, LogHollowAI, Verbose, TEXT("%s: squad Resonance %.3f, hears %.0f cm"), *GetNameSafe(GetPawn()), Normalized, Range);
+		HearingTier = State.Tier;
+		SetHearingRange(Range);
 	}
 }
 
@@ -353,6 +384,6 @@ FString AHollowStalkerController::Describe() const
 {
 	const UHollowThreatDirectorSubsystem* Director = UHollowThreatDirectorSubsystem::Get(this);
 	const AHollowEnemyCharacter* Enemy = GetEnemy();
-	return FString::Printf(TEXT("%s, mode %s, focus room %d%s"), *Super::Describe(),
-		Director ? *HollowEnumToString(Director->GetModeFor(GetPawn())) : TEXT("-"), FocusRoom, Enemy && Enemy->IsInVent() ? TEXT(", in a vent") : TEXT(""));
+	return FString::Printf(TEXT("%s, mode %s, focus room %d, hears %.0f cm%s"), *Super::Describe(),
+		Director ? *HollowEnumToString(Director->GetModeFor(GetPawn())) : TEXT("-"), FocusRoom, GetHearingRange(), Enemy && Enemy->IsInVent() ? TEXT(", in a vent") : TEXT(""));
 }

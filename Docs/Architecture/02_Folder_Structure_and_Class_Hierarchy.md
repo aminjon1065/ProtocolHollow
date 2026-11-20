@@ -125,7 +125,9 @@ AGameStateBase
    ├─ UHollowSectorLoaderComponent   [Game] (S2-02) на каждой машине: манифест → ActivateSector → Assemble → Server_ReportSectorReady
    ├─ UHollowRaidStateComponent      [Game] (S3-03) Rep (push): фаза, RaidId, конец фазы, живые / в зоне / ядра в зоне
    │                                         (одним компонентом вместо RaidPhase + ExtractionState; escrow профиля на OnRep)
-   ├─ UHollowSquadResonanceComponent [GAS]  Rep: uint8 SquadResonanceQ, EHollowResonanceTier Tier
+   ├─ UHollowSquadResonanceComponent [GAS]  (S4-02) Rep (push): FHollowSquadResonanceNetState {uint8 Level, Tier} — максимум
+   │                                         живых, 2 Гц, только при изменении; на каждой машине его читает
+   │                                         UHollowResonancePresentationSubsystem [Game] (MPC_Resonance, CB_Resonance)
    (зона эвакуации — AHollowExtractionZone на сокете Extraction: объём без коллизии, явный overlap-запрос сервера)
 
 APlayerState
@@ -217,7 +219,8 @@ UGameplayAbility
 UGameplayEffectExecutionCalculation
 ├─ UHollowDamageExecution             S3-04: SetByCaller Hollow.Data.Damage, тип из UHollowDamageEffect, броня цели K/(K+Armor),
 │                                      иммунитет по тегу; правила типов в UHollowDamageSettings (Structural — только мировым объектам)
-└─ UHollowResonanceGainExecution      прирост × ResonanceGainMultiplier × кривая сложности контракта
+└─ (S4-02) UHollowResonanceGainCalculation — MMC, а не Execution: коэффициент × ResonanceGainMultiplier цели (не snapshot);
+                                       кривая сложности контракта добавится множителем позже
 
 UPrimaryDataAsset
 ├─ UHollowAbilitySet                  способности (+InputTag) и эффекты к выдаче; только сервер; handles для снятия. Наборы атрибутов НЕ выдаёт (S1-05)

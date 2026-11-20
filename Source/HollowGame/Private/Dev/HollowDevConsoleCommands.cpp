@@ -46,6 +46,12 @@
 #include "HollowGameLog.h"
 #include "Interaction/HollowInteractionComponent.h"
 #include "Interaction/HollowInteractionSettings.h"
+#include "AbilitySystemGlobals.h"
+#include "Attributes/HollowResonanceSet.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
+#include "Resonance/HollowResonancePresentationSubsystem.h"
+#include "Resonance/HollowSquadResonanceComponent.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Sector/HollowSectorFeatureSubsystem.h"
 #include "Sector/HollowSectorSettings.h"
@@ -541,6 +547,63 @@ namespace HollowDevConsole
 		}
 	}
 
+	/** Usage: Hollow.Resonance.Add <Amount> [All|Others] */
+	void ResonanceAdd(const TArray<FString>& Args, UWorld* World)
+	{
+		const TSubclassOf<UGameplayEffect> Effect = GetDefault<UHollowRaidSettings>()->DevResonanceEffect.LoadSynchronous();
+		if (!World || World->GetNetMode() == NM_Client || !Effect || Args.IsEmpty())
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Resonance.Add <Amount> [All|Others] runs on the host and needs HollowRaidSettings.DevResonanceEffect."));
+			return;
+		}
+		const float Amount = FCString::Atof(*Args[0]);
+		const bool bAll = Args.Num() > 1 && Args[1].Equals(TEXT("All"), ESearchCase::IgnoreCase);
+		const bool bOthers = Args.Num() > 1 && Args[1].Equals(TEXT("Others"), ESearchCase::IgnoreCase);
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			const APlayerController* Player = It->Get();
+			UAbilitySystemComponent* AbilitySystem = Player ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Player->PlayerState) : nullptr;
+			if (!AbilitySystem || !(bAll || (bOthers ? !Player->IsLocalController() : Player->IsLocalController())))
+			{
+				continue;
+			}
+			// Through an effect like any gain: the attribute set clamps it to 0..MaxResonance.
+			const FGameplayEffectSpecHandle Spec = AbilitySystem->MakeOutgoingSpec(Effect, HollowDevConsolePrivate::EffectLevel, AbilitySystem->MakeEffectContext());
+			Spec.Data->SetSetByCallerMagnitude(HollowTags::Data_ResonanceGain, Amount);
+			AbilitySystem->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+			UE_LOG(LogHollowGame, Log, TEXT("Hollow.Resonance.Add: %s %+.1f -> %.1f"), *Player->GetName(), Amount,
+				AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetResonanceAttribute()));
+		}
+	}
+
+	/** Any machine: the squad's replicated Resonance, every player's, and what this machine shows of it. */
+	void ResonanceDump(UWorld* World)
+	{
+		const UHollowSquadResonanceComponent* Squad = UHollowSquadResonanceComponent::Get(World);
+		if (!Squad)
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Resonance.Dump: no squad Resonance."));
+			return;
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Resonance.Dump: squad %s"), *Squad->Describe());
+		for (const APlayerState* Player : World->GetGameState()->PlayerArray)
+		{
+			const UAbilitySystemComponent* AbilitySystem = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Player);
+			if (AbilitySystem && AbilitySystem->HasAttributeSetForAttribute(UHollowResonanceSet::GetResonanceAttribute()))
+			{
+				UE_LOG(LogHollowGame, Display, TEXT("Hollow.Resonance.Dump: player %s %.1f / %.1f, gain x%.2f, dead %d"), *Player->GetPlayerName(),
+					AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetResonanceAttribute()),
+					AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetMaxResonanceAttribute()),
+					AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetResonanceGainMultiplierAttribute()),
+					AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Dead));
+			}
+		}
+		if (const UHollowResonancePresentationSubsystem* Presentation = UHollowResonancePresentationSubsystem::Get(World))
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Resonance.Dump: shown here %s"), *Presentation->Describe());
+		}
+	}
+
 	/** This machine's view of the raid (phase, timer, zone) and, on the host, every player's outcome. */
 	void RaidDump(UWorld* World)
 	{
@@ -860,6 +923,16 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.Kill"),
 		TEXT("Host: kills the local pawn (every player's with All, the remote players' with Others) with a damage effect of its max health. Usage: Hollow.Dev.Kill [All|Others]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Kill));
+
+	FAutoConsoleCommandWithWorldAndArgs ResonanceAddCommand(
+		TEXT("Hollow.Resonance.Add"),
+		TEXT("Host: changes the local player's Resonance (every player's with All, the remote players' with Others) by Amount through an effect. Usage: Hollow.Resonance.Add <Amount> [All|Others]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ResonanceAdd));
+
+	FAutoConsoleCommandWithWorld ResonanceDumpCommand(
+		TEXT("Hollow.Resonance.Dump"),
+		TEXT("Prints the squad's replicated Resonance, every player's, and what this machine shows (any machine)."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ResonanceDump));
 
 	FAutoConsoleCommandWithWorld RaidDumpCommand(
 		TEXT("Hollow.Raid.Dump"),

@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
+#include "Resonance/HollowResonanceMath.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowStalkerDefinition)
@@ -17,6 +18,12 @@ EDataValidationResult UHollowStalkerDefinition::IsDataValid(FDataValidationConte
 	if (!FocusQuery)
 	{
 		Context.AddError(LOCTEXT("Query", "A stalker needs its focus query (EQ_StalkerFocusRoom)."));
+		Result = EDataValidationResult::Invalid;
+	}
+	FString Problem;
+	if (const FRichCurve* Curve = HearingResonanceCurve.GetRichCurveConst(); !Curve || !HollowResonanceMath::IsValidMultiplierCurve(*Curve, 1.f, Problem))
+	{
+		Context.AddError(FText::Format(LOCTEXT("Hearing", "HearingResonanceCurve: {0}."), FText::FromString(Curve ? Problem : FString(TEXT("missing")))));
 		Result = EDataValidationResult::Invalid;
 	}
 	return Result;

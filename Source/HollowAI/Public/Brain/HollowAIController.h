@@ -62,6 +62,8 @@ public:
 
 	/** Hollow.State.Stunned on its pawn (a pulse mine): it stands still and strikes at nothing. */
 	bool IsStunned() const;
+	/** How far it hears now (the definition's, unless a child scales it). */
+	float GetHearingRange() const;
 	/** Living, player-controlled pawn other than its own: what it may hunt and what it hears. */
 	bool IsCandidate(const AActor* Actor) const;
 
@@ -84,6 +86,8 @@ protected:
 	virtual void OnStunned() {}
 	/** Whether a new sight or sound makes the brain pick again at once (the Pilgrim: always; the stalker only while it roams). */
 	virtual bool ShouldReconsiderOnPerception() const { return true; }
+	/** Hearing range from now on (perception is reconfigured; noises already heard stay). */
+	void SetHearingRange(float Range);
 
 	void Reconsider();
 	void FinishActivity(bool bSuccess);

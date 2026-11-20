@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Brain/HollowAIController.h"
+#include "Resonance/HollowResonanceTypes.h"
 #include "Threat/HollowThreatDirectorSubsystem.h"
 
 #include "HollowStalkerController.generated.h"
@@ -8,6 +9,8 @@
 class AHollowEnemyCharacter;
 class UHollowStalkerDefinition;
 struct FEnvQueryResult;
+struct FHollowSquadResonanceNetState;
+class UHollowSquadResonanceComponent;
 
 /**
  * Brain body of the Echo-Stalker (ADR-0019): the enemy controller plus its own activities, on the director's leash.
@@ -66,6 +69,8 @@ private:
 	void FinishVentTrip();
 	void LeaveVent();
 	void HandleModeChanged(AHollowEnemyCharacter* Stalker, EHollowThreatMode Mode);
+	/** Hearing range = definition x HearingResonanceCurve(squad Resonance). */
+	void HandleSquadResonance(const FHollowSquadResonanceNetState& State);
 
 	int32 FocusRoom = INDEX_NONE;
 	int32 QueryId = INDEX_NONE;
@@ -75,4 +80,8 @@ private:
 	/** The trip through the shaft; apart from the activity's timer, the brain may re-pick Retreat meanwhile. */
 	FTimerHandle VentTripTimer;
 	FDelegateHandle ModeHandle;
+	TWeakObjectPtr<UHollowSquadResonanceComponent> SquadResonance;
+	FDelegateHandle SquadHandle;
+	/** Tier of the last hearing change (a new tier is logged, the steps between are verbose). */
+	EHollowResonanceTier HearingTier = EHollowResonanceTier::Low;
 };

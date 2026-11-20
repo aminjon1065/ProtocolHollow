@@ -36,4 +36,8 @@ public:
 	/** Instant damage effect (SetByCaller Hollow.Data.Damage) used by Hollow.Dev.Kill. */
 	UPROPERTY(Config, EditAnywhere, Category = "Development")
 	TSoftClassPtr<UGameplayEffect> DevDamageEffect;
+
+	/** Instant Resonance change (SetByCaller Hollow.Data.ResonanceGain) used by Hollow.Resonance.Add. */
+	UPROPERTY(Config, EditAnywhere, Category = "Development")
+	TSoftClassPtr<UGameplayEffect> DevResonanceEffect;
 };

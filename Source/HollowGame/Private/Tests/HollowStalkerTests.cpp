@@ -10,10 +10,15 @@
 #include "Enemies/HollowStalkerDefinition.h"
 #include "EngineUtils.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
+#include "Attributes/HollowResonanceSet.h"
+#include "Framework/HollowGameState.h"
 #include "Gadgets/HollowGA_PulseMine.h"
 #include "Gadgets/HollowPulseMine.h"
 #include "Gadgets/HollowPulseMineDefinition.h"
 #include "Noise/HollowNoiseSubsystem.h"
+#include "Resonance/HollowResonanceConfig.h"
+#include "Resonance/HollowResonanceMath.h"
+#include "Resonance/HollowSquadResonanceComponent.h"
 #include "Sector/HollowSectorTopologyBuilder.h"
 #include "Sector/HollowSectorTopologySubsystem.h"
 #include "Threat/HollowActivityHeatmapSubsystem.h"
@@ -665,6 +670,67 @@ bool FHollowGadgetPulseMineTest::RunTest(const FString& Parameters)
 	UHollowNoiseSubsystem::Get(Scene.World)->OnNoiseReported.Remove(Listen);
 	Advance(Scene.TestWorld, Definition->FlashSeconds + TickSeconds * 4.f);
 	TestFalse(TEXT("The spent mine goes"), IsValid(Second));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowStalkerResonanceHearingTest, "Hollow.Game.Stalker.ResonanceHearing",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowStalkerResonanceHearingTest::RunTest(const FString& Parameters)
+{
+	// S4-02 (ADR-0020): the Echo-Stalker hears as far as its definition says times HearingResonanceCurve(squad
+	// Resonance), following every change of the squad value; the Iron Pilgrim's hearing does not change.
+	using namespace HollowStalkerTests;
+	FEnemyScene Scene;
+	if (!Scene.Create(*this, EWall::None))
+	{
+		return false;
+	}
+	AHollowGameState* GameState = Scene.World->SpawnActor<AHollowGameState>();   // first: the stalker's brain finds its squad on possess
+	UHollowSquadResonanceComponent* Squad = GameState->GetSquadResonance();
+	UHollowResonanceConfig* Config = NewObject<UHollowResonanceConfig>(GetTransientPackage());
+	Config->TierThresholds = {0.25f, 0.5f, 0.75f};
+	Config->Hysteresis = 0.03f;
+	Config->UpdateSeconds = 0.5f;
+	Squad->SetConfig(Config);
+	AHollowEnemyCharacter* Stalker = Scene.SpawnEnemy(*this, StalkerClass, FVector(1500.0, -1000.0, 120.0));
+	AHollowEnemyCharacter* Pilgrim = Scene.SpawnPilgrim(*this, FVector(1500.0, -1600.0, 150.0));
+	AHollowExoFrameCharacter* Player = nullptr;
+	UHollowAbilitySystemComponent* Abilities = Scene.SpawnPlayer(*this, RoomA, Player);
+	AHollowStalkerController* Brain = BrainOf(Stalker);
+	const AHollowAIController* PilgrimBrain = Pilgrim ? Cast<AHollowAIController>(Pilgrim->GetController()) : nullptr;
+	const UHollowStalkerDefinition* Definition = Stalker ? Cast<UHollowStalkerDefinition>(Stalker->GetDefinition()) : nullptr;
+	if (!Abilities || !TestNotNull(TEXT("Stalker brain"), Brain) || !TestNotNull(TEXT("Pilgrim brain"), PilgrimBrain) || !TestNotNull(TEXT("Definition"), Definition))
+	{
+		return false;
+	}
+	auto SetResonance = [Abilities](const float Value)
+	{
+		UGameplayEffect* Effect = NewObject<UGameplayEffect>(GetTransientPackage());
+		Effect->DurationPolicy = EGameplayEffectDurationType::Instant;
+		FGameplayModifierInfo& Modifier = Effect->Modifiers.AddDefaulted_GetRef();
+		Modifier.Attribute = UHollowResonanceSet::GetResonanceAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Override;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Value));
+		Abilities->ApplyGameplayEffectToSelf(Effect, 1.f, Abilities->MakeEffectContext());
+	};
+	auto Expected = [Definition, Squad] { return Definition->HearingRange * HollowResonanceMath::EvaluateMultiplier(Definition->HearingResonanceCurve, Squad->GetNormalized()); };
+	const float Max = Abilities->GetNumericAttribute(UHollowResonanceSet::GetMaxResonanceAttribute());
+	const float PilgrimHearing = PilgrimBrain->GetHearingRange();
+	constexpr float Tolerance = 1.f;
+
+	TestNearlyEqual(TEXT("A calm squad: the definition's range"), Brain->GetHearingRange(), Definition->HearingRange, Tolerance);
+	SetResonance(Max * 0.5f);
+	Squad->Evaluate();
+	TestNearlyEqual(TEXT("Half way: x the curve"), Brain->GetHearingRange(), Expected(), Tolerance);
+	TestTrue(TEXT("...farther than calm"), Brain->GetHearingRange() > Definition->HearingRange);
+	SetResonance(Max);
+	Squad->Evaluate();
+	TestNearlyEqual(TEXT("Full: x the curve's end"), Brain->GetHearingRange(), Definition->HearingRange * HollowResonanceMath::EvaluateMultiplier(Definition->HearingResonanceCurve, 1.f), Tolerance);
+	Abilities->AddLooseGameplayTag(HollowTags::State_Dead);
+	Squad->Evaluate();
+	TestNearlyEqual(TEXT("Nobody alive in the Aether: calm again"), Brain->GetHearingRange(), Definition->HearingRange, Tolerance);
+	TestEqual(TEXT("The Pilgrim's hearing never changed"), PilgrimBrain->GetHearingRange(), PilgrimHearing);
 	return true;
 }
 

@@ -1,6 +1,6 @@
 using UnrealBuildTool;
 
-/** Layer 1: Ability System component, attribute sets, base abilities/effects/executions, shared character base. */
+/** Layer 1: Ability System component, attribute sets, base abilities/effects/executions, shared character base, squad Resonance. */
 public class HollowGAS : ModuleRules
 {
 	public HollowGAS(ReadOnlyTargetRules Target) : base(Target)
@@ -18,6 +18,11 @@ public class HollowGAS : ModuleRules
 			"GameplayAbilities",
 			"DeveloperSettings",
 			"HollowCore"
+		});
+
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"NetCore"   // push-model replication of the squad's Resonance
 		});
 	}
 }

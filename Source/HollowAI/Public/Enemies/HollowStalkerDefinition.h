@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Curves/CurveFloat.h"
 #include "Enemies/HollowEnemyDefinition.h"
 
 #include "HollowStalkerDefinition.generated.h"
@@ -43,4 +44,11 @@ public:
 	/** Pause in its shadowing spot before it follows the squad again. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stalker", meta = (ClampMin = "0.01", Units = "Seconds"))
 	float TrackPauseSeconds = 0.f;
+
+	/**
+	 * Its hearing range is HearingRange times this, by the squad's Resonance (0..1, ADR-0020): the deeper the squad is in
+	 * the Aether, the farther it hears them. 1 at 0, never decreasing.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stalker")
+	FRuntimeFloatCurve HearingResonanceCurve;
 };

@@ -119,6 +119,21 @@ void AHollowAIController::ConfigureSenses(const UHollowEnemyDefinition& Definiti
 	Perception->ConfigureSense(*HearingConfig);
 }
 
+float AHollowAIController::GetHearingRange() const
+{
+	return HearingConfig->HearingRange;
+}
+
+void AHollowAIController::SetHearingRange(const float Range)
+{
+	if (FMath::IsNearlyEqual(HearingConfig->HearingRange, Range))
+	{
+		return;
+	}
+	HearingConfig->HearingRange = Range;
+	Perception->ConfigureSense(*HearingConfig);
+}
+
 // ---------------------------------------------------------------------------------------------------- facts
 
 double AHollowAIController::Now() const

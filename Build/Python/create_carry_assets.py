@@ -1,6 +1,7 @@
 """Creates the S3-02 heavy-carry content (idempotent, ADR-0010, ADR-0015).
 
-  /Game/Hollow/GAS/Effects/GE_Carry_Solo                 solo carry: CarryingHeavy.Solo tag, no tools, stamina drain, Resonance
+  /Game/Hollow/GAS/Effects/GE_Carry_Solo                 solo carry: CarryingHeavy.Solo tag, no tools, stamina drain, Resonance gain
+                                                         (S4-02: x ResonanceGainMultiplier, UHollowResonanceGainCalculation)
   /Game/Hollow/GAS/Effects/GE_Stamina_Recovery           passive stamina recovery, paused while carrying
   /Game/Hollow/Items/AetherCore/PM_AetherCore            physical material of the core: friction, sleep thresholds
   /Game/Hollow/Items/AetherCore/MI_AetherCore            greybox glow colour
@@ -72,7 +73,8 @@ CARRY_MODES = {
 # Effects (data). MaxStamina and MaxResonance are 100 (GE_ExoFrame_InitAttributes).
 CARRY_PERIOD = 1.0                  # s
 STAMINA_DRAIN_PER_SECOND = 2.0
-RESONANCE_PER_SECOND = 0.5          # flat for now; the gain multiplier execution arrives in S4-02
+RESONANCE_PER_SECOND = 0.5          # x the carrier's ResonanceGainMultiplier (S4-02, UHollowResonanceGainCalculation)
+GAIN_CALCULATION = "/Script/HollowGAS.HollowResonanceGainCalculation"
 RECOVERY_PERIOD = 0.5               # s
 STAMINA_RECOVERY_PER_SECOND = 5.0
 
@@ -126,6 +128,12 @@ def scalable(value):
     return "(MagnitudeCalculationType=ScalableFloat,ScalableFloatMagnitude=(Value=%.6f))" % value
 
 
+def resonance_gain(per_application):
+    """Magnitude of a Resonance gain (ADR-0020): coefficient x the target's ResonanceGainMultiplier."""
+    return ("(MagnitudeCalculationType=CustomCalculationClass,CustomMagnitude=(CalculationClassMagnitude=\"/Script/CoreUObject.Class'%s'\","
+            "Coefficient=(Value=%.6f)))") % (GAIN_CALCULATION, per_application)
+
+
 def modifier(attribute_set, attribute, magnitude_text):
     path = "%s.%s:%s" % (ATTRIBUTE_MODULE, attribute_set, attribute)
     text = ('(Attribute=(AttributeName="{attr}",Attribute={path},AttributeOwner="/Script/CoreUObject.Class\'{module}.{set}\'"),'
@@ -153,12 +161,31 @@ def ensure_effect(path, parent, period, modifiers):
 def ensure_effects():
     carry = ensure_effect(CARRY_EFFECT, unreal.HollowCarrySoloEffect, CARRY_PERIOD, [
         modifier("HollowSurvivalSet", "Stamina", scalable(-STAMINA_DRAIN_PER_SECOND * CARRY_PERIOD)),
-        modifier("HollowResonanceSet", "Resonance", scalable(RESONANCE_PER_SECOND * CARRY_PERIOD)),
+        modifier("HollowResonanceSet", "Resonance", resonance_gain(RESONANCE_PER_SECOND * CARRY_PERIOD)),
     ])
+    ensure_resonance_gain()
     recovery = ensure_effect(RECOVERY_EFFECT, unreal.HollowStaminaRecoveryEffect, RECOVERY_PERIOD, [
         modifier("HollowSurvivalSet", "Stamina", scalable(STAMINA_RECOVERY_PER_SECOND * RECOVERY_PERIOD)),
     ])
     return carry, recovery
+
+
+def ensure_resonance_gain():
+    """S4-02: a GE_Carry_Solo made before keeps its flat Resonance modifier; it now goes through the gain calculation."""
+    effect_bp = load(CARRY_EFFECT)
+    effect = unreal.get_default_object(effect_bp.generated_class())
+    wanted = modifier("HollowResonanceSet", "Resonance", resonance_gain(RESONANCE_PER_SECOND * CARRY_PERIOD))
+    modifiers = list(effect.get_editor_property("modifiers"))
+    for index, entry in enumerate(modifiers):
+        if str(entry.get_editor_property("attribute").get_editor_property("attribute_name")) == "Resonance":
+            if entry.export_text() == wanted.export_text():
+                return
+            modifiers[index] = wanted
+            effect.set_editor_property("modifiers", modifiers)
+            save(effect_bp)
+            log("GE_Carry_Solo: Resonance gain through UHollowResonanceGainCalculation")
+            return
+    raise RuntimeError("GE_Carry_Solo has no Resonance modifier")
 
 
 def ensure_ability_set(recovery):
