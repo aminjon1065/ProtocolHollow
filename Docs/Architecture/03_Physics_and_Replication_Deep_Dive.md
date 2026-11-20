@@ -460,6 +460,10 @@ struct FHollowNoiseEvent
 
 Инструменты: Unreal Insights (`-trace=cpu,gpu,frame,net,physics`), `stat unit` и `stat net`, Chaos Visual Debugger, Networking Insights. **Каждый спринт** снимаем на хосте трассу 4-игровой сессии (Блок 4).
 
+*S4-03* ([ADR-0021](../ADR/ADR-0021-lighting-budget-procedural-look.md)): бюджет теней задан данными по типу комнаты (`DA_LightBudget`: 2 теневых на большую комнату, 0 в проходных, худший кадр 4). Его проверяют Data Validation, автотесты и `Hollow.Light.Dump`.
+- Ориентир на **M4 при 1080p** в героической комнате: кадр 35 мс; Lumen GI 9,5; сцена Lumen 2,6–3,8; прямой свет 3,9 (light function 2,0); туман 3,5; тени VSM 1,5; base pass 0,7; пост 1,4.
+- По долям кадра туман, Lumen GI и прямой свет выше бюджета, тени ниже. Окончательно — трасса 3060 в S4-05.
+
 ---
 
 ## 3.10 Тесты Блока 3 (по CLAUDE.md §7)

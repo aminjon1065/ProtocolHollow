@@ -39,6 +39,8 @@ public:
 	/** Valid once Assemble has rebuilt the layout. */
 	const FHollowSectorLayout& GetLayout() const { return Layout; }
 	int32 NumRoomInstances() const { return RoomLevels.Num(); }
+	/** The streamed shell of the manifest's room Index (null before assembly or if it failed to stream). */
+	const ULevelStreamingDynamic* GetRoomLevel(const int32 Index) const { return RoomLevels.IsValidIndex(Index) ? RoomLevels[Index].Get() : nullptr; }
 	int32 NumVisibleRooms() const;
 	int32 NumPlugs() const { return Plugs.Num(); }
 

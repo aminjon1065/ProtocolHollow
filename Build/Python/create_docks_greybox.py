@@ -4,7 +4,7 @@
   /HollowSector_Docks/Data/DA_Biome_Docks           UHollowBiomeDefinition: sector generator rules (S2-01)
 For every room of ROOMS:
   /HollowSector_Docks/Rooms/LV_Docks_<Name>         static shell: floor, ceiling, walls with an opening at every
-                                                    connector, one light (no gameplay actors, ADR-0003)
+                                                    connector (no gameplay actors, ADR-0003; lights: create_lighting_assets.py)
   /HollowSector_Docks/Data/DA_Room_Docks_<Name>     UHollowRoomDefinition: footprint, connectors, sockets, type
 
 Level and data asset are generated from the same spec, so openings and connectors match by construction.
@@ -14,7 +14,6 @@ with ROOMS (S4-01: VentNode openings of the Echo-Stalker's vents, ADR-0019), the
 Run: Build/Scripts/run-editor-python.sh Build/Python/create_docks_greybox.py
 """
 import collections
-import math
 import traceback
 
 import unreal
@@ -59,11 +58,6 @@ BIOME_RULES = {
 CUBE_MESH = "/Engine/BasicShapes/Cube.Cube"
 CUBE_SIZE = 100.0                                   # BasicShapes cube edge, uu
 GREYBOX_MATERIAL = "/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"
-
-# Greybox lighting (data; replaced on the art pass).
-LIGHT_DROP = 50.0          # uu below the ceiling
-LIGHT_INTENSITY = 5000.0   # lumens
-LIGHT_COLOR = unreal.Color(r=255, g=236, b=210, a=255)
 
 Connector = collections.namedtuple("Connector", "x y side kinds")
 Socket = collections.namedtuple("Socket", "type x y yaw")    # x, y in cells (fractions allowed), yaw in degrees
@@ -266,19 +260,7 @@ class Builder(object):
         self.box("Ceiling", (0.0, 0.0, m.cell_height), (size_x, size_y, m.cell_height + m.slab_thickness))
         for side in (N, E, S, W):
             self.wall(room, side)
-
-        light = actors.spawn_actor_from_class(unreal.PointLight,
-                                              unreal.Vector(size_x / 2.0, size_y / 2.0, m.cell_height - LIGHT_DROP),
-                                              unreal.Rotator(0.0, 0.0, 0.0))
-        light.set_actor_label("Light")
-        light.set_folder_path("Lights")
-        component = light.point_light_component
-        component.set_mobility(unreal.ComponentMobility.MOVABLE)
-        component.set_editor_property("intensity_units", unreal.LightUnits.LUMENS)
-        component.set_editor_property("intensity", LIGHT_INTENSITY)
-        component.set_editor_property("light_color", LIGHT_COLOR)
-        component.set_editor_property("attenuation_radius", math.hypot(size_x, size_y))
-        component.set_editor_property("cast_shadows", False)
+        # Lights are create_lighting_assets.py's (S4-03): a rig per room type within DA_LightBudget.
 
 
 def level_path(room):

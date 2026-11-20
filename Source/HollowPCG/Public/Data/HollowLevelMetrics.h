@@ -4,6 +4,8 @@
 
 #include "HollowLevelMetrics.generated.h"
 
+class UHollowLightBudgetConfig;
+
 /**
  * Level metrics of the modular room kit (Docs/QA/LevelMetrics.md). Single source of the numbers used by the
  * sector generator, the room validator and the greybox builder (Build/Python/create_docks_greybox.py).
@@ -53,4 +55,8 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Agents", meta = (ClampMin = "1", Units = "Centimeters"))
 	int32 LargestAgentHeight = 0;
+
+	/** What a room may light (DA_LightBudget, S4-03, ADR-0021). */
+	UPROPERTY(Config, EditAnywhere, Category = "Lighting")
+	TSoftObjectPtr<UHollowLightBudgetConfig> LightBudget;
 };

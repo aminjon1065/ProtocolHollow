@@ -52,6 +52,12 @@
 #include "GameFramework/PlayerState.h"
 #include "Resonance/HollowResonancePresentationSubsystem.h"
 #include "Resonance/HollowSquadResonanceComponent.h"
+#include "Algo/Count.h"
+#include "Engine/LevelStreamingDynamic.h"
+#include "Rules/HollowLightBudget.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Components/ExponentialHeightFogComponent.h"
+#include "Engine/PostProcessVolume.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Sector/HollowSectorFeatureSubsystem.h"
 #include "Sector/HollowSectorSettings.h"
@@ -547,6 +553,52 @@ namespace HollowDevConsole
 		}
 	}
 
+	/** Any machine: every streamed room's lights against its type's budget (DA_LightBudget, ADR-0021). */
+	void LightDump(UWorld* World)
+	{
+		const UHollowSectorAssemblySubsystem* Assembly = World ? World->GetSubsystem<UHollowSectorAssemblySubsystem>() : nullptr;
+		if (!Assembly || !Assembly->IsAssembled())
+		{
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Light.Dump: no assembled sector."));
+			return;
+		}
+		const FHollowSectorManifest& Manifest = Assembly->GetManifest();
+		int32 Failing = 0;
+		for (int32 Index = 0; Index < Manifest.Rooms.Num(); ++Index)
+		{
+			const UHollowRoomDefinition* Room = Manifest.Rooms[Index].Room;
+			const ULevelStreamingDynamic* Streamed = Assembly->GetRoomLevel(Index);
+			const ULevel* Level = Streamed ? Streamed->GetLoadedLevel() : nullptr;
+			if (!Room || !Level)
+			{
+				continue;
+			}
+			const TArray<FHollowLightInfo> Lights = HollowLightBudget::CollectLevel(*Level);
+			const int32 Shadowed = Algo::CountIf(Lights, [](const FHollowLightInfo& L) { return L.bShadowed; });
+			const int32 Functions = Algo::CountIf(Lights, [](const FHollowLightInfo& L) { return L.bLightFunction; });
+			const int32 Volumetric = Algo::CountIf(Lights, [](const FHollowLightInfo& L) { return L.bVolumetricShadow; });
+			const TArray<FString> Problems = HollowLightBudget::CheckRoomLevel(*Room, *Level);
+			Failing += Problems.IsEmpty() ? 0 : 1;
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Light.Dump: room %d %s: %d lights, %d shadowed, %d light functions, %d volumetric shadows%s%s"),
+				Index, *Room->GetName(), Lights.Num(), Shadowed, Functions, Volumetric, Problems.IsEmpty() ? TEXT(", within budget") : TEXT(" - OVER: "),
+				*FString::Join(Problems, TEXT("; ")));
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Light.Dump: %d of %d rooms over budget"), Failing, Manifest.Rooms.Num());
+		int32 Fogs = 0;
+		int32 VolumetricFogs = 0;
+		for (TActorIterator<AExponentialHeightFog> It(World); It; ++It)
+		{
+			++Fogs;
+			VolumetricFogs += It->GetComponent()->bEnableVolumetricFog ? 1 : 0;
+		}
+		int32 Unbound = 0;
+		for (TActorIterator<APostProcessVolume> It(World); It; ++It)
+		{
+			Unbound += It->bUnbound ? 1 : 0;
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Light.Dump: atmosphere %d height fog(s), %d volumetric, %d unbound post-process volume(s)"), Fogs, VolumetricFogs, Unbound);
+	}
+
 	/** Usage: Hollow.Resonance.Add <Amount> [All|Others] */
 	void ResonanceAdd(const TArray<FString>& Args, UWorld* World)
 	{
@@ -923,6 +975,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.Kill"),
 		TEXT("Host: kills the local pawn (every player's with All, the remote players' with Others) with a damage effect of its max health. Usage: Hollow.Dev.Kill [All|Others]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Kill));
+
+	FAutoConsoleCommandWithWorld LightDumpCommand(
+		TEXT("Hollow.Light.Dump"),
+		TEXT("Prints every streamed room's lights (shadowed, light functions, volumetric shadows) against its type's light budget (any machine)."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&LightDump));
 
 	FAutoConsoleCommandWithWorldAndArgs ResonanceAddCommand(
 		TEXT("Hollow.Resonance.Add"),
