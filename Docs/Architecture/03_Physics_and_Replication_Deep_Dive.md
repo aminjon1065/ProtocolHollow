@@ -205,6 +205,30 @@ struct FHollowBreachNetState
 
 Пороги сна задаются в Physical Material (`SleepLinearVelocityThreshold`, `SleepAngularVelocityThreshold`, `SleepCounterThreshold`) и тюнятся в данных. Профилируем в **Chaos Visual Debugger**.
 
+### Реализация S3-01 ([ADR-0014](../ADR/ADR-0014-breachable-bulkheads.md))
+- **Геометрия.** Вместо `IntactMesh`/`BrokenFrameMesh` сделаны рамка `Frame` (притолока, блокирует всегда) и **панель на каждую зону** (`UHollowBreachableDefinition::Zones`: бокс, `MaxHealth`, `bRequiredForPassage`, GC зоны). Панели создаются из DA одинаково на всех машинах; сломанная зона скрывает панель и снимает её коллизию. Проход открыт, когда сломаны все обязательные зоны.
+  - `DA_Bulkhead_Plate`: одна зона 300 × 320, 400 HP;
+  - `DA_Bulkhead_Twin`: две половины по 200 HP. Первая сломанная половина даёт дыру, состояние остаётся `Weakened`.
+- **Состояние** `FHollowBreachNetState`, 9 байт (`NetSerialize`):
+  - состояние и маска зон в одном байте, `DamageStageQ`, yaw и pitch удара по байту, `BreachServerTime`, `TransitionSerial`;
+  - хранится в `UHollowStructuralIntegrityComponent`: push, dormancy, `FlushNetDormancy` + `ForceNetUpdate`;
+  - правила чистые (`HollowBreachRules`): удар попадает в ближайшую целую зону, один удар ломает не больше одной зоны, `Breached` терминален.
+  - урон приходит через `IHollowStructural` (Core); в S3-01 его наносит только `Hollow.Dev.Breach`, Пилигрим подключится в S3-04.
+- **Презентация** решается на каждой машине: `HollowBreachPolicy::Choose` (возраст < `FreshWindowSeconds` 1,5 с, камера ближе `MaxSimDistance`, `WasRecentlyRendered`, слот, тела) → `UHollowDestructionBudgetSubsystem`.
+  - **Full:** GC зоны (`SetIsReplicated(false)`, `bEnableReplication = false`, профиль `HollowDebris`, начальная скорость `DebrisSpeed` вдоль удара, `PM_HollowDebris`). Через `MaxDebrisLifetime` GC удаляется, остаётся щебень.
+  - **Snap:** сразу щебень без коллизии.
+  - Таблица бюджетов `UHollowDestructionBudgetConfig` по `sg.EffectsQuality` (DefaultGame.ini). GC грузятся async в `BeginPlay`, только где `FApp::CanEverRender()`.
+- **Осколки.** Object channel `HollowDebris` (`ECC_GameTraceChannel2`, ответ по умолчанию Block). Профиль: `PhysicsOnly`, Ignore для Pawn, PhysicsBody, Vehicle, Destructible, Visibility, Camera, Interaction.
+- **Greybox GC.** `create_bulkhead_assets.py` → `UHollowGeometryCollectionAuthoring::CreateFracturedBox`:
+  - Voronoi `FFractureEngineFracturing::VoronoiFracture` с фиксированным seed: 24 куска на Plate, 14 на половину;
+  - кластеризация выключена, удаление по сну;
+  - ⚠️ PlanarCut ремеширует поверхности разреза с шагом точек шума даже при нулевой амплитуде. При шаге 0 GC весил 45 МБ, поэтому шаг равен размеру бокса: 190 КБ.
+- **Сборка сектора.** Bulkhead-соединения спавнят `BP_Bulkhead_Plate` или `BP_Bulkhead_Twin`. Выбор идёт по `FHollowConnectionActorRule::Variants` и `HollowRandom::DeriveSeed(Seed, ConnectionIndex)`.
+- **Проверка в игре.**
+  - Seed 7, один процесс с `-RenderOffScreen`: пролом перед игроком даёт Full (14 тел), осколки летят в pawn, его позиция не меняется. Пролом вне вида даёт Snap. Через 10 с осколков нет, бюджет освобождён.
+  - Два процесса с задержкой 150 мс: обе машины показывают Full, после проломов у клиента ноль коррекций CMC.
+  - Вход в идущий рейд закрыт правилами сессии (S1-03). Поэтому «поздняя» машина — это первичная репликация уже сломанного актёра (relevancy, медленная загрузка). Этот путь покрывает `Hollow.Physics.Breach.LateJoin`.
+
 ---
 
 ## 3.5 Переноска тяжёлых «Эфирных ядер»: соло, вдвоём, дрон, лебёдка
@@ -299,6 +323,15 @@ struct FHollowCarryNetState
 ### Переборки
 - До пролома: стену блокирует **отдельный nav-blocker box**, а у GC и осколков всегда `bCanEverAffectNavigation = false`. NavLink через проём выключен.
 - В момент пролома: (1) **сразу** включаем NavLink (O(1), ИИ мгновенно получает маршрут); (2) **отложенно и с низким приоритетом** снимаем blocker. Грязная область ограничена коробкой стены плюс радиус агента, это 1–2 тайла async. Вызываем `UNavigationSystemV1::UpdateComponentInNavOctree` или `UpdateActorInNavOctree`.
+- *Реализация S3-01* ([ADR-0014](../ADR/ADR-0014-breachable-bulkheads.md)):
+  - **Связь.** NavLink включён всегда, как у двери. Вместо «выключен» до пролома у него area `UHollowNavArea_BulkheadIntact`: в `NAV_Filter_Standard` исключена, в `NAV_Filter_Heavy` стоит ×12. Так Пилигрим (S3-04) может планировать пролом.
+  - **Пролом.** Area сразу становится `UHollowNavArea_Doorway` (`SetEnabledArea` + `K2_ReplaceAreaInOctreeData` + `NotifyLinkChanged`).
+  - **Блокер.** Через `BlockerRemovalDelay` (0,5 с) он уходит из октодерева: `SetCanEverAffectNavigation(false)` → `OnComponentUnregistered`, тайлы вокруг проёма пересобираются async.
+  - **Генератор.** Переборка никогда не отрезает комнаты:
+    - `AssignKinds` пропускает соединения-мосты, приёмка требует `ComponentsWithoutBulkheads == 1`;
+    - со старым правилом в 684 из 1000 seed'ов Docks переборки отрезали в среднем 4,8 комнаты, на seed 7 — 12;
+    - golden-хеш синтетического пула теперь `583C99A7`;
+    - проверка пути Spawn → Extraction после сборки идёт фильтром Standard.
 
 ### Вентиляция: вне навмеша
 Шахты — это **абстрактный граф** (`UHollowVentNetworkSubsystem`), узлы берутся из сокетов `VentNode` комнат, рёбра — из соединений `Vent` манифеста. Задача `TraverseVent` устроена так: анимация входа → скрытое перемещение по таймеру → движущийся источник звука вдоль шахты («он в вентиляции») → анимация выхода. Навмеш шахты не нужен, а ужаса в этом больше.
@@ -383,7 +416,11 @@ struct FHollowNoiseEvent
 | `Hollow.Physics.Door.Transitions` | Simple | вся таблица §3.3, включая запрещённые переходы |
 | `Hollow.Physics.Door.NetStateRoundTrip` | Simple | `FHollowDoorNetState` → FBitWriter → FBitReader → `ApplyVisualState` даёт ту же презентацию; late-join приходит в Snap |
 | `Hollow.Physics.Seam.Progress` | Simple | выбор сегмента по точке с допуском, заполнение маски |
-| `Hollow.Physics.Breach.PresentationPolicy` | Simple | Full или Snap по возрасту, бюджету и дистанции |
+| `Hollow.Physics.Breach.PresentationPolicy` | Simple | Full или Snap по возрасту, бюджету и дистанции; таблица бюджетов не убывает с качеством |
+| `Hollow.Physics.Breach.{Rules, NetStateRoundTrip, Budget}` | Simple / мир | зоны, `Weakened`/`Breached`, 9 байт на проводе, направление удара; слоты, тела, истечение по таймеру (S3-01) |
+| `Hollow.Physics.Breach.{DebrisCollision, Bulkhead, LateJoin}` | мир | профиль `HollowDebris` и sweep pawn'а сквозь осколки; настоящие `BP_Bulkhead_*`: панели, Snap, Full с GC, щебень; первичная репликация сломанной переборки → Snap (S3-01) |
+| `Hollow.Physics.Nav.BulkheadBreach` | мир | Standard не проходит, Heavy ломится; после пролома сразу через связь; после снятия блокера навмеш сам проходит проём (S3-01) |
+| `Hollow.PCG.Generator.BulkheadsAreDetours` | Simple | ни одна комната не достижима только через переборку (200 seed'ов; в `DocksPool` — на реальном ките) |
 | `Hollow.Physics.Carry.SlowdownPolicy` | Simple | `max(claimed, server)` и грейс 250 мс |
 | `Hollow.Physics.Carry.Tether` | Simple | математика тетера и порог разрыва |
 | `Hollow.Physics.Nav.DoorFilters` | Functional (тест-карта) | `FindPathSync` для фильтров Standard и Heavy по каждому состоянию двери |

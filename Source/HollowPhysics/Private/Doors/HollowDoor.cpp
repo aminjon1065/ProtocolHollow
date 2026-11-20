@@ -106,6 +106,18 @@ void AHollowDoor::ApplyToolWork(const FHollowToolWork& Work)
 	}
 }
 
+bool AHollowDoor::GetTargetStatus(const FGameplayTag& ToolTag, FHollowTargetStatus& OutStatus) const
+{
+	const UHollowDoorDefinition* Definition = DoorState->GetDefinition();
+	if (!Definition || !DoorState->ToolEvent(ToolTag).IsSet())
+	{
+		return false;   // not a tool that works on doors
+	}
+	OutStatus.Value = DoorState->GetWeld();
+	OutStatus.Marker = Definition->SealThreshold;
+	return true;
+}
+
 FHollowInteractionInfo AHollowDoor::GetInteractionInfo(const AActor* Interactor) const
 {
 	FHollowInteractionInfo Info;

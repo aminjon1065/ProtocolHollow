@@ -19,12 +19,20 @@ class HOLLOWGAS_API AHollowCharacterBase : public ACharacter, public IAbilitySys
 	GENERATED_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowAbilitySystemChanged, UHollowAbilitySystemComponent* /*AbilitySystem (null: released)*/);
+
 	explicit AHollowCharacterBase(const FObjectInitializer& ObjectInitializer);
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	UHollowAbilitySystemComponent* GetHollowAbilitySystemComponent() const { return AbilitySystemComponent.Get(); }
 
 	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override;
+
+	/**
+	 * After this character became the avatar of an ability system, and before it releases it. On clients the ability
+	 * system arrives with the player state, after possession: UI and other local listeners wait for this.
+	 */
+	FOnHollowAbilitySystemChanged OnAbilitySystemChanged;
 
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

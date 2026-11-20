@@ -9,7 +9,7 @@
 ## Решение
 1. `RuntimeGeneration = Dynamic`, базовый навмеш строится после сборки сектора (async, за сценой высадки). Навмеш только на сервере. Два агента: `Standard` (r45) и `Heavy` (r80).
 2. **Двери:** проём всегда вырезан `UNavArea_Null`, проход — только через `UNavLinkCustomComponent`. Смена состояния — это `SetEnabledArea`/`SetEnabled`, то есть обновление area off-mesh-связи без пересборки тайлов. Доступность по типам врагов задают `UNavigationQueryFilter` (Standard исключает Locked/Welded/Barricaded, Heavy проходит с повышенной стоимостью и ломает), цены лежат в BP-наследниках.
-3. **Переборки:** отдельный nav-blocker; в момент пролома мгновенно включается nav-link (O(1)), затем отложенно снимается blocker с ограниченной dirty area (1–2 тайла, `UpdateComponentInNavOctree`).
+3. **Переборки:** отдельный nav-blocker; в момент пролома мгновенно включается nav-link (O(1)), затем отложенно снимается blocker с ограниченной dirty area (1–2 тайла, `UpdateComponentInNavOctree`). *Уточнено в S3-01 ([ADR-0014](ADR-0014-breachable-bulkheads.md)):* связь включена всегда, до пролома с area `UHollowNavArea_BulkheadIntact` (Standard исключён, Heavy может планировать пролом); в момент пролома меняется только area.
 4. GC, осколки и пропы **никогда** не влияют на навмеш. Баррикады у дверей учитываются стоимостью nav-link этой двери.
 5. Вентиляция — абстрактный граф вне навмеша.
 6. `UHollowNavUpdateSubsystem` троттлит пересборки и рассылает инвалидацию путей.

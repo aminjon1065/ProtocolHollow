@@ -2,6 +2,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Interfaces/HollowInteractable.h"
+#include "Interfaces/HollowTargetStatusSource.h"
 #include "Interfaces/HollowToolTarget.h"
 
 #include "HollowDoor.generated.h"
@@ -22,7 +23,7 @@ struct FHollowDoorNetState;
  * NavLink is the only way through, and a state change only swaps the link's area (no tile rebuild, server only).
  */
 UCLASS()
-class HOLLOWPHYSICS_API AHollowDoor : public AActor, public IHollowToolTarget, public IHollowInteractable
+class HOLLOWPHYSICS_API AHollowDoor : public AActor, public IHollowToolTarget, public IHollowInteractable, public IHollowTargetStatusSource
 {
 	GENERATED_BODY()
 
@@ -41,6 +42,9 @@ public:
 	// IHollowToolTarget
 	virtual bool CanAcceptToolWork(const FHollowToolWork& Work) const override;
 	virtual void ApplyToolWork(const FHollowToolWork& Work) override;
+
+	// IHollowTargetStatusSource: weld integrity (replicated WeldQ on clients) with the seal threshold marked.
+	virtual bool GetTargetStatus(const FGameplayTag& ToolTag, FHollowTargetStatus& OutStatus) const override;
 
 	// IHollowInteractable
 	virtual FHollowInteractionInfo GetInteractionInfo(const AActor* Interactor) const override;

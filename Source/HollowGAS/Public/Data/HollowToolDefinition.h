@@ -26,6 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tool", meta = (Categories = "Hollow.Ability.Tool"))
 	FGameplayTag ToolTag;
 
+	/** What the visor calls the work in progress ("Welding", "Cutting"). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tool")
+	FText ActionLabel;
+
 	/** Server samples per second (trace + work + heat). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sampling", meta = (ClampMin = "1", Units = "Hertz"))
 	float SampleRateHz = 0.f;

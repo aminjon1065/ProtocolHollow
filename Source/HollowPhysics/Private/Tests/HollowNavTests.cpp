@@ -3,6 +3,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "AI/NavigationSystemBase.h"
+#include "Breach/HollowBreachableBulkhead.h"
+#include "Breach/HollowBreachableDefinition.h"
+#include "Breach/HollowStructuralIntegrityComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Doors/HollowDoor.h"
 #include "Doors/HollowDoorDefinition.h"
@@ -25,6 +28,9 @@
 namespace HollowNavTests
 {
 	const TCHAR* const DoorClass = TEXT("/Game/Hollow/World/Kit/Doors/BP_Door.BP_Door_C");
+	const TCHAR* const BulkheadClass = TEXT("/Game/Hollow/World/Kit/Bulkheads/BP_Bulkhead_Twin.BP_Bulkhead_Twin_C");
+	/** Upper bound for an async tile rebuild in the test scene (it takes a few frames). */
+	constexpr float MaxRebuildSeconds = 5.f;
 	const TCHAR* const CubeMesh = TEXT("/Engine/BasicShapes/Cube.Cube");
 	constexpr double CubeSize = 100.0;
 	constexpr float TickSeconds = 1.f / 60.f;
@@ -73,9 +79,9 @@ namespace HollowNavTests
 		FNavPathSharedPtr Path;
 	};
 
-	FPathCheck FindPath(UNavigationSystemV1* Nav, ANavigationData* NavData, const TSubclassOf<UNavigationQueryFilter>& Filter, const FNavLinkId DoorLink)
+	FPathCheck FindPath(UNavigationSystemV1* Nav, ANavigationData* NavData, const FSharedConstNavQueryFilter& QueryFilter, const FNavLinkId DoorLink)
 	{
-		FPathFindingQuery Query(nullptr, *NavData, RoomA, RoomB, UNavigationQueryFilter::GetQueryFilter(*NavData, nullptr, Filter));
+		FPathFindingQuery Query(nullptr, *NavData, RoomA, RoomB, QueryFilter);
 		Query.SetAllowPartialPaths(false);
 		const FPathFindingResult Result = Nav->FindPathSync(Query);
 		FPathCheck Check;
@@ -87,6 +93,11 @@ namespace HollowNavTests
 			Check.bThroughDoor = UHollowNavUpdateSubsystem::PathUsesLink(*Result.Path, DoorLink);
 		}
 		return Check;
+	}
+
+	FPathCheck FindPath(UNavigationSystemV1* Nav, ANavigationData* NavData, const TSubclassOf<UNavigationQueryFilter>& Filter, const FNavLinkId DoorLink)
+	{
+		return FindPath(Nav, NavData, UNavigationQueryFilter::GetQueryFilter(*NavData, nullptr, Filter), DoorLink);
 	}
 }
 
@@ -231,6 +242,91 @@ bool FHollowNavDoorFiltersTest::RunTest(const FString& Parameters)
 	Nav->Build();
 	TestFalse(TEXT("Welded, no detour: Standard has no path"), FindPath(Nav, Standard, StandardFilter, Link).bFound);
 	TestTrue(TEXT("Welded, no detour: Heavy still breaks through"), FindPath(Nav, Heavy, HeavyFilter, Link).bThroughDoor);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowNavBulkheadBreachTest, "Hollow.Physics.Nav.BulkheadBreach",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowNavBulkheadBreachTest::RunTest(const FString& Parameters)
+{
+	using namespace HollowNavTests;
+	const UHollowNavSettings* Settings = GetDefault<UHollowNavSettings>();
+	const TSubclassOf<UNavigationQueryFilter> StandardFilter = Settings->StandardFilter.LoadSynchronous();
+	const TSubclassOf<UNavigationQueryFilter> HeavyFilter = Settings->HeavyFilter.LoadSynchronous();
+	const TSubclassOf<AHollowBreachableBulkhead> BulkheadBlueprint = LoadClass<AHollowBreachableBulkhead>(nullptr, BulkheadClass);
+	FTestWorldWrapper TestWorld;
+	if (!TestNotNull(TEXT("NAV_Filter_Standard"), StandardFilter.Get()) || !TestNotNull(TEXT("NAV_Filter_Heavy"), HeavyFilter.Get())
+		|| !TestNotNull(TEXT("BP_Bulkhead_Twin"), BulkheadBlueprint.Get()) || !TestWorld.CreateTestWorld(EWorldType::Game))
+	{
+		TestWorld.ForwardErrorMessages(this);
+		return false;
+	}
+	UWorld* World = TestWorld.GetTestWorld();
+	AddExpectedMessage(TEXT("Unable to find RecastNavMesh instance while trying to create UCrowdManager"), ELogVerbosity::Warning,
+		EAutomationExpectedMessageFlags::Contains, /*Occurrences=*/0, /*IsRegex=*/false);
+	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::GameMode);
+	World->InitializeActorsForPlay(FURL());
+	UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!TestNotNull(TEXT("Navigation system in game mode"), Nav))
+	{
+		return false;
+	}
+
+	// Scene: floor, a wall right across it, the bulkhead in its only opening (no way around).
+	SpawnBox(World, FVector(FloorMinX, FloorMinY, -SlabThickness), FVector(FloorMaxX, FloorMaxY, 0.0));
+	SpawnBox(World, FVector(WallX - WallHalfThickness, DoorHalfWidth, 0.0), FVector(WallX + WallHalfThickness, FloorMaxY, WallHeight));
+	SpawnBox(World, FVector(WallX - WallHalfThickness, FloorMinY, 0.0), FVector(WallX + WallHalfThickness, -DoorHalfWidth, WallHeight));
+	AHollowBreachableBulkhead* Bulkhead = World->SpawnActor<AHollowBreachableBulkhead>(BulkheadBlueprint, FTransform(FVector(WallX, 0.0, 0.0)));
+	Bulkhead->DispatchBeginPlay();
+	const UHollowBreachableDefinition* Def = Bulkhead->GetIntegrity()->GetDefinition();
+	Nav->bWholeWorldNavigable = true;
+	Nav->Build();
+	ANavigationData* Standard = Nav->GetNavDataForAgentName(Settings->StandardAgent);
+	ANavigationData* Heavy = Nav->GetNavDataForAgentName(Settings->HeavyAgent);
+	if (!TestNotNull(TEXT("Standard navmesh"), Standard) || !TestNotNull(TEXT("Heavy navmesh"), Heavy) || !TestNotNull(TEXT("Bulkhead definition"), Def))
+	{
+		return false;
+	}
+	Standard->DispatchBeginPlay();
+	Heavy->DispatchBeginPlay();
+	const FNavLinkId Link = Bulkhead->GetNavLink()->GetId();
+	// Standard agents that may not use the link at all: they need the navmesh itself to cross the wall.
+	const TSharedPtr<FNavigationQueryFilter> MeshOnly = UNavigationQueryFilter::GetQueryFilter(*Standard, nullptr, StandardFilter)->GetCopy();
+	MeshOnly->SetExcludedArea(static_cast<uint8>(Standard->GetAreaID(Def->AreaBreached.Get())));
+	MeshOnly->SetExcludedArea(static_cast<uint8>(Standard->GetAreaID(Def->AreaIntact.Get())));
+
+	// Shut: Standard agents have no way through, Heavy plans to break it, the navmesh does not cross the wall.
+	TestFalse(TEXT("Shut: Standard has no path"), FindPath(Nav, Standard, StandardFilter, Link).bFound);
+	TestTrue(TEXT("Shut: Heavy breaks through"), FindPath(Nav, Heavy, HeavyFilter, Link).bThroughDoor);
+	TestFalse(TEXT("Shut: the navmesh itself does not cross the wall"), FindPath(Nav, Standard, MeshOnly, Link).bFound);
+
+	// Breached: the link opens at once, with no rebuild yet.
+	for (int32 Zone = 0; Zone < Bulkhead->GetZoneCount(); ++Zone)
+	{
+		FHollowStructuralHit Blow;
+		Blow.Amount = Def->Zones[Zone].MaxHealth;
+		Blow.Location = Bulkhead->GetZoneCenter(Zone);
+		Bulkhead->ApplyStructuralDamage(Blow);
+	}
+	if (!TestTrue(TEXT("Breached"), Bulkhead->GetIntegrity()->GetNetState().State == EHollowBreachState::Breached))
+	{
+		return false;
+	}
+	const FPathCheck Through = FindPath(Nav, Standard, StandardFilter, Link);
+	TestTrue(TEXT("Breached: Standard goes through at once, over the link"), Through.bFound && Through.bThroughDoor);
+	TestFalse(TEXT("Breached: no rebuild queued before the blocker goes"), Def->BlockerRemovalDelay > 0.f && (Nav->IsNavigationDirty() || Nav->IsNavigationBuildInProgress()));
+
+	// The blocker goes: one bounded async rebuild, after which the navmesh crosses the opening by itself.
+	Advance(TestWorld, Def->BlockerRemovalDelay + TickSeconds * SettleFrames);
+	TestTrue(TEXT("Blocker removed: the opening's tiles are being rebuilt"), !Bulkhead->IsNavBlockerActive());
+	for (float Waited = 0.f; (Nav->IsNavigationDirty() || Nav->IsNavigationBuildInProgress()) && Waited < MaxRebuildSeconds; Waited += TickSeconds)
+	{
+		Advance(TestWorld, TickSeconds);
+	}
+	TestFalse(TEXT("The rebuild finished"), Nav->IsNavigationDirty() || Nav->IsNavigationBuildInProgress());
+	TestTrue(TEXT("After the rebuild the navmesh crosses the opening (no link needed)"), FindPath(Nav, Standard, MeshOnly, Link).bFound);
+	TestTrue(TEXT("Heavy crosses too, without paying for a breach"), FindPath(Nav, Heavy, HeavyFilter, Link).bFound);
 	return true;
 }
 

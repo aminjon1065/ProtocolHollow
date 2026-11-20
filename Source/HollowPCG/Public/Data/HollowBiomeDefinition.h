@@ -45,8 +45,13 @@ struct FHollowConnectionActorRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	EHollowConnectorKind Kind = EHollowConnectorKind::Door;
 
+	/** Used when Variants is empty. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	TSoftClassPtr<AActor> ActorClass;
+
+	/** Optional variants (e.g. bulkhead shapes): each connection gets one, picked from the sector seed and its index. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
+	TArray<TSoftClassPtr<AActor>> Variants;
 };
 
 /**
@@ -81,5 +86,9 @@ public:
 	TArray<FHollowConnectionActorRule> ConnectionActors;
 
 	TSoftClassPtr<AActor> FindSocketActor(const FGameplayTag& SocketType) const;
-	TSoftClassPtr<AActor> FindConnectionActor(EHollowConnectorKind Kind) const;
+	/** Class for a connection of Kind; VariantKey (a hash of seed and connection index) picks among the rule's variants. */
+	TSoftClassPtr<AActor> FindConnectionActor(EHollowConnectorKind Kind, uint64 VariantKey = 0) const;
+
+	/** Every class a connection rule can spawn (for async preloading). */
+	TArray<TSoftClassPtr<AActor>> GetConnectionActorClasses() const;
 };

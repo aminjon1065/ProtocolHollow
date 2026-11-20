@@ -22,6 +22,7 @@
 		{ "Name": "StateTree",                "Enabled": true },
 		{ "Name": "GameplayStateTree",        "Enabled": true },
 		{ "Name": "GeometryCollectionPlugin", "Enabled": true },
+		{ "Name": "Fracture",                 "Enabled": true },
 		{ "Name": "ChaosCaching",             "Enabled": true },
 		{ "Name": "PCG",                      "Enabled": true },
 		{ "Name": "OnlineSubsystem",          "Enabled": true },

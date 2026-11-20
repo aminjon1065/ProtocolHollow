@@ -134,7 +134,7 @@ APlayerState
    ⚠ SetNetUpdateFrequency(30…60): дефолт у PlayerState очень низкий, атрибуты будут «лагать»
 
 APlayerController
-└─ AHollowPlayerController                     [Game]  маршрутизация CommonUI, Client_ReceiveRaidResult(), Server_ReportSectorReady(BuildId, LayoutHash) (S2-02)
+└─ AHollowPlayerController                     [Game]  Client_ReceiveRaidResult(), Server_ReportSectorReady(BuildId, LayoutHash) (S2-02); UI — у AHollowHUD [UI] (S2-06)
    └─ UHollowVoiceLoudnessComponent            [Net]   громкость микрофона → сервер (§3.8)
 
 ACharacter
@@ -160,10 +160,25 @@ AAIController
 | `UHollowEquipmentComponent` | Game | инструмент в руках, сокеты FP и TP, точка луча | публичный rep сборки |
 | `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели | state через `UHollowCarryableComponent` |
 | `UHollowExoFrameComponent` | Game | применяет `UHollowExoFrameDefinition`: AbilitySet, init-GE, таланты | на сервере |
-| `UHollowVisorComponent` | UI | диегетика шлема: здоровье, связь, Резонанс; только косметика и только локально | — |
+| `UHollowVisorComponent` | UI | диегетика шлема поверх моделей визора (S2-06 начал с экранного `W_Visor`, [ADR-0013](../ADR/ADR-0013-ui-foundation-commonui.md)); только косметика и только локально | — |
 | `UVOIPTalker` (движковый) | Net | 3D-голос с аттенюацией и эффектами шлема и рации | движковый VOIP |
 
 Камера от первого лица — штатный First Person Rendering 5.8 ([ADR-0011](../ADR/ADR-0011-first-person-rendering-and-placeholders.md)): FP-руки (`FirstPerson`, `OnlyOwnerSee`, копия позы TP) и TP-тело (`WorldSpaceRepresentation`: владелец видит только тень), камера на сокете `head` FP-меша. До S1-05 `AHollowExoFrameCharacter` наследуется от `ACharacter`, после — от `AHollowCharacterBase`. **Гейплейная** привязка к позе руками не делается никогда, руки — чистая косметика (важно для переноски, §3.5).
+
+### Интерфейс (S2-06, [ADR-0013](../ADR/ADR-0013-ui-foundation-commonui.md))
+```
+AHollowHUD [UI, только локальный PC]
+ ├─ UHollowVisorContext            pawn + ASC игрока (OnAbilitySystemChanged / OnPossessedPawnChanged / OnPawnControllerChanged)
+ │   ├─ UHollowPromptModel         OnFocusChanged + глиф IA_Interact для текущего устройства (DA_InputGlyphs)
+ │   └─ UHollowToolTargetModel     Hollow.State.Tool.Active -> HollowToolAim::TraceLocal -> IHollowTargetStatusSource
+ └─ UHollowPrimaryLayout (W_PrimaryLayout)   стеки Hollow.UI.Layer.{Game, GameMenu, Menu, Modal}
+     ├─ Game: UHollowVisorWidget (W_Visor)   UHollowStatBarWidget x3 (FHollowAttributeWatch), UHollowInteractionPromptWidget,
+     │                                         UHollowTargetStatusWidget, прицел; UI-действие IA_SystemMenu (Esc / Start)
+     └─ Menu: UHollowSystemMenuWidget (W_SystemMenu)   Resume / Quit (UHollowButton), Back, фокус на Resume
+```
+- Все виджеты C++ с `DisableNativeTick`; WBP — только раскладка, их собирает `create_ui_assets.py` через `UHollowWidgetAuthoring` (HollowEditor).
+- Настройки: `UHollowUISettings` (классы WBP, `IMC_UI`, действия, глифы, `TargetProbeRateHz` = 10, `TargetLingerSeconds` = 0,5); CommonUI на Enhanced Input (`BP_CommonInputData`).
+- Цель с прогрессом реализует `IHollowTargetStatusSource` (Core): сейчас это `AHollowDoor` (шов, отметка `SealThreshold`).
 
 ---
 
@@ -229,7 +244,7 @@ private:
 };
 ```
 
-**Где *не* используем атрибуты GAS** 🔶: целостность дверей, переборок и баррикад. Это **состояние мировых объектов**, а не статы актёров. Давать ASC каждой двери (а их 30–60 на сектор) дорого по памяти и трафику. Двери принимают работу через `IHollowToolTarget` и `IHollowStructural`, темпы и множители берутся из данных, расчёт идёт только на сервере. GE при этом остаются у **инициатора**: топливо, нагрев, Резонанс. Правило CLAUDE.md §4 «никаких прямых мутаций атрибутов» выполняется полностью, потому что у дверей атрибутов нет.
+**Где *не* используем атрибуты GAS** 🔶: целостность дверей, переборок и баррикад. Это **состояние мировых объектов**, а не статы актёров. Давать ASC каждой двери (а их 30–60 на сектор) дорого по памяти и трафику. Двери принимают работу через `IHollowToolTarget` и `IHollowStructural`, темпы и множители берутся из данных, расчёт идёт только на сервере. *S3-01:* `IHollowStructural` (Core) реализует `AHollowBreachableBulkhead`; прочность зон хранит `UHollowStructuralIntegrityComponent` (Physics), а не атрибуты. GE при этом остаются у **инициатора**: топливо, нагрев, Резонанс. Правило CLAUDE.md §4 «никаких прямых мутаций атрибутов» выполняется полностью, потому что у дверей атрибутов нет.
 
 ---
 
@@ -343,6 +358,8 @@ UWorldSubsystem
                                     заглушки Sealed — локальные AStaticMeshActor (меш биома, размер проёма × толщина стены)
                                     → OnAssembled(BuildId, LocalHash). Геймплейных актёров не трогает — их спавнит SectorAuthority.
 Временные актёры: AHollowSectorMarker (реплицируется, dormant) по правилам биома SocketActors/ConnectionActors, PlayerSpawn → APlayerStart.
+Door → BP_Door (S2-04), Bulkhead → BP_Bulkhead_Plate | BP_Bulkhead_Twin (S3-01: FHollowConnectionActorRule::Variants,
+вариант = DeriveSeed(Seed, ConnectionIndex) % N, одинаков для seed).
 ```
 
 **Алгоритм генератора (v0 реализован в S2-01, только целочисленная сетка):**
@@ -351,7 +368,7 @@ UWorldSubsystem
 2. **Ветки с CoreVault** (решение S2-01): по одной на ядро, от внутренней комнаты критического пути, глубина ≤ `MaxBranchDepth`. Ядро — крюк в сторону, путь к эвакуации через хранилище не проходит.
 3. **Петли**, пока `E − V + 1 < MinLoops`: сначала соединяем уже смотрящие друг на друга свободные коннекторы; затем «мосты» — от свободного коннектора растёт до `MaxBridgeRooms` комнат Path, пока одна из них не встанет напротив **любого** свободного коннектора другой комнаты. Замыкающая комната находится аналитически до размещения, промежуточная ставится только если её выход ещё может дотянуться. Петля не может сократить маршрут Spawn → Extraction ниже `CriticalPathMin + 1` переходов. Петли дают второй путь от Сталкера.
 4. **Опциональные ветки** (Branch, например Storage) — если осталось место (`MaxRooms`).
-5. **Виды проёмов:** `MinBulkheadConnections` случайных соединений, где разрешён Bulkhead; остальные Door, иначе Open. Незанятые коннекторы уходят в `Sealed`: их глушит сборка (S2-02).
+5. **Виды проёмов:** `MinBulkheadConnections` случайных соединений, где разрешён Bulkhead; остальные Door, иначе Open. Незанятые коннекторы уходят в `Sealed`: их глушит сборка (S2-02). *S3-01:* переборка — стена, пока её не пробьют. Поэтому кандидат, без которого граф перестал бы быть связным, пропускается, а приёмка требует `ComponentsWithoutBulkheads == 1` ([ADR-0014](../ADR/ADR-0014-breachable-bulkheads.md)).
 6. **Приёмка** через `HollowSectorGraph::Analyze`: без пересечений, связно, ровно один Spawn и Extraction, число ядер, маршрут, петли, глубина тупиков, лимиты, квота переборок. Провал → повтор с `HollowRandom::DeriveSeed(Seed, Attempt)` (SplitMix64), до `MaxAttempts`.
 7. **Запреты, которые ломают детерминизм:** `FMath::Rand`, `FRandomStream`, итерация `TMap`/`TSet` (только поиск), порядок Asset Registry, float в топологии.
 
@@ -392,7 +409,7 @@ UWorldSubsystem (server-only):
 | `UHollowProfileSubsystem` | GameInstance | везде (**только свой профиль**) | Economy |
 | `UHollowNoiseSubsystem` | World | сервер | Core |
 | `UHollowSectorAssemblySubsystem` | World | везде (спавн — только на сервере) | PCG |
-| `UHollowDestructionBudgetSubsystem` | World | везде (косметический бюджет у каждой машины свой) | Physics |
+| `UHollowDestructionBudgetSubsystem` | World | везде (косметический бюджет у каждой машины свой; S3-01: слоты live-проломов, тела, таймеры жизни осколков по `UHollowDestructionBudgetConfig`) | Physics |
 | `UHollowNavUpdateSubsystem` | World | сервер (навмеш только на хосте) | Physics |
 | `UHollowThreatDirectorSubsystem` | World | сервер | AI |
 | `UHollowActivityHeatmapSubsystem` | World | сервер | AI |

@@ -109,6 +109,11 @@ int32 HollowSectorGraph::ShortestPath(const int32 NumRooms, TConstArrayView<FInt
 	return INDEX_NONE;
 }
 
+int32 HollowSectorGraph::CountComponents(const int32 NumRooms, TConstArrayView<FIntPoint> Links)
+{
+	return HollowSectorGraphPrivate::CountComponents(HollowSectorGraphPrivate::Adjacency(NumRooms, Links));
+}
+
 int32 HollowSectorGraph::CountLoops(const int32 NumRooms, TConstArrayView<FIntPoint> Links)
 {
 	const int32 Distinct = HollowSectorGraphPrivate::DistinctPairs(Links).Num();
@@ -159,15 +164,22 @@ FHollowSectorStats HollowSectorGraph::Analyze(const FHollowSectorLayout& Layout)
 	}
 	Stats.Extent = Max - Min;
 
+	TArray<FIntPoint> OpenPairs;
 	for (const FHollowPlacedConnection& Connection : Layout.Connections)
 	{
-		Stats.Bulkheads += Connection.Kind == EHollowConnectorKind::Bulkhead ? 1 : 0;
+		const bool bBulkhead = Connection.Kind == EHollowConnectorKind::Bulkhead;
+		Stats.Bulkheads += bBulkhead ? 1 : 0;
+		if (!bBulkhead)
+		{
+			OpenPairs.Add(FIntPoint(Connection.RoomA, Connection.RoomB));
+		}
 	}
+	Stats.ComponentsWithoutBulkheads = HollowSectorGraphPrivate::CountComponents(Adjacency(NumRooms, OpenPairs));
 
 	const TArray<FIntPoint> Pairs = LinkPairs(Layout);
 	const TArray<TArray<int32>> Neighbours = Adjacency(NumRooms, Pairs);
 	Stats.Links = DistinctPairs(Pairs).Num();
-	Stats.Components = CountComponents(Neighbours);
+	Stats.Components = HollowSectorGraphPrivate::CountComponents(Neighbours);
 	Stats.Loops = Stats.Links - NumRooms + Stats.Components;
 	if (Stats.SpawnRooms == 1 && Stats.ExtractionRooms == 1)
 	{

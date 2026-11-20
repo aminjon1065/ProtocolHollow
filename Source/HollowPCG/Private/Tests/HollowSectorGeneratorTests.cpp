@@ -26,9 +26,12 @@ namespace HollowGenTests
 	constexpr int32 UniquePercentMin = 90;
 	constexpr int32 PercentScale = 100;
 
-	/** GoldenLayout: hash of GoldenSeed on the synthetic pool. Changes only with the algorithm (update on purpose). */
+	/**
+	 * GoldenLayout: hash of GoldenSeed on the synthetic pool. Changes only with the algorithm (update on purpose).
+	 * S3-01: bulkheads skip links that would cut a room off (the golden seed had one on a bridge).
+	 */
 	constexpr int32 GoldenSeed = 20261119;
-	constexpr uint32 GoldenHash = 0x0CFB706Cu;
+	constexpr uint32 GoldenHash = 0x583C99A7u;
 
 	constexpr uint8 Door = static_cast<uint8>(EHollowConnectorKind::Door);
 	constexpr uint8 Bulkhead = static_cast<uint8>(EHollowConnectorKind::Bulkhead);
@@ -237,6 +240,56 @@ namespace HollowGenTests
 			}
 		}
 		return Steps[To];
+	}
+
+	/** Rooms that Spawn cannot reach while every bulkhead is shut (independent BFS over the other connections). */
+	int32 CutOffByBulkheads(const FHollowSectorLayout& Layout)
+	{
+		TArray<TArray<int32>> Adjacent;
+		Adjacent.SetNum(Layout.Rooms.Num());
+		int32 Spawn = INDEX_NONE;
+		for (int32 Index = 0; Index < Layout.Rooms.Num(); ++Index)
+		{
+			Spawn = Layout.Rooms[Index].Role == EHollowRoomRole::Spawn ? Index : Spawn;
+		}
+		for (const FHollowPlacedConnection& C : Layout.Connections)
+		{
+			if (C.Kind != EHollowConnectorKind::Bulkhead)
+			{
+				Adjacent[C.RoomA].AddUnique(C.RoomB);
+				Adjacent[C.RoomB].AddUnique(C.RoomA);
+			}
+		}
+		if (Spawn == INDEX_NONE)
+		{
+			return Layout.Rooms.Num();
+		}
+		TArray<bool> Seen;
+		Seen.Init(false, Layout.Rooms.Num());
+		Seen[Spawn] = true;
+		TArray<int32> Queue = {Spawn};
+		for (int32 Head = 0; Head < Queue.Num(); ++Head)
+		{
+			for (const int32 Next : Adjacent[Queue[Head]])
+			{
+				if (!Seen[Next])
+				{
+					Seen[Next] = true;
+					Queue.Add(Next);
+				}
+			}
+		}
+		return Layout.Rooms.Num() - Queue.Num();
+	}
+
+	int32 CountBulkheads(const FHollowSectorLayout& Layout)
+	{
+		int32 Count = 0;
+		for (const FHollowPlacedConnection& C : Layout.Connections)
+		{
+			Count += C.Kind == EHollowConnectorKind::Bulkhead ? 1 : 0;
+		}
+		return Count;
 	}
 
 	int32 FindRole(const FHollowSectorLayout& Layout, const EHollowRoomRole Role, int32& OutCount)
@@ -552,6 +605,33 @@ bool FHollowGenMinLoopsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowGenBulkheadDetourTest, "Hollow.PCG.Generator.BulkheadsAreDetours",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowGenBulkheadDetourTest::RunTest(const FString& Parameters)
+{
+	// A shut bulkhead is a wall until something breaks it (S3-01): it may close a loop, never cut a room off.
+	using namespace HollowGenTests;
+	const FHollowSectorGenRules Rules = SyntheticRules();
+	if (!TestTrue(TEXT("The synthetic rules ask for bulkheads"), Rules.MinBulkheadConnections > 0))
+	{
+		return false;
+	}
+	Sweep(*this, SyntheticInput(FirstSeed), [this, &Rules](const int32 Seed, const FHollowSectorLayout& Layout)
+	{
+		const int32 CutOff = CutOffByBulkheads(Layout);
+		if (CutOff > 0)
+		{
+			AddError(FString::Printf(TEXT("Seed %d: %d room(s) only reachable through a bulkhead"), Seed, CutOff));
+		}
+		if (CountBulkheads(Layout) < Rules.MinBulkheadConnections)
+		{
+			AddError(FString::Printf(TEXT("Seed %d: %d bulkheads, quota %d"), Seed, CountBulkheads(Layout), Rules.MinBulkheadConnections));
+		}
+	});
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowGenGoldenTest, "Hollow.PCG.Generator.GoldenLayout",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -622,7 +702,16 @@ bool FHollowGenDocksPoolTest::RunTest(const FString& Parameters)
 	int32 TotalAttempts = 0;
 	int32 TotalRooms = 0;
 	const double Start = FPlatformTime::Seconds();
-	Sweep(*this, Base, [&TotalRooms](const int32, const FHollowSectorLayout& Layout) { TotalRooms += Layout.Rooms.Num(); }, &TotalAttempts);
+	Sweep(*this, Base, [this, &TotalRooms, &Base](const int32 Seed, const FHollowSectorLayout& Layout)
+	{
+		TotalRooms += Layout.Rooms.Num();
+		// The real kit lets almost any link be a bulkhead: none may cut a room off (S3-01).
+		const int32 CutOff = CutOffByBulkheads(Layout);
+		if (CutOff > 0 || CountBulkheads(Layout) < Base.Rules.MinBulkheadConnections)
+		{
+			AddError(FString::Printf(TEXT("Docks seed %d: %d room(s) behind bulkheads, %d bulkheads"), Seed, CutOff, CountBulkheads(Layout)));
+		}
+	}, &TotalAttempts);
 	AddInfo(FString::Printf(TEXT("Docks: %d seeds, avg %.1f rooms, %.2f attempts, %.2f ms per sector"), SweepSeeds,
 		double(TotalRooms) / SweepSeeds, double(TotalAttempts) / SweepSeeds, (FPlatformTime::Seconds() - Start) * 1000.0 / SweepSeeds));
 	return true;

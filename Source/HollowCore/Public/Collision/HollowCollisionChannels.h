@@ -7,4 +7,14 @@ namespace HollowCollision
 {
 	/** Trace channel "Interaction" (default Block): interactables and walls block it, cosmetic debris ignores it. */
 	inline constexpr ECollisionChannel Interaction = ECC_GameTraceChannel1;
+
+	/**
+	 * Object channel "HollowDebris" (default Block, so walls and floors stop debris): cosmetic Chaos fragments and
+	 * rubble (ADR-0002). Their profile ignores pawns, physics bodies and every trace, so debris never moves a player,
+	 * an enemy or a carried core and never stops a tool, a line of sight or an interaction.
+	 */
+	inline constexpr ECollisionChannel Debris = ECC_GameTraceChannel2;
+
+	/** Collision profile of everything on the Debris channel. */
+	inline FName DebrisProfile() { return FName(TEXT("HollowDebris")); }
 }

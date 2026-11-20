@@ -1,6 +1,6 @@
 using UnrealBuildTool;
 
-/** Editor-only: data validation, component visualizers, sector preview. */
+/** Editor-only: data validation, content authoring helpers for the Python scripts (widgets, geometry collections). */
 public class HollowEditor : ModuleRules
 {
 	public HollowEditor(ReadOnlyTargetRules Target) : base(Target)
@@ -19,6 +19,16 @@ public class HollowEditor : ModuleRules
 		{
 			"UnrealEd",
 			"DataValidation",
+			"Slate",
+			"SlateCore",
+			"UMG",
+			"UMGEditor",
+			"AssetRegistry",
+			"Chaos",
+			"GeometryCollectionEngine",
+			"DataflowCore",
+			"PlanarCut",
+			"FractureEngine",
 			"HollowCore",
 			"HollowGAS",
 			"HollowPCG",

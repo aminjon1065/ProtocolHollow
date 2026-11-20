@@ -45,7 +45,7 @@ mkdir -p "${RUN_DIR}"
 
 echo "Running ${SCRIPT} (timeout ${TIMEOUT_SEC}s) -> ${RUN_DIR}"
 EDITOR_EXIT=0
-hollow_run_with_timeout "${TIMEOUT_SEC}" "${RUN_DIR}/Console.txt" \
+hollow_run_editor_with_timeout "${TIMEOUT_SEC}" "${RUN_DIR}/Console.txt" "${EDITOR_LOG}" \
 	"${HOLLOW_EDITOR_CMD}" "${HOLLOW_UPROJECT}" \
 	-ExecutePythonScript="${SCRIPT}" \
 	-unattended -nullrhi -nosplash -nosound -nop4 \

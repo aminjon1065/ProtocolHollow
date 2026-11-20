@@ -20,6 +20,7 @@ UHollowGA_ContinuousTool::UHollowGA_ContinuousTool(const FObjectInitializer& Obj
 {
 	ActivationPolicy = EHollowAbilityActivationPolicy::WhileInputActive;
 	ActivationBlockedTags.AddTag(HollowTags::State_Tool_Overheated);
+	ActivationOwnedTags.AddTag(HollowTags::State_Tool_Active);   // local and immediate under prediction: the visor listens for it
 }
 
 bool UHollowGA_ContinuousTool::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

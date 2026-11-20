@@ -1,6 +1,7 @@
 // Development console commands for headless and multi-process testing. Never shipped.
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowToolSet.h"
+#include "Breach/HollowBreachableBulkhead.h"
 #include "Character/HollowExoFrameCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Data/HollowBiomeDefinition.h"
@@ -19,6 +20,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Generation/HollowSectorGenerator.h"
+#include "Interfaces/HollowStructural.h"
 #include "Interfaces/HollowToolTarget.h"
 #include "Nav/HollowNavSettings.h"
 #include "Nav/HollowNavUpdateSubsystem.h"
@@ -299,19 +301,16 @@ namespace HollowDevConsole
 		}
 	}
 
-	/** Host only: puts the local pawn in front of the nearest door, facing it (S2-04 tests). */
-	void GoToNearestDoor(UWorld* World)
+	/**
+	 * Host: puts Player's pawn in front of its nearest actor of Class (a door or a bulkhead, both face X across their
+	 * opening), facing it, Offset uu sideways along it.
+	 */
+	void PlaceAtNearest(APlayerController& Player, const double Offset, const TSubclassOf<AActor> Class, const TCHAR* Command)
 	{
-		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-		APlayerController* Player = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
-		ACharacter* Character = Player ? Cast<ACharacter>(Player->GetPawn()) : nullptr;
-		if (!Character || World->GetNetMode() == NM_Client)
-		{
-			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.GoToNearestDoor runs on the host with a local pawn."));
-			return;
-		}
-		const AHollowDoor* Nearest = nullptr;
-		for (TActorIterator<AHollowDoor> It(World); It; ++It)
+		ACharacter* Character = Cast<ACharacter>(Player.GetPawn());
+		UWorld* World = Player.GetWorld();
+		const AActor* Nearest = nullptr;
+		for (TActorIterator<AActor> It(World, Class); It && Character; ++It)
 		{
 			if (!Nearest || FVector::DistSquared(It->GetActorLocation(), Character->GetActorLocation()) < FVector::DistSquared(Nearest->GetActorLocation(), Character->GetActorLocation()))
 			{
@@ -320,14 +319,15 @@ namespace HollowDevConsole
 		}
 		if (!Nearest)
 		{
-			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.GoToNearestDoor: no door."));
+			UE_LOG(LogHollowGame, Warning, TEXT("%s: no pawn or no target for %s."), Command, *Player.GetName());
 			return;
 		}
 		// Stay on the pawn's side of the door, well inside interaction and tool reach.
 		const FVector Across = Nearest->GetActorForwardVector();
 		const double Side = FVector::DotProduct(Character->GetActorLocation() - Nearest->GetActorLocation(), Across) >= 0.0 ? 1.0 : -1.0;
 		const float Distance = GetDefault<UHollowInteractionSettings>()->InteractionRange * 0.5f;
-		const FVector Stand = Nearest->GetActorLocation() + Across * Side * Distance + FVector(0.0, 0.0, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+		const FVector Stand = Nearest->GetActorLocation() + Across * Side * Distance + Nearest->GetActorRightVector() * Offset
+			+ FVector(0.0, 0.0, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 		Character->SetActorLocation(Stand, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
 		FVector Centre;
 		FVector Extent;
@@ -335,8 +335,100 @@ namespace HollowDevConsole
 		FVector Eyes;
 		FRotator Unused;
 		Character->GetActorEyesViewPoint(Eyes, Unused);
-		Player->SetControlRotation((Centre - Eyes).Rotation());
-		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.GoToNearestDoor: %s"), *Nearest->GetName());
+		const FRotator Facing = (Centre - Eyes).Rotation();
+		if (Player.IsLocalController())
+		{
+			Player.SetControlRotation(Facing);
+		}
+		else
+		{
+			Player.ClientSetRotation(Facing);   // a remote player's view is theirs: ask their machine
+		}
+		UE_LOG(LogHollowGame, Log, TEXT("%s: %s at %s"), Command, *Player.GetName(), *Nearest->GetName());
+	}
+
+	/**
+	 * Host: puts the local pawn (or, with All, every player's pawn, side by side) in front of the nearest actor of Class,
+	 * facing it (S2-04/S2-06/S3-01 tests).
+	 */
+	void GoToNearest(const TArray<FString>& Args, UWorld* World, const TSubclassOf<AActor> Class, const TCHAR* Command)
+	{
+		if (!World || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("%s runs on the host."), Command);
+			return;
+		}
+		const bool bAll = Args.Num() > 0 && Args[0].Equals(TEXT("All"), ESearchCase::IgnoreCase);
+		TArray<APlayerController*> Players;
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (APlayerController* Player = It->Get(); Player && (bAll || Player->IsLocalController()))
+			{
+				Players.Add(Player);
+			}
+		}
+		for (int32 Index = 0; Index < Players.Num(); ++Index)
+		{
+			const ACharacter* Character = Cast<ACharacter>(Players[Index]->GetPawn());
+			const double Spacing = Character ? Character->GetCapsuleComponent()->GetScaledCapsuleRadius() * 3.0 : 0.0;   // capsules never touch
+			PlaceAtNearest(*Players[Index], (Index - (Players.Num() - 1) * 0.5) * Spacing, Class, Command);
+		}
+	}
+
+	/** Usage: Hollow.Dev.GoToNearestDoor [All] */
+	void GoToNearestDoor(const TArray<FString>& Args, UWorld* World)
+	{
+		GoToNearest(Args, World, AHollowDoor::StaticClass(), TEXT("Hollow.Dev.GoToNearestDoor"));
+	}
+
+	/** Usage: Hollow.Dev.GoToNearestBulkhead [All] */
+	void GoToNearestBulkhead(const TArray<FString>& Args, UWorld* World)
+	{
+		GoToNearest(Args, World, AHollowBreachableBulkhead::StaticClass(), TEXT("Hollow.Dev.GoToNearestBulkhead"));
+	}
+
+	/**
+	 * Host: one structural blow from the local pawn to the nearest object that still takes structural damage (S3-01,
+	 * until the Iron Pilgrim does it). It lands on the part nearest to the pawn; without Amount it breaks that part.
+	 * FromBehind: the blow comes from the far side, so debris flies at the pawn (the Pilgrim breaking through).
+	 * Usage: Hollow.Dev.Breach [Amount] [FromBehind]
+	 */
+	void Breach(const TArray<FString>& Args, UWorld* World)
+	{
+		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		const APlayerController* Player = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+		APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+		if (!Pawn || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.Breach runs on the host with a local pawn."));
+			return;
+		}
+		AActor* Nearest = nullptr;
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			const IHollowStructural* Structural = Cast<IHollowStructural>(*It);
+			if (Structural && Structural->CanTakeStructuralDamage()
+				&& (!Nearest || FVector::DistSquared(It->GetActorLocation(), Pawn->GetActorLocation()) < FVector::DistSquared(Nearest->GetActorLocation(), Pawn->GetActorLocation())))
+			{
+				Nearest = *It;
+			}
+		}
+		if (!Nearest)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.Breach: nothing left to break."));
+			return;
+		}
+		const bool bFromBehind = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Equals(TEXT("FromBehind"), ESearchCase::IgnoreCase); });
+		const FString* AmountArg = Args.FindByPredicate([](const FString& Arg) { return Arg.IsNumeric(); });
+		FHollowStructuralHit Hit;
+		Hit.Amount = AmountArg ? FCString::Atof(**AmountArg) : TNumericLimits<float>::Max();   // one blow breaks one part at most
+		Hit.Location = Pawn->GetActorLocation();
+		Hit.Direction = bFromBehind ? Pawn->GetActorLocation() - Nearest->GetActorLocation() : FVector::ZeroVector;   // zero: from the pawn
+		Hit.DamageType = HollowTags::Damage_Structural;
+		Hit.Instigator = Pawn;
+		const bool bChanged = Cast<IHollowStructural>(Nearest)->ApplyStructuralDamage(Hit);
+		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.Breach: %s hit%s with %s (%s)"), *Nearest->GetName(), bFromBehind ? TEXT(" from behind") : TEXT(""),
+			AmountArg ? **AmountArg : TEXT("a breaking blow"), bChanged ? TEXT("changed") : TEXT("no change"));
 	}
 
 	/**
@@ -375,6 +467,8 @@ namespace HollowDevConsole
 		const bool bFound = Result.IsSuccessful() && Result.Path.IsValid() && !Result.IsPartial();
 		FString Doors;
 		int32 DoorCount = 0;
+		FString Bulkheads;
+		int32 BulkheadCount = 0;
 		if (bFound)
 		{
 			for (TActorIterator<AHollowDoor> It(World); It; ++It)
@@ -385,9 +479,17 @@ namespace HollowDevConsole
 					++DoorCount;
 				}
 			}
+			for (TActorIterator<AHollowBreachableBulkhead> It(World); It; ++It)
+			{
+				if (UHollowNavUpdateSubsystem::PathUsesLink(*Result.Path, It->GetNavLink()->GetId()))
+				{
+					Bulkheads += FString::Printf(TEXT(" %s=%s"), *It->GetName(), *GetNameSafe(It->GetNavArea().Get()));
+					++BulkheadCount;
+				}
+			}
 		}
-		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Nav.Path %s: found %d, length %.0f, %d door(s):%s"), *Agent.ToString(), bFound,
-			bFound ? Result.Path->GetLength() : 0.0, DoorCount, *Doors);
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Nav.Path %s: found %d, length %.0f, %d door(s):%s, %d bulkhead link(s):%s"), *Agent.ToString(), bFound,
+			bFound ? Result.Path->GetLength() : 0.0, DoorCount, *Doors, BulkheadCount, *Bulkheads);
 	}
 
 	void ToolInfo(UWorld* World)
@@ -454,10 +556,20 @@ namespace HollowDevConsole
 		TEXT("Turns the local player towards the nearest tool target."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&FaceToolTarget));
 
-	FAutoConsoleCommandWithWorld GoToNearestDoorCommand(
+	FAutoConsoleCommandWithWorldAndArgs GoToNearestDoorCommand(
 		TEXT("Hollow.Dev.GoToNearestDoor"),
-		TEXT("Host: puts the local pawn in front of the nearest door, facing it."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&GoToNearestDoor));
+		TEXT("Host: puts the local pawn (or every player's, with All) in front of the nearest door, facing it. Usage: Hollow.Dev.GoToNearestDoor [All]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestDoor));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToNearestBulkheadCommand(
+		TEXT("Hollow.Dev.GoToNearestBulkhead"),
+		TEXT("Host: puts the local pawn (or every player's, with All) in front of the nearest bulkhead, facing it. Usage: Hollow.Dev.GoToNearestBulkhead [All]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestBulkhead));
+
+	FAutoConsoleCommandWithWorldAndArgs BreachCommand(
+		TEXT("Hollow.Dev.Breach"),
+		TEXT("Host: one structural blow from the local pawn to the nearest breakable object; without Amount it breaks the part nearest to the pawn. Usage: Hollow.Dev.Breach [Amount] [FromBehind]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Breach));
 
 	FAutoConsoleCommandWithWorldAndArgs NavPathCommand(
 		TEXT("Hollow.Nav.Path"),

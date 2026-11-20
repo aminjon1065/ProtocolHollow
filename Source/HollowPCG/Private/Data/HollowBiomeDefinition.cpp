@@ -21,10 +21,28 @@ TSoftClassPtr<AActor> UHollowBiomeDefinition::FindSocketActor(const FGameplayTag
 	return Rule ? Rule->ActorClass : TSoftClassPtr<AActor>();
 }
 
-TSoftClassPtr<AActor> UHollowBiomeDefinition::FindConnectionActor(const EHollowConnectorKind Kind) const
+TSoftClassPtr<AActor> UHollowBiomeDefinition::FindConnectionActor(const EHollowConnectorKind Kind, const uint64 VariantKey) const
 {
 	const FHollowConnectionActorRule* Rule = ConnectionActors.FindByPredicate([Kind](const FHollowConnectionActorRule& R) { return R.Kind == Kind; });
-	return Rule ? Rule->ActorClass : TSoftClassPtr<AActor>();
+	if (!Rule)
+	{
+		return TSoftClassPtr<AActor>();
+	}
+	return Rule->Variants.IsEmpty() ? Rule->ActorClass : Rule->Variants[static_cast<int32>(VariantKey % static_cast<uint64>(Rule->Variants.Num()))];
+}
+
+TArray<TSoftClassPtr<AActor>> UHollowBiomeDefinition::GetConnectionActorClasses() const
+{
+	TArray<TSoftClassPtr<AActor>> Classes;
+	for (const FHollowConnectionActorRule& Rule : ConnectionActors)
+	{
+		Classes.AddUnique(Rule.ActorClass);
+		for (const TSoftClassPtr<AActor>& Variant : Rule.Variants)
+		{
+			Classes.AddUnique(Variant);
+		}
+	}
+	return Classes;
 }
 
 #if WITH_EDITOR

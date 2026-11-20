@@ -9,6 +9,7 @@
 #include "HollowGameLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "TimerManager.h"
+#include "Tools/HollowToolAim.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowToolBeamCue)
 
@@ -75,14 +76,10 @@ void AHollowToolBeamCue::UpdateBeam()
 	}
 
 	// Own trace on this machine: owners use their control rotation, remote wielders their replicated aim.
-	const FVector Eyes = Pawn->GetPawnViewLocation();
-	const FRotator Aim = Pawn->GetBaseAimRotation();
-	const FVector End = Eyes + Aim.Vector() * Definition->Range;
-	const FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowToolBeam), /*bTraceComplex=*/false, Pawn);
-	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Eyes, End, Definition->TraceChannel, Params);
-	const FVector Impact = bHit ? Hit.ImpactPoint : End;
-	const FVector Muzzle = Eyes + Aim.RotateVector(MuzzleOffset);
+	const FHollowToolAimTrace Trace = HollowToolAim::TraceLocal(*Pawn, *Definition);
+	const bool bHit = Trace.bHit;
+	const FVector Impact = Trace.End;
+	const FVector Muzzle = Trace.Eyes + Trace.Aim.RotateVector(MuzzleOffset);
 
 	const FVector Span = Impact - Muzzle;
 	const FVector MeshSize = Mesh->GetBoundingBox().GetSize();

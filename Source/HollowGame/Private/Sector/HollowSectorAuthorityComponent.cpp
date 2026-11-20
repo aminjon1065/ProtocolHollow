@@ -21,6 +21,8 @@
 #include "HollowGameLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/DateTime.h"
+#include "Nav/HollowNavSettings.h"
+#include "NavFilters/NavigationQueryFilter.h"
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "Sector/HollowSectorFeatureSubsystem.h"
@@ -162,9 +164,9 @@ void UHollowSectorAuthorityComponent::HandleDefinitionsLoaded()
 	{
 		Classes.AddUnique(Rule.ActorClass.ToSoftObjectPath());
 	}
-	for (const FHollowConnectionActorRule& Rule : Biome->ConnectionActors)
+	for (const TSoftClassPtr<AActor>& Class : Biome->GetConnectionActorClasses())
 	{
-		Classes.AddUnique(Rule.ActorClass.ToSoftObjectPath());
+		Classes.AddUnique(Class.ToSoftObjectPath());
 	}
 	Classes.RemoveAll([](const FSoftObjectPath& Path) { return Path.IsNull(); });
 	ContentHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(MoveTemp(Classes), FStreamableDelegate::CreateUObject(this, &ThisClass::HandleClassesLoaded));
@@ -288,9 +290,11 @@ void UHollowSectorAuthorityComponent::SpawnSectorActors()
 			Spawn(Class, Transform, Socket.SocketType.GetTagName());
 		}
 	}
-	for (const FHollowPlacedConnection& Connection : Layout.Connections)
+	for (int32 Index = 0; Index < Layout.Connections.Num(); ++Index)
 	{
-		if (UClass* Class = Biome->FindConnectionActor(Connection.Kind).Get())
+		// Variants (bulkhead shapes) follow the seed, so a seed always looks the same for QA.
+		const FHollowPlacedConnection& Connection = Layout.Connections[Index];
+		if (UClass* Class = Biome->FindConnectionActor(Connection.Kind, HollowRandom::DeriveSeed(Manifest.Seed, Index)).Get())
 		{
 			Spawn(Class, HollowSectorManifest::OpeningTransform(Connection.CellA, Connection.SideA, *Metrics, Origin), FName(*HollowEnumToString(Connection.Kind)));
 		}
@@ -321,7 +325,9 @@ void UHollowSectorAuthorityComponent::BuildNavigation()
 	const int32 ExtractionRoom = FindRole(Layout, EHollowRoomRole::Extraction);
 	const TOptional<FVector> From = SpawnRoom != INDEX_NONE ? SocketLocation(Assembly->GetManifest(), Layout, SpawnRoom, HollowTags::Socket_PlayerSpawn) : TOptional<FVector>();
 	const TOptional<FVector> To = ExtractionRoom != INDEX_NONE ? SocketLocation(Assembly->GetManifest(), Layout, ExtractionRoom, HollowTags::Socket_Extraction) : TOptional<FVector>();
-	const UNavigationPath* Path = From && To ? UNavigationSystemV1::FindPathToLocationSynchronously(World, *From, *To) : nullptr;
+	// With the Standard filter, the way players and ordinary enemies see the sector: shut bulkheads are walls (S3-01).
+	const TSubclassOf<UNavigationQueryFilter> Filter = GetDefault<UHollowNavSettings>()->StandardFilter.LoadSynchronous();
+	const UNavigationPath* Path = From && To ? UNavigationSystemV1::FindPathToLocationSynchronously(World, *From, *To, nullptr, Filter) : nullptr;
 	const bool bPath = Path && Path->IsValid() && !Path->IsPartial();
 	if (bPath)
 	{

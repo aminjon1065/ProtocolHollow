@@ -44,6 +44,7 @@ void AHollowCharacterBase::InitializeAbilitySystem(UHollowAbilitySystemComponent
 	}
 	AbilitySystemComponent = InAbilitySystem;
 	InAbilitySystem->InitAbilityActorInfo(InOwnerActor, this);
+	OnAbilitySystemChanged.Broadcast(InAbilitySystem);
 }
 
 void AHollowCharacterBase::UninitializeAbilitySystem()
@@ -54,6 +55,7 @@ void AHollowCharacterBase::UninitializeAbilitySystem()
 	{
 		return;   // another avatar already took over
 	}
+	OnAbilitySystemChanged.Broadcast(nullptr);
 
 	AbilitySystem->CancelAbilities();
 	AbilitySystem->RemoveAllGameplayCues();

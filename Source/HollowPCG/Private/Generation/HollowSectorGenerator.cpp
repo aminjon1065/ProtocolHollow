@@ -227,7 +227,10 @@ namespace HollowSectorGenPrivate
 			return true;
 		}
 
-		/** Bulkhead quota first (random among links that allow it), then Door, Open, Bulkhead by preference. */
+		/**
+		 * Bulkhead quota first: random among links that allow it, skipping any that would cut a room off while every
+		 * bulkhead is shut (a bulkhead is a wall until something breaks it, S3-01). Then Door, Open, Bulkhead by preference.
+		 */
 		bool AssignKinds()
 		{
 			const uint8 Bulkhead = KindBit(EHollowConnectorKind::Bulkhead);
@@ -244,9 +247,23 @@ namespace HollowSectorGenPrivate
 				return false;
 			}
 			Rng.Shuffle(BulkheadCapable);
-			for (int32 Pick = 0; Pick < Rules.MinBulkheadConnections; ++Pick)
+			int32 Picked = 0;
+			for (int32 Candidate = 0; Candidate < BulkheadCapable.Num() && Picked < Rules.MinBulkheadConnections; ++Candidate)
 			{
-				Links[BulkheadCapable[Pick]].Kind = EHollowConnectorKind::Bulkhead;
+				FLink& Link = Links[BulkheadCapable[Candidate]];
+				Link.Kind = EHollowConnectorKind::Bulkhead;
+				if (ConnectedWithoutBulkheads())
+				{
+					++Picked;
+				}
+				else
+				{
+					Link.Kind = EHollowConnectorKind::None;   // a bridge: it stays a door or an opening
+				}
+			}
+			if (Picked < Rules.MinBulkheadConnections)
+			{
+				return false;
 			}
 			for (FLink& Link : Links)
 			{
@@ -748,6 +765,20 @@ namespace HollowSectorGenPrivate
 			return HollowSectorGraph::CountLoops(Rooms.Num(), LinkPairs());
 		}
 
+		/** Every room is still reachable with all bulkheads shut (links not assigned yet count as passable). */
+		bool ConnectedWithoutBulkheads() const
+		{
+			TArray<FIntPoint> Open;
+			for (const FLink& Link : Links)
+			{
+				if (Link.Kind != EHollowConnectorKind::Bulkhead)
+				{
+					Open.Add(FIntPoint(Link.RoomA, Link.RoomB));
+				}
+			}
+			return HollowSectorGraph::CountComponents(Rooms.Num(), Open) == 1;
+		}
+
 		/** Loops must not shortcut the critical path below CriticalPathMin rooms. */
 		bool KeepsRouteLength() const
 		{
@@ -786,6 +817,7 @@ namespace HollowSectorGenPrivate
 			&& Stats.DeadEndDepth <= Rules.MaxBranchDepth
 			&& Stats.Rooms <= Rules.MaxRooms
 			&& Stats.Bulkheads >= Rules.MinBulkheadConnections
+			&& Stats.ComponentsWithoutBulkheads == 1
 			&& Stats.Extent.X <= Rules.MaxExtentCells
 			&& Stats.Extent.Y <= Rules.MaxExtentCells;
 	}

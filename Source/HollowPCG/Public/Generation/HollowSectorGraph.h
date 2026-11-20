@@ -15,6 +15,8 @@ struct FHollowSectorStats
 	int32 ExtractionRooms = 0;
 	int32 CoreVaults = 0;
 	int32 Bulkheads = 0;
+	/** Components when every bulkhead is shut (a wall until something breaks it): 1 means no room is cut off. */
+	int32 ComponentsWithoutBulkheads = 0;
 	/** Shortest Spawn-to-Extraction route in links; INDEX_NONE without exactly one of each or without a route. */
 	int32 SpawnToExtraction = INDEX_NONE;
 	/** Longest chain of rooms hanging off the rest of the sector (Spawn and Extraction excluded). */
@@ -28,6 +30,9 @@ namespace HollowSectorGraph
 {
 	/** Shortest route in links (INDEX_NONE if none); Excluded is treated as a missing room. */
 	HOLLOWPCG_API int32 ShortestPath(int32 NumRooms, TConstArrayView<FIntPoint> Links, int32 From, int32 To, int32 Excluded = INDEX_NONE);
+
+	/** Connected components of the graph (isolated rooms count). */
+	HOLLOWPCG_API int32 CountComponents(int32 NumRooms, TConstArrayView<FIntPoint> Links);
 
 	/** Independent cycles of the simple graph: distinct linked pairs - rooms + components. */
 	HOLLOWPCG_API int32 CountLoops(int32 NumRooms, TConstArrayView<FIntPoint> Links);

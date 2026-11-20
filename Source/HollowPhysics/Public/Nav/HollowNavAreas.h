@@ -70,3 +70,16 @@ class HOLLOWPHYSICS_API UHollowNavArea_DoorBarricaded : public UHollowNavArea_Do
 public:
 	explicit UHollowNavArea_DoorBarricaded(const FObjectInitializer& ObjectInitializer);
 };
+
+/**
+ * A bulkhead whose passage is still shut (Docs/Architecture/03 sec. 3.7): Standard agents are excluded, breachers
+ * (Heavy) may plan through it and break it. On breach the link switches to the doorway area.
+ */
+UCLASS()
+class HOLLOWPHYSICS_API UHollowNavArea_BulkheadIntact : public UNavArea
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowNavArea_BulkheadIntact(const FObjectInitializer& ObjectInitializer);
+};

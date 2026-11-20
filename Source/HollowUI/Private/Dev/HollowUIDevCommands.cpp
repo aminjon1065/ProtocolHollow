@@ -1,0 +1,175 @@
+// Development console commands for the visor and menus (headless and multi-process checks). Never shipped.
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "CommonActivatableWidget.h"
+#include "CommonInputSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "Foundation/HollowHUD.h"
+#include "Foundation/HollowPrimaryLayout.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "HollowUILog.h"
+#include "HollowUITags.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "TimerManager.h"
+#include "Util/HollowEnumUtils.h"
+#include "ViewModels/HollowPromptModel.h"
+#include "ViewModels/HollowToolTargetModel.h"
+#include "ViewModels/HollowVisorContext.h"
+#include "Visor/HollowStatBarWidget.h"
+#include "Widgets/CommonActivatableWidgetContainer.h"
+
+#if !UE_BUILD_SHIPPING
+
+namespace HollowUIDevConsole
+{
+	APlayerController* LocalPlayer(UWorld* World)
+	{
+		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		return GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+	}
+
+	/** Prints this machine's UI: layers, input mode and device, visor bars, prompt, tool target, menu focus. */
+	void Dump(UWorld* World)
+	{
+		APlayerController* Player = LocalPlayer(World);
+		const AHollowHUD* HUD = AHollowHUD::Get(Player);
+		const UHollowPrimaryLayout* Layout = HUD ? HUD->GetPrimaryLayout() : nullptr;
+		const UHollowVisorContext* Context = HUD ? HUD->GetVisorContext() : nullptr;
+		if (!Layout || !Context)
+		{
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: no Hollow UI on this machine."));
+			return;
+		}
+		const FGameplayTag LayerTags[] = {HollowUITags::UI_Layer_Game, HollowUITags::UI_Layer_GameMenu, HollowUITags::UI_Layer_Menu, HollowUITags::UI_Layer_Modal};
+		for (const FGameplayTag& Tag : LayerTags)
+		{
+			const UCommonActivatableWidgetContainerBase* Layer = Layout->GetLayer(Tag);
+			const UCommonActivatableWidget* Active = Layer ? Layer->GetActiveWidget() : nullptr;
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: layer %s: %d widget(s), active %s (activated %d)"), *Tag.ToString(),
+				Layer ? Layer->GetNumWidgets() : 0, *GetNameSafe(Active), Active ? Active->IsActivated() : 0);
+		}
+		const UCommonUIActionRouterBase* Router = ULocalPlayer::GetSubsystem<UCommonUIActionRouterBase>(Player->GetLocalPlayer());
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: input mode %s, device %s, view %s"), Router ? *HollowEnumToString(Router->GetActiveInputMode()) : TEXT("?"),
+			*HollowEnumToString(Context->GetInputType()), *Player->GetControlRotation().ToCompactString());
+		if (const APawn* Pawn = Player->GetPawn())
+		{
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: pawn at %s"), *Pawn->GetActorLocation().ToCompactString());
+		}
+
+		const UCommonActivatableWidgetContainerBase* GameLayer = Layout->GetLayer(HollowUITags::UI_Layer_Game);
+		const UUserWidget* Visor = GameLayer ? GameLayer->GetActiveWidget() : nullptr;
+		if (Visor && Visor->WidgetTree)
+		{
+			Visor->WidgetTree->ForEachWidget([](UWidget* Widget)
+			{
+				if (const UHollowStatBarWidget* Bar = Cast<UHollowStatBarWidget>(Widget))
+				{
+					UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: bar %s %.1f / %.1f alert %d"), *Bar->GetLabel().ToString(), Bar->GetValue(), Bar->GetMax(), Bar->IsAlert());
+				}
+			});
+		}
+		const UHollowPromptModel* Prompt = Context->GetPrompt();
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: prompt %d [%s] %s (%s)"), Prompt->IsVisible(), *Prompt->GetKeyLabel().ToString(),
+			*Prompt->GetPrompt().ToString(), *GetNameSafe(Prompt->GetFocus()));
+		const UHollowToolTargetModel* Target = Context->GetToolTarget();
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: target %d %s %.3f marker %.2f (%s)"), Target->IsVisible(), *Target->GetActionLabel().ToString(),
+			Target->GetStatus().Value, Target->GetStatus().Marker, *GetNameSafe(Target->GetTarget()));
+
+		const UCommonActivatableWidgetContainerBase* MenuLayer = Layout->GetLayer(HollowUITags::UI_Layer_Menu);
+		const UCommonActivatableWidget* Menu = MenuLayer ? MenuLayer->GetActiveWidget() : nullptr;
+		const UWidget* Focus = Menu ? Menu->GetDesiredFocusTarget() : nullptr;
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: menu %s, focus target %s has focus %d"), *GetNameSafe(Menu), *GetNameSafe(Focus),
+			Focus ? (Focus->HasUserFocus(Player) || Focus->HasUserFocusedDescendants(Player)) : 0);   // buttons focus their inner SButton
+	}
+
+	/** Usage: Hollow.UI.Menu <Open|Close> */
+	void Menu(const TArray<FString>& Args, UWorld* World)
+	{
+		AHollowHUD* HUD = AHollowHUD::Get(LocalPlayer(World));
+		const UHollowPrimaryLayout* Layout = HUD ? HUD->GetPrimaryLayout() : nullptr;
+		if (!Layout)
+		{
+			UE_LOG(LogHollowUI, Warning, TEXT("Hollow.UI.Menu: no Hollow UI on this machine."));
+			return;
+		}
+		if (Args.Num() > 0 && Args[0].Equals(TEXT("Close"), ESearchCase::IgnoreCase))
+		{
+			const UCommonActivatableWidgetContainerBase* MenuLayer = Layout->GetLayer(HollowUITags::UI_Layer_Menu);
+			if (UCommonActivatableWidget* Active = MenuLayer ? MenuLayer->GetActiveWidget() : nullptr)
+			{
+				Active->DeactivateWidget();
+			}
+			return;
+		}
+		HUD->OpenSystemMenu();
+	}
+
+	/** Usage: Hollow.UI.InputType <KBM|Gamepad> (what CommonUI would switch to on input from that device). */
+	void InputType(const TArray<FString>& Args, UWorld* World)
+	{
+		const APlayerController* Player = LocalPlayer(World);
+		UCommonInputSubsystem* Input = Player ? UCommonInputSubsystem::Get(Player->GetLocalPlayer()) : nullptr;
+		if (!Input || Args.Num() < 1)
+		{
+			UE_LOG(LogHollowUI, Warning, TEXT("Hollow.UI.InputType <KBM|Gamepad> needs a local player."));
+			return;
+		}
+		Input->SetCurrentInputType(Args[0].Equals(TEXT("Gamepad"), ESearchCase::IgnoreCase) ? ECommonInputType::Gamepad : ECommonInputType::MouseAndKeyboard);
+	}
+
+	/** How long Hollow.UI.PressKey holds a key unless told otherwise (buttons click on release). */
+	constexpr float DefaultHoldSeconds = 0.1f;
+
+	/**
+	 * Presses and releases a key through Slate, like the keyboard or a gamepad would, so CommonUI routes it (actions,
+	 * Back, focus navigation, device switching). Usage: Hollow.UI.PressKey <Key> [HoldSeconds]
+	 */
+	void PressKey(const TArray<FString>& Args, UWorld* World)
+	{
+		const FKey Key = Args.Num() > 0 ? FKey(*Args[0]) : FKey();
+		if (!Key.IsValid() || !FSlateApplication::IsInitialized() || !World)
+		{
+			UE_LOG(LogHollowUI, Warning, TEXT("Hollow.UI.PressKey <Key> [HoldSeconds]: unknown key or no Slate."));
+			return;
+		}
+		const float HoldSeconds = Args.Num() > 1 ? FCString::Atof(*Args[1]) : DefaultHoldSeconds;
+		const FKeyEvent Event(Key, FModifierKeysState(), /*InUserIndex=*/0u, /*bInIsRepeat=*/false, /*InCharacterCode=*/0u, /*InKeyCode=*/0u);
+		const bool bHandled = FSlateApplication::Get().ProcessKeyDownEvent(Event);
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.PressKey %s (handled %d)"), *Key.ToString(), bHandled);
+		FTimerHandle Release;
+		World->GetTimerManager().SetTimer(Release, FTimerDelegate::CreateLambda([Event]
+		{
+			if (FSlateApplication::IsInitialized())
+			{
+				FSlateApplication::Get().ProcessKeyUpEvent(Event);
+			}
+		}), FMath::Max(HoldSeconds, UE_KINDA_SMALL_NUMBER), /*bLoop=*/false);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs PressKeyCommand(
+		TEXT("Hollow.UI.PressKey"),
+		TEXT("Presses and releases a key through Slate (keyboard or gamepad). Usage: Hollow.UI.PressKey <Key> [HoldSeconds]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PressKey));
+
+	FAutoConsoleCommandWithWorld DumpCommand(
+		TEXT("Hollow.UI.Dump"),
+		TEXT("Prints this machine's UI: layers, input mode and device, visor bars, prompt, tool target, menu focus."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&Dump));
+
+	FAutoConsoleCommandWithWorldAndArgs MenuCommand(
+		TEXT("Hollow.UI.Menu"),
+		TEXT("Opens or closes the system menu like Esc / Start and Back would. Usage: Hollow.UI.Menu <Open|Close>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Menu));
+
+	FAutoConsoleCommandWithWorldAndArgs InputTypeCommand(
+		TEXT("Hollow.UI.InputType"),
+		TEXT("Switches the current input device type. Usage: Hollow.UI.InputType <KBM|Gamepad>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&InputType));
+}
+
+#endif // !UE_BUILD_SHIPPING

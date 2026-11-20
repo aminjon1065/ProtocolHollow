@@ -13,17 +13,24 @@ public class HollowUI : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"InputCore",
+			"EnhancedInput",
 			"UMG",
 			"CommonUI",
 			"CommonInput",
+			"GameplayTags",
+			"GameplayAbilities",
+			"DeveloperSettings",
 			"HollowCore",
+			"HollowGAS",
 			"HollowGame"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"HollowPhysics"   // automation tests drive the real door (the visor itself only knows Core interfaces)
 		});
 	}
 }
