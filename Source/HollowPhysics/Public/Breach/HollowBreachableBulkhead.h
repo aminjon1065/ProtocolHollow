@@ -63,6 +63,8 @@ public:
 	// IHollowStructural
 	virtual bool CanTakeStructuralDamage() const override;
 	virtual bool ApplyStructuralDamage(const FHollowStructuralHit& Hit) override;
+	/** Breach until the wall gives way (the nav link opens at the same moment), then Clear. */
+	virtual EHollowPassage GetPassage() const override;
 
 protected:
 	virtual void PostInitializeComponents() override;

@@ -14,6 +14,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Data/HollowBiomeDefinition.h"
 #include "Doors/HollowDoor.h"
+#include "Doors/HollowDoorDefinition.h"
 #include "Doors/HollowDoorStateComponent.h"
 #include "Data/HollowRoomDefinition.h"
 #include "Assembly/HollowSectorAssemblySubsystem.h"
@@ -646,6 +647,40 @@ namespace HollowDevConsole
 	}
 
 	/**
+	 * Host: seals the closed door nearest to the local pawn with a full weld at once, as a welder would in a few seconds
+	 * (S3-04 checks: the Iron Pilgrim breaking a welded door). Usage: Hollow.Dev.WeldNearestDoor
+	 */
+	void WeldNearestDoor(UWorld* World)
+	{
+		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		const APlayerController* Player = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+		const APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+		if (!Pawn || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.WeldNearestDoor runs on the host with a local pawn."));
+			return;
+		}
+		AHollowDoor* Nearest = nullptr;
+		for (TActorIterator<AHollowDoor> It(World); It; ++It)
+		{
+			if (It->GetDoorState()->Accepts(EHollowDoorEvent::Weld)
+				&& (!Nearest || FVector::DistSquared(It->GetActorLocation(), Pawn->GetActorLocation()) < FVector::DistSquared(Nearest->GetActorLocation(), Pawn->GetActorLocation())))
+			{
+				Nearest = *It;
+			}
+		}
+		const UHollowDoorDefinition* Definition = Nearest ? Nearest->GetDoorState()->GetDefinition() : nullptr;
+		if (!Definition || Definition->WeldPerWorkUnit <= 0.f)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.WeldNearestDoor: no closed door to weld."));
+			return;
+		}
+		Nearest->GetDoorState()->ApplyTool(EHollowDoorEvent::Weld, 1.f / Definition->WeldPerWorkUnit);   // exactly a full weld
+		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Dev.WeldNearestDoor: %s %s, weld %.2f"), *Nearest->GetName(),
+			*HollowEnumToString(Nearest->GetDoorState()->GetNetState().State), Nearest->GetDoorState()->GetWeld());
+	}
+
+	/**
 	 * Host: path for one nav agent with its default filter (S2-05), from the local pawn to the extraction marker; lists
 	 * the doors on it with their link areas. Usage: Hollow.Nav.Path <Standard|Heavy>
 	 */
@@ -821,6 +856,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.Breach"),
 		TEXT("Host: one structural blow from the local pawn to the nearest breakable object; without Amount it breaks the part nearest to the pawn. Usage: Hollow.Dev.Breach [Amount] [FromBehind]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Breach));
+
+	FAutoConsoleCommandWithWorld WeldNearestDoorCommand(
+		TEXT("Hollow.Dev.WeldNearestDoor"),
+		TEXT("Host: fully welds the closed door nearest to the local pawn at once. Usage: Hollow.Dev.WeldNearestDoor"),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&WeldNearestDoor));
 
 	FAutoConsoleCommandWithWorldAndArgs NavPathCommand(
 		TEXT("Hollow.Nav.Path"),

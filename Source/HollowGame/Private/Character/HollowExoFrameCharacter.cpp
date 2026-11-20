@@ -3,6 +3,7 @@
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Camera/CameraComponent.h"
+#include "Character/HollowFootstepNoiseComponent.h"
 #include "Carry/HollowCarrierComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -56,6 +57,7 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 
 	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
 	CarrierComponent = CreateDefaultSubobject<UHollowCarrierComponent>(TEXT("Carrier"));
+	FootstepNoise = CreateDefaultSubobject<UHollowFootstepNoiseComponent>(TEXT("FootstepNoise"));
 }
 
 void AHollowExoFrameCharacter::PostInitializeComponents()

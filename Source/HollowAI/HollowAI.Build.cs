@@ -26,7 +26,7 @@ public class HollowAI : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"GameplayTasks",
-			"MotionWarping"
+			"DeveloperSettings"
 		});
 	}
 }

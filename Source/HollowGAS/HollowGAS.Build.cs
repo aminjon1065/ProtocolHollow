@@ -16,6 +16,7 @@ public class HollowGAS : ModuleRules
 			"GameplayTags",
 			"GameplayTasks",
 			"GameplayAbilities",
+			"DeveloperSettings",
 			"HollowCore"
 		});
 	}

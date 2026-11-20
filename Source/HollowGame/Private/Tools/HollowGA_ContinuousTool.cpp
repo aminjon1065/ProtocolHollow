@@ -8,7 +8,7 @@
 #include "GameplayEffect.h"
 #include "HollowGameLog.h"
 #include "Interfaces/HollowToolTarget.h"
-#include "Perception/AISense_Hearing.h"
+#include "Noise/HollowNoiseSubsystem.h"
 #include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
 #include "Tools/HollowToolTargeting.h"
@@ -149,10 +149,11 @@ void UHollowGA_ContinuousTool::SampleTool()
 		break;
 	}
 
-	if (Tool->NoiseTag.IsValid() && Tool->NoiseEveryNSamples > 0 && SampleCount % Tool->NoiseEveryNSamples == 0)
+	// The torch is loud whether or not it works on something; the noise is the wielder's (the impact point may lie in a
+	// doorway's nav cut, on either side). Its rule limits the rate.
+	if (UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(World); Noise && Tool->NoiseTag.IsValid())
 	{
-		const FVector NoiseLocation = CurrentTarget.IsValid() ? LastImpactPoint : Eyes;
-		UAISense_Hearing::ReportNoiseEvent(World, NoiseLocation, Tool->NoiseLoudness, Pawn, Tool->NoiseRange, Tool->NoiseTag.GetTagName());
+		Noise->ReportNoise(FHollowNoiseEvent(Tool->NoiseTag, Pawn->GetActorLocation(), Pawn));
 	}
 
 	HeatUp();

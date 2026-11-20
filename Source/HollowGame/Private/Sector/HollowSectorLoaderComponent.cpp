@@ -42,12 +42,16 @@ void UHollowSectorLoaderComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 	{
 		State->OnManifestChanged.Remove(ManifestHandle);
 	}
-	if (UHollowSectorAssemblySubsystem* Assembly = GetWorld()->GetSubsystem<UHollowSectorAssemblySubsystem>())
+	// Also reached from garbage collection of a torn-down world (a component's BeginDestroy ends play): the world may be gone.
+	if (UWorld* World = GetWorld())
 	{
-		Assembly->OnAssembled.Remove(AssembledHandle);
-		Assembly->Teardown();
+		if (UHollowSectorAssemblySubsystem* Assembly = World->GetSubsystem<UHollowSectorAssemblySubsystem>())
+		{
+			Assembly->OnAssembled.Remove(AssembledHandle);
+			Assembly->Teardown();
+		}
+		World->GetTimerManager().ClearTimer(RetryTimer);
 	}
-	GetWorld()->GetTimerManager().ClearTimer(RetryTimer);
 	ReleaseSector();
 	Super::EndPlay(EndPlayReason);
 }

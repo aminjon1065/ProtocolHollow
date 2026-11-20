@@ -1,6 +1,6 @@
 using UnrealBuildTool;
 
-/** Editor-only: data validation, content authoring helpers for the Python scripts (widgets, geometry collections). */
+/** Editor-only: data validation, content authoring helpers for the Python scripts (widgets, geometry collections, StateTrees). */
 public class HollowEditor : ModuleRules
 {
 	public HollowEditor(ReadOnlyTargetRules Target) : base(Target)
@@ -18,6 +18,7 @@ public class HollowEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"UnrealEd",
+			"AssetTools",
 			"DataValidation",
 			"Slate",
 			"SlateCore",
@@ -33,7 +34,14 @@ public class HollowEditor : ModuleRules
 			"HollowGAS",
 			"HollowPCG",
 			"HollowPhysics",
-			"HollowGame"
+			"HollowAI",
+			"HollowGame",
+			"GameplayTags",
+			"Json",
+			"StateTreeModule",
+			"StateTreeEditorModule",
+			"PropertyBindingUtils",
+			"GameplayStateTreeModule"
 		});
 	}
 }

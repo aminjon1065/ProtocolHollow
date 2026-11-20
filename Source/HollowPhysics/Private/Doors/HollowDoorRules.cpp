@@ -38,6 +38,21 @@ float HollowDoorRules::ApplyCut(const float Weld, const float WorkUnits, const U
 	return FMath::Clamp(Weld - FMath::Max(WorkUnits, 0.f) * Definition.CutPerWorkUnit, 0.f, 1.f);
 }
 
+FHollowStructuralResult HollowDoorRules::ApplyStructural(const float Weld, const float Structure, const float Damage, const UHollowDoorDefinition& Definition)
+{
+	const float Points = FMath::Max(Damage, 0.f);
+	const float Soaked = FMath::Min(Points, FMath::Max(Weld, 0.f) * Definition.WeldAbsorbFactor);
+	const float Rest = Points - Soaked;
+	FHollowStructuralResult Result;
+	Result.Weld = Definition.WeldAbsorbFactor > 0.f ? FMath::Clamp(Weld - Soaked / Definition.WeldAbsorbFactor, 0.f, 1.f) : FMath::Clamp(Weld, 0.f, 1.f);
+	Result.Structure = Definition.StructureHitPoints > 0.f ? FMath::Clamp(Structure - Rest / Definition.StructureHitPoints, 0.f, 1.f)
+		: (Rest > 0.f ? 0.f : FMath::Clamp(Structure, 0.f, 1.f));
+	// Repeated subtraction leaves float dust: a weld or structure that is practically gone is gone.
+	Result.Weld = Result.Weld <= UE_KINDA_SMALL_NUMBER ? 0.f : Result.Weld;
+	Result.Structure = Result.Structure <= UE_KINDA_SMALL_NUMBER ? 0.f : Result.Structure;
+	return Result;
+}
+
 uint8 HollowDoorRules::Quantize(const float Unit)
 {
 	return static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(Unit, 0.f, 1.f) * HollowDoorRulesPrivate::QuantizeScale));
@@ -100,6 +115,29 @@ EHollowDoorOutcome HollowDoorRules::Apply(FHollowDoorServerState& InOut, const F
 
 	case EHollowDoorEvent::CloseFinished:
 		return State == EHollowDoorState::Closing ? ChangeState(InOut, EHollowDoorState::Closed, Event.ServerTime) : EHollowDoorOutcome::Rejected;
+
+	case EHollowDoorEvent::Structural:
+	{
+		if (State == EHollowDoorState::Breached || Event.Amount <= 0.f)
+		{
+			return EHollowDoorOutcome::Rejected;
+		}
+		// Rows 7-8: the state stays as it is (a dented weld is still a weld) until the structure gives way.
+		const FHollowStructuralResult Result = ApplyStructural(InOut.Weld, InOut.Structure, Event.Amount, Definition);
+		const bool bChanged = Result.Weld != InOut.Weld || Result.Structure != InOut.Structure;
+		InOut.Weld = Result.Weld;
+		InOut.Structure = Result.Structure;
+		InOut.Net.StructureQ = Quantize(InOut.Structure);
+		if (InOut.Structure <= 0.f)
+		{
+			if (Event.bBackwards)
+			{
+				InOut.Net.Flags |= static_cast<uint8>(EHollowDoorFlags::BreachedBackwards);
+			}
+			return ChangeState(InOut, EHollowDoorState::Breached, Event.ServerTime);
+		}
+		return bChanged ? EHollowDoorOutcome::StructureChanged : EHollowDoorOutcome::Unchanged;
+	}
 	}
 	return EHollowDoorOutcome::Rejected;
 }

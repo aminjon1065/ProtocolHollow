@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerStart.h"
 #include "Generation/HollowRandom.h"
 #include "Generation/HollowSectorGenerator.h"
+#include "Generation/HollowSectorGraph.h"
 #include "Generation/HollowSectorTemplates.h"
 #include "HollowGameLog.h"
 #include "Kismet/GameplayStatics.h"
@@ -89,11 +90,15 @@ void UHollowSectorAuthorityComponent::BeginPlay()
 
 void UHollowSectorAuthorityComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UHollowSectorAssemblySubsystem* Assembly = GetWorld()->GetSubsystem<UHollowSectorAssemblySubsystem>())
+	// Also reached from garbage collection of a torn-down world (a component's BeginDestroy ends play): the world may be gone.
+	if (UWorld* World = GetWorld())
 	{
-		Assembly->OnAssembled.Remove(AssembledHandle);
+		if (UHollowSectorAssemblySubsystem* Assembly = World->GetSubsystem<UHollowSectorAssemblySubsystem>())
+		{
+			Assembly->OnAssembled.Remove(AssembledHandle);
+		}
+		World->GetTimerManager().ClearTimer(ReadyTimer);
 	}
-	GetWorld()->GetTimerManager().ClearTimer(ReadyTimer);
 	if (ContentHandle.IsValid())
 	{
 		ContentHandle->CancelHandle();
@@ -271,25 +276,43 @@ void UHollowSectorAuthorityComponent::SpawnSectorActors()
 		SpawnedActors.Add(Actor);
 	};
 
+	// Sockets in manifest order with their room's distance from Spawn; the biome decides which rule spawns where.
+	struct FSocketPlace
+	{
+		const FHollowRoomSocket* Socket = nullptr;
+		FTransform RoomTransform;
+	};
+	const TArray<FIntPoint> Links = HollowSectorGraph::LinkPairs(Layout);
+	const int32 SpawnRoom = HollowSectorAuthorityPrivate::FindRole(Layout, EHollowRoomRole::Spawn);
+	TArray<FSocketPlace> Places;
+	TArray<FHollowSocketSlot> Slots;
 	for (int32 RoomIndex = 0; RoomIndex < Manifest.Rooms.Num(); ++RoomIndex)
 	{
 		const UHollowRoomDefinition* Room = Manifest.Rooms[RoomIndex].Room;
 		const FTransform RoomTransform = HollowSectorManifest::RoomTransform(Layout.Rooms[RoomIndex], FIntPoint(Room->Footprint.X, Room->Footprint.Y), *Metrics, Origin);
+		const int32 Distance = SpawnRoom != INDEX_NONE ? HollowSectorGraph::ShortestPath(Manifest.Rooms.Num(), Links, SpawnRoom, RoomIndex) : INDEX_NONE;
 		for (const FHollowRoomSocket& Socket : Room->Sockets)
 		{
-			const FHollowSocketActorRule* Rule = Biome->FindSocketRule(Socket.SocketType);
-			UClass* Class = Rule ? Rule->ActorClass.Get() : nullptr;
-			if (!Class)
-			{
-				continue;
-			}
-			FTransform Transform = FTransform(Rule->SpawnOffset) * Socket.Transform * RoomTransform;
-			if (Class->IsChildOf<APlayerStart>())
-			{
-				Transform.AddToTranslation(FVector(0.0, 0.0, StartLift));
-			}
-			Spawn(Class, Transform, Socket.SocketType.GetTagName());
+			Places.Add({&Socket, RoomTransform});
+			Slots.Add({Socket.SocketType, Distance});
 		}
+	}
+	const TArray<int32> Assigned = Biome->AssignSocketRules(Slots);
+	for (int32 Slot = 0; Slot < Places.Num(); ++Slot)
+	{
+		const FHollowSocketActorRule* Rule = Biome->SocketActors.IsValidIndex(Assigned[Slot]) ? &Biome->SocketActors[Assigned[Slot]] : nullptr;
+		UClass* Class = Rule ? Rule->ActorClass.Get() : nullptr;
+		if (!Class)
+		{
+			continue;
+		}
+		const FHollowRoomSocket& Socket = *Places[Slot].Socket;
+		FTransform Transform = FTransform(Rule->SpawnOffset) * Socket.Transform * Places[Slot].RoomTransform;
+		if (Class->IsChildOf<APlayerStart>())
+		{
+			Transform.AddToTranslation(FVector(0.0, 0.0, StartLift));
+		}
+		Spawn(Class, Transform, Socket.SocketType.GetTagName());
 	}
 	for (int32 Index = 0; Index < Layout.Connections.Num(); ++Index)
 	{

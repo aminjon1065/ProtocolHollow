@@ -17,6 +17,17 @@ namespace HollowTags
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Interact);
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Carry_Heavy);
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Gadget_PulseMine);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pilgrim_Breach);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pilgrim_Melee);
+
+	// Gameplay events (ability triggers)
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Enemy);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Enemy_Breach);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Enemy_Melee);
+
+	// AI brain (StateTree) events
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Event_Reconsider);
 
 	// States
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_CarryingHeavy);
@@ -90,4 +101,5 @@ namespace HollowTags
 
 	// GameplayCues: the only tags outside Hollow.* (GAS requires the GameplayCue. root, CLAUDE.md sec. 4)
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Tool_Beam);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Enemy_Windup);
 }

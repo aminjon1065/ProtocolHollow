@@ -23,7 +23,17 @@ struct FHollowSealedPlug
 	TSoftObjectPtr<UMaterialInterface> Material;
 };
 
-/** Gameplay actor the server spawns at every room socket of a type. */
+/** Which free sockets a rule limited by MaxPerSector takes. */
+UENUM(BlueprintType)
+enum class EHollowSocketPick : uint8
+{
+	/** The first ones in manifest order. */
+	ManifestOrder,
+	/** Those in rooms the most links away from the Spawn room (manifest order between equals). */
+	FarthestFromSpawn
+};
+
+/** Gameplay actor the server spawns at the room sockets of a type (all of them, or MaxPerSector picked ones). */
 USTRUCT(BlueprintType)
 struct FHollowSocketActorRule
 {
@@ -38,6 +48,21 @@ struct FHollowSocketActorRule
 	/** The actor's pivot relative to the socket (e.g. half the height of a physics body that rests on the floor socket). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly", meta = (Units = "Centimeters"))
 	FVector SpawnOffset = FVector::ZeroVector;
+
+	/** At most this many per sector (0: every socket of the type); the sockets it leaves go to the next rule of the type. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly", meta = (ClampMin = "0"))
+	int32 MaxPerSector = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly", meta = (EditCondition = "MaxPerSector > 0"))
+	EHollowSocketPick Pick = EHollowSocketPick::ManifestOrder;
+};
+
+/** A room socket of a sector, in manifest order, as UHollowBiomeDefinition::AssignSocketRules sees it. */
+struct FHollowSocketSlot
+{
+	FGameplayTag SocketType;
+	/** Links from the Spawn room to the socket's room (INDEX_NONE: no route or no Spawn room). */
+	int32 RoomDistance = INDEX_NONE;
 };
 
 /** Gameplay actor the server spawns in every connection of a kind (door, bulkhead, open frame). */
@@ -82,15 +107,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	FHollowSealedPlug SealedPlug;
 
-	/** Searched linearly (a handful of entries); a socket type without a rule spawns nothing. */
+	/** Applied in order (a handful of entries); a socket type without a rule spawns nothing. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	TArray<FHollowSocketActorRule> SocketActors;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly")
 	TArray<FHollowConnectionActorRule> ConnectionActors;
 
-	/** The rule for a socket type, or null. */
-	const FHollowSocketActorRule* FindSocketRule(const FGameplayTag& SocketType) const;
+	/**
+	 * Index into SocketActors of the rule that spawns at each slot (INDEX_NONE: nothing). Rules apply in order; each
+	 * takes the free slots of its type, or its MaxPerSector pick of them. Deterministic: arrays and stable sorts only.
+	 */
+	TArray<int32> AssignSocketRules(TConstArrayView<FHollowSocketSlot> Slots) const;
 	/** Class for a connection of Kind; VariantKey (a hash of seed and connection index) picks among the rule's variants. */
 	TSoftClassPtr<AActor> FindConnectionActor(EHollowConnectorKind Kind, uint64 VariantKey = 0) const;
 

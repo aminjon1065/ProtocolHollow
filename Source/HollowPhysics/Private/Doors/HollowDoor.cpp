@@ -3,16 +3,20 @@
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Collision/HollowCollisionChannels.h"
+#include "Destruction/HollowDestructionBudgetSubsystem.h"
 #include "Doors/HollowDoorDefinition.h"
 #include "Doors/HollowDoorStateComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "HollowPhysicsLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Nav/HollowDoorNav.h"
 #include "Nav/HollowNavUpdateSubsystem.h"
+#include "Noise/HollowNoiseSubsystem.h"
 #include "NavAreas/NavArea_Null.h"
 #include "NavLinkCustomComponent.h"
 #include "NavigationSystem.h"
+#include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowDoor)
@@ -71,6 +75,7 @@ void AHollowDoor::BeginPlay()
 {
 	Super::BeginPlay();
 	LeafClosedLocation = Leaf->GetRelativeLocation();
+	LeafCollision = Leaf->GetCollisionEnabled();
 	LeafMaterial = Leaf->CreateDynamicMaterialInstance(0);
 	StateChangedHandle = DoorState->OnStateChanged.AddUObject(this, &ThisClass::HandleStateChanged);
 	UpdateLeaf();
@@ -79,8 +84,13 @@ void AHollowDoor::BeginPlay()
 
 void AHollowDoor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	EndTornLeaf();
 	DoorState->OnStateChanged.Remove(StateChangedHandle);
-	GetWorld()->GetTimerManager().ClearTimer(LeafTimer);
+	// Also reached from garbage collection of a torn-down world (a component's BeginDestroy ends play): the world may be gone.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(LeafTimer);
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -139,11 +149,62 @@ void AHollowDoor::Interact(AActor* Interactor)
 	DoorState->Interact(IsDoorwayClear());
 }
 
+bool AHollowDoor::CanTakeStructuralDamage() const
+{
+	return DoorState->Accepts(EHollowDoorEvent::Structural);
+}
+
+bool AHollowDoor::ApplyStructuralDamage(const FHollowStructuralHit& Hit)
+{
+	FVector Direction = Hit.Direction;
+	if (Direction.IsNearlyZero() && Hit.Instigator.IsValid())
+	{
+		Direction = GetActorLocation() - Hit.Instigator->GetActorLocation();
+	}
+	const bool bBackwards = FVector::DotProduct(Direction, GetActorForwardVector()) < 0.0;
+	const EHollowDoorOutcome Outcome = DoorState->ApplyStructural(Hit.Amount, bBackwards);
+	const bool bChanged = Outcome == EHollowDoorOutcome::StateChanged || Outcome == EHollowDoorOutcome::StructureChanged;
+	if (UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(this); Noise && bChanged)
+	{
+		// The hitter made the noise (ADR-0018): a dent is a heavy impact, the last blow a breach.
+		const bool bBreached = DoorState->GetNetState().State == EHollowDoorState::Breached;
+		Noise->ReportNoise(FHollowNoiseEvent(bBreached ? HollowTags::Noise_Structural_Breach : HollowTags::Noise_Impact_Heavy, GetActorLocation(), Hit.Instigator.Get()));
+	}
+	return bChanged;
+}
+
+EHollowPassage AHollowDoor::GetPassage() const
+{
+	const UHollowDoorDefinition* Definition = DoorState->GetDefinition();
+	const FHollowDoorNetState& State = DoorState->GetNetState();
+	switch (State.State)
+	{
+	case EHollowDoorState::Open:
+	case EHollowDoorState::Breached:
+		return EHollowPassage::Clear;
+	case EHollowDoorState::Opening:
+		// Passable once the leaf has travelled far enough, from server time like everything about the leaf.
+		return Definition && !HollowDoorRules::IsLeafBlocking(State.State, HollowDoorRules::LeafAlpha(State, DoorState->GetServerTime(), *Definition), *Definition)
+			? EHollowPassage::Clear : EHollowPassage::Open;
+	case EHollowDoorState::Closing:
+		return EHollowPassage::Open;   // wait for it to close, then open it
+	case EHollowDoorState::Closed:
+		return State.HasFlag(EHollowDoorFlags::Locked) || State.HasFlag(EHollowDoorFlags::Barricaded) ? EHollowPassage::Breach : EHollowPassage::Open;
+	case EHollowDoorState::Welded:
+		return EHollowPassage::Breach;
+	}
+	return EHollowPassage::Breach;
+}
+
 void AHollowDoor::HandleStateChanged(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, const bool bFresh)
 {
 	if (HasAuthority())
 	{
 		UpdateNavArea();   // the navmesh lives on the server only
+	}
+	if (New.State == EHollowDoorState::Breached && Old.State != EHollowDoorState::Breached && bFresh)
+	{
+		TearLeafOff(New.HasFlag(EHollowDoorFlags::BreachedBackwards));
 	}
 	UpdateWeldColor();
 	UpdateLeaf();
@@ -165,6 +226,10 @@ void AHollowDoor::UpdateLeaf()
 	ShownAlpha = HollowDoorRules::LeafAlpha(State, DoorState->GetServerTime(), *Definition);
 	Leaf->SetRelativeLocation(LeafClosedLocation + LeafOpenOffset * ShownAlpha);
 	Leaf->SetCollisionResponseToChannel(ECC_Pawn, HollowDoorRules::IsLeafBlocking(State.State, ShownAlpha, *Definition) ? ECR_Block : ECR_Ignore);
+	// A breached door has no leaf anywhere (late joiners included): nothing to see, hit or trace against.
+	const bool bHasLeaf = State.State != EHollowDoorState::Breached;
+	Leaf->SetVisibility(bHasLeaf);
+	Leaf->SetCollisionEnabled(bHasLeaf ? LeafCollision.GetValue() : ECollisionEnabled::NoCollision);
 
 	// The leaf settles when the motion ends; the server's state change follows a moment later.
 	const bool bSettled = (State.State == EHollowDoorState::Opening && ShownAlpha >= 1.f) || (State.State == EHollowDoorState::Closing && ShownAlpha <= 0.f)
@@ -202,6 +267,60 @@ void AHollowDoor::UpdateWeldColor()
 {
 	if (LeafMaterial && !WeldColorParameter.IsNone())
 	{
-		LeafMaterial->SetVectorParameterValue(WeldColorParameter, FLinearColor::LerpUsingHSV(ClosedColor, WeldedColor, DoorState->GetWeld()));
+		const FLinearColor Welded = FLinearColor::LerpUsingHSV(ClosedColor, WeldedColor, DoorState->GetWeld());
+		LeafMaterial->SetVectorParameterValue(WeldColorParameter, FLinearColor::LerpUsingHSV(Welded, DamagedColor, 1.f - DoorState->GetStructure()));
+	}
+}
+
+void AHollowDoor::TearLeafOff(const bool bBackwards)
+{
+	// Cosmetic and local (ADR-0002): a copy of the leaf flies off along the blow; the real leaf is already gone.
+	UHollowDestructionBudgetSubsystem* Budget = GetWorld()->GetSubsystem<UHollowDestructionBudgetSubsystem>();
+	const UHollowDoorDefinition* Definition = DoorState->GetDefinition();
+	if (!Budget || !Definition || !Leaf->GetStaticMesh() || TornLeaf)
+	{
+		return;
+	}
+	TornLeafHandle = Budget->BeginLive(/*Bodies=*/1, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleTornLeafExpired));
+	if (TornLeafHandle == INDEX_NONE)
+	{
+		return;   // over budget: the leaf just disappears
+	}
+	TornLeaf = NewObject<UStaticMeshComponent>(this, TEXT("TornLeaf"), RF_Transient);
+	TornLeaf->SetMobility(EComponentMobility::Movable);   // a static component refuses a mesh in a begun world
+	TornLeaf->SetStaticMesh(Leaf->GetStaticMesh());
+	for (int32 Index = 0; Index < Leaf->GetNumMaterials(); ++Index)
+	{
+		TornLeaf->SetMaterial(Index, Leaf->GetMaterial(Index));
+	}
+	TornLeaf->SetCanEverAffectNavigation(false);
+	TornLeaf->SetCollisionProfileName(HollowCollision::DebrisProfile());
+	TornLeaf->SetWorldTransform(Leaf->GetComponentTransform());   // called before the leaf is hidden: it is still where it stood
+	TornLeaf->RegisterComponent();
+	TornLeaf->SetSimulatePhysics(true);
+	TornLeaf->SetPhysicsLinearVelocity(GetActorForwardVector() * (bBackwards ? -Definition->TornLeafSpeed : Definition->TornLeafSpeed));
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: leaf torn off %s (cosmetic)"), *GetName(), bBackwards ? TEXT("backwards") : TEXT("forwards"));
+}
+
+void AHollowDoor::HandleTornLeafExpired()
+{
+	EndTornLeaf();
+}
+
+void AHollowDoor::EndTornLeaf()
+{
+	if (TornLeaf)
+	{
+		TornLeaf->DestroyComponent();
+		TornLeaf = nullptr;
+	}
+	if (TornLeafHandle != INDEX_NONE)
+	{
+		const UWorld* World = GetWorld();
+		if (UHollowDestructionBudgetSubsystem* Budget = World ? World->GetSubsystem<UHollowDestructionBudgetSubsystem>() : nullptr)
+		{
+			Budget->EndLive(TornLeafHandle);
+		}
+		TornLeafHandle = INDEX_NONE;
 	}
 }

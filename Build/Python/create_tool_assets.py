@@ -46,19 +46,19 @@ TOOLS = {
     "Welder": {
         "dir": "/Game/Hollow/Tools/Welder", "asset": "Welder", "tag": "Hollow.Ability.Tool.Welder", "input": "Hollow.Input.SecondaryUse",
         "work_rate": 10.0, "fuel_per_second": 4.0, "heat_per_sample": 1.5,
-        "noise_tag": "Hollow.Noise.Tool.Welder", "noise_loudness": 1.0, "noise_range": 1500.0,
+        "noise_tag": "Hollow.Noise.Tool.Welder",
         "beam_color": unreal.LinearColor(1.0, 0.55, 0.15, 1.0), "beam_width": 2.0,
     },
     "PlasmaCutter": {
         "dir": "/Game/Hollow/Tools/PlasmaCutter", "asset": "PlasmaCutter", "tag": "Hollow.Ability.Tool.PlasmaCutter", "input": "Hollow.Input.PrimaryUse",
         "work_rate": 10.0, "fuel_per_second": 5.0, "heat_per_sample": 2.0,
-        "noise_tag": "Hollow.Noise.Tool.Cutter", "noise_loudness": 1.2, "noise_range": 2000.0,
+        "noise_tag": "Hollow.Noise.Tool.Cutter",
         "beam_color": unreal.LinearColor(0.25, 0.6, 1.0, 1.0), "beam_width": 3.0,
     },
 }
 COMMON_TOOL = {
     "sample_rate_hz": 10.0, "range": 250.0, "hit_tolerance_radius": 10.0,
-    "sticky_angle_degrees": 15.0, "sticky_grace_seconds": 0.3, "min_fuel_to_start": 1.0, "noise_every_n_samples": 5,
+    "sticky_angle_degrees": 15.0, "sticky_grace_seconds": 0.3, "min_fuel_to_start": 1.0,
 }
 
 # Beam cue (greybox)
@@ -233,7 +233,7 @@ def ensure_tool(spec, effects):
         definition.set_editor_property("tool_tag", make_tag(spec["tag"]))
         for key, value in COMMON_TOOL.items():
             definition.set_editor_property(key, value)
-        for key in ("work_rate", "fuel_per_second", "heat_per_sample", "noise_loudness", "noise_range", "beam_color", "beam_width"):
+        for key in ("work_rate", "fuel_per_second", "heat_per_sample", "beam_color", "beam_width"):
             definition.set_editor_property(key, spec[key])
         definition.set_editor_property("noise_tag", make_tag(spec["noise_tag"]))
         definition.set_editor_property("fuel_drain_effect", effects["fuel"])

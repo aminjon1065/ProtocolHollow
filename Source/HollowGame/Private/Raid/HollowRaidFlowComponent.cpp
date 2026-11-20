@@ -51,8 +51,12 @@ void UHollowRaidFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		Sector->OnSectorReadyChanged.Remove(ReadyHandle);
 	}
-	GetWorld()->GetTimerManager().ClearTimer(PhaseTimer);
-	GetWorld()->GetTimerManager().ClearTimer(PollTimer);
+	// Also reached from garbage collection of a torn-down world (a component's BeginDestroy ends play): the world may be gone.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PhaseTimer);
+		World->GetTimerManager().ClearTimer(PollTimer);
+	}
 	Super::EndPlay(EndPlayReason);
 }
 

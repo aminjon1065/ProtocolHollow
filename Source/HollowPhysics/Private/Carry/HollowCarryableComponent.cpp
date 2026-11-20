@@ -11,6 +11,8 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HollowPhysicsLog.h"
+#include "Noise/HollowNoiseSubsystem.h"
+#include "Tags/HollowGameplayTags.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -153,6 +155,7 @@ bool UHollowCarryableComponent::Release(const FVector& Velocity, const bool bFor
 	}
 	const FVector Location = DropLocation ? DropLocation.GetValue() : GetCarrierCentre(*Carrier);
 	const FString CarrierName = GetNameSafe(Carrier);
+	APawn* DroppedBy = CarryState.Primary.Get();   // the carry state below forgets the carrier
 	Owner->SetNetDormancy(DORM_Awake);
 	Owner->SetNetUpdateFrequency(Definition->AwakeNetUpdateFrequency);
 
@@ -169,6 +172,11 @@ bool UHollowCarryableComponent::Release(const FVector& Velocity, const bool bFor
 	Owner->GetWorldTimerManager().SetTimer(MaxAwakeTimer, this, &ThisClass::ForceSleep, Definition->MaxAwakeSeconds, /*bLoop=*/false);
 	UE_LOG(LogHollowPhysics, Log, TEXT("%s: dropped by %s at %s, velocity %s (serial %d)"), *GetNameSafe(Owner), *CarrierName,
 		*Owner->GetActorLocation().ToCompactString(), *Velocity.ToCompactString(), CarryState.TransitionSerial);
+	// A heavy core hitting the deck (ADR-0018): the carrier made the noise.
+	if (UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(this))
+	{
+		Noise->ReportNoise(FHollowNoiseEvent(HollowTags::Noise_Core_Drop, Location, DroppedBy));
+	}
 	return true;
 }
 

@@ -57,7 +57,7 @@
 - **Чужие клиенты** видят активную кьюшку и сами трейсят из `GetBaseAimRotation()` simulated proxy. Точку попадания реплицировать не нужно.
 - **Топливо и нагрев:** на активации навешивается бесконечный периодический `GE_Tool_FuelDrain` (Period 0.25 с, величина через SetByCaller `Hollow.Data.FuelCost`), на `EndAbility` он снимается. `ToolHeat` растёт с каждым сэмплом. При `ToolHeat ≥ MaxToolHeat` срабатывает `PostGameplayEffectExecute` и вешает `GE_Tool_Overheat`, который даёт тег `Hollow.State.Tool.Overheated` и блокирует активацию. Способность сама завершается по делегату изменения `ToolFuel` ≤ 0.
 - *Реализация S2-03:* все числа в `UHollowToolDefinition` (`DA_Tool_Welder`, `DA_Tool_PlasmaCutter`, тип `HollowTool`, модуль GAS). Перегрев проверяет **способность** сразу после сэмпла нагрева (`GE_Tool_Overheat` с нативной базой `UHollowToolOverheatEffect`, выдающей тег), а не `PostGameplayEffectExecute`: способность — единственный источник нагрева, и набору атрибутов не нужно знать классы GE. Остывание — пассивный периодический `GE_Tool_Cooling` из AbilitySet. Ввод: `UHollowAbilitySystemComponent::AbilityInputTagPressed/Released` по тегу `Hollow.Input.*` (Cutter — ЛКМ/RT, Welder — ПКМ/LT). Проверено двумя процессами с `-PktLag=150`: 52 сэмпла за 5,1 с, максимальный разрыв 0,100 с.
-- **Шум:** каждые `NoiseEveryNSamples` сервер вызывает `ReportNoise({Hollow.Noise.Tool.Welder, Location, Instigator})`. Громкость и радиус задаются в `UHollowNoiseConfig` (§3.8).
+- **Шум:** каждый серверный сэмпл вызывает `ReportNoise({ToolDef->NoiseTag, Location, Instigator})`. Громкость, радиус и частота задаются в `UHollowNoiseConfig` (§3.8). *S3-05:* шум звучит у игрока, а не в точке удара; интервал режет правило (0,5 с). Поля `NoiseLoudness`, `NoiseRange` и `NoiseEveryNSamples` у инструмента удалены ([ADR-0018](../ADR/ADR-0018-noise-to-ai.md)).
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +135,14 @@ struct FHollowDoorNetState
 
 ### Реализация S2-04
 - `HollowPhysics/Doors`: `FHollowDoorNetState` со своим `NetSerialize` (состояние и флаги в одном байте, всего 8 байт, атомарно), `UHollowDoorDefinition` (`DA_Door_Standard`), чистые `HollowDoorRules` (вся таблица в `Apply`, `Accepts` = пробный прогон, `LeafAlpha`, `IsFreshTransition`), `UHollowDoorStateComponent`, `AHollowDoor` (`BP_Door`, правило биома Door → `BP_Door`).
-- Реализованы строки 1–6 таблицы. Структурный урон и `Breached` (7–8) — с `IHollowStructural` в S3, замок-шов (9) — S2-07, убывающая отдача нескольких сварщиков — кооп-полировка S3. `StructureQ` уже в формате (всегда 255).
+- Реализованы строки 1–6 таблицы. Структурный урон и `Breached` (7–8) — с `IHollowStructural` в S3-04 (ниже), замок-шов (9) — S2-07, убывающая отдача нескольких сварщиков — кооп-полировка S3.
+
+### Реализация S3-04 (строки 7–8, [ADR-0017](../ADR/ADR-0017-iron-pilgrim-brain-breach-damage.md))
+- `HollowDoorRules::ApplyStructural`: удар сначала тратит шов (`Weld × WeldAbsorbFactor`), остаток — `Structure` (`StructureHitPoints`). Состояние не меняется до `Structure = 0`, тогда `Breached` (терминальное). `StructureQ` теперь реален; удар рассылается сразу (`StructureChanged`), без троттлинга шва.
+- Направление пролома — флаг `BreachedBackwards` (байт флагов, 4 флага над 3 битами состояния).
+- `AHollowDoor` реализует `IHollowStructural`: `GetPassage()` — `Clear` (Open, Breached, проходимая створка), `Open` (Closed без замка, Closing, ещё не проходимое Opening), `Breach` (Welded, Locked, Barricaded).
+- `Breached`: створка скрыта и без коллизии на всех машинах (и при late-join); свежий переход бросает косметическую копию створки вдоль удара (`TornLeafSpeed`, бюджет `UHollowDestructionBudgetSubsystem`, канал HollowDebris). Тон створки темнеет к `DamagedColor` по мере потери структуры.
+- `DA_Door_Standard`: шов 600, структура 300 → полностью заваренная дверь ломается за 8 ударов Пилигрима по 120.
 - Частичный шов ниже `SealThreshold`: дверь остаётся Closed и открывается, открытие сбрасывает шов; резак его тоже снимает. Во время Opening/Closing взаимодействие игнорируется.
 - Створка: `InterpEaseInOut` с экспонентой из DA вместо `OpenCurve` (то же поведение, проще данные и тесты); по таймеру только во время перехода, на NavMesh не влияет (nav — S2-05).
 - Занятость проёма — явный запрос пересечения формы проёма с pawn'ами в момент решения, а не учёт overlap-событий.
@@ -331,6 +338,8 @@ struct FHollowCarryNetState
 | `Standard` | Шептуны, Эхо-Хищник | 45 | 220 |
 | `Heavy` | Железный Пилигрим | 80 | 280 |
 
+*S3-04:* `DefaultQueryExtent` X/Y — 100 (Standard) и 150 (Heavy): из середины проёма (вырез 40 + радиус агента) враг находит навмеш и уходит.
+
 - Стартовые значения для тюнинга: `CellSize 15`, `TileSizeUU 1600`. Navigation Invokers не используем, сектор маленький и строится целиком.
 
 ### Двери: «Null-полоса + nav-link» (смена состояния за O(1), без пересборки тайлов)
@@ -346,7 +355,10 @@ struct FHollowCarryNetState
 | Barricaded | `UHollowNavArea_DoorBarricaded` | ❌ | ✅ cost × 8 |
 
 - Фильтры — это `UNavigationQueryFilter` (`TravelCostOverride` и `bIsExcluded` по area). Цены живут в BP-наследниках `NAV_`, **тюнинг без пересборки C++**.
-- Когда ИИ доходит до связи (`SetMoveReachedLink`), Пилигрим запускает задачу StateTree `BreachObstacle` → `GA_PilgrimBreach` (монтаж + MotionWarping к якорю двери) → на anim notify сервер вызывает `IHollowStructural::ApplyStructuralDamage`.
+- Когда ИИ доходит до связи, Пилигрим ломает дверь. *Реализация S3-04* ([ADR-0017](../ADR/ADR-0017-iron-pilgrim-brain-breach-damage.md)):
+  - `UHollowPathFollowingComponent::StartUsingCustomLink`: владелец связи — `IHollowStructural` с `GetPassage() != Clear` → контроллер стоит, состояние StateTree `Breach`;
+  - `Open` — открыть (`IHollowInteractable`) и ждать, `Breach` — `GA_PilgrimBreach` (замах по данным, без монтажа и MotionWarping до арта) → `ApplyStructuralDamage`;
+  - после пролома путь запрашивается заново и идёт через ту же связь, теперь `Doorway`.
 - **Инвалидация путей:** `UHollowNavUpdateSubsystem` рассылает `OnDoorNavChanged(Door, LinkId, Old, New)` и сам вызывает `Invalidate()` у путей, которые ИИ зарегистрировал через `WatchPath` и которые проходят через эту связь (`FNavPathPoint::CustomNavLinkId`). Путь перепрокладывается со своим запросом и фильтром (auto-update on invalidation).
 
 ### Переборки
@@ -397,6 +409,11 @@ struct FHollowNoiseEvent
 //   → UAISense_Hearing::ReportNoiseEvent(World, Location, Loudness, Instigator, MaxRange, NoiseTag.GetTagName())
 //   → OnNoiseReported.Broadcast(Event)   // Heatmap, Director
 ```
+
+*Реализация S3-05* ([ADR-0018](../ADR/ADR-0018-noise-to-ai.md)):
+- `UHollowNoiseSubsystem` (Core) и `UHollowNoiseConfig` (`DA_NoiseConfig`, выбор в `UHollowNoiseSettings`). Правило — `{NoiseTag, Loudness, MaxRange, MinInterval}`; интервал считается на пару «инициатор + тег». Кривая Резонанса — с Хищником (S4-01).
+- Источники: инструменты (у игрока), шаги (`UHollowFootstepNoiseComponent`, таймер, громкость пропорциональна скорости), сброс ядра, удары `Impact.Heavy` и проломы `Structural.Breach` у дверей и переборок.
+- Враги слышат только шум живых игроков; шум самих врагов уходит лишь в `OnNoiseReported`. Окклюзии нет (S4-04).
 
 **Голос** (backend-агностично) 🔶 [ADR-0006](../ADR/ADR-0006-online-stack-steam.md):
 - Сам звук идёт через движковый VOIP поверх игрового соединения. `UVOIPTalker` на каждого игрока, `FVoiceSettings` с аттенюацией, окклюзией и цепочкой эффектов «шлем/рация».
@@ -456,6 +473,13 @@ struct FHollowNoiseEvent
 | `Hollow.PCG.Sector.Assembly` | мир | *(S3-02)* сборка в «начатом» мире; капсула pawn'а не проходит ни через одну заглушку Sealed |
 | `Hollow.Economy.Resolver.{ExtractionKeepsEverything, DeathKeepsOnlyInsured, SignalLost}` | Simple | исходы ADR-0016: лоадаут, страховка (нестрахуемое не застраховать), продажа ядер, кредиты не трогаются (S3-03) |
 | `Hollow.Economy.Profile.Escrow` | Simple | маркер и снимок, чужой RaidId игнорируется, новый рейд закрывает висящий как Abandoned, SignalLost, SaveGame туда-обратно и «вылет» (S3-03) |
+| `Hollow.Physics.Door.{Structural, BreachActor}` | Simple / мир | строки 7–8: шов, затем структура, `Breached` конечное, число ударов; `BP_Door`: проходимость по состояниям, створка скрыта, сорванная копия летит вдоль удара (S3-04) |
+| `Hollow.GAS.Damage.{Math, Execution}` | Simple / ASC | броня `K/(K+Armor)`, иммунитет, тип без брони, ноль на отрицательном; настоящий GE через execution, однократный `OnOutOfHealth` (S3-04) |
+| `Hollow.PCG.Biome.SocketRules` | Simple | `MaxPerSector` + `FarthestFromSpawn`: один Пилигрим в дальнем сокете, остальные — следующему правилу, детерминированно (S3-04) |
+| `Hollow.Game.Pilgrim.{Melee, BreachDoor, Brain}` | мир + навмеш | удар после телеграфа только по живым игрокам спереди, урон через execution; заваренная дверь: остановка на связи → удары → `Breached` → проход → удар; приоритеты дерева и остановка мозга при смерти (S3-04) |
+| `Hollow.Core.Noise.{Subsystem, FootstepScale}` | мир / Simple | правило тега → громкость × множитель и предел, интервал на инициатора и тег, неизвестный тег отклоняется, рабочий `DA_NoiseConfig` покрывает все шумы игры; громкость шагов по скорости (S3-05) |
+| `Hollow.Game.Noise.Sources` | мир | шаги (ходьба, спринт громче, стоя, вприсядку, в падении и мёртвым — тихо), настоящая сварка у игрока раз в интервал, сброс ядра, удары и пролом двери — с тегом, местом и инициатором (S3-05) |
+| `Hollow.Game.Pilgrim.HearsWelding` | мир + навмеш + перцепция | критерий S3-05: Пилигрим за сплошной стеной не реагирует на тишину; на настоящую сварку — расследование у сварщика, обход стены, сварщик найден (S3-05) |
 | `Hollow.Game.Raid.{Rules, ExtractionZone, Death}` | Simple / мир | таймер отлёта (старт, сброс, ноль), исходы при отлёте; зона видит игроков и свободные и несомые ядра; урон через GE → Dead, тег, ядро упало (S3-03) |
 | `Hollow.Physics.Carry.Tether` | Simple | математика тетера и порог разрыва |
 | `Hollow.Physics.Nav.DoorFilters` | Functional (тест-карта) | `FindPathSync` для фильтров Standard и Heavy по каждому состоянию двери |

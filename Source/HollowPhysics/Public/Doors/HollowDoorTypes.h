@@ -6,7 +6,7 @@
 
 class UPackageMap;
 
-/** Door states (Docs/Architecture/03 sec. 3.3). Breached is terminal (structural damage, S3). */
+/** Door states (Docs/Architecture/03 sec. 3.3). Breached is terminal (structural damage, S3-04). */
 UENUM(BlueprintType)
 enum class EHollowDoorState : uint8
 {
@@ -24,7 +24,9 @@ enum class EHollowDoorFlags : uint8
 	None = 0 UMETA(Hidden),
 	Powered = 1 << 0,
 	Locked = 1 << 1,
-	Barricaded = 1 << 2
+	Barricaded = 1 << 2,
+	/** Set with Breached: the breaking blow travelled against the door's forward axis (where the torn leaf flies). */
+	BreachedBackwards = 1 << 3
 };
 ENUM_CLASS_FLAGS(EHollowDoorFlags);
 
@@ -48,7 +50,7 @@ struct HOLLOWPHYSICS_API FHollowDoorNetState
 	UPROPERTY(BlueprintReadOnly, Category = "Door")
 	uint8 WeldQ = 0;
 
-	/** Structure [0..1] quantized; full until structural damage arrives (S3). */
+	/** Structure [0..1] quantized; structural damage lowers it once the weld is spent, Breached at 0. */
 	UPROPERTY(BlueprintReadOnly, Category = "Door")
 	uint8 StructureQ = TNumericLimits<uint8>::Max();
 

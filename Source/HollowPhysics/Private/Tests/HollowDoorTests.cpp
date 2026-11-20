@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Collision/HollowCollisionChannels.h"
 #include "Components/StaticMeshComponent.h"
 #include "Doors/HollowDoor.h"
 #include "Doors/HollowDoorDefinition.h"
@@ -31,6 +32,9 @@ namespace HollowDoorTests
 	constexpr float TickSeconds = 1.f / 60.f;
 	constexpr float WorkPerSample = 1.f;   // a tool at 10 work units/s sampled at 10 Hz
 	constexpr double PawnHeight = 100.0;   // capsule centre of a pawn standing in the doorway
+	constexpr float StructurePoints = 300.f;
+	constexpr float WeldAbsorb = 600.f;
+	constexpr float Blow = 120.f;
 
 	UHollowDoorDefinition* MakeDefinition()
 	{
@@ -45,6 +49,8 @@ namespace HollowDoorTests
 		Definition->PassableFraction = Passable;
 		Definition->TransitionReplayWindow = ReplayWindow;
 		Definition->WeldSendInterval = SendInterval;
+		Definition->StructureHitPoints = StructurePoints;
+		Definition->WeldAbsorbFactor = WeldAbsorb;
 		return Definition;
 	}
 
@@ -196,7 +202,8 @@ bool FHollowDoorNetStateRoundTripTest::RunTest(const FString& Parameters)
 	for (const EHollowDoorState State : {EHollowDoorState::Open, EHollowDoorState::Opening, EHollowDoorState::Closing, EHollowDoorState::Closed,
 		EHollowDoorState::Welded, EHollowDoorState::Breached})
 	{
-		for (const uint8 Flags : {uint8(0), uint8(EHollowDoorFlags::Powered), uint8(EHollowDoorFlags::Powered | EHollowDoorFlags::Locked | EHollowDoorFlags::Barricaded)})
+		for (const uint8 Flags : {uint8(0), uint8(EHollowDoorFlags::Powered),
+			uint8(EHollowDoorFlags::Powered | EHollowDoorFlags::Locked | EHollowDoorFlags::Barricaded | EHollowDoorFlags::BreachedBackwards)})
 		{
 			for (const uint8 Edge : {uint8(0), uint8(1), uint8(127), uint8(254), uint8(255)})
 			{
@@ -248,6 +255,117 @@ bool FHollowDoorNetStateRoundTripTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A recent transition is played"), HollowDoorRules::IsFreshTransition(Old, New, 50.0 + ReplayWindow * 0.5, *Def));
 	TestFalse(TEXT("An old one snaps (late join, regained relevancy)"), HollowDoorRules::IsFreshTransition(Old, New, 50.0 + ReplayWindow * 2.0, *Def));
 	TestFalse(TEXT("A weld-only update is no transition"), HollowDoorRules::IsFreshTransition(Old, Old, 0.0, *Def));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowDoorStructuralTest, "Hollow.Physics.Door.Structural",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowDoorStructuralTest::RunTest(const FString& Parameters)
+{
+	// Rows 7-8 (Docs/Architecture/03 sec. 3.3): the weld soaks Weld x WeldAbsorbFactor first, then the structure;
+	// the state stays until the structure is gone, then Breached is final.
+	using namespace HollowDoorTests;
+	using EState = EHollowDoorState;
+	using EOutcome = EHollowDoorOutcome;
+	const UHollowDoorDefinition* Def = MakeDefinition();
+
+	FHollowStructuralResult R = HollowDoorRules::ApplyStructural(1.f, 1.f, Blow, *Def);
+	TestTrue(TEXT("A full weld soaks the blow"), FMath::IsNearlyEqual(R.Weld, 1.f - Blow / WeldAbsorb) && R.Structure == 1.f);
+	R = HollowDoorRules::ApplyStructural(0.1f, 1.f, Blow, *Def);
+	TestTrue(TEXT("What the weld cannot soak goes to the structure"), R.Weld == 0.f && FMath::IsNearlyEqual(R.Structure, 1.f - (Blow - 0.1f * WeldAbsorb) / StructurePoints));
+	R = HollowDoorRules::ApplyStructural(0.f, 0.1f, Blow * 10.f, *Def);
+	TestTrue(TEXT("Clamped at 0"), R.Weld == 0.f && R.Structure == 0.f);
+	R = HollowDoorRules::ApplyStructural(0.5f, 0.5f, -Blow, *Def);
+	TestTrue(TEXT("A negative blow heals nothing"), R.Weld == 0.5f && R.Structure == 0.5f);
+
+	// A fully welded door: ceil((WeldAbsorbFactor + StructureHitPoints) / Blow) blows, still welded until the last.
+	FHollowDoorServerState D = Door(EState::Welded, 1.f);
+	FHollowDoorEvent Hit = Event(EHollowDoorEvent::Structural, Blow);
+	Hit.bBackwards = true;
+	int32 Blows = 0;
+	EOutcome Outcome = EOutcome::Unchanged;
+	while (D.Net.State == EState::Welded && Blows < 100)
+	{
+		Outcome = HollowDoorRules::Apply(D, Hit, *Def);
+		++Blows;
+		if (D.Net.State == EState::Welded)
+		{
+			TestTrue(TEXT("Every blow before the last is a structure change"), Outcome == EOutcome::StructureChanged);
+		}
+	}
+	TestEqual(TEXT("Blows to breach a full weld"), Blows, FMath::CeilToInt((WeldAbsorb + StructurePoints) / Blow));
+	TestTrue(TEXT("The last blow breaches"), Outcome == EOutcome::StateChanged && D.Net.State == EState::Breached && D.Structure == 0.f && D.Net.StructureQ == 0);
+	TestTrue(TEXT("The blow's direction is kept for the torn leaf"), D.Net.HasFlag(EHollowDoorFlags::BreachedBackwards));
+	TestTrue(TEXT("Breached takes no more blows"), HollowDoorRules::Apply(D, Hit, *Def) == EOutcome::Rejected);
+
+	// A bare closed door goes faster, open ones too; StructureQ follows the exact structure.
+	D = Door(EState::Closed);
+	TestTrue(TEXT("A bare door dents"), HollowDoorRules::Apply(D, Event(EHollowDoorEvent::Structural, Blow), *Def) == EOutcome::StructureChanged
+		&& D.Net.State == EState::Closed && D.Net.StructureQ == HollowDoorRules::Quantize(1.f - Blow / StructurePoints));
+	TestTrue(TEXT("A dented door still opens"), HollowDoorRules::Accepts(D, Event(EHollowDoorEvent::Interact), *Def));
+	D = Door(EState::Open);
+	TestTrue(TEXT("An open door breaks too"), HollowDoorRules::Apply(D, Event(EHollowDoorEvent::Structural, StructurePoints), *Def) == EOutcome::StateChanged
+		&& D.Net.State == EState::Breached && !D.Net.HasFlag(EHollowDoorFlags::BreachedBackwards));
+	D = Door(EState::Closed);
+	TestTrue(TEXT("A zero blow is refused"), HollowDoorRules::Apply(D, Event(EHollowDoorEvent::Structural, 0.f), *Def) == EOutcome::Rejected);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowDoorBreachActorTest, "Hollow.Physics.Door.BreachActor",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowDoorBreachActorTest::RunTest(const FString& Parameters)
+{
+	// The real BP_Door as an IHollowStructural: what an enemy sees (GetPassage) per state, blows from behind, the leaf
+	// gone everywhere once breached and a cosmetic copy thrown along the blow.
+	using namespace HollowDoorTests;
+	FTestWorldWrapper TestWorld;
+	const TSubclassOf<AHollowDoor> Class = LoadClass<AHollowDoor>(nullptr, DoorClass);
+	if (!TestNotNull(TEXT("BP_Door"), Class.Get()) || !TestWorld.CreateTestWorld(EWorldType::Game))
+	{
+		TestWorld.ForwardErrorMessages(this);
+		return false;
+	}
+	UWorld* World = TestWorld.GetTestWorld();
+	World->InitializeActorsForPlay(FURL());
+	AHollowDoor* Door = World->SpawnActor<AHollowDoor>(Class, FTransform::Identity);
+	Door->DispatchBeginPlay();
+	UHollowDoorStateComponent* State = Door->GetDoorState();
+	const UHollowDoorDefinition* Def = State->GetDefinition();
+	if (!TestNotNull(TEXT("Door definition"), Def) || !TestTrue(TEXT("DA_Door_Standard has a structure"), Def->StructureHitPoints > 0.f && Def->WeldAbsorbFactor > 0.f))
+	{
+		return false;
+	}
+	const IHollowStructural* Structural = Door;
+	TestTrue(TEXT("Closed: an enemy opens it"), Structural->GetPassage() == EHollowPassage::Open);
+	State->ApplyTool(EHollowDoorEvent::Weld, 1.f / Def->WeldPerWorkUnit);
+	TestTrue(TEXT("Welded: an enemy has to break it"), State->GetNetState().State == EHollowDoorState::Welded && Structural->GetPassage() == EHollowPassage::Breach);
+
+	// Blows from the far side (+X towards -X) until it gives way.
+	FHollowStructuralHit Hit;
+	Hit.Amount = Blow;
+	Hit.Direction = -Door->GetActorForwardVector();
+	Hit.DamageType = HollowTags::Damage_Structural;
+	int32 Blows = 0;
+	while (Door->CanTakeStructuralDamage() && Blows < 100)
+	{
+		TestTrue(TEXT("Each blow changes the door"), Door->ApplyStructuralDamage(Hit));
+		++Blows;
+	}
+	TestEqual(TEXT("Blows to breach the shipped door"), Blows, FMath::CeilToInt((Def->WeldAbsorbFactor + Def->StructureHitPoints) / Blow));
+	TestTrue(TEXT("Breached: clear for everyone"), State->GetNetState().State == EHollowDoorState::Breached && Structural->GetPassage() == EHollowPassage::Clear);
+	TestTrue(TEXT("Breached backwards"), State->GetNetState().HasFlag(EHollowDoorFlags::BreachedBackwards));
+	TestFalse(TEXT("The leaf is gone"), Door->GetLeaf()->IsVisible());
+	TestTrue(TEXT("...and blocks nothing"), Door->GetLeaf()->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+	const UStaticMeshComponent* Torn = Door->GetTornLeaf();
+	if (TestNotNull(TEXT("A torn leaf flies off"), Torn))
+	{
+		TestTrue(TEXT("It simulates on the debris channel"), Torn->IsSimulatingPhysics() && Torn->GetCollisionObjectType() == HollowCollision::Debris);
+		TestTrue(TEXT("...and never blocks pawns"), Torn->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Ignore);
+		TestTrue(TEXT("It flies along the blow"), FVector::DotProduct(Torn->GetPhysicsLinearVelocity(), Door->GetActorForwardVector()) < 0.0);
+	}
+	TestFalse(TEXT("Nothing more to break"), Door->ApplyStructuralDamage(Hit));
 	return true;
 }
 

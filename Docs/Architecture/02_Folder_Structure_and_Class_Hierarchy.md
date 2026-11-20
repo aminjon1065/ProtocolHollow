@@ -73,13 +73,14 @@ Hollow.State.CarryingHeavy.{Solo, Coop}         Hollow.State.Resonance.{Low, Med
 Hollow.State.{Stunned, Downed, Dead, Tool.Overheated, Invulnerable.Kinetic}
 Hollow.Damage.{Kinetic, Occult, Thermal, Structural}
 Hollow.Noise.{Voice, Footstep, Tool.Cutter, Tool.Welder, Impact.Heavy, Structural.Breach, Core.Drop}
-Hollow.Event.{Door.Welded, Door.Breached, Bulkhead.Breached, Core.PickedUp, Raid.Extracted}
+Hollow.Event.{Door.Welded, Door.Breached, Bulkhead.Breached, Core.PickedUp, Raid.Extracted}   Hollow.Event.Enemy.{Breach, Melee} (S3-04: триггеры атак)
+Hollow.AI.Event.Reconsider                      (S3-04: факты мозга изменились — StateTree выбирает заново)
 Hollow.Input.{Move, Look, PrimaryUse, SecondaryUse, Interact, Sprint, Crouch, Gadget}
 Hollow.Room.Type.{Spawn, Extraction, CoreVault, Hangar, Corridor, Junction, Storage}
 Hollow.Socket.{PlayerSpawn, Loot, CoreSpawn, EnemySpawn, VentNode, Extraction}
 Hollow.Item.Type.{Tool, ToolModule, Consumable, Artifact, AetherCore}
 Hollow.Data.{Damage, ResonanceGain, FuelCost, ToolStat.*}       ← ключи SetByCaller
-GameplayCue.Hollow.{Tool.Beam, Door.WeldSparks, Bulkhead.Breach, Stalker.Presence}
+GameplayCue.Hollow.{Tool.Beam, Door.WeldSparks, Bulkhead.Breach, Stalker.Presence, Enemy.Windup}
 ```
 🔶 **Исключение из правила `Hollow.*`:** GAS ищет GameplayCue только под корнем `GameplayCue.`, поэтому теги кьюшек живут в `GameplayCue.Hollow.*`. Это единственное исключение, его нужно внести в CLAUDE.md §4.
 
@@ -143,10 +144,11 @@ ACharacter
 └─ AHollowCharacterBase : IAbilitySystemInterface, IGameplayTagAssetInterface   [GAS]
    ├─ AHollowExoFrameCharacter                 [Game]  игрок (композиция в §2.3)
    └─ AHollowEnemyCharacter                    [AI]    свой ASC (Minimal), данные из UHollowEnemyDefinition
-      ├─ AHollowWhispererCharacter · AHollowIronPilgrimCharacter · AHollowEchoStalkerCharacter
+      ├─ AHollowWhispererCharacter · AHollowEchoStalkerCharacter   (S3-04: Пилигрим — BP_IronPilgrim, нативного наследника нет)
 
 AAIController
-└─ AHollowAIController                         [AI]    UStateTreeAIComponent, UAIPerceptionComponent, TeamId, NavQueryFilter из DA
+└─ AHollowAIController                         [AI]    UStateTreeAIComponent, UAIPerceptionComponent, NavQueryFilter из DA; S3-04: факты
+                                                        мозга и активности (ADR-0017), UHollowPathFollowingComponent (препятствия на связях)
 ```
 
 Почему GameMode и GameState тонкие: по CLAUDE.md §8 монолиты запрещены. Каждая подсистема рейда — отдельный компонент, у которого есть своя спецификация и свой тест.
@@ -208,16 +210,19 @@ UGameplayAbility
    │                                             а смысл работы (сварка / резка) решает мишень — двери S2-04, швы S2-07
    ├─ UHollowGA_PulseMine   (взаимодействие — UHollowInteractionComponent, не способность; переноска тоже: S3-02 обходится без
    │                         UHollowGA_CarryHeavy, подъём — через Interact, эффекты — UHollowCarrySoloEffect / UHollowStaminaRecoveryEffect)
-   └─ (враги, [AI]) UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee · UHollowGA_StalkerAmbush
+   └─ (враги, [AI]) UHollowGA_EnemyAttack (S3-04: ServerOnly, событие + цель, замах → удар → восстановление, DA_Attack_*)
+                    ├─ UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee   (S3-04)
+                    └─ UHollowGA_StalkerAmbush
 
 UGameplayEffectExecutionCalculation
-├─ UHollowDamageExecution             Kinetic, Occult, Structural; броня; иммунитеты по тегам (Echo-Stalker)
+├─ UHollowDamageExecution             S3-04: SetByCaller Hollow.Data.Damage, тип из UHollowDamageEffect, броня цели K/(K+Armor),
+│                                      иммунитет по тегу; правила типов в UHollowDamageSettings (Structural — только мировым объектам)
 └─ UHollowResonanceGainExecution      прирост × ResonanceGainMultiplier × кривая сложности контракта
 
 UPrimaryDataAsset
 ├─ UHollowAbilitySet                  способности (+InputTag) и эффекты к выдаче; только сервер; handles для снятия. Наборы атрибутов НЕ выдаёт (S1-05)
 ├─ UHollowExoFrameDefinition          класс: AbilitySet, init-GE, ветки талантов, фирменный инструмент
-└─ UHollowToolDefinition              темп сварки и резки, частота сэмплов, дальность, GE топлива и нагрева, кьюшки, шумы
+└─ UHollowToolDefinition              темп сварки и резки, частота сэмплов, дальность, GE топлива и нагрева, кьюшки, тег шума (S3-05: числа шума — в DA_NoiseConfig)
 ```
 
 ```cpp
@@ -390,6 +395,12 @@ Door → BP_Door (S2-04), Bulkhead → BP_Bulkhead_Plate | BP_Bulkhead_Twin (S3-
 
 ## 2.7 ИИ
 
+*Реализовано в S3-04* ([ADR-0017](../ADR/ADR-0017-iron-pilgrim-brain-breach-damage.md)):
+- `AHollowEnemyCharacter`, `UHollowEnemyDefinition`, `AHollowAIController` (факты: цель, стимул, препятствие; активности Patrol / Chase / Investigate / Attack / Breach на таймерах и колбэках), `UHollowPathFollowingComponent`;
+- узлы StateTree `FHollowSTTask_{Patrol, Chase, Investigate, Attack, Breach}` и `FHollowSTCond_{HasTarget, TargetInEngageRange, HasStimulus, HasObstacle}` без параметров и без Tick;
+- `ST_IronPilgrim` строит `create_pilgrim_assets.py` через `UHollowStateTreeAuthoring` (HollowEditor);
+- EQS, Director, Heatmap и вентиляция ещё не сделаны: патруль — случайная достижимая точка Heavy-навмеша.
+
 ```
 AHollowEnemyCharacter (ASC Minimal, UHollowEnemyDefinition) → Whisperer · IronPilgrim · EchoStalker
 AHollowAIController  → UStateTreeAIComponent (ST_ из DA) · UAIPerceptionComponent (Hearing + Sight) · фильтр навигации из DA
@@ -417,7 +428,7 @@ UWorldSubsystem (server-only):
 | `UHollowVoiceSubsystem` | GameInstance | везде (локальный микрофон) | Network |
 | `UHollowEntitlementSubsystem` | GameInstance | везде | Network |
 | `UHollowProfileSubsystem` | GameInstance | везде (**только свой профиль**) | Economy |
-| `UHollowNoiseSubsystem` | World | сервер | Core |
+| `UHollowNoiseSubsystem` | World | сервер (S3-05: правила в `DA_NoiseConfig`, [ADR-0018](../ADR/ADR-0018-noise-to-ai.md)) | Core |
 | `UHollowSectorAssemblySubsystem` | World | везде (спавн — только на сервере) | PCG |
 | `UHollowDestructionBudgetSubsystem` | World | везде (косметический бюджет у каждой машины свой; S3-01: слоты live-проломов, тела, таймеры жизни осколков по `UHollowDestructionBudgetConfig`) | Physics |
 | `UHollowNavUpdateSubsystem` | World | сервер (навмеш только на хосте) | Physics |

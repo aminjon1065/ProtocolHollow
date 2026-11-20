@@ -33,8 +33,12 @@ void UHollowDoorStateComponent::BeginPlay()
 
 void UHollowDoorStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	GetWorld()->GetTimerManager().ClearTimer(TransitionTimer);
-	GetWorld()->GetTimerManager().ClearTimer(WeldFlushTimer);
+	// Also reached from garbage collection of a torn-down world (a component's BeginDestroy ends play): the world may be gone.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TransitionTimer);
+		World->GetTimerManager().ClearTimer(WeldFlushTimer);
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -49,6 +53,11 @@ void UHollowDoorStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 float UHollowDoorStateComponent::GetWeld() const
 {
 	return GetOwner() && GetOwner()->HasAuthority() ? Weld : HollowDoorRules::Dequantize(NetState.WeldQ);
+}
+
+float UHollowDoorStateComponent::GetStructure() const
+{
+	return GetOwner() && GetOwner()->HasAuthority() ? Structure : HollowDoorRules::Dequantize(NetState.StructureQ);
 }
 
 double UHollowDoorStateComponent::GetServerTime() const
@@ -83,6 +92,7 @@ bool UHollowDoorStateComponent::Accepts(const EHollowDoorEvent Type, const bool 
 	FHollowDoorServerState State;
 	State.Net = NetState;
 	State.Weld = GetWeld();
+	State.Structure = GetStructure();
 	FHollowDoorEvent Event;
 	Event.Type = Type;
 	Event.Amount = UE_KINDA_SMALL_NUMBER;   // any work: is this kind of event allowed at all
@@ -106,6 +116,15 @@ EHollowDoorOutcome UHollowDoorStateComponent::ApplyTool(const EHollowDoorEvent T
 	return Handle(Event);
 }
 
+EHollowDoorOutcome UHollowDoorStateComponent::ApplyStructural(const float Damage, const bool bBackwards)
+{
+	FHollowDoorEvent Event;
+	Event.Type = EHollowDoorEvent::Structural;
+	Event.Amount = Damage;
+	Event.bBackwards = bBackwards;
+	return Handle(Event);
+}
+
 EHollowDoorOutcome UHollowDoorStateComponent::Handle(const FHollowDoorEvent& InEvent)
 {
 	if (!GetOwner()->HasAuthority() || !Definition)
@@ -118,9 +137,11 @@ EHollowDoorOutcome UHollowDoorStateComponent::Handle(const FHollowDoorEvent& InE
 	FHollowDoorServerState State;
 	State.Net = NetState;
 	State.Weld = Weld;
+	State.Structure = Structure;
 	const FHollowDoorNetState Old = NetState;
 	const EHollowDoorOutcome Outcome = HollowDoorRules::Apply(State, Event, *Definition);
 	Weld = State.Weld;
+	Structure = State.Structure;
 
 	switch (Outcome)
 	{
@@ -128,8 +149,8 @@ EHollowDoorOutcome UHollowDoorStateComponent::Handle(const FHollowDoorEvent& InE
 		NetState = State.Net;
 		LastWeldSendTime = GetServerTime();
 		GetWorld()->GetTimerManager().ClearTimer(WeldFlushTimer);
-		UE_LOG(LogHollowPhysics, Log, TEXT("%s: %s -> %s (weld %.2f)"), *GetNameSafe(GetOwner()), *HollowEnumToString(Old.State),
-			*HollowEnumToString(NetState.State), Weld);
+		UE_LOG(LogHollowPhysics, Log, TEXT("%s: %s -> %s (weld %.2f, structure %.2f)"), *GetNameSafe(GetOwner()), *HollowEnumToString(Old.State),
+			*HollowEnumToString(NetState.State), Weld, Structure);
 		if (NetState.State == EHollowDoorState::Opening || NetState.State == EHollowDoorState::Closing)
 		{
 			GetWorld()->GetTimerManager().SetTimer(TransitionTimer, this, &ThisClass::FinishTransition, Definition->OpenDuration, /*bLoop=*/false);
@@ -139,6 +160,18 @@ EHollowDoorOutcome UHollowDoorStateComponent::Handle(const FHollowDoorEvent& InE
 	case EHollowDoorOutcome::WeldChanged:
 		SendWeldIfDue();
 		break;
+	case EHollowDoorOutcome::StructureChanged:
+	{
+		// A blow is a discrete event: weld and structure go out together, now.
+		UE_LOG(LogHollowPhysics, Log, TEXT("%s: structural blow %.0f, weld %.2f, structure %.2f"), *GetNameSafe(GetOwner()), Event.Amount, Weld, Structure);
+		const FHollowDoorNetState Before = NetState;
+		NetState.StructureQ = State.Net.StructureQ;
+		NetState.WeldQ = HollowDoorRules::Quantize(Weld);
+		LastWeldSendTime = GetServerTime();
+		GetWorld()->GetTimerManager().ClearTimer(WeldFlushTimer);
+		Publish(Before, /*bFresh=*/false);
+		break;
+	}
 	default:
 		break;
 	}

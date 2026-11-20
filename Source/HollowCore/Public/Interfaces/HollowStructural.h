@@ -32,6 +32,18 @@ struct FHollowStructuralHit
 	TWeakObjectPtr<AActor> Instigator;
 };
 
+/** What it takes an enemy to get past a structural obstacle on its path (Iron Pilgrim, S3-04, ADR-0017). */
+UENUM(BlueprintType)
+enum class EHollowPassage : uint8
+{
+	/** Nothing in the way. */
+	Clear,
+	/** Opens like a door (IHollowInteractable), or is about to be passable (a leaf still moving): open it or wait. */
+	Open,
+	/** Only structural damage gets through: welded or locked door, intact bulkhead. */
+	Breach
+};
+
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UHollowStructural : public UInterface
 {
@@ -52,4 +64,7 @@ public:
 
 	/** Server only. True if the blow changed anything. */
 	virtual bool ApplyStructuralDamage(const FHollowStructuralHit& Hit) = 0;
+
+	/** How to get past it right now, from replicated state (any machine). */
+	virtual EHollowPassage GetPassage() const = 0;
 };

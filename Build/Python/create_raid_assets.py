@@ -191,7 +191,9 @@ def validate():
     check(isinstance(unreal.get_default_object(load(MARKER_BP).generated_class()), unreal.HollowSectorMarker), "marker")
     biome = load(BIOME)
     check(biome.get_editor_property("sealed_plug").get_editor_property("mesh") is not None, "biome sealed plug")
-    check(len(biome.get_editor_property("socket_actors")) == 1 + len(SOCKETS_TO_MARKER), "biome socket rules")
+    # Later scripts put real actors in front of the markers (extraction zone, the Iron Pilgrim): count types, not rules.
+    socket_types = set(r.get_editor_property("socket_type").export_text() for r in biome.get_editor_property("socket_actors"))
+    check(len(socket_types) == 1 + len(SOCKETS_TO_MARKER), "biome socket rules")
     check(len(biome.get_editor_property("connection_actors")) == len(CONNECTION_KINDS), "biome connection rules")
     levels.load_level(RAID_MAP)
     volumes = [a for a in actors.get_all_level_actors() if isinstance(a, unreal.NavMeshBoundsVolume)]

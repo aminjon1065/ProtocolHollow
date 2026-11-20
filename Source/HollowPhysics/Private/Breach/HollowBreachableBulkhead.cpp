@@ -18,10 +18,12 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/App.h"
 #include "Nav/HollowNavUpdateSubsystem.h"
+#include "Noise/HollowNoiseSubsystem.h"
 #include "NavAreas/NavArea_Null.h"
 #include "NavLinkCustomComponent.h"
 #include "NavigationSystem.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
 #include "Util/HollowEnumUtils.h"
 
@@ -119,7 +121,11 @@ void AHollowBreachableBulkhead::BeginPlay()
 void AHollowBreachableBulkhead::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Integrity->OnStateChanged.Remove(StateChangedHandle);
-	GetWorld()->GetTimerManager().ClearTimer(BlockerTimer);
+	// Also reached from garbage collection of a torn-down world (a component's BeginDestroy ends play): the world may be gone.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BlockerTimer);
+	}
 	for (int32 Zone = 0; Zone < LiveHandles.Num(); ++Zone)
 	{
 		EndLiveFracture(Zone);
@@ -168,6 +174,11 @@ bool AHollowBreachableBulkhead::CanTakeStructuralDamage() const
 	return Integrity->CanTakeDamage();
 }
 
+EHollowPassage AHollowBreachableBulkhead::GetPassage() const
+{
+	return Integrity->GetNetState().State == EHollowBreachState::Breached ? EHollowPassage::Clear : EHollowPassage::Breach;
+}
+
 bool AHollowBreachableBulkhead::ApplyStructuralDamage(const FHollowStructuralHit& Hit)
 {
 	FVector Direction = Hit.Direction;
@@ -179,7 +190,14 @@ bool AHollowBreachableBulkhead::ApplyStructuralDamage(const FHollowStructuralHit
 	{
 		Direction = GetActorForwardVector();
 	}
-	return Integrity->ApplyHit(Hit.Location, Hit.Amount, Direction.GetSafeNormal()) != EHollowBreachOutcome::Rejected;
+	const EHollowBreachOutcome Outcome = Integrity->ApplyHit(Hit.Location, Hit.Amount, Direction.GetSafeNormal());
+	if (UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(this); Noise && Outcome != EHollowBreachOutcome::Rejected)
+	{
+		// The hitter made the noise (ADR-0018): a broken zone is a breach, any other blow a heavy impact.
+		const FGameplayTag Tag = Outcome == EHollowBreachOutcome::ZoneBroken ? HollowTags::Noise_Structural_Breach : HollowTags::Noise_Impact_Heavy;
+		Noise->ReportNoise(FHollowNoiseEvent(Tag, Hit.Location, Hit.Instigator.Get()));
+	}
+	return Outcome != EHollowBreachOutcome::Rejected;
 }
 
 void AHollowBreachableBulkhead::HandleStateChanged(const FHollowBreachNetState& Old, const FHollowBreachNetState& New)

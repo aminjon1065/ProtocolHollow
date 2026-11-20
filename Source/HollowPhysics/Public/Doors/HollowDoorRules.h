@@ -13,7 +13,9 @@ enum class EHollowDoorEvent : uint8
 	Weld,
 	Cut,
 	OpenFinished,
-	CloseFinished
+	CloseFinished,
+	/** Structural blow (IHollowStructural): spends the weld, then the structure; Breached at 0. */
+	Structural
 };
 
 /** What an event did to the door. */
@@ -25,6 +27,8 @@ enum class EHollowDoorOutcome : uint8
 	/** Allowed but no visible change (e.g. welding a fully welded door). */
 	Unchanged,
 	WeldChanged,
+	/** A structural blow changed weld or structure without changing the state (sent at once: blows are discrete). */
+	StructureChanged,
 	/** State changed: TransitionSerial and StateServerTime were updated. */
 	StateChanged
 };
@@ -32,8 +36,10 @@ enum class EHollowDoorOutcome : uint8
 struct FHollowDoorEvent
 {
 	EHollowDoorEvent Type = EHollowDoorEvent::Interact;
-	/** Tool work units (Weld, Cut). */
+	/** Tool work units (Weld, Cut) or structural damage points (Structural). */
 	float Amount = 0.f;
+	/** Structural: the blow travels against the door's forward axis. */
+	bool bBackwards = false;
 	/** Interact on an open door: closing needs a free doorway. */
 	bool bDoorwayClear = true;
 	float ServerTime = 0.f;
@@ -44,6 +50,15 @@ struct FHollowDoorServerState
 {
 	FHollowDoorNetState Net;
 	float Weld = 0.f;
+	/** Exact structure [0..1] behind StructureQ. */
+	float Structure = 1.f;
+};
+
+/** Weld and structure after a structural blow. */
+struct FHollowStructuralResult
+{
+	float Weld = 0.f;
+	float Structure = 0.f;
 };
 
 /** Pure door rules (Docs/Architecture/03 sec. 3.3 transition table, CLAUDE.md sec. 7.2). */
@@ -51,6 +66,8 @@ namespace HollowDoorRules
 {
 	HOLLOWPHYSICS_API float ApplyWeld(float Weld, float WorkUnits, const UHollowDoorDefinition& Definition);
 	HOLLOWPHYSICS_API float ApplyCut(float Weld, float WorkUnits, const UHollowDoorDefinition& Definition);
+	/** A structural blow: the weld soaks Weld x WeldAbsorbFactor points first, the rest goes to the structure; clamped. */
+	HOLLOWPHYSICS_API FHollowStructuralResult ApplyStructural(float Weld, float Structure, float Damage, const UHollowDoorDefinition& Definition);
 
 	HOLLOWPHYSICS_API uint8 Quantize(float Unit);
 	HOLLOWPHYSICS_API float Dequantize(uint8 Quantized);

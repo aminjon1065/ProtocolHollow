@@ -11,6 +11,7 @@ class UCameraComponent;
 class UGameplayEffect;
 class UHollowHealthSet;
 class UHollowCarrierComponent;
+class UHollowFootstepNoiseComponent;
 class UHollowCharacterMovementComponent;
 class UHollowInteractionComponent;
 class UHollowInputConfig;
@@ -38,6 +39,7 @@ public:
 	UCameraComponent* GetFirstPersonCamera() const { return FirstPersonCamera; }
 	UHollowInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
 	UHollowCarrierComponent* GetCarrierComponent() const { return CarrierComponent; }
+	UHollowFootstepNoiseComponent* GetFootstepNoise() const { return FootstepNoise; }
 
 	/** The Interact input: drops a carried core, otherwise interacts with the focus (a free core is predicted as lifted). */
 	void RequestInteract();
@@ -99,6 +101,10 @@ private:
 	/** Heavy carrying (ADR-0015): carried visuals attach to the camera (own view) and the body (everyone else). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UHollowCarrierComponent> CarrierComponent;
+
+	/** Footsteps the AI hears (server; ADR-0018). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowFootstepNoiseComponent> FootstepNoise;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Input")
 	TObjectPtr<const UHollowInputConfig> InputConfig;

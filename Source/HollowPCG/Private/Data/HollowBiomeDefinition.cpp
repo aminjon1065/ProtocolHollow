@@ -1,5 +1,6 @@
 #include "Data/HollowBiomeDefinition.h"
 
+#include "Algo/StableSort.h"
 #include "Generation/HollowSectorGenerator.h"
 
 #if WITH_EDITOR
@@ -15,9 +16,35 @@ FPrimaryAssetId UHollowBiomeDefinition::GetPrimaryAssetId() const
 	return FPrimaryAssetId(AssetType, GetFName());
 }
 
-const FHollowSocketActorRule* UHollowBiomeDefinition::FindSocketRule(const FGameplayTag& SocketType) const
+TArray<int32> UHollowBiomeDefinition::AssignSocketRules(const TConstArrayView<FHollowSocketSlot> Slots) const
 {
-	return SocketActors.FindByPredicate([&SocketType](const FHollowSocketActorRule& R) { return R.SocketType == SocketType; });
+	TArray<int32> Assigned;
+	Assigned.Init(INDEX_NONE, Slots.Num());
+	for (int32 RuleIndex = 0; RuleIndex < SocketActors.Num(); ++RuleIndex)
+	{
+		const FHollowSocketActorRule& Rule = SocketActors[RuleIndex];
+		TArray<int32> Free;
+		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+		{
+			if (Assigned[Slot] == INDEX_NONE && Slots[Slot].SocketType == Rule.SocketType)
+			{
+				Free.Add(Slot);
+			}
+		}
+		if (Rule.MaxPerSector > 0)
+		{
+			if (Rule.Pick == EHollowSocketPick::FarthestFromSpawn)
+			{
+				Algo::StableSortBy(Free, [&Slots](const int32 Slot) { return -Slots[Slot].RoomDistance; });
+			}
+			Free.SetNum(FMath::Min(Free.Num(), Rule.MaxPerSector));
+		}
+		for (const int32 Slot : Free)
+		{
+			Assigned[Slot] = RuleIndex;
+		}
+	}
+	return Assigned;
 }
 
 TSoftClassPtr<AActor> UHollowBiomeDefinition::FindConnectionActor(const EHollowConnectorKind Kind, const uint64 VariantKey) const

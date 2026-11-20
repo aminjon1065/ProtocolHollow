@@ -78,18 +78,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat")
 	TSubclassOf<UGameplayEffect> OverheatEffect;
 
-	/** Hollow.Noise.* reported to UAISense_Hearing every NoiseEveryNSamples samples (CLAUDE.md sec. 6). */
+	/** Hollow.Noise.* the tool makes at its wielder while it runs; loudness, range and rate are its rule in DA_NoiseConfig (ADR-0018). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Noise", meta = (Categories = "Hollow.Noise"))
 	FGameplayTag NoiseTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Noise", meta = (ClampMin = "0"))
-	float NoiseLoudness = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Noise", meta = (ClampMin = "0", Units = "Centimeters"))
-	float NoiseRange = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Noise", meta = (ClampMin = "1"))
-	int32 NoiseEveryNSamples = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
 	FLinearColor BeamColor = FLinearColor::White;

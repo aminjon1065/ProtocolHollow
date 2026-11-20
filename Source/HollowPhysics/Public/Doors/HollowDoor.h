@@ -2,6 +2,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Interfaces/HollowInteractable.h"
+#include "Interfaces/HollowStructural.h"
 #include "Interfaces/HollowTargetStatusSource.h"
 #include "Interfaces/HollowToolTarget.h"
 
@@ -21,9 +22,12 @@ struct FHollowDoorNetState;
  * UHollowDoorStateComponent. The leaf moves from server time on every machine (timer during transitions, no Tick)
  * and never affects the navmesh. Navigation (S2-05, ADR-0004): NavCut keeps the opening out of the navmesh for good,
  * NavLink is the only way through, and a state change only swaps the link's area (no tile rebuild, server only).
+ * Structural blows (IHollowStructural, S3-04, ADR-0017) spend the weld, then the structure; a breached door loses its
+ * leaf on every machine (a fresh breach throws a cosmetic copy along the blow, within the destruction budget).
  */
 UCLASS()
-class HOLLOWPHYSICS_API AHollowDoor : public AActor, public IHollowToolTarget, public IHollowInteractable, public IHollowTargetStatusSource
+class HOLLOWPHYSICS_API AHollowDoor : public AActor, public IHollowToolTarget, public IHollowInteractable, public IHollowTargetStatusSource,
+	public IHollowStructural
 {
 	GENERATED_BODY()
 
@@ -50,6 +54,14 @@ public:
 	virtual FHollowInteractionInfo GetInteractionInfo(const AActor* Interactor) const override;
 	virtual bool CanInteract(const AActor* Interactor) const override;
 	virtual void Interact(AActor* Interactor) override;
+
+	// IHollowStructural
+	virtual bool CanTakeStructuralDamage() const override;
+	virtual bool ApplyStructuralDamage(const FHollowStructuralHit& Hit) override;
+	virtual EHollowPassage GetPassage() const override;
+
+	/** The cosmetic torn leaf while it flies, else null. */
+	UStaticMeshComponent* GetTornLeaf() const { return TornLeaf; }
 
 protected:
 	virtual void PostInitializeComponents() override;
@@ -99,19 +111,32 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Door")
 	FLinearColor WeldedColor = FLinearColor::White;
 
+	/** Tint of a leaf whose structure is gone (it darkens towards this as blows land). */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Door")
+	FLinearColor DamagedColor = FLinearColor::White;
+
 private:
 	void HandleStateChanged(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, bool bFresh);
 	void UpdateLeaf();
 	void UpdateWeldColor();
 	void UpdateNavArea();
+	void TearLeafOff(bool bBackwards);
+	void HandleTornLeafExpired();
+	void EndTornLeaf();
 
 	TSubclassOf<UNavArea> NavArea;
 
 	FVector LeafClosedLocation = FVector::ZeroVector;
+	TEnumAsByte<ECollisionEnabled::Type> LeafCollision = ECollisionEnabled::QueryAndPhysics;
 	float ShownAlpha = 0.f;
 	FTimerHandle LeafTimer;
 	FDelegateHandle StateChangedHandle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> LeafMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> TornLeaf;
+
+	int32 TornLeafHandle = INDEX_NONE;
 };

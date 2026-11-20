@@ -19,7 +19,8 @@ public class HollowCore : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"AIModule"
+			"AIModule",
+			"DeveloperSettings"
 		});
 	}
 }

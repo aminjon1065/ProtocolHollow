@@ -69,7 +69,7 @@ graph TD
 | **HollowNetwork** | Runtime | Steam-сессии, лобби, инвайты, голос (VOIP-talkers и громкость → шум), DLC-entitlements, сетевая диагностика. **Репликация геймплея здесь не живёт**, она остаётся в своих доменах | Core | OnlineSubsystem, OnlineSubsystemUtils, Voice, AudioMixer, Steamworks *(private, для DLC)* | `LogHollowNet` |
 | **HollowPhysics** | Runtime | State machines дверей, сварки и резки, Chaos-переборки, переноска ядер, гравитационные зоны, баррикады, бюджет разрушений, nav-links и nav-обновления, `UHollowCharacterMovementComponent` | Core, GAS | PhysicsCore, Chaos, ChaosSolverEngine, GeometryCollectionEngine, FieldSystemEngine, ChaosCaching, NavigationSystem | `LogHollowPhysics` |
 | **HollowPCG** | Runtime | Чистый генератор графа сектора, DataAssets Room/Biome/Contract, манифест сектора, сборка (стриминг комнат и спавн геймплейных актёров), PCG-ноды декора | Core | PCG, NavigationSystem, ModularGameplay | `LogHollowPCG` |
-| **HollowAI** | Runtime | `AHollowEnemyCharacter` и наследники, `AHollowAIController`, задачи и условия StateTree, EQS, перцепция, Threat Director, Heatmap, граф вентиляции | Core, GAS | AIModule, StateTreeModule, GameplayStateTreeModule, NavigationSystem, MotionWarping | `LogHollowAI` |
+| **HollowAI** | Runtime | `AHollowEnemyCharacter` и наследники, `AHollowAIController`, задачи и условия StateTree, EQS, перцепция, Threat Director, Heatmap, граф вентиляции; S3-04: атаки Пилигрима (`UHollowGA_EnemyAttack`), `UHollowPathFollowingComponent` | Core, GAS | AIModule, StateTreeModule, GameplayStateTreeModule, NavigationSystem (MotionWarping — с анимациями, ADR-0017) | `LogHollowAI` |
 | **HollowGame** | Runtime, **Primary** | GameModes, GameState, PlayerState, PlayerController, персонаж ExoFrame, GA инструментов, взаимодействие, рейд-флоу, экстракция, хаб | всё выше | EnhancedInput, ModularGameplay, GameFeatures | `LogHollowGame` |
 | **HollowUI** | Runtime | C++-база для CommonUI-виджетов, Visor HUD, ViewModels, меню хаба | Game | CommonUI, CommonInput, UMG, ModelViewViewModel | `LogHollowUI` |
 | **HollowEditor** | Editor | Data Validation (комнаты, коннекторы, метрики), визуализаторы (швы резки, nav-links, грид), Sector Preview (генерация по seed прямо в редакторе) | все | UnrealEd, DataValidation, ComponentVisualizers | `LogHollowEditor` |
@@ -87,9 +87,9 @@ graph TD
 |---|---|---|
 | `IHollowInteractable`: `GetInteractionInfo`, `CanInteract`, `Interact` (только сервер) | Core | двери, ядра, терминалы, лут, `AHollowSwitch`; вызывает `UHollowInteractionComponent` (Game) после серверной проверки |
 | `IHollowToolTarget`: `CanAcceptToolWork`, `ApplyToolWork(const FHollowToolWork&)`, только на сервере | Core | двери и швы (Physics); вызывают GA резака и сварки (Game) |
-| `IHollowStructural`: `ApplyStructuralDamage(const FHollowStructuralHit&)` | Core | двери, переборки, баррикады (Physics); вызывают Пилигрим (AI), молот штурмовика, взрывы |
+| `IHollowStructural`: `ApplyStructuralDamage(const FHollowStructuralHit&)`, `GetPassage()` (S3-04: Clear / Open / Breach для ИИ) | Core | двери, переборки, баррикады (Physics); вызывают Пилигрим (AI), молот штурмовика, взрывы |
 | `IHollowCarryable`: `GetCarrySpec`, `GetGripPoints` | Core | ядра (Game/Physics); использует `UHollowCarrierComponent`. *S3-02:* пока не введён — ядро и носильщик живут в Physics, ИИ хватит тегов `Hollow.State.CarryingHeavy.*` ([ADR-0015](../ADR/ADR-0015-solo-carry-claim.md)) |
-| `UHollowNoiseSubsystem::ReportNoise(const FHollowNoiseEvent&)` | Core | все источники шума → `UAISense_Hearing::ReportNoiseEvent` + делегат `OnNoiseReported` (на него подписан Heatmap в AI) |
+| `UHollowNoiseSubsystem::ReportNoise(const FHollowNoiseEvent&)` (S3-05, ADR-0018) | Core | все источники шума → `UAISense_Hearing::ReportNoiseEvent` + делегат `OnNoiseReported` (на него подписан Heatmap в AI) |
 | Gameplay Events (`Hollow.Event.*`) через ASC | GAS | «дверь заварена», «переборка пробита», «ядро поднято» → способности, Director, UI |
 | `TSoftClassPtr<AActor>` в DataAssets | Core/PCG | генератор спавнит классы дверей из Physics, не линкуясь с ним |
 

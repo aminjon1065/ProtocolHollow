@@ -62,6 +62,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
 	EHollowDoorState InitialState = EHollowDoorState::Closed;
 
+	/** Structural damage the bare door takes before it is Breached (sec. 3.3 rows 7-8, S3-04). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Structure", meta = (ClampMin = "0"))
+	float StructureHitPoints = 0.f;
+
+	/** Structural damage a full weld soaks up before the structure takes any; a partial weld soaks its share. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Structure", meta = (ClampMin = "0"))
+	float WeldAbsorbFactor = 0.f;
+
+	/** Speed of the cosmetic leaf torn off by a breach (each machine on its own, never collides with pawns). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Structure", meta = (ClampMin = "0", Units = "CentimetersPerSecond"))
+	float TornLeafSpeed = 0.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	FText PromptOpen;
 

@@ -28,6 +28,8 @@ public:
 	const FHollowDoorNetState& GetNetState() const { return NetState; }
 	/** Exact on the server, from WeldQ elsewhere. */
 	float GetWeld() const;
+	/** Exact on the server, from StructureQ elsewhere. */
+	float GetStructure() const;
 	/** Server time, the clock of every door transition. */
 	double GetServerTime() const;
 
@@ -39,6 +41,9 @@ public:
 
 	/** Server only: Weld or Cut event from a tool's work units. */
 	EHollowDoorOutcome ApplyTool(EHollowDoorEvent Type, float WorkUnits);
+
+	/** Server only: a structural blow (IHollowStructural); bBackwards: it travels against the door's forward axis. */
+	EHollowDoorOutcome ApplyStructural(float Damage, bool bBackwards);
 
 	/** Which event a tool's work is for this door (Weld, Cut), if any. */
 	TOptional<EHollowDoorEvent> ToolEvent(const FGameplayTag& ToolTag) const;
@@ -69,6 +74,8 @@ private:
 
 	/** Server: exact weld integrity behind NetState.WeldQ. */
 	float Weld = 0.f;
+	/** Server: exact structure behind NetState.StructureQ. */
+	float Structure = 1.f;
 	double LastWeldSendTime = 0.0;
 	FTimerHandle TransitionTimer;
 	FTimerHandle WeldFlushTimer;

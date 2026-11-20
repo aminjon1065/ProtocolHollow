@@ -4,10 +4,11 @@
 
 namespace HollowDoorTypesPrivate
 {
-	/** State in the low bits, flags above: both fit one byte (6 states, 3 flags). */
+	/** State in the low bits, flags above: both fit one byte (6 states, 4 flags). */
 	constexpr uint8 StateBits = 3;
 	constexpr uint8 StateMask = (1u << StateBits) - 1u;
 	static_assert(static_cast<uint8>(EHollowDoorState::Breached) <= StateMask, "door states must fit StateBits");
+	static_assert((static_cast<uint32>(EHollowDoorFlags::BreachedBackwards) << StateBits) <= TNumericLimits<uint8>::Max(), "door flags must fit above the state");
 }
 
 bool FHollowDoorNetState::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
