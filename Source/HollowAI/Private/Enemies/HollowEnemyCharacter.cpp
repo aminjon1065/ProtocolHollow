@@ -53,6 +53,8 @@ void AHollowEnemyCharacter::BeginPlay()
 			SetNetUpdateFrequency(Definition->NetUpdateFrequency);
 		}
 	}
+	// Clients: it comes into relevancy (a stalker hidden in a vent is not relevant to anyone, so it appears anew).
+	UE_CLOG(!HasAuthority(), LogHollowAI, Log, TEXT("%s: appears at %s (replicated)"), *GetName(), *GetActorLocation().ToCompactString());
 }
 
 void AHollowEnemyCharacter::PossessedBy(AController* NewController)
@@ -74,6 +76,7 @@ void AHollowEnemyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AHollowEnemyCharacter, bDead);
+	DOREPLIFETIME(AHollowEnemyCharacter, bInVent);
 }
 
 void AHollowEnemyCharacter::HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, const float Damage)
@@ -114,4 +117,36 @@ void AHollowEnemyCharacter::ApplyDeadPresentation()
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);   // the body never blocks the living
+}
+
+void AHollowEnemyCharacter::SetInVent(const bool bInside)
+{
+	if (!HasAuthority() || bInVent == bInside)
+	{
+		return;
+	}
+	bInVent = bInside;
+	ApplyVentPresentation();
+	ForceNetUpdate();
+}
+
+void AHollowEnemyCharacter::OnRep_InVent()
+{
+	UE_LOG(LogHollowAI, Log, TEXT("%s: %s the vents (replicated)"), *GetName(), bInVent ? TEXT("into") : TEXT("out of"));
+	ApplyVentPresentation();
+}
+
+void AHollowEnemyCharacter::ApplyVentPresentation()
+{
+	SetActorHiddenInGame(bInVent);
+	SetActorEnableCollision(!bInVent);   // nobody bumps into what is not there, client copies included
+	if (bInVent)
+	{
+		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
+	}
+	else if (!bDead)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
 }

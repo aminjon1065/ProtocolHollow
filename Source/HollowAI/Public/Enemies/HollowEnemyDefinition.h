@@ -23,6 +23,9 @@ public:
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
 
+	/** Whether it breaks what bars its way (BreachEvent required); one that cannot only opens doors and goes around. */
+	virtual bool CanBreach() const { return true; }
+
 	/** Attacks and the attribute initialization, granted on the server when the enemy is possessed. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TObjectPtr<UHollowAbilitySet> AbilitySet;

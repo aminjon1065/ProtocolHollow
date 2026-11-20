@@ -1,6 +1,6 @@
 using UnrealBuildTool;
 
-/** Editor-only: data validation, content authoring helpers for the Python scripts (widgets, geometry collections, StateTrees). */
+/** Editor-only: data validation, content authoring helpers for the Python scripts (widgets, geometry collections, StateTrees, EQS). */
 public class HollowEditor : ModuleRules
 {
 	public HollowEditor(ReadOnlyTargetRules Target) : base(Target)
@@ -41,7 +41,8 @@ public class HollowEditor : ModuleRules
 			"StateTreeModule",
 			"StateTreeEditorModule",
 			"PropertyBindingUtils",
-			"GameplayStateTreeModule"
+			"GameplayStateTreeModule",
+			"AIModule"
 		});
 	}
 }

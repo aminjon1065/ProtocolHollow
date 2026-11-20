@@ -30,6 +30,10 @@ public:
 	/** Server: stops the brain and abilities, freezes in place and goes away after the definition's linger time. */
 	void Die();
 
+	/** In a vent shaft (ADR-0019): hidden, no collision, no movement, on every machine. Server sets it. */
+	bool IsInVent() const { return bInVent; }
+	void SetInVent(bool bInside);
+
 protected:
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
@@ -49,12 +53,19 @@ protected:
 private:
 	void HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, float Damage);
 	void ApplyDeadPresentation();
+	void ApplyVentPresentation();
 
 	UFUNCTION()
 	void OnRep_Dead();
 
+	UFUNCTION()
+	void OnRep_InVent();
+
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_InVent)
+	bool bInVent = false;
 
 	FHollowAbilitySetHandles GrantedAbilities;
 	FDelegateHandle OutOfHealthHandle;

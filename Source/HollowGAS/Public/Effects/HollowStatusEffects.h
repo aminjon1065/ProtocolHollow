@@ -1,0 +1,38 @@
+#pragma once
+
+#include "GameplayEffect.h"
+
+#include "HollowStatusEffects.generated.h"
+
+/**
+ * Stunned (GE_State_Stunned, ADR-0019): Hollow.State.Stunned for the effect's duration (data in the BP child), enemy
+ * abilities blocked. The brain stands still until the tag goes.
+ */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowStunnedEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowStunnedEffect(const FObjectInitializer& ObjectInitializer);
+};
+
+/** Pulse mine recharging (cooldown of GA_PulseMine): Hollow.Cooldown.Gadget.PulseMine for the duration (data). */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowPulseMineCooldownEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowPulseMineCooldownEffect(const FObjectInitializer& ObjectInitializer);
+};
+
+/** What the Echo-Stalker is (GE_Stalker_Traits, from its ability set): immune to kinetic damage for good. */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowStalkerTraitsEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowStalkerTraitsEffect(const FObjectInitializer& ObjectInitializer);
+};

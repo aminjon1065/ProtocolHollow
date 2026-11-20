@@ -7,6 +7,7 @@
 #include "Carry/HollowCarrierComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
@@ -54,6 +55,9 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->bEnableFirstPersonFieldOfView = true;
 	FirstPersonCamera->bEnableFirstPersonScale = true;
+
+	HelmetLight = CreateDefaultSubobject<USpotLightComponent>(TEXT("HelmetLight"));
+	HelmetLight->SetupAttachment(FirstPersonCamera);
 
 	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
 	CarrierComponent = CreateDefaultSubobject<UHollowCarrierComponent>(TEXT("Carrier"));
@@ -186,6 +190,20 @@ void AHollowExoFrameCharacter::ApplyDeadPresentation()
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	HelmetLight->SetVisibility(false);
+}
+
+bool AHollowExoFrameCharacter::GetLightCone(FHollowLightCone& OutCone) const
+{
+	if (bDead || !HelmetLight->IsVisible() || HelmetLight->Intensity <= 0.f)
+	{
+		return false;
+	}
+	OutCone.Origin = GetPawnViewLocation();
+	OutCone.Direction = GetBaseAimRotation().Vector();
+	OutCone.HalfAngleDegrees = HelmetLight->OuterConeAngle;
+	OutCone.Range = HelmetLight->AttenuationRadius;
+	return true;
 }
 
 void AHollowExoFrameCharacter::BecomeSpectator()

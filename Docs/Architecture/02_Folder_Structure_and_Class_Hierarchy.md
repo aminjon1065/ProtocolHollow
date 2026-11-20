@@ -399,11 +399,20 @@ Door → BP_Door (S2-04), Bulkhead → BP_Bulkhead_Plate | BP_Bulkhead_Twin (S3-
 - `AHollowEnemyCharacter`, `UHollowEnemyDefinition`, `AHollowAIController` (факты: цель, стимул, препятствие; активности Patrol / Chase / Investigate / Attack / Breach на таймерах и колбэках), `UHollowPathFollowingComponent`;
 - узлы StateTree `FHollowSTTask_{Patrol, Chase, Investigate, Attack, Breach}` и `FHollowSTCond_{HasTarget, TargetInEngageRange, HasStimulus, HasObstacle}` без параметров и без Tick;
 - `ST_IronPilgrim` строит `create_pilgrim_assets.py` через `UHollowStateTreeAuthoring` (HollowEditor);
-- EQS, Director, Heatmap и вентиляция ещё не сделаны: патруль — случайная достижимая точка Heavy-навмеша.
+- патруль — случайная достижимая точка Heavy-навмеша.
+
+*Реализовано в S4-01* ([ADR-0019](../ADR/ADR-0019-echo-stalker-heat-leash-vents-ambush.md)):
+- Core: `FHollowSectorTopology` + `UHollowSectorTopologySubsystem` (комнаты, порталы, проёмы вентиляции; сервер), `IHollowLightSource` / `FHollowLightCone`; Game: `HollowSectorTopologyBuilder` (после сборки сектора), лампа `HelmetLight` у ExoFrame;
+- AI, серверные подсистемы мира: `UHollowActivityHeatmapSubsystem`, `UHollowVentNetworkSubsystem`, `UHollowThreatDirectorSubsystem` (Stalk → Hunt → Retreat) с данными `UHollowThreatConfig` (`DA_ThreatConfig`);
+- `AHollowStalkerController` (Track / Ambush / Retreat, шахта на своём таймере), `UHollowStalkerDefinition`; `AHollowEnemyCharacter::SetInVent` (реплицируемый `bInVent`);
+- EQS: `UHollowEnvQueryGenerator_FocusRoomPoints`, `UHollowEnvQueryTest_OutOfLightCone`, `UHollowEnvQueryContext_FocusRoomHotPortal`; `EQ_StalkerFocusRoom` строит `UHollowEnvQueryAuthoring` (Editor);
+- узлы `FHollowSTTask_{Stunned, Track, Ambush, Retreat}`, `FHollowSTCond_{IsStunned, IsHunting, IsRetreating}`; удар `UHollowGA_EnemyMelee` → `UHollowGA_PilgrimMelee` · `UHollowGA_StalkerAmbush`;
+- GAS: `UHollowStunnedEffect`, `UHollowPulseMineCooldownEffect`, `UHollowStalkerTraitsEffect`; Game: `UHollowGA_PulseMine`, `AHollowPulseMine`, `UHollowPulseMineDefinition`.
 
 ```
 AHollowEnemyCharacter (ASC Minimal, UHollowEnemyDefinition) → Whisperer · IronPilgrim · EchoStalker
 AHollowAIController  → UStateTreeAIComponent (ST_ из DA) · UAIPerceptionComponent (Hearing + Sight) · фильтр навигации из DA
+  └ AHollowStalkerController (S4-01): поводок директора, Track / Ambush / Retreat, EQ_StalkerFocusRoom
 
 StateTree (USTRUCT, FStateTreeTaskCommonBase и т.п.):
   Tasks:      FHollowSTTask_MoveToRoom · _BreachObstacle · _InvestigateNoise · _TraverseVent · _Ambush · _Retreat · _PlayAbility

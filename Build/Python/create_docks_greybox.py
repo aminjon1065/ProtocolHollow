@@ -9,7 +9,8 @@ For every room of ROOMS:
 
 Level and data asset are generated from the same spec, so openings and connectors match by construction.
 All sizes come from UHollowLevelMetrics (DefaultGame.ini); conventions in Docs/QA/LevelMetrics.md.
-Creates only what is missing (never overwrites work done in the editor), then validates.
+Creates only what is missing (never overwrites work done in the editor), keeps the sockets of existing definitions in step
+with ROOMS (S4-01: VentNode openings of the Echo-Stalker's vents, ADR-0019), then validates.
 Run: Build/Scripts/run-editor-python.sh Build/Python/create_docks_greybox.py
 """
 import collections
@@ -79,16 +80,16 @@ ROOMS = [
          [Socket("PlayerSpawn", 0.5, 0.4, 0.0), Socket("PlayerSpawn", 0.5, 0.8, 0.0),
           Socket("PlayerSpawn", 0.5, 1.2, 0.0), Socket("PlayerSpawn", 0.5, 1.6, 0.0)]),
     Room("Extraction_ShuttlePad", "Extraction", (3, 2), [Connector(0, 0, S, DOOR | OPEN)],
-         [Socket("Extraction", 2.0, 1.0, 0.0)]),
+         [Socket("Extraction", 2.0, 1.0, 0.0), Socket("VentNode", 2.8, 1.8, 0.0)]),
     Room("CoreVault", "CoreVault", (2, 2), [Connector(0, 0, S, DOOR | BULKHEAD), Connector(1, 1, N, DOOR | BULKHEAD)],
-         [Socket("CoreSpawn", 1.0, 1.0, 0.0), Socket("Loot", 0.3, 1.7, 0.0), Socket("Loot", 1.7, 0.3, 0.0)]),
+         [Socket("CoreSpawn", 1.0, 1.0, 0.0), Socket("Loot", 0.3, 1.7, 0.0), Socket("Loot", 1.7, 0.3, 0.0), Socket("VentNode", 1.0, 1.85, 0.0)]),
     Room("Hangar", "Hangar", (3, 3),
          [Connector(2, 1, N, ANY), Connector(1, 2, E, ANY), Connector(0, 1, S, ANY), Connector(1, 0, W, ANY)],
          [Socket("Loot", 0.3, 0.3, 0.0), Socket("Loot", 2.7, 2.7, 0.0), Socket("Loot", 0.3, 2.7, 0.0),
           Socket("EnemySpawn", 2.5, 0.5, 180.0), Socket("EnemySpawn", 0.5, 2.0, 0.0), Socket("VentNode", 2.8, 2.0, 0.0)]),
-    Room("Corridor_Straight", "Corridor", (1, 2), [Connector(0, 0, W, ANY), Connector(0, 1, E, ANY)], []),
+    Room("Corridor_Straight", "Corridor", (1, 2), [Connector(0, 0, W, ANY), Connector(0, 1, E, ANY)], [Socket("VentNode", 0.85, 1.0, 0.0)]),
     Room("Corridor_Corner", "Corridor", (1, 1), [Connector(0, 0, S, ANY), Connector(0, 0, E, ANY)], []),
-    Room("Junction_T", "Junction", (1, 1), [Connector(0, 0, S, ANY), Connector(0, 0, E, ANY), Connector(0, 0, W, ANY)], []),
+    Room("Junction_T", "Junction", (1, 1), [Connector(0, 0, S, ANY), Connector(0, 0, E, ANY), Connector(0, 0, W, ANY)], [Socket("VentNode", 0.85, 0.5, 0.0)]),
     Room("Storage", "Storage", (2, 2), [Connector(0, 0, W, DOOR | BULKHEAD), Connector(1, 1, E, DOOR | BULKHEAD)],
          [Socket("Loot", 0.3, 1.7, 0.0), Socket("Loot", 1.7, 0.3, 0.0), Socket("Loot", 1.7, 1.0, 0.0),
           Socket("EnemySpawn", 0.5, 1.0, 0.0), Socket("VentNode", 1.0, 1.8, 0.0)]),
@@ -325,6 +326,15 @@ def ensure_definition(metrics, room):
         connectors.append(entry)
     definition.set_editor_property("connectors", connectors)
 
+    definition.set_editor_property("sockets", socket_entries(metrics, room))
+    definition.set_editor_property("room_tags", make_tags("Hollow.Room.Type." + room.type))
+
+    if not assets.save_loaded_asset(definition, False):
+        raise RuntimeError("Could not save " + path)
+    return True
+
+
+def socket_entries(metrics, room):
     sockets = []
     for s in room.sockets:
         entry = unreal.HollowRoomSocket()
@@ -334,11 +344,26 @@ def ensure_definition(metrics, room):
             rotation=unreal.Rotator(roll=0.0, pitch=0.0, yaw=s.yaw),
             scale=unreal.Vector(1.0, 1.0, 1.0)))
         sockets.append(entry)
-    definition.set_editor_property("sockets", sockets)
-    definition.set_editor_property("room_tags", make_tags("Hollow.Room.Type." + room.type))
+    return sockets
 
+
+def socket_key(entry):
+    transform = entry.get_editor_property("transform")
+    location = transform.translation
+    return (entry.get_editor_property("socket_type").export_text(), round(location.x, 2), round(location.y, 2), round(location.z, 2),
+            round(transform.rotation.rotator().yaw, 2))
+
+
+def ensure_sockets(metrics, room):
+    """Sockets of an existing definition follow ROOMS (S4-01 added VentNode openings; not part of the layout hash)."""
+    definition = load(data_path(room))
+    wanted = socket_entries(metrics, room)
+    if [socket_key(s) for s in definition.get_editor_property("sockets")] == [socket_key(s) for s in wanted]:
+        return False
+    definition.set_editor_property("sockets", wanted)
     if not assets.save_loaded_asset(definition, False):
-        raise RuntimeError("Could not save " + path)
+        raise RuntimeError("Could not save " + data_path(room))
+    log("updated the sockets of " + room.name)
     return True
 
 
@@ -349,7 +374,7 @@ def check(condition, message):
         raise RuntimeError("validation failed: " + message)
 
 
-def validate():
+def validate(metrics):
     feature = load(FEATURE_DATA_PATH)
     scanned = [t.export_text() for t in feature.get_editor_property("primary_asset_types_to_scan")]
     for type_name, _ in SCANNED_TYPES:
@@ -361,7 +386,8 @@ def validate():
         definition = load(data_path(room))
         check(isinstance(definition, unreal.HollowRoomDefinition), "class of " + room.name)
         check(len(definition.get_editor_property("connectors")) == len(room.connectors), "connectors of " + room.name)
-        check(len(definition.get_editor_property("sockets")) == len(room.sockets), "sockets of " + room.name)
+        check([socket_key(s) for s in definition.get_editor_property("sockets")] == [socket_key(s) for s in socket_entries(metrics, room)],
+              "sockets of " + room.name)
         level = definition.get_editor_property("room_level")
         check(level is not None and level.get_path_name().startswith(level_path(room)), "room_level of " + room.name)
     log("validation passed (%d rooms; full rules: Hollow.PCG.DocksRooms)" % len(ROOMS))
@@ -375,8 +401,9 @@ def main():
     builder = Builder(metrics)
     built_levels = sum(1 for room in ROOMS if ensure_level(builder, room))
     built_data = sum(1 for room in ROOMS if ensure_definition(metrics, room))
-    log("created %d level(s) and %d room definition(s) of %d rooms" % (built_levels, built_data, len(ROOMS)))
-    validate()
+    updated = sum(1 for room in ROOMS if ensure_sockets(metrics, room))
+    log("created %d level(s) and %d room definition(s), updated %d socket list(s) of %d rooms" % (built_levels, built_data, updated, len(ROOMS)))
+    validate(metrics)
     unreal.log(SUCCESS_MARKER)
 
 

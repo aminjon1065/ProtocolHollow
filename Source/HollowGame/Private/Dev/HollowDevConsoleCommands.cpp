@@ -20,7 +20,9 @@
 #include "Assembly/HollowSectorAssemblySubsystem.h"
 #include "Assembly/HollowSectorStateComponent.h"
 #include "Engine/AssetManager.h"
+#include "Enemies/HollowEnemyCharacter.h"
 #include "EngineUtils.h"
+#include "Threat/HollowThreatDirectorSubsystem.h"
 #include "Framework/HollowRaidGameMode.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -440,8 +442,8 @@ namespace HollowDevConsole
 	}
 
 	/**
-	 * Host: puts the local pawn (or, with All, every player's pawn, side by side) in front of the nearest actor of Class,
-	 * facing it (S2-04/S2-06/S3-01 tests).
+	 * Host: puts the local pawn (or, with All, every player's pawn, side by side; with Others, the remote players') in
+	 * front of the nearest actor of Class, facing it (S2-04/S2-06/S3-01/S4-01 tests).
 	 */
 	void GoToNearest(const TArray<FString>& Args, UWorld* World, const TSubclassOf<AActor> Class, const TCHAR* Command)
 	{
@@ -451,10 +453,11 @@ namespace HollowDevConsole
 			return;
 		}
 		const bool bAll = Args.Num() > 0 && Args[0].Equals(TEXT("All"), ESearchCase::IgnoreCase);
+		const bool bOthers = Args.Num() > 0 && Args[0].Equals(TEXT("Others"), ESearchCase::IgnoreCase);
 		TArray<APlayerController*> Players;
 		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
 		{
-			if (APlayerController* Player = It->Get(); Player && (bAll || Player->IsLocalController()))
+			if (APlayerController* Player = It->Get(); Player && (bAll || Player->IsLocalController() != bOthers))
 			{
 				Players.Add(Player);
 			}
@@ -477,6 +480,27 @@ namespace HollowDevConsole
 	void GoToNearestBulkhead(const TArray<FString>& Args, UWorld* World)
 	{
 		GoToNearest(Args, World, AHollowBreachableBulkhead::StaticClass(), TEXT("Hollow.Dev.GoToNearestBulkhead"));
+	}
+
+	/** Usage: Hollow.Dev.GoToNearestEnemy [All|Others] [Stalker] */
+	void GoToNearestEnemy(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* const Command = TEXT("Hollow.Dev.GoToNearestEnemy");
+		TArray<FString> Who = Args;
+		TSubclassOf<AActor> Class = AHollowEnemyCharacter::StaticClass();
+		if (Who.RemoveAll([](const FString& Arg) { return Arg.Equals(TEXT("Stalker"), ESearchCase::IgnoreCase); }) > 0)
+		{
+			// Only the director's stalker (any other enemy may be nearer).
+			const UHollowThreatDirectorSubsystem* Director = UHollowThreatDirectorSubsystem::Get(World);
+			const AActor* Stalker = Director ? Director->GetStalker() : nullptr;
+			if (!Stalker)
+			{
+				UE_LOG(LogHollowGame, Warning, TEXT("%s: there is no stalker."), Command);
+				return;
+			}
+			Class = Stalker->GetClass();
+		}
+		GoToNearest(Who, World, Class, Command);
 	}
 
 	/** Usage: Hollow.Dev.GoToExtraction [All] */
@@ -821,6 +845,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.GoToNearestCore"),
 		TEXT("Host: puts the local pawn (or every player's, with All) in front of the nearest Aether core, facing it. Usage: Hollow.Dev.GoToNearestCore [All]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestCore));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToNearestEnemyCommand(
+		TEXT("Hollow.Dev.GoToNearestEnemy"),
+		TEXT("Host: puts the local pawn (every player's with All, the remote players' with Others) right in front of the nearest enemy (the director's stalker with Stalker), facing it. Usage: Hollow.Dev.GoToNearestEnemy [All|Others] [Stalker]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestEnemy));
 
 	FAutoConsoleCommandWithWorldAndArgs GoToExtractionCommand(
 		TEXT("Hollow.Dev.GoToExtraction"),

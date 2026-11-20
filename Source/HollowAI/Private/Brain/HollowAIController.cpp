@@ -9,7 +9,6 @@
 #include "Enemies/HollowEnemyDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameplayTagAssetInterface.h"
 #include "HollowAILog.h"
 #include "Interfaces/HollowInteractable.h"
 #include "Interfaces/HollowStructural.h"
@@ -20,8 +19,10 @@
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Hearing.h"
 #include "Perception/AISense_Sight.h"
+#include "Sector/HollowSectorTopologySubsystem.h"
 #include "StateTree.h"
 #include "Tags/HollowGameplayTags.h"
+#include "Threat/HollowAIPlayers.h"
 #include "TimerManager.h"
 #include "Util/HollowEnumUtils.h"
 
@@ -74,6 +75,7 @@ void AHollowAIController::OnPossess(APawn* InPawn)
 	{
 		BoundAbilitySystem = AbilitySystem;
 		AbilityEndedHandle = AbilitySystem->OnAbilityEnded.AddUObject(this, &ThisClass::HandleAbilityEnded);
+		StunHandle = AbilitySystem->RegisterGameplayTagEvent(HollowTags::State_Stunned, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleStunChanged);
 	}
 	UE_LOG(LogHollowAI, Log, TEXT("%s: brain %s starts at %s"), *GetNameSafe(InPawn), *GetNameSafe(Definition->StateTree), *Home.ToCompactString());
 	Brain->SetStateTree(Definition->StateTree);
@@ -86,6 +88,7 @@ void AHollowAIController::OnUnPossess()
 	if (UAbilitySystemComponent* AbilitySystem = BoundAbilitySystem.Get())
 	{
 		AbilitySystem->OnAbilityEnded.Remove(AbilityEndedHandle);
+		AbilitySystem->UnregisterGameplayTagEvent(StunHandle, HollowTags::State_Stunned, EGameplayTagEventType::NewOrRemoved);
 	}
 	BoundAbilitySystem.Reset();
 	Perception->OnTargetPerceptionUpdated.RemoveDynamic(this, &ThisClass::HandlePerception);
@@ -123,15 +126,47 @@ double AHollowAIController::Now() const
 	return GetWorld()->GetTimeSeconds();
 }
 
+const UHollowSectorTopologySubsystem* AHollowAIController::GetTopology() const
+{
+	return UHollowSectorTopologySubsystem::Get(this);
+}
+
+bool AHollowAIController::IsStunned() const
+{
+	const UAbilitySystemComponent* AbilitySystem = BoundAbilitySystem.Get();
+	return AbilitySystem && AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Stunned);
+}
+
+void AHollowAIController::HandleStunChanged(const FGameplayTag Tag, const int32 Count)
+{
+	if (Count > 0)
+	{
+		UE_LOG(LogHollowAI, Log, TEXT("%s: stunned"), *GetNameSafe(GetPawn()));
+		// Whatever it was doing is over, not failed: the stopped move or the cancelled blow must not count against it
+		// (a chase would mark its target unreachable). The brain picks Stunned on the reconsider below.
+		EndActivity();
+		if (UAbilitySystemComponent* AbilitySystem = BoundAbilitySystem.Get())
+		{
+			const FGameplayTagContainer Attacks(HollowTags::Ability_Enemy);
+			AbilitySystem->CancelAbilities(&Attacks);   // a blow being wound up never lands
+		}
+		StopMovement();
+		OnStunned();
+		Reconsider();
+	}
+	else
+	{
+		UE_LOG(LogHollowAI, Log, TEXT("%s: recovered from the stun"), *GetNameSafe(GetPawn()));
+		if (Activity == EHollowAIActivity::Stunned)
+		{
+			FinishActivityAfter(true, UE_KINDA_SMALL_NUMBER);
+		}
+	}
+}
+
 bool AHollowAIController::IsCandidate(const AActor* Actor) const
 {
-	const APawn* Pawn = Cast<APawn>(Actor);
-	if (!Pawn || Pawn == GetPawn() || !Pawn->IsPlayerControlled())
-	{
-		return false;
-	}
-	const IGameplayTagAssetInterface* Tags = Cast<IGameplayTagAssetInterface>(Pawn);
-	return !Tags || !Tags->HasMatchingGameplayTag(HollowTags::State_Dead);
+	return Actor && Actor != GetPawn() && HollowAIPlayers::IsLivingPlayer(Actor);
 }
 
 APawn* AHollowAIController::GetTarget() const
@@ -229,7 +264,10 @@ void AHollowAIController::ReportSeen(APawn* Pawn)
 	if (!Before && GetTarget())
 	{
 		UE_LOG(LogHollowAI, Log, TEXT("%s: sees %s"), *GetNameSafe(GetPawn()), *Pawn->GetName());
-		Reconsider();
+		if (ShouldReconsiderOnPerception())
+		{
+			Reconsider();
+		}
 	}
 }
 
@@ -259,7 +297,10 @@ void AHollowAIController::ForgetLostTarget()
 	StimulusTime = Now();
 	bHasStimulus = true;
 	UE_LOG(LogHollowAI, Log, TEXT("%s: lost %s, last seen at %s"), *GetNameSafe(GetPawn()), *Lost->GetName(), *TargetLastSeen.ToCompactString());
-	Reconsider();
+	if (ShouldReconsiderOnPerception())
+	{
+		Reconsider();
+	}
 }
 
 void AHollowAIController::ReportHeard(const FVector& Location)
@@ -271,7 +312,7 @@ void AHollowAIController::ReportHeard(const FVector& Location)
 	bHasStimulus = true;
 	// Continuous noise at the same spot (a welder) refreshes the memory; it does not restart the walk there or a breach
 	// on the way, only wakes a brain that was patrolling.
-	if (!GetTarget() && (bNew || Activity == EHollowAIActivity::Patrol || Activity == EHollowAIActivity::None))
+	if (!GetTarget() && (bNew || Activity == EHollowAIActivity::Patrol || Activity == EHollowAIActivity::None) && ShouldReconsiderOnPerception())
 	{
 		UE_LOG(LogHollowAI, Log, TEXT("%s: hears a noise at %s"), *GetNameSafe(GetPawn()), *Location.ToCompactString());
 		Reconsider();
@@ -330,6 +371,12 @@ void AHollowAIController::BeginActivity(const EHollowAIActivity NewActivity, FOn
 	Activity = NewActivity;
 	ActivityFinished = MoveTemp(OnFinished);
 	UE_LOG(LogHollowAI, Log, TEXT("%s: %s (%s)"), *GetNameSafe(GetPawn()), *HollowEnumToString(NewActivity), *Describe());
+	StartActivity(NewActivity);
+}
+
+void AHollowAIController::StartActivity(const EHollowAIActivity NewActivity)
+{
+	const UHollowEnemyDefinition* Definition = GetDefinition();
 	switch (NewActivity)
 	{
 	case EHollowAIActivity::Patrol:      StartPatrol(); break;
@@ -337,7 +384,20 @@ void AHollowAIController::BeginActivity(const EHollowAIActivity NewActivity, FOn
 	case EHollowAIActivity::Investigate: StartInvestigate(); break;
 	case EHollowAIActivity::Attack:      StartAttack(); break;
 	case EHollowAIActivity::Breach:      StartBreach(); break;
-	case EHollowAIActivity::None:        FinishActivityAfter(true, UE_KINDA_SMALL_NUMBER); break;
+	case EHollowAIActivity::Stunned:
+		StopMovement();
+		if (!IsStunned())
+		{
+			FinishActivityAfter(true, UE_KINDA_SMALL_NUMBER);   // over already; otherwise the tag's removal ends it
+		}
+		break;
+	case EHollowAIActivity::None:
+		FinishActivityAfter(true, UE_KINDA_SMALL_NUMBER);
+		break;
+	default:
+		UE_LOG(LogHollowAI, Warning, TEXT("%s: %s cannot %s"), *GetNameSafe(GetPawn()), *GetClass()->GetName(), *HollowEnumToString(NewActivity));
+		FinishActivityAfter(false, Definition ? Definition->RetrySeconds : UE_KINDA_SMALL_NUMBER);
+		break;
 	}
 }
 
@@ -352,6 +412,10 @@ void AHollowAIController::ClearActivityTimer()
 
 void AHollowAIController::EndActivity()
 {
+	if (Activity != EHollowAIActivity::None)
+	{
+		OnActivityEnded(Activity);
+	}
 	ClearActivityTimer();
 	ActivityMove = FAIRequestID::InvalidRequest;
 	Activity = EHollowAIActivity::None;
@@ -577,6 +641,14 @@ void AHollowAIController::StepBreach()
 		GetWorldTimerManager().SetTimer(ActivityTimer, this, &ThisClass::StepBreach, Definition->ObstacleRecheckSeconds, /*bLoop=*/false);
 		return;
 	case EHollowPassage::Breach:
+		if (!Definition->CanBreach())
+		{
+			// Welded or shut while it was on its way: its filter routes around such passages, so the next move does.
+			UE_LOG(LogHollowAI, Log, TEXT("%s: cannot break %s; goes around"), *GetNameSafe(GetPawn()), *Current->GetName());
+			Obstacle.Reset();
+			FinishActivityAfter(false, Definition->RetrySeconds);
+			return;
+		}
 		if (IsAttackActive(Definition->BreachEvent))
 		{
 			return;   // its end steps again

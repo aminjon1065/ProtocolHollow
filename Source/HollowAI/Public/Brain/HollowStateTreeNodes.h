@@ -16,8 +16,8 @@ struct HOLLOWAI_API FHollowSTNodeInstanceData
 };
 
 /**
- * StateTree nodes of Hollow enemies (ADR-0017). The tree (ST_IronPilgrim, built by create_pilgrim_assets.py) only
- * decides: enter conditions read the controller's facts, and each state's task runs one controller activity and
+ * StateTree nodes of Hollow enemies (ADR-0017, ADR-0019). The trees (ST_IronPilgrim, ST_EchoStalker, built by Python) only
+ * decide: enter conditions read the controller's facts, and each state's task runs one controller activity and
  * finishes when the controller says it is done. Nothing ticks: the tree sleeps until an activity finishes or the
  * controller sends Hollow.AI.Event.Reconsider. The owner of the tree is the AI controller (StateTree AI component).
  */
@@ -84,6 +84,42 @@ protected:
 	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Breach; }
 };
 
+USTRUCT(meta = (DisplayName = "Hollow Stunned", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTTask_Stunned : public FHollowSTTask_Activity
+{
+	GENERATED_BODY()
+
+protected:
+	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Stunned; }
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Track Squad", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTTask_Track : public FHollowSTTask_Activity
+{
+	GENERATED_BODY()
+
+protected:
+	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Track; }
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Ambush", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTTask_Ambush : public FHollowSTTask_Activity
+{
+	GENERATED_BODY()
+
+protected:
+	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Ambush; }
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Retreat To Vents", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTTask_Retreat : public FHollowSTTask_Activity
+{
+	GENERATED_BODY()
+
+protected:
+	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Retreat; }
+};
+
 /** Base of the fact conditions: false without a Hollow AI controller as the tree's owner. */
 USTRUCT(meta = (Hidden))
 struct HOLLOWAI_API FHollowSTCondition_Fact : public FStateTreeConditionCommonBase
@@ -128,6 +164,33 @@ protected:
 
 USTRUCT(meta = (DisplayName = "Hollow Has Obstacle", Category = "Hollow|AI"))
 struct HOLLOWAI_API FHollowSTCond_HasObstacle : public FHollowSTCondition_Fact
+{
+	GENERATED_BODY()
+
+protected:
+	virtual bool Test(const AHollowAIController& Controller) const override;
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Is Stunned", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTCond_IsStunned : public FHollowSTCondition_Fact
+{
+	GENERATED_BODY()
+
+protected:
+	virtual bool Test(const AHollowAIController& Controller) const override;
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Is Hunting (director)", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTCond_IsHunting : public FHollowSTCondition_Fact
+{
+	GENERATED_BODY()
+
+protected:
+	virtual bool Test(const AHollowAIController& Controller) const override;
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Is Retreating (director)", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTCond_IsRetreating : public FHollowSTCondition_Fact
 {
 	GENERATED_BODY()
 

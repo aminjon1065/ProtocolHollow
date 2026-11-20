@@ -40,7 +40,7 @@ EDataValidationResult UHollowEnemyDefinition::IsDataValid(FDataValidationContext
 	{
 		Fail(LOCTEXT("ChaseStop", "ChaseStopDistance must be below EngageRange, or a finished chase may not be in strike range."));
 	}
-	if (!MeleeEvent.IsValid() || !BreachEvent.IsValid())
+	if (!MeleeEvent.IsValid() || (CanBreach() && !BreachEvent.IsValid()))
 	{
 		Fail(LOCTEXT("Events", "MeleeEvent and BreachEvent must name the events of its attack abilities."));
 	}

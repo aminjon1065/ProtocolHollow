@@ -2,6 +2,7 @@
 
 #include "Abilities/HollowAbilitySet.h"
 #include "Characters/HollowCharacterBase.h"
+#include "Interfaces/HollowLightSource.h"
 
 #include "GameplayTagContainer.h"
 
@@ -17,6 +18,7 @@ class UHollowInteractionComponent;
 class UHollowInputConfig;
 class UInputMappingContext;
 class USkeletalMeshComponent;
+class USpotLightComponent;
 struct FInputActionValue;
 
 /**
@@ -25,9 +27,10 @@ struct FInputActionValue;
  * Movement is UHollowCharacterMovementComponent; all tuning, meshes and offsets are data (BP_ExoFrame).
  * The ability system lives on AHollowPlayerState; this pawn becomes its avatar while possessed, and the server grants
  * AbilitySets for exactly that time (attributes re-initialize on every spawn).
+ * The helmet lamp is always on while alive (a toggle comes with S4-08); the Echo-Stalker keeps out of its cone.
  */
 UCLASS()
-class HOLLOWGAME_API AHollowExoFrameCharacter : public AHollowCharacterBase
+class HOLLOWGAME_API AHollowExoFrameCharacter : public AHollowCharacterBase, public IHollowLightSource
 {
 	GENERATED_BODY()
 
@@ -40,6 +43,10 @@ public:
 	UHollowInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
 	UHollowCarrierComponent* GetCarrierComponent() const { return CarrierComponent; }
 	UHollowFootstepNoiseComponent* GetFootstepNoise() const { return FootstepNoise; }
+	USpotLightComponent* GetHelmetLight() const { return HelmetLight; }
+
+	/** The helmet lamp's cone from where the pawn looks (any machine; the server's view drives the AI, ADR-0019). */
+	virtual bool GetLightCone(FHollowLightCone& OutCone) const override;
 
 	/** The Interact input: drops a carried core, otherwise interacts with the focus (a free core is predicted as lifted). */
 	void RequestInteract();
@@ -94,6 +101,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UCameraComponent> FirstPersonCamera;
+
+	/** On the camera: its cone, brightness and reach are data (BP_ExoFrame). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<USpotLightComponent> HelmetLight;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UHollowInteractionComponent> InteractionComponent;

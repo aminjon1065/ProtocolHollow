@@ -21,20 +21,25 @@ protected:
 	virtual void Strike(AActor* Target) override;
 };
 
-/**
- * Iron Pilgrim's melee strike (Hollow.Event.Enemy.Melee): a sphere sweep in front of it at the end of the wind-up;
- * every living player it catches in line of sight takes the definition's damage effect (UHollowDamageExecution).
- * Whoever got out of the way in time is not hit, the target included.
- */
+/** Iron Pilgrim's melee strike (Hollow.Event.Enemy.Melee): the shared melee sweep with its own attack data. */
 UCLASS()
-class HOLLOWAI_API UHollowGA_PilgrimMelee : public UHollowGA_EnemyAttack
+class HOLLOWAI_API UHollowGA_PilgrimMelee : public UHollowGA_EnemyMelee
 {
 	GENERATED_BODY()
 
 public:
 	explicit UHollowGA_PilgrimMelee(const FObjectInitializer& ObjectInitializer);
+};
 
-protected:
-	virtual bool CanStrike(const AActor* Target) const override;
-	virtual void Strike(AActor* Target) override;
+/**
+ * Echo-Stalker's strike out of an ambush (Hollow.Event.Enemy.Ambush, ADR-0019): the shared melee sweep, a short
+ * wind-up, occult damage that armor does not stop (its attack data).
+ */
+UCLASS()
+class HOLLOWAI_API UHollowGA_StalkerAmbush : public UHollowGA_EnemyMelee
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowGA_StalkerAmbush(const FObjectInitializer& ObjectInitializer);
 };

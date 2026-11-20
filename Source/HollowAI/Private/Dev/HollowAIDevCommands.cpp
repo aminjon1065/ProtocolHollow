@@ -2,8 +2,8 @@
 #include "AbilitySystemComponent.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Brain/HollowAIController.h"
-#include "Components/CapsuleComponent.h"
 #include "Enemies/HollowEnemyCharacter.h"
+#include "Enemies/HollowEnemySpawning.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -12,9 +12,11 @@
 #include "HollowAILog.h"
 #include "HollowAISettings.h"
 #include "Interfaces/HollowStructural.h"
-#include "NavigationSystem.h"
 #include "Noise/HollowNoiseSubsystem.h"
 #include "Tags/HollowGameplayTags.h"
+#include "Threat/HollowActivityHeatmapSubsystem.h"
+#include "Threat/HollowThreatDirectorSubsystem.h"
+#include "Threat/HollowVentNetworkSubsystem.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -62,10 +64,11 @@ namespace HollowAIDevConsole
 		for (TActorIterator<AHollowEnemyCharacter> It(World); It; ++It)
 		{
 			const UAbilitySystemComponent* Abilities = It->GetAbilitySystemComponent();
-			UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Dump: enemy %s at %s, yaw %.0f, speed %.0f, health %.0f, winding up %d, dead %d"), *It->GetName(),
-				*It->GetActorLocation().ToCompactString(), It->GetActorRotation().Yaw, It->GetVelocity().Size2D(),
+			UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Dump: enemy %s at %s, yaw %.0f, speed %.0f, health %.0f, winding up %d, stunned %d, in vent %d, hidden %d, dead %d"),
+				*It->GetName(), *It->GetActorLocation().ToCompactString(), It->GetActorRotation().Yaw, It->GetVelocity().Size2D(),
 				Abilities ? Abilities->GetNumericAttribute(UHollowHealthSet::GetHealthAttribute()) : 0.f,
-				Abilities && Abilities->HasMatchingGameplayTag(HollowTags::GameplayCue_Enemy_Windup), It->IsDead());
+				Abilities && Abilities->HasMatchingGameplayTag(HollowTags::GameplayCue_Enemy_Windup), Abilities && Abilities->HasMatchingGameplayTag(HollowTags::State_Stunned),
+				It->IsInVent(), It->IsHidden(), It->IsDead());
 		}
 		for (TActorIterator<AHollowAIController> It(World); It; ++It)
 		{
@@ -102,26 +105,9 @@ namespace HollowAIDevConsole
 			Wanted = Obstacle->GetActorLocation() - Forward * Side * Distance;
 		}
 
-		// The class defaults have not sized their nav agent from the capsule yet: do it here.
-		const AHollowEnemyCharacter* Defaults = Class->GetDefaultObject<AHollowEnemyCharacter>();
-		FNavAgentProperties Agent = Defaults->GetNavAgentPropertiesRef();
-		Agent.AgentRadius = Defaults->GetCapsuleComponent()->GetScaledCapsuleRadius();
-		Agent.AgentHeight = Defaults->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f;
-		UNavigationSystemV1* Navigation = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-		const ANavigationData* NavData = Navigation ? Navigation->GetNavDataForProps(Agent, Wanted) : nullptr;
-		FNavLocation OnNavmesh;
-		const FVector Extent(Settings->DevSpawnSearchExtent);
-		if (!NavData || !Navigation->ProjectPointToNavigation(Wanted, OnNavmesh, Extent, NavData))
-		{
-			UE_LOG(LogHollowAI, Warning, TEXT("Hollow.AI.Spawn: no navmesh for %s near %s."), *Class->GetName(), *Wanted.ToCompactString());
-			return;
-		}
-		const FVector Location = OnNavmesh.Location + FVector(0.0, 0.0, Defaults->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-		const FRotator Facing = (Player->GetActorLocation() - Location).GetSafeNormal2D().Rotation();
-		const AHollowEnemyCharacter* Enemy = World->SpawnActor<AHollowEnemyCharacter>(Class, Location, Facing, Params);
-		UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Spawn: %s at %s"), *GetNameSafe(Enemy), *Location.ToCompactString());
+		const FRotator Facing = (Player->GetActorLocation() - Wanted).GetSafeNormal2D().Rotation();
+		const AHollowEnemyCharacter* Enemy = HollowEnemySpawning::SpawnOnNavmesh(World, Class, Wanted, Settings->DevSpawnSearchExtent, Facing);
+		UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Spawn: %s at %s"), *GetNameSafe(Enemy), Enemy ? *Enemy->GetActorLocation().ToCompactString() : TEXT("-"));
 	}
 
 	/** Usage: Hollow.AI.Noise [Hollow.Noise.Tag] */
@@ -150,6 +136,53 @@ namespace HollowAIDevConsole
 		}
 	}
 
+	void Heat(UWorld* World)
+	{
+		const UHollowActivityHeatmapSubsystem* Heatmap = UHollowActivityHeatmapSubsystem::Get(World);
+		if (IsServer(World, TEXT("Hollow.AI.Heat")) && Heatmap)
+		{
+			UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Heat: %s"), *Heatmap->Describe());
+		}
+	}
+
+	void Vents(UWorld* World)
+	{
+		const UHollowVentNetworkSubsystem* Network = UHollowVentNetworkSubsystem::Get(World);
+		if (IsServer(World, TEXT("Hollow.AI.Vents")) && Network)
+		{
+			UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Vents: %s"), *Network->Describe());
+		}
+	}
+
+	/** Usage: Hollow.AI.Director [Stalk|Hunt|Retreat|Spawn] */
+	void Director(const TArray<FString>& Args, UWorld* World)
+	{
+		UHollowThreatDirectorSubsystem* Threat = UHollowThreatDirectorSubsystem::Get(World);
+		if (!IsServer(World, TEXT("Hollow.AI.Director")) || !Threat)
+		{
+			return;
+		}
+		const FString Order = Args.Num() > 0 ? Args[0] : FString();
+		if (Order.Equals(TEXT("Spawn"), ESearchCase::IgnoreCase))
+		{
+			UE_CLOG(Threat->GetStalker(), LogHollowAI, Warning, TEXT("Hollow.AI.Director: the stalker is already here."));
+			if (!Threat->GetStalker())
+			{
+				Threat->SpawnStalker();
+			}
+		}
+		else if (!Order.IsEmpty())
+		{
+			const int64 Mode = StaticEnum<EHollowThreatMode>()->GetValueByNameString(Order);
+			UE_CLOG(Mode == INDEX_NONE, LogHollowAI, Warning, TEXT("Hollow.AI.Director: unknown order %s (Stalk, Hunt, Retreat, Spawn)."), *Order);
+			if (Mode != INDEX_NONE)
+			{
+				Threat->SetMode(static_cast<EHollowThreatMode>(Mode));
+			}
+		}
+		UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Director: %s"), *Threat->Describe());
+	}
+
 	FAutoConsoleCommandWithWorld DumpCommand(
 		TEXT("Hollow.AI.Dump"),
 		TEXT("Prints the enemies as this machine sees them (any machine) and their brains (host): activity, states, target, stimulus, obstacle."),
@@ -164,6 +197,21 @@ namespace HollowAIDevConsole
 		TEXT("Hollow.AI.Noise"),
 		TEXT("Host: makes a noise at the local pawn through UHollowNoiseSubsystem (UHollowAISettings::DevNoiseTag without a tag). Usage: Hollow.AI.Noise [Hollow.Noise.Tag]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Noise));
+
+	FAutoConsoleCommandWithWorld HeatCommand(
+		TEXT("Hollow.AI.Heat"),
+		TEXT("Host: prints the activity heat of the rooms, the squad's room and the hottest room nobody is in."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&Heat));
+
+	FAutoConsoleCommandWithWorld VentsCommand(
+		TEXT("Hollow.AI.Vents"),
+		TEXT("Host: prints the vent openings and links of the sector."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&Vents));
+
+	FAutoConsoleCommandWithWorldAndArgs DirectorCommand(
+		TEXT("Hollow.AI.Director"),
+		TEXT("Host: prints the director's leash; Stalk, Hunt or Retreat forces a mode, Spawn brings the stalker now. Usage: Hollow.AI.Director [Stalk|Hunt|Retreat|Spawn]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Director));
 
 	FAutoConsoleCommandWithWorld KillCommand(
 		TEXT("Hollow.AI.Kill"),

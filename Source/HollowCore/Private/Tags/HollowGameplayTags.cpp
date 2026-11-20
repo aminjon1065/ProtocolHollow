@@ -14,11 +14,16 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy, "Hollow.Ability.Enemy", "Parent of enemy abilities (server only).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Pilgrim_Breach, "Hollow.Ability.Enemy.Pilgrim.Breach", "Iron Pilgrim: structural blow at a door or bulkhead.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Pilgrim_Melee, "Hollow.Ability.Enemy.Pilgrim.Melee", "Iron Pilgrim: telegraphed melee strike.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Stalker_Ambush, "Hollow.Ability.Enemy.Stalker.Ambush", "Echo-Stalker: strike out of an ambush.");
+
+	// Cooldowns
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Gadget_PulseMine, "Hollow.Cooldown.Gadget.PulseMine", "Pulse mine recharging: a player places no new one meanwhile.");
 
 	// Gameplay events (ability triggers)
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Event_Enemy, "Hollow.Event.Enemy", "Parent of the gameplay events that trigger enemy abilities.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Event_Enemy_Breach, "Hollow.Event.Enemy.Breach", "Brain asks for a structural blow; payload target: the obstacle.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Event_Enemy_Melee, "Hollow.Event.Enemy.Melee", "Brain asks for a melee strike; payload target: the victim.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Event_Enemy_Ambush, "Hollow.Event.Enemy.Ambush", "Brain springs an ambush; payload target: the victim.");
 
 	// AI brain (StateTree) events
 	HOLLOW_DEFINE_GAMEPLAY_TAG(AI_Event_Reconsider, "Hollow.AI.Event.Reconsider", "Brain facts changed (target, stimulus, obstacle): pick the state again.");

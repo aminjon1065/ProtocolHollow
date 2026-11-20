@@ -58,6 +58,10 @@ namespace HollowStateTreeAuthoringPrivate
 			{ FHollowSTTask_Investigate::StaticStruct(), &AddTask<FHollowSTTask_Investigate> },
 			{ FHollowSTTask_Attack::StaticStruct(), &AddTask<FHollowSTTask_Attack> },
 			{ FHollowSTTask_Breach::StaticStruct(), &AddTask<FHollowSTTask_Breach> },
+			{ FHollowSTTask_Stunned::StaticStruct(), &AddTask<FHollowSTTask_Stunned> },
+			{ FHollowSTTask_Track::StaticStruct(), &AddTask<FHollowSTTask_Track> },
+			{ FHollowSTTask_Ambush::StaticStruct(), &AddTask<FHollowSTTask_Ambush> },
+			{ FHollowSTTask_Retreat::StaticStruct(), &AddTask<FHollowSTTask_Retreat> },
 		};
 		return Entries;
 	}
@@ -70,6 +74,9 @@ namespace HollowStateTreeAuthoringPrivate
 			{ FHollowSTCond_TargetInEngageRange::StaticStruct(), &AddCondition<FHollowSTCond_TargetInEngageRange> },
 			{ FHollowSTCond_HasStimulus::StaticStruct(), &AddCondition<FHollowSTCond_HasStimulus> },
 			{ FHollowSTCond_HasObstacle::StaticStruct(), &AddCondition<FHollowSTCond_HasObstacle> },
+			{ FHollowSTCond_IsStunned::StaticStruct(), &AddCondition<FHollowSTCond_IsStunned> },
+			{ FHollowSTCond_IsHunting::StaticStruct(), &AddCondition<FHollowSTCond_IsHunting> },
+			{ FHollowSTCond_IsRetreating::StaticStruct(), &AddCondition<FHollowSTCond_IsRetreating> },
 		};
 		return Entries;
 	}

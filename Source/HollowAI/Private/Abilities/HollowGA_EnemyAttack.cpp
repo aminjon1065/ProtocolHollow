@@ -1,11 +1,16 @@
 #include "Abilities/HollowGA_EnemyAttack.h"
 
-#include "AbilitySystemComponent.h"
 #include "Abilities/HollowEnemyAttackDefinition.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "AIController.h"
+#include "Attributes/HollowHealthSet.h"
+#include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "HollowAILog.h"
 #include "Tags/HollowGameplayTags.h"
+#include "Threat/HollowAIPlayers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowGA_EnemyAttack)
 
@@ -15,6 +20,7 @@ UHollowGA_EnemyAttack::UHollowGA_EnemyAttack(const FObjectInitializer& ObjectIni
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;   // enemies live on the server
 	ActivationBlockedTags.AddTag(HollowTags::State_Dead);
+	ActivationBlockedTags.AddTag(HollowTags::State_Stunned);
 }
 
 void UHollowGA_EnemyAttack::SetTrigger(const FGameplayTag& Event, const FGameplayTag& AbilityTag)
@@ -96,4 +102,55 @@ void UHollowGA_EnemyAttack::RemoveWindupCue()
 		CurrentActorInfo->AbilitySystemComponent->RemoveGameplayCue(Attack->WindupCue);
 	}
 	bWindupCueActive = false;
+}
+
+UHollowGA_EnemyMelee::UHollowGA_EnemyMelee(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+bool UHollowGA_EnemyMelee::CanStrike(const AActor* Target) const
+{
+	return HollowAIPlayers::IsLivingPlayer(Target);
+}
+
+void UHollowGA_EnemyMelee::Strike(AActor* Target)
+{
+	APawn* Attacker = GetAttacker();
+	UAbilitySystemComponent* Source = GetAbilitySystemComponentFromActorInfo();
+	if (!Attacker || !Source || !Attack->DamageEffect)
+	{
+		return;
+	}
+	UWorld* World = GetWorld();
+	const FVector Forward = Attacker->GetActorForwardVector();
+	const FVector Start = Attacker->GetActorLocation();
+	const FVector End = Start + Forward * (Attacker->GetSimpleCollisionRadius() + Attack->Reach);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowEnemyMelee), /*bTraceComplex=*/false, Attacker);
+	TArray<FHitResult> Hits;
+	World->SweepMultiByObjectType(Hits, Start, End, FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn), FCollisionShape::MakeSphere(Attack->Radius), Params);
+
+	TArray<const APawn*> Struck;
+	for (const FHitResult& Hit : Hits)
+	{
+		APawn* Victim = Cast<APawn>(Hit.GetActor());
+		if (!HollowAIPlayers::IsLivingPlayer(Victim) || Struck.Contains(Victim) || FVector::DotProduct(Victim->GetActorLocation() - Start, Forward) <= 0.0)
+		{
+			continue;
+		}
+		FCollisionQueryParams Sight(SCENE_QUERY_STAT(HollowEnemyMeleeSight), /*bTraceComplex=*/false, Attacker);
+		Sight.AddIgnoredActor(Victim);
+		UAbilitySystemComponent* VictimAbilities = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Victim);
+		if (!VictimAbilities || World->LineTraceTestByChannel(Attacker->GetPawnViewLocation(), Victim->GetActorLocation(), ECC_Visibility, Sight))
+		{
+			continue;   // behind cover
+		}
+		Struck.Add(Victim);
+		const FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(Attack->DamageEffect, GetAbilityLevel());
+		Spec.Data->SetSetByCallerMagnitude(HollowTags::Data_Damage, Attack->Damage);
+		Source->ApplyGameplayEffectSpecToTarget(*Spec.Data, VictimAbilities);
+		UE_LOG(LogHollowAI, Log, TEXT("%s: melee strikes %s (health %.0f)"), *Attacker->GetName(), *Victim->GetName(),
+			VictimAbilities->GetNumericAttribute(UHollowHealthSet::GetHealthAttribute()));
+	}
+	UE_CLOG(Struck.IsEmpty(), LogHollowAI, Log, TEXT("%s: melee misses %s"), *Attacker->GetName(), *GetNameSafe(Target));
 }

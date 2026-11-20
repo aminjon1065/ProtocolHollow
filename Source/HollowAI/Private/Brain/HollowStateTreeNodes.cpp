@@ -1,6 +1,7 @@
 #include "Brain/HollowStateTreeNodes.h"
 
 #include "Brain/HollowAIController.h"
+#include "Brain/HollowStalkerController.h"
 #include "StateTreeAsyncExecutionContext.h"
 #include "StateTreeExecutionContext.h"
 
@@ -57,4 +58,21 @@ bool FHollowSTCond_HasStimulus::Test(const AHollowAIController& Controller) cons
 bool FHollowSTCond_HasObstacle::Test(const AHollowAIController& Controller) const
 {
 	return Controller.GetObstacle() != nullptr;
+}
+
+bool FHollowSTCond_IsStunned::Test(const AHollowAIController& Controller) const
+{
+	return Controller.IsStunned();
+}
+
+bool FHollowSTCond_IsHunting::Test(const AHollowAIController& Controller) const
+{
+	const AHollowStalkerController* Stalker = Cast<AHollowStalkerController>(&Controller);
+	return Stalker && Stalker->IsHunting();
+}
+
+bool FHollowSTCond_IsRetreating::Test(const AHollowAIController& Controller) const
+{
+	const AHollowStalkerController* Stalker = Cast<AHollowStalkerController>(&Controller);
+	return Stalker && Stalker->IsRetreating();
 }

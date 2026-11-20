@@ -59,3 +59,21 @@ private:
 	TWeakObjectPtr<AActor> CurrentTarget;
 	bool bWindupCueActive = false;
 };
+
+/**
+ * Melee strike of an enemy: a sphere sweep in front of it at the end of the wind-up; every living player it catches
+ * in line of sight takes the attack's damage effect (UHollowDamageExecution). Whoever got out of the way in time is
+ * not hit, the target included. Children pick the trigger (UHollowGA_PilgrimMelee, UHollowGA_StalkerAmbush).
+ */
+UCLASS(Abstract)
+class HOLLOWAI_API UHollowGA_EnemyMelee : public UHollowGA_EnemyAttack
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowGA_EnemyMelee(const FObjectInitializer& ObjectInitializer);
+
+protected:
+	virtual bool CanStrike(const AActor* Target) const override;
+	virtual void Strike(AActor* Target) override;
+};

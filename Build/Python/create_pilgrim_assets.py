@@ -96,6 +96,7 @@ def back_to_root():
 
 # Brain: children are tried in order; any fact change (Reconsider) or finished activity picks again from the top.
 TREE = state("Root", transitions=[{"trigger": "OnEvent", "event": "Hollow.AI.Event.Reconsider", "target": "Root"}], children=[
+    state("Stunned", ["HollowSTCond_IsStunned"], ["HollowSTTask_Stunned"], [back_to_root()]),   # S4-01: the pulse mine
     state("Breach", ["HollowSTCond_HasObstacle"], ["HollowSTTask_Breach"], [back_to_root()]),
     state("Attack", ["HollowSTCond_HasTarget", "HollowSTCond_TargetInEngageRange"], ["HollowSTTask_Attack"], [back_to_root()]),
     state("Chase", ["HollowSTCond_HasTarget"], ["HollowSTTask_Chase"], [back_to_root()]),

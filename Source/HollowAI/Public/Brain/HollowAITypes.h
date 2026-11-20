@@ -21,5 +21,13 @@ enum class EHollowAIActivity : uint8
 	/** Melee strike at the target (an ability, wind-up telegraphed). */
 	Attack,
 	/** Get past the obstacle in the way: open it, wait for it, or break it (structural blows). */
-	Breach
+	Breach,
+	/** Stand still until Hollow.State.Stunned goes (a pulse mine, ADR-0019). */
+	Stunned,
+	/** Echo-Stalker: shadow the squad from a neighbouring room, out of their lamps. */
+	Track,
+	/** Echo-Stalker: lie in wait in the hottest room nobody is in, strike whoever comes close. */
+	Ambush,
+	/** Echo-Stalker: into the nearest vent, out of the farthest one, hidden until the director calls it back. */
+	Retreat
 };

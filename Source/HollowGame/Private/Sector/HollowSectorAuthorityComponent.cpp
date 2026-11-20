@@ -28,6 +28,8 @@
 #include "NavigationSystem.h"
 #include "Sector/HollowSectorFeatureSubsystem.h"
 #include "Sector/HollowSectorSettings.h"
+#include "Sector/HollowSectorTopologyBuilder.h"
+#include "Sector/HollowSectorTopologySubsystem.h"
 #include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
 #include "Util/HollowEnumUtils.h"
@@ -244,6 +246,13 @@ void UHollowSectorAuthorityComponent::HandleServerAssembled(const int32 BuildId,
 	bServerAssembled = true;
 	SpawnSectorActors();
 	BuildNavigation();
+	if (UHollowSectorTopologySubsystem* Topology = UHollowSectorTopologySubsystem::Get(this))
+	{
+		// The AI's view of the sector (heat, vents, the director's stalker, ADR-0019); server only.
+		const UHollowSectorAssemblySubsystem* Assembly = GetWorld()->GetSubsystem<UHollowSectorAssemblySubsystem>();
+		Topology->SetTopology(HollowSectorTopologyBuilder::Build(Assembly->GetManifest(), Assembly->GetLayout(), *GetDefault<UHollowLevelMetrics>(),
+			UHollowSectorAssemblySubsystem::GetSectorOrigin()));
+	}
 	TryFinish();
 }
 
@@ -462,6 +471,10 @@ void UHollowSectorAuthorityComponent::ClearSector()
 		}
 	}
 	SpawnedActors.Reset();
+	if (UHollowSectorTopologySubsystem* Topology = UHollowSectorTopologySubsystem::Get(this))
+	{
+		Topology->SetTopology(FHollowSectorTopology());   // the AI forgets the old sector (the director recalls its stalker)
+	}
 	Reported.Reset();
 	bServerAssembled = false;
 	bNavigationReady = false;

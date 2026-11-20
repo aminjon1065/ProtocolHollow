@@ -6,14 +6,19 @@
 #include "HollowAISettings.generated.h"
 
 class AHollowEnemyCharacter;
+class UHollowThreatConfig;
 
-/** Development tuning of the Hollow.AI.* console commands (DefaultGame.ini); gameplay tuning lives in the enemy definitions. */
+/** AI settings (DefaultGame.ini): the threat config of a raid and the Hollow.AI.* development commands; enemy tuning lives in their definitions. */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Hollow AI"))
 class HOLLOWAI_API UHollowAISettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
+	/** Heat, vents and the director's leash of a raid (ADR-0019). */
+	UPROPERTY(Config, EditAnywhere, Category = "Threat")
+	TSoftObjectPtr<UHollowThreatConfig> ThreatConfig;
+
 	/** Enemy that Hollow.AI.Spawn places. */
 	UPROPERTY(Config, EditAnywhere, Category = "Development")
 	TSoftClassPtr<AHollowEnemyCharacter> DevEnemyClass;

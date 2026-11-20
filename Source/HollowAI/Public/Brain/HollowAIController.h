@@ -8,6 +8,7 @@
 #include "HollowAIController.generated.h"
 
 class UAbilitySystemComponent;
+class UHollowSectorTopologySubsystem;
 class UAISenseConfig_Hearing;
 class UAISenseConfig_Sight;
 class UHollowEnemyDefinition;
@@ -59,13 +60,42 @@ public:
 	/** Stops brain, activity and movement for good (death). */
 	void Shutdown();
 
+	/** Hollow.State.Stunned on its pawn (a pulse mine): it stands still and strikes at nothing. */
+	bool IsStunned() const;
+	/** Living, player-controlled pawn other than its own: what it may hunt and what it hears. */
+	bool IsCandidate(const AActor* Actor) const;
+
 	/** One line for Hollow.AI.Dump and the smoke logs. */
-	FString Describe() const;
+	virtual FString Describe() const;
 
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
+
+	/** Runs NewActivity (already current); a child class adds its own and passes the rest to this one. */
+	virtual void StartActivity(EHollowAIActivity NewActivity);
+	/** The current activity's move ended (or it was already at the goal). */
+	virtual void HandleActivityMove(bool bSuccess);
+	virtual void HandleAbilityEnded(const FAbilityEndedData& Data);
+	/** The current activity is over (finished or dropped), before the next one starts. */
+	virtual void OnActivityEnded(EHollowAIActivity Ended) {}
+	/** The pawn was just stunned (abilities already cancelled, movement stopped). */
+	virtual void OnStunned() {}
+	/** Whether a new sight or sound makes the brain pick again at once (the Pilgrim: always; the stalker only while it roams). */
+	virtual bool ShouldReconsiderOnPerception() const { return true; }
+
+	void Reconsider();
+	void FinishActivity(bool bSuccess);
+	void FinishActivityAfter(bool bSuccess, float Seconds);
+	void ClearActivityTimer();
+	bool MoveForActivity(const FVector& Goal, AActor* GoalActor, float AcceptanceRadius, float Speed);
+	bool TriggerAttack(const FGameplayTag& Event, AActor* AttackTarget);
+	bool IsAttackActive(const FGameplayTag& Event) const;
+	/** Edge-to-edge distance in the plane between its capsule and Other's collision. */
+	double GapTo(const AActor* Other) const;
+	double Now() const;
+	const UHollowSectorTopologySubsystem* GetTopology() const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|AI")
 	TObjectPtr<UStateTreeAIComponent> Brain;
@@ -79,14 +109,16 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UAISenseConfig_Hearing> HearingConfig;
 
+	EHollowAIActivity Activity = EHollowAIActivity::None;
+	FTimerHandle ActivityTimer;
+	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystem;
+
 private:
 	UFUNCTION()
 	void HandlePerception(AActor* Actor, FAIStimulus Stimulus);
 
-	void HandleAbilityEnded(const FAbilityEndedData& Data);
+	void HandleStunChanged(const FGameplayTag Tag, int32 Count);
 	void ConfigureSenses(const UHollowEnemyDefinition& Definition);
-	bool IsCandidate(const AActor* Actor) const;
-	void Reconsider();
 	void StopAtObstacle();
 	void MarkTargetUnreachable();
 	void ForgetLostTarget();
@@ -98,19 +130,8 @@ private:
 	void StartAttack();
 	void StartBreach();
 	void StepBreach();
-	void HandleActivityMove(bool bSuccess);
-	void FinishActivity(bool bSuccess);
-	void FinishActivityAfter(bool bSuccess, float Seconds);
 	void FinishInvestigation(bool bSuccess);
-	void ClearActivityTimer();
-
-	bool MoveForActivity(const FVector& Goal, AActor* GoalActor, float AcceptanceRadius, float Speed);
-	bool TriggerAttack(const FGameplayTag& Event, AActor* AttackTarget);
-	bool IsAttackActive(const FGameplayTag& Event) const;
 	bool FindPatrolPoint(FVector& OutPoint) const;
-	/** Edge-to-edge distance in the plane between its capsule and Other's collision. */
-	double GapTo(const AActor* Other) const;
-	double Now() const;
 
 	mutable TWeakObjectPtr<APawn> Target;
 	TArray<TWeakObjectPtr<APawn>> Seen;
@@ -127,12 +148,10 @@ private:
 	TWeakObjectPtr<AActor> Obstacle;
 	FVector Home = FVector::ZeroVector;
 
-	EHollowAIActivity Activity = EHollowAIActivity::None;
 	FOnHollowActivityFinished ActivityFinished;
 	FAIRequestID ActivityMove;
-	FTimerHandle ActivityTimer;
 	FTimerHandle ReconsiderTimer;
 
-	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystem;
 	FDelegateHandle AbilityEndedHandle;
+	FDelegateHandle StunHandle;
 };
