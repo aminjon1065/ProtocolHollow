@@ -51,6 +51,11 @@
   - контракт `DA_Contract_Docks` выбирает хост, он уходит в URL рейда;
   - три апгрейда челнока в профиле: запас топлива (+2 ячейки за рейд), слот страховки (+1), бонус за ядра (+20 %);
   - тесты `Hollow.Economy.Upgrades.*`, `Hollow.Game.Hub.{Terminals, Data, Skiff}`, кооп-смоук `playthrough-mac.sh hub`.
+- **S5-04 — сделано** (2026-11-22, [ADR-0033](../ADR/ADR-0033-hub-screens-commonui.md)), Sprint 5 закрыт:
+  - экраны на слое Menu без Tick: `W_Workbench` (вкладки Craft / Shop / Ship upgrades, LB / RB, Q / E), `W_Loadout` (склад ↔ лоадаут, страховка), `W_ContractTerminal` (хост выбирает и запускает, гость видит выбор);
+  - терминал → экран через `UHollowHubScreenRouter`; Back / Close закрывает терминал и возвращает режим Game;
+  - кнопки проверяются правилами экономики на копии профиля, недоступное серое с причиной;
+  - тесты `Hollow.UI.Hub.{Rules, Workbench, Loadout, Contracts, Routing}`, рендер-смоук `playthrough-mac.sh screens`, кооп-смоук `hub` с запуском через экран.
 
 ---
 

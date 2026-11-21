@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HollowUILog.h"
 #include "HollowUITags.h"
+#include "Hub/HollowHubScreenRouter.h"
 #include "InputMappingContext.h"
 #include "Menus/HollowMenuRules.h"
 #include "ViewModels/HollowVisorContext.h"
@@ -60,6 +61,12 @@ void AHollowHUD::BeginPlay()
 	Layout->PushWidgetToLayer(bFrontEnd ? HollowUITags::UI_Layer_Menu : HollowUITags::UI_Layer_Game,
 		(bFrontEnd ? Settings->MainMenuClass : Settings->VisorClass).LoadSynchronous());
 	UE_LOG(LogHollowUI, Log, TEXT("%s: UI up for %s (%s)"), *GetName(), *Player->GetName(), bFrontEnd ? TEXT("main menu") : TEXT("visor"));
+	if (!bFrontEnd)
+	{
+		// The hub's terminals open their screens here (S5-04); a map without terminals never asks.
+		HubScreens = NewObject<UHollowHubScreenRouter>(this);
+		HubScreens->Initialize(Layout, Player);
+	}
 
 	// A raid resolved now, or one the player has not seen yet (after travel, a lost host, a crash).
 	if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))
@@ -77,6 +84,11 @@ void AHollowHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))
 	{
 		Profile->OnRaidReport.Remove(RaidReportHandle);
+	}
+	if (HubScreens)
+	{
+		HubScreens->Deinitialize();
+		HubScreens = nullptr;
 	}
 	if (Layout)
 	{

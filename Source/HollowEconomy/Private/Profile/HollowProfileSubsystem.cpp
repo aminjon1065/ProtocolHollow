@@ -108,6 +108,11 @@ void UHollowProfileSubsystem::ApplyRaidResult(const FHollowRaidResult& Result)
 	HandleReport(Report, TEXT("host's result"));
 }
 
+const FHollowProfileState& UHollowProfileSubsystem::GetProfileState() const
+{
+	return Save->State;
+}
+
 EHollowTransactionResult UHollowProfileSubsystem::ApplyTransaction(const FHollowProfileTransaction& Transaction)
 {
 	FHollowProfileState& State = Save->State;

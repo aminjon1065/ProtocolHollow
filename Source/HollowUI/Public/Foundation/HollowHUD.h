@@ -6,6 +6,7 @@
 
 class UCommonActivatableWidget;
 class UHollowDebriefWidget;
+class UHollowHubScreenRouter;
 struct FHollowRaidReport;
 class UHollowPrimaryLayout;
 class UHollowVisorContext;
@@ -27,6 +28,9 @@ public:
 
 	UHollowPrimaryLayout* GetPrimaryLayout() const { return Layout; }
 	UHollowVisorContext* GetVisorContext() const { return VisorContext; }
+
+	/** Shows the hub terminals' screens for this player (S5-04); null on the front end. */
+	UHollowHubScreenRouter* GetHubScreens() const { return HubScreens; }
 
 	/** Pushes the system menu on the Menu layer unless one is already active there. */
 	UCommonActivatableWidget* OpenSystemMenu();
@@ -52,6 +56,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHollowDebriefWidget> Debrief;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHollowHubScreenRouter> HubScreens;
 
 	FDelegateHandle RaidReportHandle;
 };

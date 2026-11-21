@@ -2,6 +2,7 @@
 
 #include "Crafting/HollowCraftingRules.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Profile/HollowProfileSource.h"
 #include "Profile/HollowProfileTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -14,10 +15,10 @@ class UNetDriver;
  * The local player's profile (ADR-0005): owned by this machine, saved to a SaveGame slot. Runs the raid escrow
  * (ADR-0016) - written when this machine enters a raid, resolved by the host's result, by a lost connection to the
  * host (SignalLost) or, if found unresolved at startup or when another raid starts, as Abandoned (death rules).
- * A resolved raid stays pending until the debrief has been seen.
+ * A resolved raid stays pending until the debrief has been seen. The hub's screens use it as their profile source (S5-04).
  */
 UCLASS()
-class HOLLOWECONOMY_API UHollowProfileSubsystem : public UGameInstanceSubsystem
+class HOLLOWECONOMY_API UHollowProfileSubsystem : public UGameInstanceSubsystem, public IHollowProfileSource
 {
 	GENERATED_BODY()
 
@@ -57,7 +58,11 @@ public:
 	 * A transaction of the hub's shop, workbench or loadout locker (ADR-0031) on this machine's profile, under
 	 * HollowCraftingRules with the project's terms; saved and announced when it applied. Anything else changed nothing.
 	 */
-	EHollowTransactionResult ApplyTransaction(const FHollowProfileTransaction& Transaction);
+	virtual EHollowTransactionResult ApplyTransaction(const FHollowProfileTransaction& Transaction) override;
+
+	// IHollowProfileSource
+	virtual const FHollowProfileState& GetProfileState() const override;
+	virtual FOnProfileChanged& ProfileChanged() override { return OnProfileChanged; }
 
 	/** Development: insure or uninsure a loadout slot (insurance UI comes later). False for a bad slot or an uninsurable item. */
 	bool SetSlotInsured(int32 SlotIndex, bool bInsured);

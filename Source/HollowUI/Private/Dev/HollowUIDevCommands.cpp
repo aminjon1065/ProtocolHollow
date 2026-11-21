@@ -2,6 +2,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "CommonActivatableWidget.h"
+#include "CommonButtonBase.h"
 #include "CommonInputSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
@@ -15,6 +16,11 @@
 #include "HAL/IConsoleManager.h"
 #include "HollowUILog.h"
 #include "HollowUITags.h"
+#include "Hub/HollowContractTerminalWidget.h"
+#include "Hub/HollowHubRowWidget.h"
+#include "Hub/HollowHubScreenRouter.h"
+#include "Hub/HollowHubScreenWidget.h"
+#include "Hub/HollowWorkbenchWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Misc/Paths.h"
 #include "TimerManager.h"
@@ -37,6 +43,38 @@ namespace HollowUIDevConsole
 	{
 		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
 		return GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+	}
+
+	/** The hub screen shown (S5-04): tab, rows with their buttons (- greyed out, > focused), status and message. */
+	void DumpHubScreen(const UHollowHubScreenWidget* Screen, APlayerController* Player)
+	{
+		if (!Screen)
+		{
+			return;
+		}
+		const UHollowWorkbenchWidget* Workbench = Cast<UHollowWorkbenchWidget>(Screen);
+		const UHollowContractTerminalWidget* Contracts = Cast<UHollowContractTerminalWidget>(Screen);
+		const UCommonButtonBase* Launch = Contracts ? Contracts->GetLaunchButton() : nullptr;
+		const FString Tab = Workbench ? TEXT(" tab ") + HollowEnumToString(Workbench->GetTab()) : FString();
+		const FString LaunchState = Launch ? (Launch->IsVisible() ? FString(TEXT(" launch shown")) : FString(TEXT(" launch hidden"))) : FString();
+		UCommonButtonBase* Close = Screen->GetCloseButton();
+		const int32 bCloseFocused = Close->HasUserFocus(Player) || Close->HasUserFocusedDescendants(Player) ? 1 : 0;
+		const TArray<UHollowHubRowWidget*> Rows = Screen->GetRowWidgets();
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: hub screen %s%s%s, %d row(s), close focus %d, status \"%s\", message \"%s\""), *Screen->GetName(),
+			*Tab, *LaunchState, Rows.Num(), bCloseFocused, *Screen->GetStatus().ToString(), *Screen->GetMessage().ToString());
+		for (int32 Index = 0; Index < Rows.Num(); ++Index)
+		{
+			const FHollowHubRow& Row = Rows[Index]->GetRow();
+			const int32 Focused = Rows[Index]->GetFocusedAction(Player);
+			FString Buttons;
+			for (int32 Action = 0; Action < Row.Actions.Num(); ++Action)
+			{
+				Buttons += FString::Printf(TEXT(" %s%s[%s]"), Action == Focused ? TEXT(">") : TEXT(""), Row.Actions[Action].bAvailable ? TEXT("") : TEXT("-"),
+					*Row.Actions[Action].Label.ToString());
+			}
+			const TCHAR* Kind = Row.bHeader ? TEXT(" header") : Row.bHighlighted ? TEXT(" *") : TEXT("");
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: hub row %d%s \"%s\" (%s)%s"), Index, Kind, *Row.Name.ToString(), *Row.Detail.ToString(), *Buttons);
+		}
 	}
 
 	/** Prints this machine's UI: layers, input mode and device, visor bars, prompt, tool target, menu focus. */
@@ -115,6 +153,7 @@ namespace HollowUIDevConsole
 		const UWidget* Focus = Menu ? Menu->GetDesiredFocusTarget() : nullptr;
 		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: menu %s, focus target %s has focus %d"), *GetNameSafe(Menu), *GetNameSafe(Focus),
 			Focus ? (Focus->HasUserFocus(Player) || Focus->HasUserFocusedDescendants(Player)) : 0);   // buttons focus their inner SButton
+		DumpHubScreen(HUD->GetHubScreens() ? HUD->GetHubScreens()->GetScreen() : nullptr, Player);
 	}
 
 	/** Usage: Hollow.UI.Menu <Open|Close> */

@@ -7,6 +7,7 @@
 class UCommonActivatableWidget;
 class UHollowInputGlyphSet;
 class UHollowDebriefWidget;
+class UHollowHubScreenWidget;
 class UHollowPrimaryLayout;
 class UHollowVisorStyle;
 class UInputAction;
@@ -36,6 +37,20 @@ public:
 	/** Raid debrief on the Menu layer (S3-03). */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout")
 	TSoftClassPtr<UHollowDebriefWidget> DebriefClass;
+
+	/** The hub terminals' screens on the Menu layer (S5-04, ADR-0033), one per terminal kind. */
+	UPROPERTY(Config, EditAnywhere, Category = "Hub")
+	TSoftClassPtr<UHollowHubScreenWidget> WorkbenchScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Hub")
+	TSoftClassPtr<UHollowHubScreenWidget> LoadoutScreenClass;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Hub")
+	TSoftClassPtr<UHollowHubScreenWidget> ContractScreenClass;
+
+	/** The shop's second buy button: Buy this many at once. */
+	UPROPERTY(Config, EditAnywhere, Category = "Hub", meta = (ClampMin = "2"))
+	int32 ShopBulkCount = 0;
 
 	/** UI actions (confirm, back, system menu): CommonUI finds their keys in applied mapping contexts. */
 	UPROPERTY(Config, EditAnywhere, Category = "Input")

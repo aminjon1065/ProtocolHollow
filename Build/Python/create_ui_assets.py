@@ -525,8 +525,12 @@ def check(condition, message):
 def validate():
     for name in UI_ACTIONS:
         check(assets.does_asset_exist(INPUT_DIR + "/" + name), name)
-    check(len(load(INPUT_DIR + "/IMC_UI").get_editor_property("default_key_mappings").get_editor_property("mappings")) ==
-          sum(len(keys) for keys in UI_ACTIONS.values()), "IMC_UI maps every UI key")
+    # Every UI key is mapped (create_hub_ui_assets.py adds the tab keys to IMC_UI, S5-04).
+    mappings = load(INPUT_DIR + "/IMC_UI").get_editor_property("default_key_mappings").get_editor_property("mappings")
+    known = set((m.get_editor_property("action").get_name(), m.get_editor_property("key").export_text()) for m in mappings)
+    for name, keys in UI_ACTIONS.items():
+        for key_name in keys:
+            check((name, make_key(key_name).export_text()) in known, "IMC_UI maps %s to %s" % (key_name, name))
     data = unreal.get_default_object(load(INPUT_DIR + "/BP_CommonInputData").generated_class())
     check(data.get_editor_property("enhanced_input_back_action") is not None, "CommonUI back action")
     check(len(load(INPUT_DIR + "/DA_InputGlyphs").get_editor_property("glyphs")) == len(GLYPHS), "glyphs")

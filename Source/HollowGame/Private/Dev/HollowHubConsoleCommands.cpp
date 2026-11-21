@@ -87,6 +87,23 @@ namespace HollowHubConsole
 		}
 	}
 
+	/**
+	 * Usage: Hollow.Hub.Open <Contracts|Workbench|Locker>: opens that terminal for the local player on this machine, as
+	 * the server's answer to E would (its screen shows, S5-04), skipping the walk and the server's checks.
+	 */
+	void Open(const TArray<FString>& Args, UWorld* World)
+	{
+		UHollowHubTerminalSubsystem* Terminals = UHollowHubTerminalSubsystem::Get(World);
+		AHollowHubTerminal* Terminal = Args.Num() > 0 ? FindTerminal(World, Args[0]) : nullptr;
+		AHollowPlayerController* Player = LocalPlayer(World);
+		if (!Terminals || !Terminal || !Player)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Hub.Open <Contracts|Workbench|Locker>: no such terminal or no local player here."));
+			return;
+		}
+		Terminals->Open(Player, Terminal);
+	}
+
 	/** Usage: Hollow.Dev.GoToTerminal <Contracts|Workbench|Locker> [All|Others] (host): in front of it, facing it. */
 	void GoToTerminal(const TArray<FString>& Args, UWorld* World)
 	{
@@ -131,6 +148,11 @@ namespace HollowHubConsole
 		TEXT("Hollow.Hub.Launch"),
 		TEXT("Host, in the hub: sends the squad into a raid on the selected contract."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&Launch));
+
+	FAutoConsoleCommandWithWorldAndArgs OpenCommand(
+		TEXT("Hollow.Hub.Open"),
+		TEXT("Opens a hub terminal (its screen) for the local player without walking there. Usage: Hollow.Hub.Open <Contracts|Workbench|Locker>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Open));
 
 	FAutoConsoleCommandWithWorld CloseCommand(
 		TEXT("Hollow.Hub.Close"),

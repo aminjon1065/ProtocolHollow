@@ -22,9 +22,13 @@
 #   carrysolo  ADR-0015 investigation: host + 1 headless client behind --net; the client walks 2 rooms carrying the core
 #          alone, then 2 rooms without it (the control), logging corrections.
 #   hub    S5-03 hub shuttle Skiff (ADR-0032): host + 1 headless client behind --net. The host buys the fuel reserve, the
-#          client the core contract; in the hub the client opens the workbench and the locker (only it), asks for the
-#          contract (refused), the host opens the contracts terminal, picks the contract, takes screenshots and launches;
+#          client the core contract; in the hub the client opens the workbench and the locker (only it, their screens on
+#          its machine), asks for the contract (refused) and looks at the contracts screen (no Launch: S5-04), the host
+#          opens the contracts terminal and launches from its screen with the gamepad (S5-04);
 #          in the raid the host carries the core out with both aboard: the host's two free fuel cells, the client's 600.
+#   screens  S5-04 hub screens (ADR-0033), one rendered process: the workbench (craft with A, RB to the shop, D-pad and A
+#          to buy, E / Q to the upgrades and back, Esc), the locker (take with the keyboard and A, insure, B), the
+#          contracts screen (A on Launch); a screenshot of each; the raid, then the hub again.
 #   economy  S5-02 hub economy (ADR-0031), one process: in the hub a refused craft (one shard short), a shard bought, two
 #          pulse mines and a fuel cell crafted, the mines equipped, the cutter insured, the cell sold; in the raid a
 #          transaction refused, then the player dies: the insured welder and cutter come home, their insurance spent.
@@ -34,7 +38,7 @@
 #          profiles show what was spent.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -43,7 +47,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub ]] || { sed -n '2,38p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens ]] || { sed -n '2,42p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -226,8 +230,7 @@ case "$MODE" in
 		C1+=("Hollow.Dev.RunAfter 21 Hollow.Hub.Select DA_Contract_Docks")          # refused: only the host picks
 		C1+=("Hollow.Dev.RunAfter 22 Hollow.Hub.Dump")
 		h "Hollow.Dev.RunAfter 28 Hollow.Dev.GoToTerminal Contracts"
-		h "Hollow.Dev.RunAfter 29 Hollow.Interact"
-		h "Hollow.Dev.RunAfter 30 Hollow.Hub.Select DA_Contract_Docks"
+		h "Hollow.Dev.RunAfter 29 Hollow.Interact"                                  # its screen, focus on Launch (S5-04)
 		h "Hollow.Dev.RunAfter 31 Hollow.UI.Shot Skiff_Contracts"
 		# The client starts 2-12 s after the host: it is placed at the locker before its earliest E and well before launch.
 		h "Hollow.Dev.RunAfter 34 Hollow.Dev.GoToTerminal Locker Others"
@@ -235,8 +238,14 @@ case "$MODE" in
 		C1+=("Hollow.Dev.RunAfter 38 Hollow.Interact")                              # the locker, on the client only
 		C1+=("Hollow.Dev.RunAfter 41 Hollow.Interact")
 		C1+=("Hollow.Dev.RunAfter 42 Hollow.Hub.Dump")
+		C1+=("Hollow.Dev.RunAfter 42.5 Hollow.UI.Dump")                             # the client's locker screen
+		C1+=("Hollow.Dev.RunAfter 44 Hollow.Hub.Open Contracts")                    # a guest's contracts screen: no Launch
+		C1+=("Hollow.Dev.RunAfter 45 Hollow.UI.Dump")
+		C1+=("Hollow.Dev.RunAfter 46 Hollow.Hub.Close")
 		h "Hollow.Dev.RunAfter 52 Hollow.Hub.Dump"
-		h "Hollow.Dev.RunAfter 56 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunAfter 55 Hollow.UI.Dump"
+		h "$(key 56 $PRESS)"                                                          # A on Launch: the raid
+		C+=("Hollow.Dev.RunInRaid 1 Hollow.UI.Dump")                                 # the screens are gone with the hub
 		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
 		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore All"
 		h "Hollow.Dev.RunInRaid 4 Hollow.Interact"
@@ -244,6 +253,40 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 6 Hollow.Dev.GoToExtraction All"
 		h "Hollow.Dev.RunInRaid 45 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 46 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	screens)
+		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
+		h "Hollow.Dev.RunAfter 16 Hollow.Dev.GoToTerminal Workbench"
+		h "Hollow.Dev.RunAfter 17 Hollow.Interact"                                  # E: the server opens it, the screen shows
+		h "Hollow.Dev.RunAfter 18 Hollow.UI.Dump"; h "Hollow.Dev.RunAfter 18.5 Hollow.UI.Shot Screens_Craft"
+		h "$(key 19 $PRESS)"; h "Hollow.Dev.RunAfter 20 Hollow.UI.Dump"               # A: craft a fuel cell
+		h "$(key 21 Gamepad_RightShoulder)"; h "Hollow.Dev.RunAfter 22 Hollow.UI.Dump"   # RB: the shop
+		h "Hollow.Dev.RunAfter 22.5 Hollow.UI.Shot Screens_Shop"
+		h "$(key 23 $DOWN)"; h "$(key 24 $PRESS)"; h "Hollow.Dev.RunAfter 25 Hollow.UI.Dump"   # D-pad, A: buy a plasma cutter
+		h "$(key 26 E)"; h "Hollow.Dev.RunAfter 27 Hollow.UI.Dump"                    # E (keyboard): ship upgrades
+		h "Hollow.Dev.RunAfter 27.5 Hollow.UI.Shot Screens_Upgrades"
+		h "$(key 28 Q)"; h "Hollow.Dev.RunAfter 29 Hollow.UI.Dump"                    # Q: back to the shop
+		h "$(key 30 Escape)"; h "Hollow.Dev.RunAfter 31 Hollow.UI.Dump"               # Esc: back to the game
+		h "Hollow.Dev.RunAfter 32 Hollow.Dev.GoToTerminal Locker"
+		h "Hollow.Dev.RunAfter 33 Hollow.Interact"
+		h "Hollow.Dev.RunAfter 34 Hollow.UI.Dump"; h "Hollow.Dev.RunAfter 34.5 Hollow.UI.Shot Screens_Locker"
+		h "$(key 35 Down)"; h "$(key 36 $PRESS)"; h "Hollow.Dev.RunAfter 37 Hollow.UI.Dump"   # arrow, A: take the cutter
+		h "$(key 38 Up)"; h "$(key 38.5 Right)"; h "$(key 39 Right)"; h "$(key 39.5 Right)"   # over to the loadout's Insure
+		h "Hollow.Dev.RunAfter 40 Hollow.UI.Dump"; h "$(key 41 $PRESS)"; h "Hollow.Dev.RunAfter 42 Hollow.UI.Dump"
+		h "Hollow.Dev.RunAfter 42.5 Hollow.UI.Shot Screens_Locker_Insured"
+		h "$(key 43 Gamepad_FaceButton_Right)"; h "Hollow.Dev.RunAfter 44 Hollow.UI.Dump"   # B: back to the game
+		h "Hollow.Dev.RunAfter 45 Hollow.Dev.GoToTerminal Contracts"
+		h "Hollow.Dev.RunAfter 46 Hollow.Interact"
+		h "Hollow.Dev.RunAfter 47 Hollow.UI.Dump"; h "Hollow.Dev.RunAfter 47.5 Hollow.UI.Shot Screens_Contracts"
+		h "Hollow.Dev.RunAfter 48 Hollow.Profile.Dump"
+		h "$(key 49 $PRESS)"                                                          # A on Launch
+		h "Hollow.Dev.RunInRaid 1 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore"
+		h "Hollow.Dev.RunInRaid 4 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 6 Hollow.Dev.GoToExtraction"
+		h "Hollow.Dev.RunInRaid 45 Hollow.Profile.Dump"
+		END='Hollow[.]Profile[.]Dump: [0-9].*raids 1,'
 		;;
 	economy)
 		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
@@ -310,7 +353,7 @@ case "$MODE" in
 esac
 join() { local IFS=','; echo "$*"; }
 
-if [[ "$MODE" == solo || "$MODE" == economy ]]; then
+if [[ "$MODE" == solo || "$MODE" == economy || "$MODE" == screens ]]; then
 	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" "$END" 400 || echo "the $MODE playthrough did not finish"
 else
@@ -342,7 +385,7 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract " "$log" | grep -v "Command Line\|commandline" | strip | head -90
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input)|_C_[0-9]+: |shows W_" "$log" | grep -v "Command Line\|commandline" | strip | awk 'NR <= 160'
 done
 echo "===== errors, ensures, crashes"
 { grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log || true; } | strip | sort | uniq -c | sort -rn | head -30   # none is no failure
