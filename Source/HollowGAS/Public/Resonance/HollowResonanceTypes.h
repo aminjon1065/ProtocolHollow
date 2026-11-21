@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/EnumRange.h"
 
 #include "HollowResonanceTypes.generated.h"
 
@@ -13,6 +14,7 @@ enum class EHollowResonanceTier : uint8
 	High,
 	Critical
 };
+ENUM_RANGE_BY_FIRST_AND_LAST(EHollowResonanceTier, EHollowResonanceTier::Low, EHollowResonanceTier::Critical);
 
 /** What the server replicates of the squad's Resonance: 2 bytes, at most a few times a second. */
 USTRUCT()

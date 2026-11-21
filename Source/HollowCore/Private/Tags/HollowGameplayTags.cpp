@@ -11,6 +11,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Interact, "Hollow.Ability.Interact", "Generic interaction ability.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Carry_Heavy, "Hollow.Ability.Carry.Heavy", "Pick up / carry a heavy Aether core.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Gadget_PulseMine, "Hollow.Ability.Gadget.PulseMine", "Kinetic pulse mine (stuns the Echo-Stalker).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_HelmetLamp, "Hollow.Ability.HelmetLamp", "Helmet lamp toggle (S4-08): predicted, the Echo-Stalker keeps out of a lit cone only.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy, "Hollow.Ability.Enemy", "Parent of enemy abilities (server only).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Pilgrim_Breach, "Hollow.Ability.Enemy.Pilgrim.Breach", "Iron Pilgrim: structural blow at a door or bulkhead.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Pilgrim_Melee, "Hollow.Ability.Enemy.Pilgrim.Melee", "Iron Pilgrim: telegraphed melee strike.");
@@ -18,6 +19,7 @@ namespace HollowTags
 
 	// Cooldowns
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Gadget_PulseMine, "Hollow.Cooldown.Gadget.PulseMine", "Pulse mine recharging: a player places no new one meanwhile.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_HelmetLamp, "Hollow.Cooldown.HelmetLamp", "Helmet lamp switched a moment ago: no strobing.");
 
 	// Gameplay events (ability triggers)
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Event_Enemy, "Hollow.Event.Enemy", "Parent of the gameplay events that trigger enemy abilities.");
@@ -32,10 +34,10 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_CarryingHeavy, "Hollow.State.CarryingHeavy", "Carrying a heavy object (any mode).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_CarryingHeavy_Solo, "Hollow.State.CarryingHeavy.Solo", "Carrying a heavy object alone.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_CarryingHeavy_Coop, "Hollow.State.CarryingHeavy.Coop", "Carrying a heavy object with a teammate.");
-	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Low, "Hollow.State.Resonance.Low", "Resonance tier: low.");
-	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Medium, "Hollow.State.Resonance.Medium", "Resonance tier: medium.");
-	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_High, "Hollow.State.Resonance.High", "Resonance tier: high.");
-	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Critical, "Hollow.State.Resonance.Critical", "Resonance tier: critical.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Low, "Hollow.State.Resonance.Low", "Squad Resonance tier low (S4-08: every player, mirrored on each machine from the replicated squad tier).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Medium, "Hollow.State.Resonance.Medium", "Squad Resonance tier medium (every player).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_High, "Hollow.State.Resonance.High", "Squad Resonance tier high (every player; the visor alerts).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Critical, "Hollow.State.Resonance.Critical", "Squad Resonance tier critical (every player; the visor alerts).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Stunned, "Hollow.State.Stunned", "Actor is stunned.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Downed, "Hollow.State.Downed", "Player is downed and can be revived.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Dead, "Hollow.State.Dead", "Actor is dead.");
@@ -72,6 +74,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Arm, "Hollow.Sound.Mine.Arm", "Pulse mine armed.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Blast, "Hollow.Sound.Mine.Blast", "Pulse mine going off (heard by the AI as Impact.Heavy).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Core_Hum, "Hollow.Sound.Core.Hum", "Aether core hum (loop).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_HelmetLamp_Toggle, "Hollow.Sound.HelmetLamp.Toggle", "Helmet lamp click (players only; the AI does not hear it).");
 
 	// Input
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Move, "Hollow.Input.Move", "Move input.");
@@ -84,6 +87,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Crouch, "Hollow.Input.Crouch", "Crouch input.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Gadget, "Hollow.Input.Gadget", "Gadget input.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_PushToTalk, "Hollow.Input.PushToTalk", "Push-to-talk (held): transmits the voice (S4-07).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_HelmetLamp, "Hollow.Input.HelmetLamp", "Helmet lamp on / off (S4-08).");
 
 	// Sector rooms and sockets
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Room_Type, "Hollow.Room.Type", "Parent of room types; every room definition carries exactly one child.");

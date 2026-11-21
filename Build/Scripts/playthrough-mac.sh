@@ -6,11 +6,13 @@
 #          "Leave session" -> main menu.
 #   coop   host + 3 headless clients: "Host co-op", clients join, "Start raid"; the host lifts the core, a second player
 #          trying to join the carry is refused (co-op carry was cut, S3-06) without harm, client 1 shouts (a simulated
-#          microphone, S4-07: the host hears it as Hollow.Noise.Voice.Shout), everyone extracts;
+#          microphone, S4-07: the host hears it as Hollow.Noise.Voice.Shout), client 1 switches its helmet lamp off and on
+#          (S4-08: every machine dumps the lamps in between, the host its visor), everyone extracts;
 #          back in the hub a second raid: the clients die, the host extracts; results and profiles on every machine.
 #   soak   host + 3 headless clients, a raid of --minutes (default 20) with the AI alive (the players take no damage:
 #          Hollow.Dev.Invulnerable) and something happening every
-#          minute (doors, welding, a breach, the core, mines, Resonance, a client's shout every third minute), a CSV capture of the whole raid
+#          minute (doors, welding, a breach, the core, mines, Resonance, a client's shout every third minute, its lamp switched
+#          every second minute), a CSV capture of the whole raid
 #          (Hollow.Perf.Capture: hitches, memory), then everyone extracts.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
@@ -42,6 +44,7 @@ COMMON=(-nosplash -unattended -HollowPreset=Low
 	"-ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null" "-ini:Engine:[OnlineSubsystemSteam]:bEnabled=false")
 VIEW=(-RenderOffScreen -windowed -ResX=1280 -ResY=720)
 HEADLESS=(-nullrhi -nosound)
+CLIENT_STAGGER=3   # seconds between client starts: four copies starting at once crashed in AppKit twice (KnownIssues V-6)
 PIDS=()
 trap 'kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true' EXIT   # never leave a game running
 slot() { echo "-ini:Game:[/Script/HollowEconomy.HollowEconomySettings]:SaveSlotName=Playthrough$1"; }
@@ -85,7 +88,12 @@ case "$MODE" in
 		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Interact")                               # a second carrier: refused (S3-06 cut)
 		C1+=("Hollow.Dev.RunInRaid 7 Hollow.Voice.Simulate 230 3")                   # a shout (S4-07): the host logs Voice ... Shout
 		C1+=("Hollow.Dev.RunInRaid 8 Hollow.Voice.Dump")
+		C1+=("Hollow.Dev.RunInRaid 9 Hollow.Lamp.Toggle")                           # S4-08: off, predicted; the others see it off
 		h "Hollow.Dev.RunInRaid 9 Hollow.Carry.Dump"
+		h "Hollow.Dev.RunInRaid 10.5 Hollow.Lamp.Dump"
+		h "Hollow.Dev.RunInRaid 10.6 Hollow.UI.Dump"                                 # the host's visor: Resonance, voice, lamp
+		C+=("Hollow.Dev.RunInRaid 10.5 Hollow.Lamp.Dump")
+		C1+=("Hollow.Dev.RunInRaid 11 Hollow.Lamp.Toggle")                          # on again before the extraction
 		h "Hollow.Dev.RunInRaid 12 Hollow.Dev.GoToExtraction All"
 		# The second raid: registered once the first is over, so these wait for the next ready raid.
 		h "Hollow.Dev.RunInRaid 50 Hollow.Dev.RunInRaid 4 Hollow.Dev.Kill Others"
@@ -113,6 +121,7 @@ case "$MODE" in
 			C+=("Hollow.Dev.RunInRaid $((m * 60 + 5)) Hollow.Tool.Hold Hollow.Input.SecondaryUse 8")
 			((m % 4 == 0)) && C1+=("Hollow.Dev.RunInRaid $((m * 60 + 20)) Hollow.Tool.Hold Hollow.Input.Gadget 0.2")
 			((m % 3 == 0)) && C1+=("Hollow.Dev.RunInRaid $((m * 60 + 30)) Hollow.Voice.Simulate 230 3")   # a shout the AI hears
+			((m % 2 == 0)) && C1+=("Hollow.Dev.RunInRaid $((m * 60 + 40)) Hollow.Lamp.Toggle")            # off, on, off...
 		done
 		h "Hollow.Dev.RunInRaid $((SECONDS_TOTAL + 5)) Hollow.Dev.GoToExtraction All"
 		h "Hollow.Dev.RunInRaid $((SECONDS_TOTAL + 50)) Hollow.Profile.Dump"
@@ -132,10 +141,18 @@ else
 		CMDS=("t.MaxFPS 30" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
 		launch "Client$i" "${HEADLESS[@]}" -ExecCmds="$(join "${CMDS[@]}")"
+		[[ "$i" == 1 ]] && CLIENT1="${PIDS[${#PIDS[@]}-1]}"
+		sleep "$CLIENT_STAGGER"
 	done
 	LIMIT=500
 	[[ "$MODE" == soak ]] && LIMIT=$((MINUTES * 60 + 600))
-	wait_for "$OUT/Client1.log" "$END" "$LIMIT" || echo "the $MODE playthrough did not finish"
+	# Client 1 runs the scenario's client side and says when it is over; if it dies, say so now (KnownIssues V-6).
+	for ((t = 0; t < LIMIT; t++)); do
+		grep -qE "$END" "$OUT/Client1.log" 2> /dev/null && break
+		kill -0 "$CLIENT1" 2> /dev/null || { echo "client 1 died after ${t} s (exit: see ~/Library/Logs/DiagnosticReports)"; break; }
+		sleep 1
+	done
+	((t >= LIMIT)) && echo "the $MODE playthrough did not finish"
 fi
 sleep 3
 kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
@@ -144,7 +161,7 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump" "$log" | grep -v "Command Line\|commandline" | strip | head -40
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)" "$log" | grep -v "Command Line\|commandline" | strip | head -60
 done
 echo "===== errors, ensures, crashes"
 grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log | strip | sort | uniq -c | sort -rn | head -30

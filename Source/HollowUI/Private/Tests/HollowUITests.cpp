@@ -5,6 +5,7 @@
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Algo/Count.h"
 #include "Attributes/HollowHealthSet.h"
+#include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowToolSet.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
@@ -16,12 +17,19 @@
 #include "Doors/HollowDoorStateComponent.h"
 #include "Foundation/HollowPrimaryLayout.h"
 #include "Foundation/HollowUISettings.h"
+#include "Framework/HollowGameState.h"
 #include "GameplayEffect.h"
 #include "HollowUITags.h"
 #include "ICommonInputModule.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "Materials/MaterialInterface.h"
 #include "Menus/HollowSystemMenuWidget.h"
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+#include "Resonance/HollowResonanceConfig.h"
+#include "Resonance/HollowSquadResonanceComponent.h"
 #include "Tags/HollowGameplayTags.h"
 #include "Tools/HollowGA_ContinuousTool.h"
 #include "UObject/Package.h"
@@ -30,7 +38,14 @@
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "ViewModels/HollowVisorContext.h"
+#include "Visor/HollowLampIndicatorWidget.h"
+#include "Visor/HollowResonanceReadoutWidget.h"
 #include "Visor/HollowStatBarWidget.h"
+#include "Visor/HollowVisorFrameWidget.h"
+#include "Visor/HollowVisorStyle.h"
+#include "Visor/HollowVoiceIndicatorWidget.h"
+#include "Voice/HollowVoiceSettings.h"
+#include "Voice/HollowVoiceTalker.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 namespace HollowUITests
@@ -42,6 +57,12 @@ namespace HollowUITests
 	const TCHAR* const BeamCueClass = TEXT("/Game/Hollow/GAS/Cues/GCN_Tool_Beam.GCN_Tool_Beam_C");
 	const TCHAR* const DoorClass = TEXT("/Game/Hollow/World/Kit/Doors/BP_Door.BP_Door_C");
 	const TCHAR* const InteractMappingContext = TEXT("/Game/Hollow/Core/Input/IMC_Raid.IMC_Raid");
+	// S4-08 (create_visor_assets.py).
+	const TCHAR* const VisorFrameClass = TEXT("/Game/Hollow/UI/Visor/W_VisorFrame.W_VisorFrame_C");
+	const TCHAR* const ReadoutClass = TEXT("/Game/Hollow/UI/Visor/W_ResonanceReadout.W_ResonanceReadout_C");
+	const TCHAR* const VoiceIndicatorClass = TEXT("/Game/Hollow/UI/Visor/W_VoiceIndicator.W_VoiceIndicator_C");
+	const TCHAR* const LampIndicatorClass = TEXT("/Game/Hollow/UI/Visor/W_LampIndicator.W_LampIndicator_C");
+	const TCHAR* const VisorGlass = TEXT("/Game/Hollow/UI/Visor/M_UI_VisorGlass.M_UI_VisorGlass");
 
 	/** Test data. */
 	constexpr float TickSeconds = 1.f / 60.f;
@@ -369,7 +390,7 @@ bool FHollowUILayoutTest::RunTest(const FString& Parameters)
 			}
 		});
 	}
-	TestEqual(TEXT("Health, fuel and heat bars"), Bars.Num(), 3);
+	TestEqual(TEXT("Health, stamina, fuel and heat bars"), Bars.Num(), 4);
 	for (UHollowStatBarWidget* Bar : Bars)
 	{
 		Bar->SetContext(Context);
@@ -404,6 +425,154 @@ bool FHollowUILayoutTest::RunTest(const FString& Parameters)
 	}
 	Context->Deinitialize();
 	Layout->RemoveFromParent();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowUIVisorTelemetryTest, "Hollow.UI.Visor.Telemetry",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowUIVisorTelemetryTest::RunTest(const FString& Parameters)
+{
+	// S4-08 (ADR-0026): the diegetic visor follows its sources' events, nothing ticks. The glass glows with the squad
+	// tier the player carries (High, Critical); the readout shows the squad's level and tier; the voice line the mode,
+	// the transmission and who else talks; the lamp line the switch. Without a body the glass calms down.
+	using namespace HollowUITests;
+	const UHollowVisorStyle* Style = GetDefault<UHollowUISettings>()->VisorStyle.LoadSynchronous();
+	const TSubclassOf<UHollowVisorElement> FrameClass = LoadClass<UHollowVisorElement>(nullptr, VisorFrameClass);
+	const TSubclassOf<UHollowVisorElement> ReadoutWidgetClass = LoadClass<UHollowVisorElement>(nullptr, ReadoutClass);
+	const TSubclassOf<UHollowVisorElement> VoiceClass = LoadClass<UHollowVisorElement>(nullptr, VoiceIndicatorClass);
+	const TSubclassOf<UHollowVisorElement> LampClass = LoadClass<UHollowVisorElement>(nullptr, LampIndicatorClass);
+	FPlayerRig Rig;
+	if (!TestNotNull(TEXT("DA_VisorStyle"), Style) || !TestNotNull(TEXT("W_VisorFrame"), FrameClass.Get()) || !TestNotNull(TEXT("W_ResonanceReadout"), ReadoutWidgetClass.Get())
+		|| !TestNotNull(TEXT("W_VoiceIndicator"), VoiceClass.Get()) || !TestNotNull(TEXT("W_LampIndicator"), LampClass.Get()) || !BuildPlayer(*this, Rig))
+	{
+		return false;
+	}
+	UWorld* World = Rig.Character->GetWorld();
+	UHollowSquadResonanceComponent* Squad = World->SpawnActor<AHollowGameState>()->GetSquadResonance();   // the rig's player joins it
+	Squad->SetConfig(UHollowResonanceConfig::Get());
+	UHollowVoiceComponent* Voice = HollowGameTests::AddVoice(Rig.Controller);
+	UHollowVisorContext* Context = NewObject<UHollowVisorContext>(GetTransientPackage());
+	Context->Initialize(Rig.Controller);
+	TestTrue(TEXT("The context has the style and finds the squad"), Context->GetStyle() == Style && Context->GetSquadResonance() == Squad);
+	// Test controllers have no ULocalPlayer: the world owns the widgets, bound to this context.
+	const auto Make = [World, Context](const TSubclassOf<UHollowVisorElement>& Class)
+	{
+		UHollowVisorElement* Element = CreateWidget<UHollowVisorElement>(World, Class);
+		Element->SetContext(Context);
+		return Element;
+	};
+	UHollowVisorFrameWidget* Frame = Cast<UHollowVisorFrameWidget>(Make(FrameClass));
+	UHollowResonanceReadoutWidget* Readout = Cast<UHollowResonanceReadoutWidget>(Make(ReadoutWidgetClass));
+	UHollowVoiceIndicatorWidget* VoiceLine = Cast<UHollowVoiceIndicatorWidget>(Make(VoiceClass));
+	UHollowLampIndicatorWidget* LampLine = Cast<UHollowLampIndicatorWidget>(Make(LampClass));
+	if (!TestTrue(TEXT("The visor's elements"), Frame && Readout && VoiceLine && LampLine && Voice))
+	{
+		return false;
+	}
+
+	// Resonance: calm at Low, the glass alerts at High and Critical.
+	const float MaxResonance = Rig.AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetMaxResonanceAttribute());
+	TestTrue(TEXT("Low: calm glass, its material bound"), Frame->GetTier() == EHollowResonanceTier::Low && Frame->GetAlert() == Style->GetTierLook(EHollowResonanceTier::Low).Alert
+		&& !Frame->Describe().Contains(TEXT("no material")));
+	TestTrue(TEXT("...the readout at 0, Low"), Readout->GetPercent() == 0 && Readout->GetTier() == EHollowResonanceTier::Low);
+	constexpr float HighShare = 0.6f;
+	constexpr float CriticalShare = 0.9f;
+	SetAttribute(*Rig.AbilitySystem, UHollowResonanceSet::GetResonanceAttribute(), MaxResonance * HighShare);
+	Squad->Evaluate();
+	TestTrue(TEXT("High: the glass glows"), MaxResonance > 0.f && Frame->GetTier() == EHollowResonanceTier::High && Frame->GetAlert() == Style->GetTierLook(EHollowResonanceTier::High).Alert
+		&& Frame->GetAlert() > 0.f);
+	TestTrue(FString::Printf(TEXT("...the readout at %d%%, High"), Readout->GetPercent()), Readout->GetPercent() == FMath::RoundToInt32(HighShare * 100.f) && Readout->GetTier() == EHollowResonanceTier::High);
+	SetAttribute(*Rig.AbilitySystem, UHollowResonanceSet::GetResonanceAttribute(), MaxResonance * CriticalShare);
+	Squad->Evaluate();
+	TestTrue(TEXT("Critical: the strongest glow"), Frame->GetTier() == EHollowResonanceTier::Critical && Frame->GetAlert() >= Style->GetTierLook(EHollowResonanceTier::High).Alert);
+	TestTrue(TEXT("...the readout too"), Readout->GetTier() == EHollowResonanceTier::Critical);
+
+	// Voice: the mode's line; going out; who else talks (not oneself).
+	const bool bOpenMic = Voice->IsTransmitting();   // the developer's saved mode may be open mic
+	TestTrue(TEXT("The mode's line"), bOpenMic || VoiceLine->GetModeText().EqualTo(Style->GetVoiceModeLabel(Voice->GetMode())));
+	const float SimulateSeconds = GetDefault<UHollowVoiceSettings>()->SampleSeconds * 3.f;
+	Voice->Simulate(MAX_uint8, SimulateSeconds);
+	Advance(Rig.World, GetDefault<UHollowVoiceSettings>()->SampleSeconds * 1.5f);
+	TestTrue(TEXT("Transmitting: the line says so"), VoiceLine->IsTransmitting() && VoiceLine->GetModeText().EqualTo(FText::Format(Style->TransmittingFormat, Style->GetVoiceModeLabel(Voice->GetMode()))));
+	Advance(Rig.World, SimulateSeconds);
+	TestTrue(TEXT("...and stops saying it"), bOpenMic || !VoiceLine->IsTransmitting());
+	AHollowPlayerState* Other = World->SpawnActor<AHollowPlayerState>();
+	Other->SetPlayerName(TEXT("Ann"));
+	UHollowVoiceTalker::OnTalkingChanged.Broadcast(Other->GetVoiceTalker(), true);
+	UHollowVoiceTalker::OnTalkingChanged.Broadcast(Rig.Character->GetPlayerState<AHollowPlayerState>()->GetVoiceTalker(), true);
+	TestTrue(FString::Printf(TEXT("Ann talks, oneself is not listed (%s)"), *VoiceLine->GetTalkingText().ToString()),
+		VoiceLine->GetTalkingText().EqualTo(FText::Format(Style->TalkingFormat, FText::FromString(TEXT("Ann")))));
+	UHollowVoiceTalker::OnTalkingChanged.Broadcast(Other->GetVoiceTalker(), false);
+	TestTrue(TEXT("...stops"), VoiceLine->GetTalkingText().IsEmpty());
+
+	// Lamp (no key label without a local player's input subsystem).
+	TestTrue(TEXT("Lamp on"), LampLine->GetLampText().EqualTo(Style->LampOnLabel));
+	Rig.Character->SetHelmetLampOn(false);
+	TestTrue(TEXT("...off"), LampLine->GetLampText().EqualTo(Style->LampOffLabel));
+	Rig.Character->SetHelmetLampOn(true);
+
+	// Without a body (spectating): calm glass, the squad's own tier, no lamp line.
+	Rig.Controller->UnPossess();
+	TestTrue(TEXT("No body: calm glass"), Frame->GetTier() == EHollowResonanceTier::Low && Frame->GetAlert() == Style->GetTierLook(EHollowResonanceTier::Low).Alert);
+	TestTrue(TEXT("...the readout keeps the squad's tier"), Readout->GetTier() == EHollowResonanceTier::Critical);
+	TestTrue(TEXT("...no lamp line"), LampLine->GetLampText().IsEmpty());
+	for (UHollowVisorElement* Element : TArray<UHollowVisorElement*>{Frame, Readout, VoiceLine, LampLine})
+	{
+		Element->SetContext(nullptr);
+	}
+	Context->Deinitialize();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowUIVisorStyleTest, "Hollow.UI.Visor.Style",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowUIVisorStyleTest::RunTest(const FString& Parameters)
+{
+	// DA_VisorStyle and M_UI_VisorGlass as shipped (S4-08 clarification 7): valid; calm Low and Medium, alerting High
+	// and Critical, the alert never weaker for a higher tier; no pulse over 3 Hz (photosensitivity); the glass is a UI
+	// material with the parameters the frame sets. A broken style is refused.
+	using namespace HollowUITests;
+	const UHollowVisorStyle* Style = GetDefault<UHollowUISettings>()->VisorStyle.LoadSynchronous();
+	const UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, VisorGlass);
+	if (!TestNotNull(TEXT("DA_VisorStyle"), Style) || !TestNotNull(TEXT("M_UI_VisorGlass"), Glass))
+	{
+		return false;
+	}
+#if WITH_EDITOR   // Data Validation exists in editor builds only
+	FDataValidationContext Validation;
+	TestTrue(TEXT("The style is valid"), Style->IsDataValid(Validation) != EDataValidationResult::Invalid && Validation.GetNumErrors() == 0);
+#endif
+	float Previous = 0.f;
+	bool bRising = true, bSafe = true;
+	for (const EHollowResonanceTier Tier : TEnumRange<EHollowResonanceTier>())
+	{
+		const FHollowVisorTierLook& Look = Style->GetTierLook(Tier);
+		bRising &= Look.Alert >= Previous;
+		bSafe &= Look.PulseHz <= UHollowVisorStyle::MaxPulseHz;
+		Previous = Look.Alert;
+	}
+	TestTrue(TEXT("The alert never weakens with the tier"), bRising);
+	TestTrue(TEXT("No pulse over 3 Hz"), bSafe);
+	TestTrue(TEXT("Low and Medium calm, High and Critical alert"), Style->GetTierLook(EHollowResonanceTier::Medium).Alert == 0.f && Style->GetTierLook(EHollowResonanceTier::High).Alert > 0.f);
+
+	TestTrue(TEXT("The glass is a UI material"), Glass->GetMaterial() && Glass->GetMaterial()->MaterialDomain == MD_UI);
+	TArray<FMaterialParameterInfo> Scalars, Vectors;
+	TArray<FGuid> Ids;
+	Glass->GetAllScalarParameterInfo(Scalars, Ids);
+	Glass->GetAllVectorParameterInfo(Vectors, Ids);
+	const auto Has = [](const TArray<FMaterialParameterInfo>& Infos, const TCHAR* Name) { return Infos.ContainsByPredicate([Name](const FMaterialParameterInfo& Info) { return Info.Name == FName(Name); }); };
+	TestTrue(TEXT("...with Alert, PulseHz, Interference and AlertColor"), Has(Scalars, TEXT("Alert")) && Has(Scalars, TEXT("PulseHz")) && Has(Scalars, TEXT("Interference"))
+		&& Has(Vectors, TEXT("AlertColor")));
+
+#if WITH_EDITOR
+	UHollowVisorStyle* Broken = DuplicateObject(Style, GetTransientPackage());
+	Broken->Tiers.Pop();
+	Broken->Tiers[0].PulseHz = UHollowVisorStyle::MaxPulseHz * 2.f;
+	FDataValidationContext BrokenValidation;
+	TestTrue(TEXT("A missing tier and a fast pulse are refused"), Broken->IsDataValid(BrokenValidation) == EDataValidationResult::Invalid && BrokenValidation.GetNumErrors() >= 2);
+#endif
 	return true;
 }
 

@@ -434,6 +434,59 @@ bool FHollowStalkerAmbushQueryTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowStalkerLampOffTest, "Hollow.Game.Stalker.LampOff",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowStalkerLampOffTest::RunTest(const FString& Parameters)
+{
+	// S4-08: a switched-off helmet lamp no longer keeps the Echo-Stalker out of its cone. The same focus room query
+	// (EQ_StalkerFocusRoom) finds no spot in the cone while the lamp is on, spots there once it is off, none again on.
+	using namespace HollowStalkerTests;
+	FEnemyScene Scene;
+	if (!Scene.Create(*this, EWall::None))
+	{
+		return false;
+	}
+	StartThreat(Scene.World, MakeConfig(), TwoRooms());
+	AHollowEnemyCharacter* Stalker = Scene.SpawnEnemy(*this, StalkerClass, FVector(1700.0, -1800.0, 120.0));
+	AHollowExoFrameCharacter* Player = nullptr;
+	AHollowStalkerController* Brain = BrainOf(Stalker);
+	const UHollowStalkerDefinition* Definition = Stalker ? Cast<UHollowStalkerDefinition>(Stalker->GetDefinition()) : nullptr;
+	if (!TestNotNull(TEXT("Stalker brain"), Brain) || !TestNotNull(TEXT("Stalker definition"), Definition) || !Scene.SpawnPlayer(*this, FVector(900.0, 0.0, 150.0), Player))
+	{
+		return false;
+	}
+	Brain->Shutdown();   // the query alone
+	Advance(Scene.TestWorld, StepSeconds * 0.1f);
+	Aim(Player, 0.0);   // along +X, into the East
+	Brain->SetFocusRoom(East);
+	UHollowActivityHeatmapSubsystem::Get(Scene.World)->AddPortalHeat(0, 1.f);
+	FHollowLightCone Cone;
+	if (!TestTrue(TEXT("The lamp is on"), Player->GetLightCone(Cone)))
+	{
+		return false;
+	}
+	constexpr double BodyHeight = 100.0;   // the test's PointHeight in EQ_StalkerFocusRoom
+	const auto SpotsInCone = [&]
+	{
+		const TSharedPtr<FEnvQueryResult> Result = UEnvQueryManager::GetCurrent(Scene.World)->RunInstantQuery(FEnvQueryRequest(Definition->FocusQuery, Stalker),
+			EEnvQueryRunMode::AllMatching);
+		int32 Lit = 0;
+		for (int32 Index = 0; Result.IsValid() && Index < Result->Items.Num(); ++Index)
+		{
+			Lit += Cone.Contains(Result->GetItemAsLocation(Index) + FVector(0.0, 0.0, BodyHeight)) ? 1 : 0;
+		}
+		return Lit;
+	};
+	TestEqual(TEXT("Lamp on: no ambush spot in its cone"), SpotsInCone(), 0);
+	Player->SetHelmetLampOn(false);
+	const int32 InTheDark = SpotsInCone();
+	TestTrue(FString::Printf(TEXT("Lamp off: %d spot(s) where its cone was"), InTheDark), InTheDark > 0);
+	Player->SetHelmetLampOn(true);
+	TestEqual(TEXT("On again: none"), SpotsInCone(), 0);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowStalkerAmbushInHottestRoomTest, "Hollow.Game.Stalker.AmbushInHottestRoom",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

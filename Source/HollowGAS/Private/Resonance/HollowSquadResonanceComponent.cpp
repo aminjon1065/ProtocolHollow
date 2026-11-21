@@ -51,6 +51,7 @@ void UHollowSquadResonanceComponent::BeginPlay()
 	{
 		Config = UHollowResonanceConfig::Get();
 	}
+	MirrorTierToSquad();   // players that came before the game state began play
 	StartTimer();
 }
 
@@ -110,14 +111,53 @@ void UHollowSquadResonanceComponent::Evaluate()
 	const EHollowResonanceTier OldTier = State.Tier;
 	State = Next;
 	MARK_PROPERTY_DIRTY_FROM_NAME(UHollowSquadResonanceComponent, State, this);
-	UE_CLOG(OldTier != State.Tier, LogHollowGAS, Log, TEXT("Squad Resonance: %s -> %s"), *HollowEnumToString(OldTier), *Describe());
+	if (OldTier != State.Tier)
+	{
+		UE_LOG(LogHollowGAS, Log, TEXT("Squad Resonance: %s -> %s"), *HollowEnumToString(OldTier), *Describe());
+		MirrorTierToSquad();
+	}
 	OnSquadResonanceChanged.Broadcast(State);
 }
 
 void UHollowSquadResonanceComponent::OnRep_State(const FHollowSquadResonanceNetState& OldState)
 {
-	UE_CLOG(OldState.Tier != State.Tier, LogHollowGAS, Log, TEXT("Squad Resonance: %s -> %s (replicated)"), *HollowEnumToString(OldState.Tier), *Describe());
+	if (OldState.Tier != State.Tier)
+	{
+		UE_LOG(LogHollowGAS, Log, TEXT("Squad Resonance: %s -> %s (replicated)"), *HollowEnumToString(OldState.Tier), *Describe());
+		MirrorTierToSquad();
+	}
 	OnSquadResonanceChanged.Broadcast(State);
+}
+
+void UHollowSquadResonanceComponent::MirrorTier(UAbilitySystemComponent& AbilitySystem, const EHollowResonanceTier Tier)
+{
+	// Loose and local (not replicated): every machine derives the same tags from the same replicated tier. The new tag
+	// goes on first, so a listener never sees the player without a tier.
+	AbilitySystem.SetLooseGameplayTagCount(HollowResonanceMath::TierTag(Tier), 1);
+	for (const EHollowResonanceTier Each : TEnumRange<EHollowResonanceTier>())
+	{
+		if (Each != Tier)
+		{
+			AbilitySystem.SetLooseGameplayTagCount(HollowResonanceMath::TierTag(Each), 0);
+		}
+	}
+}
+
+void UHollowSquadResonanceComponent::MirrorTierTo(const APlayerState* Player) const
+{
+	if (UAbilitySystemComponent* AbilitySystem = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Player))
+	{
+		MirrorTier(*AbilitySystem, State.Tier);
+	}
+}
+
+void UHollowSquadResonanceComponent::MirrorTierToSquad() const
+{
+	const AGameStateBase* GameState = Cast<AGameStateBase>(GetOwner());
+	for (const APlayerState* Player : GameState ? GameState->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+	{
+		MirrorTierTo(Player);
+	}
 }
 
 FString UHollowSquadResonanceComponent::Describe() const

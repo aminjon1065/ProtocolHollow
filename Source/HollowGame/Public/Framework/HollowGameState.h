@@ -22,6 +22,9 @@ public:
 	UHollowRaidStateComponent* GetRaidState() const { return RaidState; }
 	UHollowSquadResonanceComponent* GetSquadResonance() const { return SquadResonance; }
 
+	/** Every machine: a new player gets the squad's Resonance tier tag at once (S4-08). */
+	virtual void AddPlayerState(APlayerState* PlayerState) override;
+
 private:
 	/** Replicated manifest and readiness (PCG). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Sector")

@@ -16,13 +16,17 @@
 #include "HollowUILog.h"
 #include "HollowUITags.h"
 #include "Input/CommonUIActionRouterBase.h"
+#include "Misc/Paths.h"
 #include "TimerManager.h"
+#include "UnrealClient.h"
 #include "Util/HollowEnumUtils.h"
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "ViewModels/HollowVisorContext.h"
 #include "Voice/HollowVoiceComponent.h"
+#include "Raid/HollowRaidStatusWidget.h"
 #include "Visor/HollowStatBarWidget.h"
+#include "Visor/HollowVisorElement.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 #if !UE_BUILD_SHIPPING
@@ -87,6 +91,15 @@ namespace HollowUIDevConsole
 				if (const UHollowStatBarWidget* Bar = Cast<UHollowStatBarWidget>(Widget))
 				{
 					UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: bar %s %.1f / %.1f alert %d"), *Bar->GetLabel().ToString(), Bar->GetValue(), Bar->GetMax(), Bar->IsAlert());
+				}
+				else if (const UHollowVisorElement* Element = Cast<UHollowVisorElement>(Widget))
+				{
+					const FString Line = Element->Describe();
+					UE_CLOG(!Line.IsEmpty(), LogHollowUI, Display, TEXT("Hollow.UI.Dump: %s"), *Line);
+				}
+				else if (const UHollowRaidStatusWidget* Raid = Cast<UHollowRaidStatusWidget>(Widget))
+				{
+					UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: raid line \"%s\""), *Raid->GetStatus().ToString());
 				}
 			});
 		}
@@ -167,6 +180,23 @@ namespace HollowUIDevConsole
 			}
 		}), FMath::Max(HoldSeconds, UE_KINDA_SMALL_NUMBER), /*bLoop=*/false);
 	}
+
+	/**
+	 * A screenshot of the game view with the UI (the visor), also off screen and from Hollow.Dev.RunAfter / RunInRaid,
+	 * which do not reach the viewport's own "shot". Usage: Hollow.UI.Shot [Name] (Saved/Screenshots/<Name>_NNNNN.png)
+	 */
+	void Shot(const TArray<FString>& Args)
+	{
+		const FString Name = Args.Num() > 0 ? Args[0] : FString(TEXT("Visor"));
+		const FString File = FPaths::Combine(FPaths::ScreenShotDir(), Name + TEXT(".png"));
+		FScreenshotRequest::RequestScreenshot(File, /*bInShowUI=*/true, /*bAddFilenameSuffix=*/true);
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Shot: %s"), *File);
+	}
+
+	FAutoConsoleCommand ShotCommand(
+		TEXT("Hollow.UI.Shot"),
+		TEXT("Screenshot of the game view with the UI, off screen too. Usage: Hollow.UI.Shot [Name]"),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Shot));
 
 	FAutoConsoleCommandWithWorldAndArgs PressKeyCommand(
 		TEXT("Hollow.UI.PressKey"),

@@ -22,13 +22,17 @@ class USkeletalMeshComponent;
 class USpotLightComponent;
 struct FInputActionValue;
 
+/** The helmet lamp switched on or off on this machine (the visor's lamp line, S4-08). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowHelmetLampChanged, bool /*bOn*/);
+
 /**
  * Player character (ExoFrame). First-person arms and the third-person body use the engine first-person rendering
  * (ADR-0011): the owner sees FirstPersonMesh with its own FOV, everyone else sees the character mesh.
  * Movement is UHollowCharacterMovementComponent; all tuning, meshes and offsets are data (BP_ExoFrame).
  * The ability system lives on AHollowPlayerState; this pawn becomes its avatar while possessed, and the server grants
  * AbilitySets for exactly that time (attributes re-initialize on every spawn).
- * The helmet lamp is always on while alive (a toggle comes with S4-08); the Echo-Stalker keeps out of its cone.
+ * The helmet lamp is on at spawn and switches with GA_HelmetLamp (S4-08, ADR-0026); the Echo-Stalker keeps out of its
+ * cone while it is lit.
  */
 UCLASS()
 class HOLLOWGAME_API AHollowExoFrameCharacter : public AHollowCharacterBase, public IHollowLightSource
@@ -46,8 +50,19 @@ public:
 	UHollowFootstepNoiseComponent* GetFootstepNoise() const { return FootstepNoise; }
 	USpotLightComponent* GetHelmetLight() const { return HelmetLight; }
 
-	/** The helmet lamp's cone from where the pawn looks (any machine; the server's view drives the AI, ADR-0019). */
+	/** The helmet lamp's cone from where the pawn looks while it is switched on and its wearer lives (any machine; the server's view drives the AI, ADR-0019). */
 	virtual bool GetLightCone(FHollowLightCone& OutCone) const override;
+
+	/** Whether the helmet lamp is switched on (a dead body's lamp stays dark whatever this says). */
+	bool IsHelmetLampOn() const { return bHelmetLampOn; }
+
+	/**
+	 * Switches the helmet lamp on this machine (S4-08): GA_HelmetLamp calls it on the predicting owner and on the server.
+	 * The server's value replicates to everyone but the owner, who predicts its own.
+	 */
+	void SetHelmetLampOn(bool bOn);
+
+	FOnHollowHelmetLampChanged OnHelmetLampChanged;
 
 	/** The Interact input: drops a carried core, otherwise interacts with the focus (a free core is predicted as lifted). */
 	void RequestInteract();
@@ -86,6 +101,12 @@ private:
 
 	UFUNCTION()
 	void OnRep_Dead();
+
+	UFUNCTION()
+	void OnRep_HelmetLamp();
+
+	/** The lamp's light (and its click, for a switch seen on this machine) to match the switch and death. */
+	void ApplyHelmetLamp(bool bClick);
 
 	void HandleMove(const FInputActionValue& Value);
 	void HandleLook(const FInputActionValue& Value);
@@ -156,6 +177,10 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
+
+	/** Push model, to everyone but the owner: the owner predicts its own lamp (GA_HelmetLamp). On at spawn. */
+	UPROPERTY(ReplicatedUsing = OnRep_HelmetLamp)
+	bool bHelmetLampOn = true;
 
 	TWeakObjectPtr<const UHollowHealthSet> BoundHealthSet;
 	FDelegateHandle OutOfHealthHandle;

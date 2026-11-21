@@ -305,4 +305,56 @@ bool FHollowResonanceDataTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowResonanceTierTagsTest, "Hollow.Game.Resonance.TierTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowResonanceTierTagsTest::RunTest(const FString& Parameters)
+{
+	// S4-08: every player carries exactly one Hollow.State.Resonance.<Tier> tag, the squad's tier (with its hysteresis);
+	// a player who joins later gets it at once; a client mirrors the replicated tier the same way (loose local tags).
+	using namespace HollowResonanceGameTests;
+	FTestWorldWrapper TestWorld;
+	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
+	if (!World)
+	{
+		return false;
+	}
+	UHollowSquadResonanceComponent* Squad = SpawnGameState(World)->GetSquadResonance();
+	UAbilitySystemComponent* Carrier = SpawnMember(World, 0.f);
+	UAbilitySystemComponent* Other = SpawnMember(World, 0.f);
+	const auto Carries = [](const UAbilitySystemComponent* AbilitySystem, const EHollowResonanceTier Tier)
+	{
+		int32 Tags = 0;
+		for (const EHollowResonanceTier Each : TEnumRange<EHollowResonanceTier>())
+		{
+			Tags += AbilitySystem->HasMatchingGameplayTag(HollowResonanceMath::TierTag(Each)) ? 1 : 0;
+		}
+		return Tags == 1 && AbilitySystem->HasMatchingGameplayTag(HollowResonanceMath::TierTag(Tier));
+	};
+	TestTrue(TEXT("A new squad: everyone carries Low (and only it)"), Carries(Carrier, EHollowResonanceTier::Low) && Carries(Other, EHollowResonanceTier::Low));
+
+	int32 HighEvents = 0;
+	Other->RegisterGameplayTagEvent(HollowTags::State_Resonance_High, EGameplayTagEventType::NewOrRemoved).AddLambda([&HighEvents](const FGameplayTag, int32) { ++HighEvents; });
+	Set(Carrier, UHollowResonanceSet::GetResonanceAttribute(), Max * 0.6f);
+	Squad->Evaluate();
+	TestTrue(TEXT("The carrier's Resonance takes the squad to High: every player carries High"), Carries(Carrier, EHollowResonanceTier::High) && Carries(Other, EHollowResonanceTier::High));
+	TestEqual(TEXT("...one tag event for whoever listens"), HighEvents, 1);
+	Set(Carrier, UHollowResonanceSet::GetResonanceAttribute(), Max * 0.62f);
+	Squad->Evaluate();
+	TestEqual(TEXT("A new level in the same tier changes no tag"), HighEvents, 1);
+	Set(Carrier, UHollowResonanceSet::GetResonanceAttribute(), Max * 0.9f);
+	Squad->Evaluate();
+	TestTrue(TEXT("Critical for everyone"), Carries(Carrier, EHollowResonanceTier::Critical) && Carries(Other, EHollowResonanceTier::Critical));
+	Set(Carrier, UHollowResonanceSet::GetResonanceAttribute(), Max * 0.73f);
+	Squad->Evaluate();
+	TestTrue(TEXT("Just under the threshold: still Critical (hysteresis)"), Carries(Other, EHollowResonanceTier::Critical));
+
+	UAbilitySystemComponent* Late = SpawnMember(World, 0.f);
+	TestTrue(TEXT("A player who joins now carries Critical at once"), Carries(Late, EHollowResonanceTier::Critical));
+
+	UHollowSquadResonanceComponent::MirrorTier(*Other, EHollowResonanceTier::Medium);   // what a client does on replication
+	TestTrue(TEXT("Mirroring a tier swaps the tag"), Carries(Other, EHollowResonanceTier::Medium));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

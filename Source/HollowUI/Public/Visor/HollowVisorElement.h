@@ -17,6 +17,9 @@ public:
 	void SetContext(UHollowVisorContext* InContext);
 	UHollowVisorContext* GetContext() const { return Context.Get(); }
 
+	/** One line of what it shows, for Hollow.UI.Dump (empty: nothing to say). */
+	virtual FString Describe() const { return FString(); }
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

@@ -14,6 +14,17 @@ namespace HollowRaidStatusPrivate
 {
 	/** Retry while the game state has not replicated yet. */
 	constexpr float BindRetrySeconds = 0.5f;
+	constexpr int32 SecondsPerMinute = 60;
+	constexpr int32 ClockSecondDigits = 2;
+
+	/** m:ss, the visor's clock. */
+	FText Clock(const int32 Seconds)
+	{
+		FNumberFormattingOptions TwoDigits;
+		TwoDigits.MinimumIntegralDigits = ClockSecondDigits;
+		const int32 Clamped = FMath::Max(Seconds, 0);
+		return FText::Format(INVTEXT("{0}:{1}"), FText::AsNumber(Clamped / SecondsPerMinute), FText::AsNumber(Clamped % SecondsPerMinute, &TwoDigits));
+	}
 }
 
 UHollowRaidStatusWidget::UHollowRaidStatusWidget(const FObjectInitializer& ObjectInitializer)
@@ -85,16 +96,15 @@ FText UHollowRaidStatusWidget::GetStatus() const
 		return FText::GetEmpty();
 	}
 	const FHollowRaidNetState& Net = State->GetState();
-	const int32 Seconds = FMath::CeilToInt(State->GetSecondsLeft());
+	const FText Left = HollowRaidStatusPrivate::Clock(FMath::CeilToInt(State->GetSecondsLeft()));
 	switch (Net.Phase)
 	{
 	case EHollowRaidPhase::Deploying:
-		return FText::Format(LOCTEXT("Deploying", "DEPLOYING  {0}"), Seconds);
+		return FText::Format(LOCTEXT("Deploying", "DEPLOY  {0}"), Left);
 	case EHollowRaidPhase::Extraction:
-		return FText::Format(LOCTEXT("Extraction", "SHUTTLE DEPARTS IN {0}  -  aboard {1} of {2}, cores {3}"), Seconds, Net.LivingInZone,
-			Net.LivingPlayers, Net.CoresInZone);
+		return FText::Format(LOCTEXT("Extraction", "EVAC  {0}   |   ABOARD {1}/{2}   |   CORES {3}"), Left, Net.LivingInZone, Net.LivingPlayers, Net.CoresInZone);
 	case EHollowRaidPhase::Debrief:
-		return FText::Format(LOCTEXT("Debrief", "RAID OVER  -  back to the Skit in {0}"), Seconds);
+		return FText::Format(LOCTEXT("Debrief", "RAID OVER   |   SKIT  {0}"), Left);
 	case EHollowRaidPhase::Assembling:
 	case EHollowRaidPhase::InRaid:
 		break;

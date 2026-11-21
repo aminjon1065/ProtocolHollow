@@ -169,6 +169,18 @@ def mine_arm():
     return g.node("level", SCALE, {"AdditionalOperands": 0.4}).link("beep", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
 
 
+def helmet_lamp_click():
+    """S4-08: a small switch, two contacts 25 ms apart; quiet, players only."""
+    g = Graph(one_shot=True)
+    g.node("snap", NOISE, {"Type": WHITE}).node("snap_hp", HIGHPASS, {"Cutoff Frequency": 2500.0}).link("snap", "Audio", "snap_hp", "In")
+    g.burst("contact", "snap_hp", "Out", 0.001, 0.018)
+    g.node("second", DELAY, {"Delay Time": 0.025}).link("@play", "On Play", "second", "In")
+    g.node("tick", SQUARE, {"Frequency": 3100.0}).burst("latch", "tick", "Audio", 0.001, 0.012, trigger=("second", "Out"))
+    g.node("end", DELAY, {"Delay Time": 0.15}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("contact", "Out", 0.6), ("latch", "Out", 0.25)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.5}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
 def mine_blast():
     g = Graph(one_shot=True)
     g.node("sub", SINE, {"Frequency": 75.0}).burst("thump", "sub", "Audio", 0.001, 0.7)
@@ -256,6 +268,7 @@ METASOUNDS = {
     "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
     "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
+    "MS_HelmetLamp_Click": helmet_lamp_click,
     "MS_Footstep_Light": footstep_light, "MS_Footstep_Heavy": footstep_heavy, "MS_Footstep_Stalker": footstep_stalker,
     "MS_Pilgrim_Windup": pilgrim_windup, "MS_Stalker_Shriek": stalker_shriek, "MS_Stalker_Vent": stalker_vent,
     "MS_Room_Tone": room_tone, "MS_Room_Tone_Vault": room_tone_vault,
@@ -284,6 +297,7 @@ ENTRIES = [
     ("Hollow.Sound.Mine.Arm", "MS_Mine_Arm", None, 1000.0, 0.7, 0.0, None),
     ("Hollow.Sound.Mine.Blast", "MS_Mine_Blast", "SCON_Impacts", 0.0, 1.0, 0.05, "Hollow.Noise.Impact.Heavy"),
     ("Hollow.Sound.Core.Hum", "MS_Core_Hum", None, 900.0, 0.5, 0.0, None),
+    ("Hollow.Sound.HelmetLamp.Toggle", "MS_HelmetLamp_Click", None, 600.0, 0.4, 0.06, None),   # S4-08: within a room
 ]
 
 # ---------------------------------------------------------------- room acoustics (data)

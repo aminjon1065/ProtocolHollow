@@ -11,6 +11,8 @@ class APlayerController;
 
 /** The local player's voice went out or stopped, or its level changed (the visor's microphone indicator, S4-08). */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHollowVoiceActivityChanged, bool /*bTransmitting*/, uint8 /*Level*/);
+/** The local player's voice mode changed (push-to-talk, open mic, muted; the visor shows it, S4-08). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowVoiceModeChanged, EHollowVoiceMode /*Mode*/);
 
 /**
  * A player's voice for the AI (S4-07, ADR-0025, Docs/Architecture/03 sec. 3.8), on the player controller (so the dead
@@ -48,6 +50,7 @@ public:
 	void Simulate(uint8 InLevel, float Seconds);
 
 	FOnHollowVoiceActivityChanged OnVoiceActivityChanged;
+	FOnHollowVoiceModeChanged OnVoiceModeChanged;
 
 	/** The owning client's measured level (the only data of the voice -> AI path: unreliable, at most a few per second). */
 	UFUNCTION(Server, Unreliable)

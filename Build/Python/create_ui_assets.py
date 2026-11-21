@@ -4,10 +4,10 @@
   /Game/Hollow/UI/Input/BP_CommonInputData                             CommonUI click/back actions (Enhanced Input)
   /Game/Hollow/UI/Input/DA_InputGlyphs                                 key labels for prompts
   /Game/Hollow/UI/Foundation/BP_ButtonStyle_Menu, W_MenuButton, W_PrimaryLayout
-  /Game/Hollow/UI/Visor/W_StatBar, W_InteractionPrompt, W_TargetStatus, W_Visor
+  /Game/Hollow/UI/Visor/W_StatBar, W_InteractionPrompt, W_TargetStatus   (W_Visor itself: create_visor_assets.py, S4-08)
   /Game/Hollow/UI/Menus/W_SystemMenu (S4-06: + Invite, Start raid, Leave session; S4-07: + Voice), W_MainMenu
   /Game/Hollow/Core/Framework/BP_GameMode_FrontEnd   AHollowFrontEndGameMode with the HUD; the game mode of L_Boot (S4-06)
-  /Game/Hollow/UI/Visor/W_RaidStatus (added to W_Visor), /Game/Hollow/UI/Menus/W_Debrief      (S3-03)
+  /Game/Hollow/UI/Visor/W_RaidStatus, /Game/Hollow/UI/Menus/W_Debrief      (S3-03)
   DA_Tool_Welder/PlasmaCutter ActionLabel, BP_GameMode_Hub/Raid HUDClass = AHollowHUD   (if unset)
 
 Widget trees are composed through UHollowWidgetAuthoring (HollowEditor): editor Python cannot reach a WBP's tree.
@@ -54,6 +54,7 @@ GLYPHS = [
     ("Gamepad_FaceButton_Top", "Y"), ("Gamepad_LeftTrigger", "LT"), ("Gamepad_RightTrigger", "RT"),
     ("Gamepad_LeftShoulder", "LB"), ("Gamepad_RightShoulder", "RB"), ("Gamepad_LeftThumbstick", "LS"),
     ("Gamepad_RightThumbstick", "RS"), ("Gamepad_Special_Right", "Menu"), ("Gamepad_Special_Left", "View"),
+    ("Gamepad_DPad_Up", "D-Up"), ("Gamepad_DPad_Down", "D-Down"), ("Gamepad_DPad_Left", "D-Left"), ("Gamepad_DPad_Right", "D-Right"),
 ]
 
 # Greybox look (data).
@@ -62,32 +63,16 @@ TEXT_SIZE = 18
 TITLE_SIZE = 32
 BUTTON_TEXT_SIZE = 22
 PANEL_PADDING = 8.0
-EDGE = 40.0                                   # distance of the bars from the screen edges
-HEALTH_SIZE = unreal.Vector2D(360.0, 28.0)
-TOOL_BAR_SIZE = unreal.Vector2D(300.0, 24.0)
-TOOL_BAR_GAP = 36.0                           # fuel sits this far above heat
-TARGET_SIZE = unreal.Vector2D(360.0, 48.0)
-TARGET_OFFSET = 60.0                          # below the crosshair
-PROMPT_OFFSET = 120.0
-RAID_STATUS_OFFSET = 40.0                     # below the top edge
 DEBRIEF_WIDTH = 720.0
-CROSSHAIR_SIZE = 6.0
 MARKER_SIZE = unreal.Vector2D(3.0, 20.0)
 BUTTON_MIN_WIDTH = 280
 BUTTON_PADDING = unreal.Margin(24.0, 10.0, 24.0, 10.0)
-WHITE = unreal.LinearColor(1.0, 1.0, 1.0, 1.0)
-HEALTH_COLOR = unreal.LinearColor(0.75, 0.15, 0.15, 1.0)
-FUEL_COLOR = unreal.LinearColor(0.2, 0.6, 1.0, 1.0)
-HEAT_COLOR = unreal.LinearColor(1.0, 0.55, 0.1, 1.0)
-ALERT_COLOR = unreal.LinearColor(1.0, 0.1, 0.05, 1.0)
 WELD_COLOR = unreal.LinearColor(1.0, 0.45, 0.1, 1.0)
 MARKER_COLOR = unreal.LinearColor(1.0, 1.0, 1.0, 0.9)
 BACKDROP_COLOR = unreal.LinearColor(0.0, 0.0, 0.0, 0.6)
 BUTTON_COLORS = {"normal_base": (0.12, 0.13, 0.15, 0.9), "normal_hovered": (0.3, 0.32, 0.36, 1.0),
                  "normal_pressed": (0.5, 0.35, 0.15, 1.0), "disabled": (0.1, 0.1, 0.1, 0.5)}
 
-ATTRIBUTE_MODULE = "/Script/HollowGAS"
-OVERHEATED_TAG = "Hollow.State.Tool.Overheated"
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 assets = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
@@ -126,22 +111,6 @@ def make_key(name):
     if not key.import_text(name):
         raise RuntimeError("Unknown key " + name)
     return key
-
-
-def make_tag(name):
-    tag = unreal.GameplayTag()
-    if not tag.import_text('(TagName="%s")' % name):
-        raise RuntimeError("Unknown gameplay tag " + name)
-    return tag
-
-
-def make_attribute(set_name, attribute):
-    attr = unreal.GameplayAttribute()
-    path = "%s.%s:%s" % (ATTRIBUTE_MODULE, set_name, attribute)
-    text = '(AttributeName="%s",Attribute=%s,AttributeOwner="/Script/CoreUObject.Class\'%s.%s\'")' % (attribute, path, ATTRIBUTE_MODULE, set_name)
-    if not attr.import_text(text) or path not in attr.export_text():
-        raise RuntimeError("Could not build attribute " + path)
-    return attr
 
 
 def color(rgba):
@@ -198,21 +167,31 @@ def ensure_common_input_data():
 
 
 def ensure_glyphs():
+    """Creates DA_InputGlyphs, or adds the glyphs it lacks (S4-08: the D-pad)."""
     path = INPUT_DIR + "/DA_InputGlyphs"
-    if assets.does_asset_exist(path):
-        return
-    factory = unreal.DataAssetFactory()
-    factory.set_editor_property("data_asset_class", unreal.HollowInputGlyphSet)
-    glyph_set = create(path, unreal.HollowInputGlyphSet, factory)
-    glyphs = []
+    created = not assets.does_asset_exist(path)
+    if created:
+        factory = unreal.DataAssetFactory()
+        factory.set_editor_property("data_asset_class", unreal.HollowInputGlyphSet)
+        glyph_set = create(path, unreal.HollowInputGlyphSet, factory)
+    else:
+        glyph_set = load(path)
+    glyphs = list(glyph_set.get_editor_property("glyphs"))
+    known = set(g.get_editor_property("key").export_text() for g in glyphs)
+    added = 0
     for key_name, label in GLYPHS:
+        key = make_key(key_name)
+        if key.export_text() in known:
+            continue
         glyph = unreal.HollowKeyGlyph()
-        glyph.set_editor_property("key", make_key(key_name))
+        glyph.set_editor_property("key", key)
         glyph.set_editor_property("label", unreal.Text(label))
         glyphs.append(glyph)
-    glyph_set.set_editor_property("glyphs", glyphs)
-    save(glyph_set)
-    log("created DA_InputGlyphs")
+        added += 1
+    if created or added:
+        glyph_set.set_editor_property("glyphs", glyphs)
+        save(glyph_set)
+        log("DA_InputGlyphs: %d glyphs (%d new)" % (len(glyphs), added))
 
 
 # ---------------------------------------------------------------- widgets
@@ -365,48 +344,6 @@ def ensure_target_status():
     finish(blueprint)
 
 
-def configure_bar(bar, label, set_name, attribute, max_attribute, fill_color, alert_tag=None):
-    bar.set_editor_property("label", unreal.Text(label))
-    bar.set_editor_property("attribute", make_attribute(set_name, attribute))
-    bar.set_editor_property("max_attribute", make_attribute(set_name, max_attribute))
-    bar.set_editor_property("fill_color", fill_color)
-    bar.set_editor_property("alert_color", ALERT_COLOR)
-    if alert_tag:
-        bar.set_editor_property("alert_tag", make_tag(alert_tag))
-
-
-def ensure_visor():
-    blueprint = new_widget_blueprint(VISOR_DIR + "/W_Visor", unreal.HollowVisorWidget)
-    if blueprint is None:
-        return
-    centre = unreal.Vector2D(0.5, 0.5)
-    top_centre = unreal.Vector2D(0.5, 0.0)
-    bottom_left = unreal.Vector2D(0.0, 1.0)
-    bottom_right = unreal.Vector2D(1.0, 1.0)
-    add(blueprint, unreal.CanvasPanel, "Root")
-
-    crosshair = add(blueprint, unreal.Image, "Crosshair", "Root")
-    image(crosshair, unreal.Vector2D(CROSSHAIR_SIZE, CROSSHAIR_SIZE), WHITE)
-    canvas_slot(crosshair, centre, centre, unreal.Vector2D(0.0, 0.0), unreal.Vector2D(CROSSHAIR_SIZE, CROSSHAIR_SIZE))
-
-    target = add(blueprint, load(VISOR_DIR + "/W_TargetStatus").generated_class(), "TargetStatus", "Root")
-    canvas_slot(target, centre, top_centre, unreal.Vector2D(0.0, TARGET_OFFSET), TARGET_SIZE)
-    prompt = add(blueprint, load(VISOR_DIR + "/W_InteractionPrompt").generated_class(), "InteractionPrompt", "Root")
-    canvas_slot(prompt, centre, top_centre, unreal.Vector2D(0.0, PROMPT_OFFSET), auto_size=True)
-
-    bar_class = load(VISOR_DIR + "/W_StatBar").generated_class()
-    health = add(blueprint, bar_class, "HealthBar", "Root")
-    configure_bar(health, "Health", "HollowHealthSet", "Health", "MaxHealth", HEALTH_COLOR)
-    canvas_slot(health, bottom_left, bottom_left, unreal.Vector2D(EDGE, -EDGE), HEALTH_SIZE)
-    fuel = add(blueprint, bar_class, "ToolFuelBar", "Root")
-    configure_bar(fuel, "Fuel", "HollowToolSet", "ToolFuel", "MaxToolFuel", FUEL_COLOR)
-    canvas_slot(fuel, bottom_right, bottom_right, unreal.Vector2D(-EDGE, -EDGE - TOOL_BAR_GAP), TOOL_BAR_SIZE)
-    heat = add(blueprint, bar_class, "ToolHeatBar", "Root")
-    configure_bar(heat, "Heat", "HollowToolSet", "ToolHeat", "MaxToolHeat", HEAT_COLOR, OVERHEATED_TAG)
-    canvas_slot(heat, bottom_right, bottom_right, unreal.Vector2D(-EDGE, -EDGE), TOOL_BAR_SIZE)
-    finish(blueprint)
-
-
 def ensure_system_menu():
     blueprint = new_widget_blueprint(MENUS_DIR + "/W_SystemMenu", unreal.HollowSystemMenuWidget)
     if blueprint is None:
@@ -526,20 +463,6 @@ def ensure_raid_status():
     finish(blueprint)
 
 
-def ensure_visor_raid_status():
-    """W_Visor predates the raid line: add it to the existing tree once."""
-    blueprint = load(VISOR_DIR + "/W_Visor")
-    if author.find_widget(blueprint, "RaidStatus") is not None:
-        return
-    status = add(blueprint, load(VISOR_DIR + "/W_RaidStatus").generated_class(), "RaidStatus", "Root")
-    top_centre = unreal.Vector2D(0.5, 0.0)
-    canvas_slot(status, top_centre, top_centre, unreal.Vector2D(0.0, RAID_STATUS_OFFSET), auto_size=True)
-    if not author.compile(blueprint):
-        raise RuntimeError("W_Visor does not compile with the raid line")
-    save(blueprint)
-    log("W_Visor: raid status line added")
-
-
 def ensure_debrief():
     blueprint = new_widget_blueprint(MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)
     if blueprint is None:
@@ -611,14 +534,12 @@ def validate():
                          (VISOR_DIR + "/W_StatBar", unreal.HollowStatBarWidget),
                          (VISOR_DIR + "/W_InteractionPrompt", unreal.HollowInteractionPromptWidget),
                          (VISOR_DIR + "/W_TargetStatus", unreal.HollowTargetStatusWidget),
-                         (VISOR_DIR + "/W_Visor", unreal.HollowVisorWidget),
                          (MENUS_DIR + "/W_SystemMenu", unreal.HollowSystemMenuWidget),
                          (MENUS_DIR + "/W_MainMenu", unreal.HollowMainMenuWidget),
                          (VISOR_DIR + "/W_RaidStatus", unreal.HollowRaidStatusWidget),
                          (MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)):
         generated = load(path).generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
-    check(author.find_widget(load(VISOR_DIR + "/W_Visor"), "RaidStatus") is not None, "W_Visor shows the raid line")
     for name, _ in SESSION_BUTTONS + [VOICE_BUTTON]:
         check(author.find_widget(load(MENUS_DIR + "/W_SystemMenu"), name) is not None, "W_SystemMenu has " + name)
     for path in TOOL_LABELS:
@@ -639,9 +560,7 @@ def main():
     ensure_stat_bar()
     ensure_prompt()
     ensure_target_status()
-    ensure_visor()
     ensure_raid_status()
-    ensure_visor_raid_status()
     ensure_system_menu()
     ensure_system_menu_session_buttons()
     ensure_system_menu_voice_button()

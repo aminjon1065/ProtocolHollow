@@ -11,7 +11,7 @@ class UWidgetBlueprint;
 
 /**
  * Editor-only widget tree authoring for the content scripts (ADR-0010, ADR-0013): editor Python cannot reach a
- * WBP's WidgetTree, so Build/Python/create_ui_assets.py composes the greybox layouts through these calls.
+ * WBP's WidgetTree, so Build/Python/create_ui_assets.py and create_visor_assets.py compose the layouts through these calls.
  */
 UCLASS()
 class HOLLOWEDITOR_API UHollowWidgetAuthoring : public UBlueprintFunctionLibrary
@@ -33,6 +33,10 @@ public:
 	/** Canvas panel slot: one anchor point, alignment (pivot), position and size (or the content's size). */
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Widgets")
 	static bool SetCanvasSlot(UWidget* Widget, FVector2D Anchor, FVector2D Alignment, FVector2D Position, FVector2D Size, bool bAutoSize);
+
+	/** Empties the tree (widgets built from a changed spec are rebuilt from scratch; S4-08). */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Widgets")
+	static bool ClearWidgets(UWidgetBlueprint* Blueprint);
 
 	/** Overlay or box slot: alignment and padding; in boxes Fill > 0 fills with that weight, 0 sizes to content. */
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Widgets")

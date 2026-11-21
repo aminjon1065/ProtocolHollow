@@ -166,7 +166,7 @@ AAIController
 | `UHollowEquipmentComponent` | Game | инструмент в руках, сокеты FP и TP, точка луча | публичный rep сборки |
 | `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели. *S3-02:* предсказание подъёма (заявка в CMC), `Server_Drop`, `GE_Carry_Solo` на ASC, серверный режим для CMC; цели крепления визуала — FP-камера и TP-меш ([ADR-0015](../ADR/ADR-0015-solo-carry-claim.md)) | state через `UHollowCarryableComponent` |
 | `UHollowExoFrameComponent` | Game | применяет `UHollowExoFrameDefinition`: AbilitySet, init-GE, таланты | на сервере |
-| `UHollowVisorComponent` | UI | диегетика шлема поверх моделей визора (S2-06 начал с экранного `W_Visor`, [ADR-0013](../ADR/ADR-0013-ui-foundation-commonui.md)); только косметика и только локально | — |
+| `UHollowVisorComponent` | UI | диегетика шлема поверх моделей визора (S2-06 начал с экранного `W_Visor`, [ADR-0013](../ADR/ADR-0013-ui-foundation-commonui.md)); только косметика и только локально. *S4-08:* стекло шлема — элемент самого `W_Visor` (`W_VisorFrame`), компонент на персонаже не понадобился ([ADR-0026](../ADR/ADR-0026-diegetic-visor-resonance-tags-helmet-lamp.md)) | — |
 | `UVOIPTalker` (движковый) | Net | 3D-голос с аттенюацией и эффектами шлема и рации | движковый VOIP |
 
 Камера от первого лица — штатный First Person Rendering 5.8 ([ADR-0011](../ADR/ADR-0011-first-person-rendering-and-placeholders.md)): FP-руки (`FirstPerson`, `OnlyOwnerSee`, копия позы TP) и TP-тело (`WorldSpaceRepresentation`: владелец видит только тень), камера на сокете `head` FP-меша. До S1-05 `AHollowExoFrameCharacter` наследуется от `ACharacter`, после — от `AHollowCharacterBase`. **Гейплейная** привязка к позе руками не делается никогда, руки — чистая косметика (важно для переноски, §3.5).
@@ -178,8 +178,11 @@ AHollowHUD [UI, только локальный PC]
  │   ├─ UHollowPromptModel         OnFocusChanged + глиф IA_Interact для текущего устройства (DA_InputGlyphs)
  │   └─ UHollowToolTargetModel     Hollow.State.Tool.Active -> HollowToolAim::TraceLocal -> IHollowTargetStatusSource
  └─ UHollowPrimaryLayout (W_PrimaryLayout)   стеки Hollow.UI.Layer.{Game, GameMenu, Menu, Modal}
-     ├─ Game: UHollowVisorWidget (W_Visor)   UHollowStatBarWidget x3 (FHollowAttributeWatch), UHollowInteractionPromptWidget,
-     │                                         UHollowTargetStatusWidget, прицел; UI-действие IA_SystemMenu (Esc / Start)
+     ├─ Game: UHollowVisorWidget (W_Visor)   Overlay: стекло UHollowVisorFrameWidget (S4-08) | Canvas: UHollowStatBarWidget x4
+     │                                         (FHollowAttributeWatch; здоровье, стамина, топливо, нагрев), UHollowInteractionPromptWidget,
+     │                                         UHollowTargetStatusWidget, прицел, строка рейда; S4-08: UHollowResonanceReadoutWidget,
+     │                                         UHollowVoiceIndicatorWidget, UHollowLampIndicatorWidget (FHollowResonanceTierWatch,
+     │                                         стиль DA_VisorStyle); UI-действие IA_SystemMenu (Esc / Start)
      └─ Menu: UHollowSystemMenuWidget (W_SystemMenu)   Resume / Quit (UHollowButton), Back, фокус на Resume
 ```
 - Все виджеты C++ с `DisableNativeTick`; WBP — только раскладка, их собирает `create_ui_assets.py` через `UHollowWidgetAuthoring` (HollowEditor).
@@ -242,7 +245,7 @@ public:
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;         // clamp [0, Max]
-	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;            // пороги тиров → Hollow.State.Resonance.*
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;            // clamp; тиры — у отряда (S4-02, S4-08: теги Hollow.State.Resonance.* из тира отряда)
 
 	UFUNCTION() void OnRep_Resonance(const FGameplayAttributeData& OldValue);   // GAMEPLAYATTRIBUTE_REPNOTIFY внутри
 	UFUNCTION() void OnRep_MaxResonance(const FGameplayAttributeData& OldValue);
@@ -411,6 +414,8 @@ Door → BP_Door (S2-04), Bulkhead → BP_Bulkhead_Plate | BP_Bulkhead_Twin (S3-
 - EQS: `UHollowEnvQueryGenerator_FocusRoomPoints`, `UHollowEnvQueryTest_OutOfLightCone`, `UHollowEnvQueryContext_FocusRoomHotPortal`; `EQ_StalkerFocusRoom` строит `UHollowEnvQueryAuthoring` (Editor);
 - узлы `FHollowSTTask_{Stunned, Track, Ambush, Retreat}`, `FHollowSTCond_{IsStunned, IsHunting, IsRetreating}`; удар `UHollowGA_EnemyMelee` → `UHollowGA_PilgrimMelee` · `UHollowGA_StalkerAmbush`;
 - GAS: `UHollowStunnedEffect`, `UHollowPulseMineCooldownEffect`, `UHollowStalkerTraitsEffect`; Game: `UHollowGA_PulseMine`, `AHollowPulseMine`, `UHollowPulseMineDefinition`.
+
+*S4-08* ([ADR-0026](../ADR/ADR-0026-diegetic-visor-resonance-tags-helmet-lamp.md)): у лампы появился выключатель — `bHelmetLampOn` (push, `COND_SkipOwner`), `UHollowGA_HelmetLamp` + `UHollowHelmetLampCooldownEffect`; `GetLightCone` смотрит на выключатель, `UHollowEnvQueryTest_OutOfLightCone` не менялся.
 
 ```
 AHollowEnemyCharacter (ASC Minimal, UHollowEnemyDefinition) → Whisperer · IronPilgrim · EchoStalker

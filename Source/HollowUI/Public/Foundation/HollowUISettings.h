@@ -8,6 +8,7 @@ class UCommonActivatableWidget;
 class UHollowInputGlyphSet;
 class UHollowDebriefWidget;
 class UHollowPrimaryLayout;
+class UHollowVisorStyle;
 class UInputAction;
 class UInputMappingContext;
 
@@ -50,8 +51,16 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Input")
 	TSoftObjectPtr<UInputAction> InteractAction;
 
+	/** Its key is shown on the visor's lamp line (S4-08). */
+	UPROPERTY(Config, EditAnywhere, Category = "Input")
+	TSoftObjectPtr<UInputAction> HelmetLampAction;
+
 	UPROPERTY(Config, EditAnywhere, Category = "Input")
 	TSoftObjectPtr<UHollowInputGlyphSet> InputGlyphs;
+
+	/** Tiers, telemetry texts and colours of the visor (S4-08, DA_VisorStyle). */
+	UPROPERTY(Config, EditAnywhere, Category = "Visor")
+	TSoftObjectPtr<UHollowVisorStyle> VisorStyle;
 
 	/** How often the visor re-traces the active tool's target. */
 	UPROPERTY(Config, EditAnywhere, Category = "Visor", meta = (ClampMin = "1", Units = "Hertz"))

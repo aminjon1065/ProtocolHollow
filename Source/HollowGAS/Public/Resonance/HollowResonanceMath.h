@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Resonance/HollowResonanceTypes.h"
 
 struct FRichCurve;
@@ -18,6 +19,9 @@ namespace HollowResonanceMath
 	 * the value is Hysteresis below it (no flicker at the edge). Thresholds: ascending, one per tier above Low.
 	 */
 	HOLLOWGAS_API EHollowResonanceTier TierFor(float Normalized, EHollowResonanceTier Current, TConstArrayView<float> Thresholds, float Hysteresis);
+
+	/** Hollow.State.Resonance.<Tier>: the tag every player carries for the squad's tier (S4-08). */
+	HOLLOWGAS_API FGameplayTag TierTag(EHollowResonanceTier Tier);
 
 	/** Squad Resonance from the living players' 0..1 values: the highest (solo and co-op alike); 0 without anyone. */
 	HOLLOWGAS_API float Aggregate(TConstArrayView<float> LivingNormalized);

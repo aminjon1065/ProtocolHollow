@@ -41,5 +41,6 @@ private:
 	FText KeyLabel;
 	FDelegateHandle SourcesHandle;
 	FDelegateHandle InputTypeHandle;
+	FDelegateHandle KeysHandle;
 	FDelegateHandle FocusHandle;
 };

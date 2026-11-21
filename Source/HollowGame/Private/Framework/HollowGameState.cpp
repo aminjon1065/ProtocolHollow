@@ -15,3 +15,12 @@ AHollowGameState::AHollowGameState(const FObjectInitializer& ObjectInitializer)
 	RaidState = CreateDefaultSubobject<UHollowRaidStateComponent>(TEXT("RaidState"));
 	SquadResonance = CreateDefaultSubobject<UHollowSquadResonanceComponent>(TEXT("SquadResonance"));
 }
+
+void AHollowGameState::AddPlayerState(APlayerState* PlayerState)
+{
+	Super::AddPlayerState(PlayerState);
+	if (SquadResonance)
+	{
+		SquadResonance->MirrorTierTo(PlayerState);
+	}
+}

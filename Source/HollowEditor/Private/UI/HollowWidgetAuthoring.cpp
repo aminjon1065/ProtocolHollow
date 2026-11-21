@@ -9,6 +9,7 @@
 #include "HollowEditorLog.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "UObject/Package.h"
 #include "WidgetBlueprint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowWidgetAuthoring)
@@ -98,6 +99,27 @@ bool UHollowWidgetAuthoring::SetCanvasSlot(UWidget* Widget, const FVector2D Anch
 	Slot->SetPosition(Position);
 	Slot->SetSize(Size);
 	Slot->SetAutoSize(bAutoSize);
+	return true;
+}
+
+bool UHollowWidgetAuthoring::ClearWidgets(UWidgetBlueprint* Blueprint)
+{
+	if (!Blueprint || !Blueprint->WidgetTree)
+	{
+		return false;
+	}
+	Blueprint->Modify();
+	TArray<UWidget*> Widgets;
+	Blueprint->WidgetTree->GetAllWidgets(Widgets);
+	for (UWidget* Widget : Widgets)
+	{
+		Blueprint->OnVariableRemoved(Widget->GetFName());
+		Blueprint->WidgetTree->RemoveWidget(Widget);
+		// Out of the tree's namespace: the rebuilt tree reuses the names.
+		Widget->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+	}
+	Blueprint->WidgetTree->RootWidget = nullptr;
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 	return true;
 }
 

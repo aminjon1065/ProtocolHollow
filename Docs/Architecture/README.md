@@ -10,7 +10,7 @@
 | 4 | [Vertical Slice, 8 недель](04_Vertical_Slice_Plan.md) | 4 спринта, Must ≤ 8.25 дня из 10, cut-list по каждому спринту, 10 измеримых exit-критериев |
 | 5 | [Риски и scope](05_Risk_Map_and_Scope_Control.md) | топ-5 рисков с планами B; 12 компромиссов «AAA без лишних лет»; фильтр трёх столпов и kill-list |
 
-ADR: [`Docs/ADR/`](../ADR/) — 0001…0021, все в статусе *Accepted* (0009 — кроссплатформенный тулчейн macOS ↔ Win64; 0019 — Эхо-Хищник; 0020 — Резонанс отряда; 0021 — свет в бюджете).
+ADR: [`Docs/ADR/`](../ADR/) — 0001…0026, все в статусе *Accepted* (0009 — кроссплатформенный тулчейн macOS ↔ Win64; 0019 — Эхо-Хищник; 0020 — Резонанс отряда; 0021 — свет в бюджете; 0025 — голос → ИИ; 0026 — визор и фонарь).
 
 ## Ключевые решения на одном экране
 1. **UE 5.8.x**, заморожена до 1.0 (5.8 — вероятно, последняя UE5; MegaLights в Production Ready; Lumen Lite для Low и Steam Deck).
@@ -101,3 +101,21 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0021, все в статусе *Accepted*
   - **Тесты** 122/122 строго: `Hollow.Core.Voice.Rules`, `Hollow.Game.Voice.{Report, Talker}`, `Hollow.Game.Stalker.HearsVoice`, расширен `Hollow.Game.Build.Settings`.
   - **Собранный билд, coop на 4 процессах:** крик клиента хост слышит как `Hollow.Noise.Voice.Shout`.
   - **Не проверен настоящий микрофон:** у Mac mini нет устройства ввода. Это пункты V1–V6 живого прогона.
+- **S4-08 «Диегетический визор и нашлемный фонарь»** ([ADR-0026](../ADR/ADR-0026-diegetic-visor-resonance-tags-helmet-lamp.md)):
+  - **Теги тиров Резонанса:**
+    - у каждого игрока ровно один `Hollow.State.Resonance.<Tier>` — тир отряда;
+    - каждая машина ставит его локально из реплицированного тира (`UHollowSquadResonanceComponent::MirrorTier`, `AHollowGameState::AddPlayerState`), в сеть ничего не добавляется.
+  - **Фонарь:**
+    - `bHelmetLampOn` у ExoFrame: push, `COND_SkipOwner`;
+    - `UHollowGA_HelmetLamp` (LocalPredicted, откат при отказе сервера, кулдаун 0,3 с), клавиши F / крестовина вверх;
+    - выключенный фонарь не закрывает точки засады Хищника в EQS;
+    - щелчок `Hollow.Sound.HelmetLamp.Toggle`.
+  - **Визор:**
+    - стекло шлема `W_VisorFrame` (`M_UI_VisorGlass`, свечение тира High / Critical, пульс ≤ 3 Гц);
+    - телеметрия по краям: здоровье и стамина, топливо и нагрев, микрофон и фонарь, Резонанс, компактная строка эвакуации;
+    - стиль `DA_VisorStyle`, без Tick;
+    - контент — `create_lamp_assets.py` и `create_visor_assets.py` (хеш спецификации у каждого ассета), около 0,4 МБ.
+  - **Инструменты:** `Hollow.Lamp.{Toggle, Dump}`, `Hollow.UI.Shot`; в `playthrough-mac.sh` клиент переключает фонарь.
+  - **Тесты** 128/128 строго: `Hollow.Game.Resonance.TierTags`, `Hollow.Game.HelmetLamp.{Switch, Data}`, `Hollow.Game.Stalker.LampOff`, `Hollow.UI.Visor.{Telemetry, Style}`.
+  - **Собранный билд:** coop на 4 процессах — фонарь клиента гаснет и загорается у хоста и других клиентов; soak 5 минут — 4 процесса до конца, ошибок 0. FPS не замерен честно: GPU был занят сторонним заданием (KnownIssues).
+  - **Попутно:** инкрементальный кук однажды собрал неработающую игру; `package-mac.sh` теперь проверяет запуск (KnownIssues H-6).

@@ -45,6 +45,7 @@ void UHollowVoiceComponent::BeginPlay()
 	{
 		const UHollowGameUserSettings* UserSettings = UHollowGameUserSettings::Get();
 		Mode = UserSettings ? UserSettings->GetVoiceMode() : EHollowVoiceMode::PushToTalk;
+		OnVoiceModeChanged.Broadcast(Mode);
 		ApplyTransmission();   // open mic starts at once
 	}
 }
@@ -73,6 +74,7 @@ void UHollowVoiceComponent::SetMode(const EHollowVoiceMode NewMode)
 		UserSettings->SetVoiceMode(NewMode);
 	}
 	UE_LOG(LogHollowGame, Log, TEXT("Voice: %s mode %s"), *GetNameSafe(GetOwner()), *HollowEnumToString(NewMode));
+	OnVoiceModeChanged.Broadcast(NewMode);
 	ApplyTransmission();
 }
 

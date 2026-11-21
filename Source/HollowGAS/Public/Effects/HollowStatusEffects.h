@@ -27,6 +27,16 @@ public:
 	explicit UHollowPulseMineCooldownEffect(const FObjectInitializer& ObjectInitializer);
 };
 
+/** Helmet lamp just switched (cooldown of GA_HelmetLamp, S4-08): Hollow.Cooldown.HelmetLamp for the duration (data), no strobing. */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowHelmetLampCooldownEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowHelmetLampCooldownEffect(const FObjectInitializer& ObjectInitializer);
+};
+
 /** What the Echo-Stalker is (GE_Stalker_Traits, from its ability set): immune to kinetic damage for good. */
 UCLASS(Abstract)
 class HOLLOWGAS_API UHollowStalkerTraitsEffect : public UGameplayEffect

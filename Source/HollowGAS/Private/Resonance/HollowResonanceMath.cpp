@@ -1,6 +1,7 @@
 #include "Resonance/HollowResonanceMath.h"
 
 #include "Curves/CurveFloat.h"
+#include "Tags/HollowGameplayTags.h"
 
 namespace HollowResonanceMathPrivate
 {
@@ -34,6 +35,18 @@ EHollowResonanceTier HollowResonanceMath::TierFor(const float Normalized, const 
 		--Tier;
 	}
 	return static_cast<EHollowResonanceTier>(Tier);
+}
+
+FGameplayTag HollowResonanceMath::TierTag(const EHollowResonanceTier Tier)
+{
+	switch (Tier)
+	{
+	case EHollowResonanceTier::Low:      return HollowTags::State_Resonance_Low;
+	case EHollowResonanceTier::Medium:   return HollowTags::State_Resonance_Medium;
+	case EHollowResonanceTier::High:     return HollowTags::State_Resonance_High;
+	case EHollowResonanceTier::Critical: return HollowTags::State_Resonance_Critical;
+	}
+	return FGameplayTag();
 }
 
 float HollowResonanceMath::Aggregate(const TConstArrayView<float> LivingNormalized)

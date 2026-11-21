@@ -5,12 +5,19 @@
 #include "CommonInputSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "EnhancedInputSubsystems.h"
 #include "Foundation/HollowHUD.h"
 #include "Foundation/HollowUISettings.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "HollowUILog.h"
+#include "InputAction.h"
+#include "Resonance/HollowSquadResonanceComponent.h"
+#include "ViewModels/HollowInputGlyphSet.h"
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
+#include "Visor/HollowVisorStyle.h"
 #include "Voice/HollowVoiceComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowVisorContext)
@@ -35,7 +42,17 @@ void UHollowVisorContext::Initialize(APlayerController* InPlayer)
 		});
 	}
 
+	if (UEnhancedInputLocalPlayerSubsystem* Input = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(InPlayer->GetLocalPlayer()))
+	{
+		Input->ControlMappingsRebuiltDelegate.AddDynamic(this, &ThisClass::HandleControlMappingsRebuilt);
+	}
+	if (UWorld* World = InPlayer->GetWorld())
+	{
+		GameStateHandle = World->GameStateSetEvent.AddUObject(this, &ThisClass::HandleGameStateSet);   // clients: the squad arrives with it
+	}
+
 	const UHollowUISettings* Settings = GetDefault<UHollowUISettings>();
+	Style = Settings->VisorStyle.LoadSynchronous();
 	Prompt = NewObject<UHollowPromptModel>(this);
 	Prompt->Initialize(*this);
 	ToolTarget = NewObject<UHollowToolTargetModel>(this);
@@ -56,6 +73,14 @@ void UHollowVisorContext::Deinitialize()
 	}
 	if (APlayerController* PlayerController = Player.Get())
 	{
+		if (UWorld* World = PlayerController->GetWorld())
+		{
+			World->GameStateSetEvent.Remove(GameStateHandle);
+		}
+		if (UEnhancedInputLocalPlayerSubsystem* Input = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Input->ControlMappingsRebuiltDelegate.RemoveDynamic(this, &ThisClass::HandleControlMappingsRebuilt);
+		}
 		PlayerController->OnPossessedPawnChanged.RemoveAll(this);
 		if (UGameInstance* GameInstance = PlayerController->GetGameInstance())
 		{
@@ -83,6 +108,24 @@ APlayerController* UHollowVisorContext::GetPlayer() const
 UHollowVoiceComponent* UHollowVisorContext::GetVoice() const
 {
 	return UHollowVoiceComponent::Get(Player.Get());
+}
+
+UHollowSquadResonanceComponent* UHollowVisorContext::GetSquadResonance() const
+{
+	return UHollowSquadResonanceComponent::Get(Player.Get());
+}
+
+FText UHollowVisorContext::GetKeyLabel(const UInputAction* Action) const
+{
+	const APlayerController* PlayerController = Player.Get();
+	const UEnhancedInputLocalPlayerSubsystem* Input = PlayerController ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) : nullptr;
+	const UHollowInputGlyphSet* Glyphs = GetDefault<UHollowUISettings>()->InputGlyphs.LoadSynchronous();
+	if (!Input || !Action || !Glyphs)
+	{
+		return FText::GetEmpty();
+	}
+	const FKey Key = UHollowInputGlyphSet::PickKey(Input->QueryKeysMappedToAction(Action), GetInputType());
+	return Key.IsValid() ? Glyphs->GetLabel(Key) : FText::GetEmpty();
 }
 
 AHollowExoFrameCharacter* UHollowVisorContext::GetCharacter() const
@@ -144,6 +187,17 @@ void UHollowVisorContext::SetCharacter(AHollowExoFrameCharacter* NewCharacter)
 	}
 	UE_LOG(LogHollowUI, Log, TEXT("Visor of %s follows %s (ability system %s)"), *GetNameSafe(Player.Get()), *GetNameSafe(NewCharacter),
 		AbilitySystem.IsValid() ? TEXT("ready") : TEXT("pending"));
+	OnSourcesChanged.Broadcast();
+}
+
+void UHollowVisorContext::HandleControlMappingsRebuilt()
+{
+	OnKeysChanged.Broadcast();
+}
+
+void UHollowVisorContext::HandleGameStateSet(AGameStateBase* GameState)
+{
+	UE_LOG(LogHollowUI, Log, TEXT("Visor of %s: game state %s"), *GetNameSafe(Player.Get()), *GetNameSafe(GameState));
 	OnSourcesChanged.Broadcast();
 }
 

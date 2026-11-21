@@ -2,6 +2,7 @@
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowHealthSet.h"
+#include "Audio/HollowAudioSubsystem.h"
 #include "Audio/HollowFootstepAudioComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Character/HollowFootstepNoiseComponent.h"
@@ -22,6 +23,7 @@
 #include "InputActionValue.h"
 #include "Interaction/HollowInteractionComponent.h"
 #include "Movement/HollowCharacterMovementComponent.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Raid/HollowRaidFlowComponent.h"
 #include "Raid/HollowRaidSettings.h"
@@ -150,6 +152,10 @@ void AHollowExoFrameCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AHollowExoFrameCharacter, bDead);
+	FDoRepLifetimeParams LampParams;
+	LampParams.bIsPushBased = true;
+	LampParams.Condition = COND_SkipOwner;   // the owner predicts its own lamp
+	DOREPLIFETIME_WITH_PARAMS_FAST(AHollowExoFrameCharacter, bHelmetLampOn, LampParams);
 }
 
 void AHollowExoFrameCharacter::HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, const float Damage)
@@ -197,16 +203,48 @@ void AHollowExoFrameCharacter::ApplyDeadPresentation()
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	HelmetLight->SetVisibility(false);
+	ApplyHelmetLamp(/*bClick=*/false);   // a dead helmet is dark
 	if (const AHollowPlayerState* HollowPlayerState = GetPlayerState<AHollowPlayerState>())
 	{
 		HollowPlayerState->GetVoiceTalker()->RefreshPlacement();   // the dead talk on the radio (S4-07)
 	}
 }
 
+void AHollowExoFrameCharacter::SetHelmetLampOn(const bool bOn)
+{
+	if (bHelmetLampOn == bOn)
+	{
+		return;
+	}
+	bHelmetLampOn = bOn;
+	if (HasAuthority())
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(AHollowExoFrameCharacter, bHelmetLampOn, this);
+	}
+	UE_LOG(LogHollowGame, Log, TEXT("%s: helmet lamp %s"), *GetName(), bOn ? TEXT("on") : TEXT("off"));
+	ApplyHelmetLamp(/*bClick=*/true);
+}
+
+void AHollowExoFrameCharacter::OnRep_HelmetLamp()
+{
+	UE_LOG(LogHollowGame, Log, TEXT("%s: helmet lamp %s (replicated)"), *GetName(), bHelmetLampOn ? TEXT("on") : TEXT("off"));
+	ApplyHelmetLamp(/*bClick=*/HasActorBegunPlay());   // a first bunch brings an old switch, not a click
+}
+
+void AHollowExoFrameCharacter::ApplyHelmetLamp(const bool bClick)
+{
+	HelmetLight->SetVisibility(bHelmetLampOn && !bDead);
+	OnHelmetLampChanged.Broadcast(bHelmetLampOn);
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	if (bClick && Audio && !bDead && HasActorBegunPlay())
+	{
+		Audio->PlayAttached(HollowTags::Sound_HelmetLamp_Toggle, FirstPersonCamera);
+	}
+}
+
 bool AHollowExoFrameCharacter::GetLightCone(FHollowLightCone& OutCone) const
 {
-	if (bDead || !HelmetLight->IsVisible() || HelmetLight->Intensity <= 0.f)
+	if (bDead || !bHelmetLampOn || HelmetLight->Intensity <= 0.f)
 	{
 		return false;
 	}
