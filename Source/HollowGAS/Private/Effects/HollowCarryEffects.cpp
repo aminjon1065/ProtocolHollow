@@ -7,14 +7,17 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowCarryEffects)
 
-UHollowCarrySoloEffect::UHollowCarrySoloEffect(const FObjectInitializer& ObjectInitializer)
+UHollowCarryEffect::UHollowCarryEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
+}
 
+void UHollowCarryEffect::InitCarryStructure(const FGameplayTag& StateTag)
+{
 	UTargetTagsGameplayEffectComponent* TargetTags = CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CarryingTag"));
 	FInheritedTagContainer Granted;
-	Granted.Added.AddTag(HollowTags::State_CarryingHeavy_Solo);
+	Granted.Added.AddTag(StateTag);
 	TargetTags->SetAndApplyTargetTagChanges(Granted);
 	GEComponents.Add(TargetTags);
 
@@ -23,6 +26,18 @@ UHollowCarrySoloEffect::UHollowCarrySoloEffect(const FObjectInitializer& ObjectI
 	Blocked.Added.AddTag(HollowTags::Ability_Tool);
 	BlockedAbilities->SetAndApplyBlockedAbilityTagChanges(Blocked);
 	GEComponents.Add(BlockedAbilities);
+}
+
+UHollowCarrySoloEffect::UHollowCarrySoloEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	InitCarryStructure(HollowTags::State_CarryingHeavy_Solo);
+}
+
+UHollowCarryCoopEffect::UHollowCarryCoopEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	InitCarryStructure(HollowTags::State_CarryingHeavy_Coop);
 }
 
 UHollowStaminaRecoveryEffect::UHollowStaminaRecoveryEffect(const FObjectInitializer& ObjectInitializer)

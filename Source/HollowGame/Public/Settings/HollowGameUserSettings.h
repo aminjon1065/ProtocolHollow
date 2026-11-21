@@ -36,6 +36,18 @@ public:
 	/** Keeps the voice mode for the next launch. */
 	void SetVoiceMode(EHollowVoiceMode Mode);
 
+	/**
+	 * Accessibility H-1 (ADR-0029): no fast flashes. The Resonance post-process, the emergency lights and the visor
+	 * glow then change smoothly (at most 2 Hz) or hold steady, on this machine only. Off unless the player chose it.
+	 */
+	bool IsReducedFlashes() const { return bReducedFlashes; }
+
+	/** Switches it now (OnReducedFlashesChanged); bSave keeps it for the next launch. */
+	void SetReducedFlashes(bool bReduced, bool bSave = true);
+
+	/** The reduced-flashes choice changed (presentation, visor). */
+	FSimpleMulticastDelegate OnReducedFlashesChanged;
+
 	/** Only the preset's scalability and its console variables (what tests check: no window, no saving). */
 	static bool ApplyScalability(const FHollowGraphicsPresetSpec& Spec);
 
@@ -69,4 +81,7 @@ private:
 
 	UPROPERTY(Config)
 	EHollowVoiceMode VoiceMode = EHollowVoiceMode::PushToTalk;
+
+	UPROPERTY(Config)
+	bool bReducedFlashes = false;
 };

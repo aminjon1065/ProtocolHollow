@@ -39,9 +39,17 @@ EDataValidationResult UHollowCarryableDefinition::IsDataValid(FDataValidationCon
 	{
 		Error(LOCTEXT("Timing", "MaxAwakeSeconds must exceed DormancyDelaySeconds."));
 	}
-	if (PickupPrompt.IsEmpty())
+	if (PickupPrompt.IsEmpty() || JoinPrompt.IsEmpty())
 	{
-		Error(LOCTEXT("Prompt", "A carryable needs a pick-up prompt."));
+		Error(LOCTEXT("Prompt", "A carryable needs a pick-up prompt and a prompt for joining a carry."));
+	}
+	if (!CoopEffect)
+	{
+		Error(LOCTEXT("CoopEffect", "A carryable needs the effect applied to each of two carriers (ADR-0028)."));
+	}
+	if (Coop.Slack >= Coop.CarrierSpacing || Coop.BreakDistance <= Coop.Slack || Coop.PullRate <= 0.f || Coop.MaxPullSpeed <= 0.f)
+	{
+		Error(LOCTEXT("Coop", "Co-op carry: the slack must be under the carrier spacing and the break distance beyond it, with a pull."));
 	}
 	return Result;
 }

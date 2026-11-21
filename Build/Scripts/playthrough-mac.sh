@@ -4,8 +4,8 @@
 # A (Gamepad_FaceButton_Bottom) presses the button (a synthetic keyboard Enter does not reach CommonUI's click action).
 #   solo   E2: main menu "Play solo" -> hub -> system menu "Start raid" -> lift the core -> extract -> debrief -> hub ->
 #          "Leave session" -> main menu.
-#   coop   host + 3 headless clients: "Host co-op", clients join, "Start raid"; the host lifts the core, a second player
-#          trying to join the carry is refused (co-op carry was cut, S3-06) without harm, client 1 shouts (a simulated
+#   coop   host + 3 headless clients: "Host co-op", clients join, "Start raid"; the host lifts the core, client 1 takes
+#          the other side and lets go again (S3-06), client 1 shouts (a simulated
 #          microphone, S4-07: the host hears it as Hollow.Noise.Voice.Shout), client 1 switches its helmet lamp off and on
 #          (S4-08: every machine dumps the lamps in between, the host its visor), everyone extracts;
 #          back in the hub a second raid: the clients die, the host extracts; results and profiles on every machine.
@@ -14,31 +14,54 @@
 #          minute (doors, welding, a breach, the core, mines, Resonance, a client's shout every third minute, its lamp switched
 #          every second minute), a CSV capture of the whole raid
 #          (Hollow.Perf.Capture: hitches, memory), then everyone extracts.
+#   carry  S3-06 co-op carry (ADR-0028): host + 1 headless client behind an emulated network (--net), walking with real
+#          input (Hollow.Dev.WalkRoute, Hollow.Dev.FollowCarry): the client lifts the core, the host joins, the client
+#          leads through 3 rooms; the client lets go; it joins the host, who leads through 2 rooms; the host walks off
+#          (the tether breaks), the client carries alone through 2 rooms; in a second raid the host joins the client,
+#          the client dies, the host extracts with the core. Every carrier logs its corrections (p.NetShowCorrections).
+#   carrysolo  ADR-0015 investigation: host + 1 headless client behind --net; the client walks 2 rooms carrying the core
+#          alone, then 2 rooms without it (the control), logging corrections.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak> [--app PATH] [--minutes N] [--seed N]
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
+#   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry modes' default), bad = Network Emulation
+#          Bad (100-200 ms each way, 5 % loss)
+#   --client-fps  frame limit of the headless clients (default 30)
 set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak ]] || { sed -n '2,15p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo ]] || { sed -n '2,27p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
 SEED=7
+NET=none
+CLIENT_FPS=30
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--app) APP="$2"; shift 2 ;;
 		--minutes) MINUTES="$2"; shift 2 ;;
 		--seed) SEED="$2"; shift 2 ;;
+		--net) NET="$2"; shift 2 ;;
+		--client-fps) CLIENT_FPS="$2"; shift 2 ;;
 		*) echo "Unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
+case "$NET" in
+	none|0) NET_ARGS=() ;;
+	150) NET_ARGS=(-PktLag=150) ;;
+	bad) NET_ARGS=(-PktEmulationProfile=Bad) ;;
+	*) echo "Unknown --net: $NET (0, 150 or bad)" >&2; exit 2 ;;
+esac
+[[ "$MODE" == carry* && "$NET" == none ]] && NET_ARGS=(-PktLag=150)   # the carry smokes always run behind a slow network
 GAME="$APP/Contents/MacOS/ProtocolHollow"
 [[ -x "$GAME" ]] || { echo "No packaged game at $APP (Build/Scripts/package-mac.sh)" >&2; exit 2; }
 
-OUT="$HOLLOW_PROJECT_ROOT/Saved/Playthrough/$(date +%Y%m%d-%H%M%S)-$MODE"
+NET_SUFFIX=""
+[[ "$NET" != none ]] && NET_SUFFIX="-$NET"
+OUT="$HOLLOW_PROJECT_ROOT/Saved/Playthrough/$(date +%Y%m%d-%H%M%S)-$MODE$NET_SUFFIX"
 mkdir -p "$OUT"
 COMMON=(-nosplash -unattended -HollowPreset=Low
 	"-ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null" "-ini:Engine:[OnlineSubsystemSteam]:bEnabled=false")
@@ -85,7 +108,12 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
 		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore All"
 		h "Hollow.Dev.RunInRaid 4 Hollow.Interact"
-		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Interact")                               # a second carrier: refused (S3-06 cut)
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.GoToNearestCore Others"                 # the clients by the core in the host's hands
+		C1+=("Hollow.Dev.RunInRaid 5.5 Hollow.Dev.FaceCore")
+		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Interact")                               # S3-06: client 1 takes the other side
+		h "Hollow.Dev.RunInRaid 6.8 Hollow.Carry.Dump"
+		C1+=("Hollow.Dev.RunInRaid 7 Hollow.Carry.Dump")
+		C1+=("Hollow.Dev.RunInRaid 8.5 Hollow.Interact")                             # ...and lets go: the host carries alone
 		C1+=("Hollow.Dev.RunInRaid 7 Hollow.Voice.Simulate 230 3")                   # a shout (S4-07): the host logs Voice ... Shout
 		C1+=("Hollow.Dev.RunInRaid 8 Hollow.Voice.Dump")
 		C1+=("Hollow.Dev.RunInRaid 9 Hollow.Lamp.Toggle")                           # S4-08: off, predicted; the others see it off
@@ -105,6 +133,71 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 55 Hollow.UI.PressKey $DOWN"
 		h "Hollow.Dev.RunInRaid 56 Hollow.UI.PressKey $PRESS"                        # Resume, Invite -> Start raid
 		C+=("Hollow.Dev.RunInRaid 50 Hollow.Dev.RunInRaid 46 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	carry)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op
+		h "$(key 30 Escape)"; h "$(key 31 $DOWN)"; h "$(key 32 $DOWN)"; h "$(key 33 $PRESS)"   # Resume, Invite -> Start raid
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 2.5 Hollow.Dev.OpenDoors"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore All"
+		# 1. The client lifts, the host joins (Solo -> Coop), the client leads through 3 rooms, the host follows.
+		C1+=("Hollow.Dev.RunInRaid 4 Hollow.Interact")
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.FaceCore"
+		h "Hollow.Dev.RunInRaid 5.5 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 6.5 Hollow.Carry.Dump"; C1+=("Hollow.Dev.RunInRaid 6.5 Hollow.Carry.Dump")
+		C1+=("Hollow.Dev.RunInRaid 7 Hollow.Dev.WalkRoute 3"); h "Hollow.Dev.RunInRaid 7 Hollow.Dev.FollowCarry"
+		h "Hollow.Dev.RunInRaid 48 Hollow.Carry.Dump"; C1+=("Hollow.Dev.RunInRaid 48 Hollow.Carry.Dump")
+		# 2. The client lets go (Coop -> Solo on the host); its movement goes back to the server.
+		C1+=("Hollow.Dev.RunInRaid 50 Hollow.Interact")
+		h "Hollow.Dev.RunInRaid 53 Hollow.Carry.Dump"; C1+=("Hollow.Dev.RunInRaid 53 Hollow.Carry.Dump")
+		# 3. The client joins the host, who leads through 2 rooms.
+		h "Hollow.Dev.RunInRaid 54 Hollow.Dev.GoToNearestCore Others"
+		C1+=("Hollow.Dev.RunInRaid 55 Hollow.Dev.FaceCore"); C1+=("Hollow.Dev.RunInRaid 55.5 Hollow.Interact")
+		h "Hollow.Dev.RunInRaid 57 Hollow.Dev.WalkRoute 2"; C1+=("Hollow.Dev.RunInRaid 57 Hollow.Dev.FollowCarry")
+		h "Hollow.Dev.RunInRaid 88 Hollow.Carry.Dump"; C1+=("Hollow.Dev.RunInRaid 88 Hollow.Carry.Dump")
+		# 4. The host walks off (teleported to the extraction: server-authoritative, the shuttle's countdown starts): the
+		#    tether breaks, the client carries alone 2 rooms on and is left behind when the shuttle goes.
+		h "Hollow.Dev.RunInRaid 90 Hollow.Dev.GoToExtraction"
+		h "Hollow.Dev.RunInRaid 92 Hollow.Carry.Dump"; C1+=("Hollow.Dev.RunInRaid 92 Hollow.Carry.Dump")
+		C1+=("Hollow.Dev.RunInRaid 93 Hollow.Dev.WalkRoute 2")
+		C1+=("Hollow.Dev.RunInRaid 104 Hollow.Carry.Dump")
+		# 5. A second raid (registered once the first is over): the client lifts, the host joins, the client dies
+		#    (Coop -> Solo on the host), the host extracts with the core.
+		h "Hollow.Dev.RunInRaid 142 Hollow.UI.PressKey Escape"                       # the unread debrief
+		h "Hollow.Dev.RunInRaid 143 Hollow.UI.PressKey Escape"                       # system menu
+		h "Hollow.Dev.RunInRaid 144 Hollow.UI.PressKey $DOWN"
+		h "Hollow.Dev.RunInRaid 145 Hollow.UI.PressKey $DOWN"
+		h "Hollow.Dev.RunInRaid 146 Hollow.UI.PressKey $PRESS"                       # Resume, Invite -> Start raid
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore All"
+		C1+=("Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 4 Hollow.Interact")
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 5 Hollow.Dev.FaceCore"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 5.5 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 7 Hollow.Carry.Dump"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 8 Hollow.Dev.Kill Others"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 10 Hollow.Carry.Dump"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 11 Hollow.Dev.GoToExtraction"
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 45 Hollow.Profile.Dump"
+		C+=("Hollow.Dev.RunInRaid 140 Hollow.Dev.RunInRaid 46 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	carrysolo)
+		h "log LogNetPlayerMovement Log"                                              # the server's ForcePositionUpdate lines
+		h "$(key 6 $PRESS)"
+		h "$(key 30 Escape)"; h "$(key 31 $DOWN)"; h "$(key 32 $DOWN)"; h "$(key 33 $PRESS)"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 2.5 Hollow.Dev.OpenDoors"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore Others"
+		C1+=("Hollow.Dev.RunInRaid 4 Hollow.Interact")
+		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Carry.Dump")
+		C1+=("Hollow.Dev.RunInRaid 7 Hollow.Dev.WalkRoute 2")
+		C1+=("Hollow.Dev.RunInRaid 40 Hollow.Carry.Dump")
+		C1+=("Hollow.Dev.RunInRaid 41 Hollow.Interact")                              # put it down
+		C1+=("Hollow.Dev.RunInRaid 45 Hollow.Dev.WalkRoute 2")                       # the control: the same walk without the core
+		C1+=("Hollow.Dev.RunInRaid 78 Hollow.Carry.Dump")
+		h "Hollow.Dev.RunInRaid 80 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 118 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 119 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	soak)
@@ -137,10 +230,12 @@ if [[ "$MODE" == solo ]]; then
 else
 	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" 'listening on port' 240 || { echo "the host never listened"; exit 1; }
-	for i in 1 2 3; do
-		CMDS=("t.MaxFPS 30" "open 127.0.0.1" ${C[@]+"${C[@]}"})
+	CLIENTS=3
+	[[ "$MODE" == carry* ]] && CLIENTS=1
+	for ((i = 1; i <= CLIENTS; i++)); do
+		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
-		launch "Client$i" "${HEADLESS[@]}" -ExecCmds="$(join "${CMDS[@]}")"
+		launch "Client$i" "${HEADLESS[@]}" ${NET_ARGS[@]+"${NET_ARGS[@]}"} -ExecCmds="$(join "${CMDS[@]}")"
 		[[ "$i" == 1 ]] && CLIENT1="${PIDS[${#PIDS[@]}-1]}"
 		sleep "$CLIENT_STAGGER"
 	done
@@ -161,7 +256,7 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)" "$log" | grep -v "Command Line\|commandline" | strip | head -60
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate" "$log" | grep -v "Command Line\|commandline" | strip | head -90
 done
 echo "===== errors, ensures, crashes"
 grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log | strip | sort | uniq -c | sort -rn | head -30

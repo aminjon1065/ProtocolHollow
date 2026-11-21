@@ -37,6 +37,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
 	FName TimeOffsetParameter;
 
+	/**
+	 * Scalar 0/1: the player's reduced-flashes choice (ADR-0029). The post-process and the room lights reading the
+	 * collection then hold steady or change at most at 2 Hz instead of flickering.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
+	FName ReducedFlashesParameter;
+
 	/** CB_Resonance: the sound classes it modulates muffle as Resonance rises. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
 	TSoftObjectPtr<USoundControlBus> Bus;

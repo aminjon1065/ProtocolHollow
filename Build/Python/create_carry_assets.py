@@ -2,10 +2,13 @@
 
   /Game/Hollow/GAS/Effects/GE_Carry_Solo                 solo carry: CarryingHeavy.Solo tag, no tools, stamina drain, Resonance gain
                                                          (S4-02: x ResonanceGainMultiplier, UHollowResonanceGainCalculation)
+  /Game/Hollow/GAS/Effects/GE_Carry_Coop                 co-op carry, on each of two carriers (S3-06, ADR-0028): CarryingHeavy.Coop
+                                                         tag, no tools, half the stamina drain, the same Resonance gain
   /Game/Hollow/GAS/Effects/GE_Stamina_Recovery           passive stamina recovery, paused while carrying
   /Game/Hollow/Items/AetherCore/PM_AetherCore            physical material of the core: friction, sleep thresholds
   /Game/Hollow/Items/AetherCore/MI_AetherCore            greybox glow colour
-  /Game/Hollow/Items/AetherCore/DA_Carryable_AetherCore  UHollowCarryableDefinition: grip, FP/TP attachment, physics, timing
+  /Game/Hollow/Items/AetherCore/DA_Carryable_AetherCore  UHollowCarryableDefinition: grip, FP/TP attachment, physics, timing,
+                                                         co-op spacing and tether, join prompt (S3-06)
   /Game/Hollow/Items/AetherCore/BP_AetherCore            AHollowAetherCore: box body, cylinder visual
   DA_MovementTuning_ExoFrame                             carry slowdown per mode (Solo, Coop, Dragged)
   DA_AbilitySet_ExoFrame                                 grants GE_Stamina_Recovery
@@ -24,6 +27,7 @@ SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
 EFFECTS_DIR = "/Game/Hollow/GAS/Effects"
 CARRY_EFFECT = EFFECTS_DIR + "/GE_Carry_Solo"
+COOP_EFFECT = EFFECTS_DIR + "/GE_Carry_Coop"
 RECOVERY_EFFECT = EFFECTS_DIR + "/GE_Stamina_Recovery"
 CORE_DIR = "/Game/Hollow/Items/AetherCore"
 CORE_MATERIAL = CORE_DIR + "/PM_AetherCore"
@@ -57,6 +61,7 @@ AWAKE_NET_RATE = 20.0               # Hz while a dropped core is awake (Docs/Arc
 DORMANCY_DELAY = 0.5                # s asleep before it settles (clients converge on the rest pose meanwhile)
 MAX_AWAKE = 6.0                     # s: a dropped core sleeps by then at the latest
 PROMPT = "Lift the Aether core"
+JOIN_PROMPT = "Take the other side"
 
 # Grip: in front of the capsule at hand height (capsule space); the own view holds it low in front of the camera.
 GRIP_GAP = 10.0                     # cm between the capsule and the core
@@ -73,6 +78,14 @@ CARRY_MODES = {
 # Effects (data). MaxStamina and MaxResonance are 100 (GE_ExoFrame_InitAttributes).
 CARRY_PERIOD = 1.0                  # s
 STAMINA_DRAIN_PER_SECOND = 2.0
+COOP_STAMINA_DRAIN_PER_SECOND = 1.0  # each of two carriers (S3-06 clarification 3); Resonance as solo (the squad takes the max)
+
+# Co-op carry (data, ADR-0028). The carriers stand either side of the core: their spacing is the core plus each
+# carrier's capsule and grip gap. The tether is slack within SLACK, pulls up to MAX_PULL_SPEED, breaks past BREAK.
+COOP_SLACK = 15.0                   # cm
+COOP_PULL_RATE = 4.0                # cm/s per cm of stretch
+COOP_MAX_PULL_SPEED = 150.0         # cm/s
+COOP_BREAK_DISTANCE = 200.0         # cm beyond the spacing: covers the partner seen up to ~400 ms late (Network Emulation Bad)
 RESONANCE_PER_SECOND = 0.5          # x the carrier's ResonanceGainMultiplier (S4-02, UHollowResonanceGainCalculation)
 GAIN_CALCULATION = "/Script/HollowGAS.HollowResonanceGainCalculation"
 RECOVERY_PERIOD = 0.5               # s
@@ -164,10 +177,14 @@ def ensure_effects():
         modifier("HollowResonanceSet", "Resonance", resonance_gain(RESONANCE_PER_SECOND * CARRY_PERIOD)),
     ])
     ensure_resonance_gain()
+    coop = ensure_effect(COOP_EFFECT, unreal.HollowCarryCoopEffect, CARRY_PERIOD, [
+        modifier("HollowSurvivalSet", "Stamina", scalable(-COOP_STAMINA_DRAIN_PER_SECOND * CARRY_PERIOD)),
+        modifier("HollowResonanceSet", "Resonance", resonance_gain(RESONANCE_PER_SECOND * CARRY_PERIOD)),
+    ])
     recovery = ensure_effect(RECOVERY_EFFECT, unreal.HollowStaminaRecoveryEffect, RECOVERY_PERIOD, [
         modifier("HollowSurvivalSet", "Stamina", scalable(STAMINA_RECOVERY_PER_SECOND * RECOVERY_PERIOD)),
     ])
-    return carry, recovery
+    return carry, coop, recovery
 
 
 def ensure_resonance_gain():
@@ -294,6 +311,33 @@ def ensure_definition(carry_effect):
     log("created DA_Carryable_AetherCore")
 
 
+def coop_tuning():
+    """Spacing: the core's width plus, on each side, a capsule radius and the grip gap (each carrier holds it as alone)."""
+    exoframe = unreal.get_default_object(load(EXOFRAME_BP).generated_class())
+    radius = exoframe.get_editor_property("capsule_component").get_editor_property("capsule_radius")
+    tuning = unreal.HollowCoopCarryTuning()
+    tuning.set_editor_property("carrier_spacing", 2.0 * (radius + GRIP_GAP + CORE_HALF.x))
+    tuning.set_editor_property("slack", COOP_SLACK)
+    tuning.set_editor_property("pull_rate", COOP_PULL_RATE)
+    tuning.set_editor_property("max_pull_speed", COOP_MAX_PULL_SPEED)
+    tuning.set_editor_property("break_distance", COOP_BREAK_DISTANCE)
+    return tuning
+
+
+def ensure_coop(coop_effect):
+    """S3-06: a definition from before co-op carry gets its join prompt, effect and tether."""
+    definition = load(CORE_DEFINITION)
+    wanted = coop_tuning()
+    if (str(definition.get_editor_property("join_prompt")) == JOIN_PROMPT and definition.get_editor_property("coop_effect") == coop_effect
+            and definition.get_editor_property("coop").export_text() == wanted.export_text()):
+        return
+    definition.set_editor_property("join_prompt", JOIN_PROMPT)
+    definition.set_editor_property("coop_effect", coop_effect)
+    definition.set_editor_property("coop", wanted)
+    save(definition)
+    log("DA_Carryable_AetherCore: co-op carry (spacing %.0f cm)" % wanted.get_editor_property("carrier_spacing"))
+
+
 def ensure_blueprint():
     core_bp, created = blueprint(CORE_BP, unreal.HollowAetherCore)
     if not created:
@@ -341,7 +385,7 @@ def check(condition, message):
         raise RuntimeError("validation failed: " + message)
 
 
-def validate(carry_effect, recovery):
+def validate(carry_effect, coop_effect, recovery):
     core = unreal.get_default_object(load(CORE_BP).generated_class())
     definition = core.get_editor_property("carryable").get_editor_property("definition")
     check(definition == load(CORE_DEFINITION), "BP_AetherCore uses DA_Carryable_AetherCore")
@@ -357,8 +401,14 @@ def validate(carry_effect, recovery):
     shown = unreal.MathLibrary.compose_transforms(definition.get_editor_property("third_person").get_editor_property("offset"), mesh)
     check((shown.translation - grip.translation).length() < 0.1, "the third-person visual sits where the server body rides")
     check(len(unreal.get_default_object(carry_effect).get_editor_property("modifiers")) == 2, "GE_Carry_Solo drains stamina and adds Resonance")
+    check(definition.get_editor_property("coop_effect") == coop_effect, "the core applies GE_Carry_Coop to two carriers")
+    check(len(unreal.get_default_object(coop_effect).get_editor_property("modifiers")) == 2, "GE_Carry_Coop drains stamina and adds Resonance")
+    coop = definition.get_editor_property("coop")
+    check(coop.get_editor_property("carrier_spacing") > 2.0 * CORE_HALF.x and coop.get_editor_property("break_distance") > coop.get_editor_property("slack"),
+          "co-op spacing clears the core, the tether breaks beyond its slack")
     tuning = load(TUNING_PATH).get_editor_property("carry")
     check(abs(tuning.get_editor_property("solo").get_editor_property("speed_scale") - CARRY_MODES["solo"]["speed_scale"]) < 1e-4, "solo speed scale")
+    check(abs(tuning.get_editor_property("coop").get_editor_property("speed_scale") - CARRY_MODES["coop"]["speed_scale"]) < 1e-4, "co-op speed scale")
     effects = load(ABILITY_SET_PATH).get_editor_property("granted_effects")
     check(any(e.get_editor_property("gameplay_effect") == recovery for e in effects), "the ExoFrame recovers stamina")
     tag = make_tag(CORE_SOCKET).export_text()
@@ -369,15 +419,16 @@ def validate(carry_effect, recovery):
 
 
 def main():
-    carry_effect, recovery = ensure_effects()
+    carry_effect, coop_effect, recovery = ensure_effects()
     ensure_ability_set(recovery)
     ensure_movement_tuning()
     ensure_physical_material()
     ensure_look()
     ensure_definition(carry_effect)
+    ensure_coop(coop_effect)
     ensure_blueprint()
     ensure_biome_rule()
-    validate(carry_effect, recovery)
+    validate(carry_effect, coop_effect, recovery)
     unreal.log(SUCCESS_MARKER)
 
 

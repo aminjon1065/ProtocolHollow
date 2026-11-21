@@ -21,9 +21,10 @@ EDataValidationResult UHollowResonancePresentationConfig::IsDataValid(FDataValid
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 	const UMaterialParameterCollection* Loaded = Collection.LoadSynchronous();
-	if (!Loaded || !Loaded->GetScalarParameterByName(IntensityParameter) || !Loaded->GetScalarParameterByName(TimeOffsetParameter))
+	if (!Loaded || !Loaded->GetScalarParameterByName(IntensityParameter) || !Loaded->GetScalarParameterByName(TimeOffsetParameter)
+		|| !Loaded->GetScalarParameterByName(ReducedFlashesParameter))
 	{
-		Context.AddError(LOCTEXT("Collection", "The collection must hold the intensity and time offset scalars."));
+		Context.AddError(LOCTEXT("Collection", "The collection must hold the intensity, time offset and reduced-flashes scalars."));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (Bus.IsNull())

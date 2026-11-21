@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ActiveGameplayEffectHandle.h"
+#include "Carry/HollowCarryTypes.h"
 #include "Components/ActorComponent.h"
+#include "Templates/SubclassOf.h"
 
 #include "HollowCarrierComponent.generated.h"
 
@@ -10,6 +12,7 @@ class APawn;
 class UAbilitySystemComponent;
 class UHollowCarryableComponent;
 class UHollowCharacterMovementComponent;
+class UGameplayEffect;
 class USceneComponent;
 
 /**
@@ -21,6 +24,9 @@ class USceneComponent;
  * - Server: applies the carryable's solo effect to the carrier's ability system and the server carry state to the
  *   movement component; drops the object when the carrier goes away.
  * Solo and listen-host players use the same path (their server calls run locally). No Tick.
+ *
+ * Co-op (ADR-0028): Interact on an object someone carries alone predicts joining (claims Coop); carrying with a
+ * partner, this pawn's movement is tethered to it, and Interact, death or leaving only lets go of the other's carry.
  */
 UCLASS(ClassGroup = (Hollow), meta = (BlueprintSpawnableComponent))
 class HOLLOWPHYSICS_API UHollowCarrierComponent : public UActorComponent
@@ -38,21 +44,29 @@ public:
 	UHollowCarryableComponent* GetCarried() const { return Carried.Get(); }
 	bool IsCarrying() const { return Carried.IsValid(); }
 
-	/** A predicted pick-up waiting for the server (owning client). */
+	/** A predicted pick-up or join waiting for the server (owning client), and the claim it predicts. */
 	UHollowCarryableComponent* GetPendingPickup() const { return PendingPickup.Get(); }
+	EHollowCarryClaim GetPendingClaim() const { return PendingPickup.IsValid() ? PendingClaim : EHollowCarryClaim::None; }
+
+	/** The other carrier while two carry, or null. */
+	APawn* GetPartner() const;
 
 	/**
-	 * Local Interact input. Carrying: asks the server to drop and returns true (input consumed). Focusing a free
-	 * carryable: predicts the pick-up and returns false, so the interaction goes on to the server's checks.
+	 * Local Interact input. Carrying: asks the server to drop (or let go of a co-op carry) and returns true (input
+	 * consumed). Focusing a free carryable or one someone carries alone: predicts the pick-up or the join and returns
+	 * false, so the interaction goes on to the server's checks.
 	 */
 	bool HandleInteractInput(AActor* Focus);
 
 	/** Server: lift Carryable alone (the carryable owner's Interact, after the interaction checks). */
 	bool ServerPickUp(UHollowCarryableComponent* Carryable);
 
+	/** Server: take the other side of what someone carries alone (Solo -> Coop, ADR-0028). */
+	bool ServerJoin(UHollowCarryableComponent* Carryable);
+
 	/**
-	 * Server: put down what this pawn carries, with part of its velocity, where it fits. Without room around the
-	 * carrier the object stays carried, unless bForce (the carrier is going away).
+	 * Server: stop carrying. Carried by two: let go, the partner carries on alone. Alone: put it down, with part of the
+	 * velocity, where it fits; without room around the carrier it stays carried, unless bForce (the carrier is going away).
 	 */
 	void ServerDrop(bool bForce = false);
 
@@ -81,11 +95,13 @@ private:
 
 	TWeakObjectPtr<UHollowCarryableComponent> Carried;
 	TWeakObjectPtr<UHollowCarryableComponent> PendingPickup;
+	EHollowCarryClaim PendingClaim = EHollowCarryClaim::None;
 	TWeakObjectPtr<USceneComponent> FirstPersonTarget;
 	TWeakObjectPtr<USceneComponent> ThirdPersonTarget;
 	FTimerHandle PredictionTimer;
-	/** Server: the carryable's solo effect on this carrier, and the ability system it lives on (on the player state, so
-	 *  it outlives this pawn: the removal must not depend on the pawn still being its avatar). */
+	/** Server: the carryable's solo or co-op effect on this carrier, and the ability system it lives on (on the player
+	 *  state, so it outlives this pawn: the removal must not depend on the pawn still being its avatar). */
 	FActiveGameplayEffectHandle CarryEffect;
+	TSubclassOf<UGameplayEffect> CarryEffectClass;
 	TWeakObjectPtr<UAbilitySystemComponent> CarryEffectOwner;
 };

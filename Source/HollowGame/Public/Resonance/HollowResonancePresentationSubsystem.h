@@ -16,6 +16,7 @@ class USoundControlBus;
  * Follows the replicated squad value (UHollowSquadResonanceComponent): eases the shown intensity towards it on a timer
  * that runs only while it moves, writes it and the server-time offset into MPC_Resonance (the post-process flickers
  * from Time + offset, so in phase everywhere) and sets the Resonance bus of Audio Modulation. No tick.
+ * It also writes the player's reduced-flashes choice into the collection (ADR-0029), at begin play and on every change.
  */
 UCLASS()
 class HOLLOWGAME_API UHollowResonancePresentationSubsystem : public UWorldSubsystem
@@ -29,6 +30,8 @@ public:
 	float GetTargetIntensity() const { return Target; }
 	float GetBusValue() const;
 	float GetTimeOffset() const { return TimeOffset; }
+	/** Whether this machine shows the reduced-flashes variant (the player's choice, UHollowGameUserSettings). */
+	static bool IsReducedFlashes();
 	/** Whether the shown value is still moving (the step timer runs only then). */
 	bool IsEasing() const;
 	const UHollowResonancePresentationConfig* GetConfig() const { return Config; }
@@ -55,6 +58,8 @@ private:
 	void HandleSquadChanged(const FHollowSquadResonanceNetState& State);
 	void Step();
 	void Apply();
+	/** The reduced-flashes choice into the collection. */
+	void ApplyReducedFlashes();
 
 	UPROPERTY(Transient)
 	TObjectPtr<const UHollowResonancePresentationConfig> Config;
@@ -68,6 +73,7 @@ private:
 	TWeakObjectPtr<UHollowSquadResonanceComponent> Squad;
 	FDelegateHandle SquadHandle;
 	FDelegateHandle GameStateHandle;
+	FDelegateHandle ReducedFlashesHandle;
 	FTimerHandle StepTimer;
 	float Intensity = 0.f;
 	float Target = 0.f;

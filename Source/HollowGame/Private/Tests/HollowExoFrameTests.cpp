@@ -251,6 +251,87 @@ bool FHollowSavedMoveCarryBitsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCoopAuthorityTest, "Hollow.Physics.Movement.CoopAuthority",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowCoopAuthorityTest::RunTest(const FString& Parameters)
+{
+	// ADR-0028: a remote co-op carrier's position comes from its client (no controller here: the server simulating a
+	// remote player). After the carry the server takes over only once its moves show it knows (a move without the Coop
+	// claim after one with it), the settle time has passed and its move agrees, or after the timeout; a carrier the
+	// sanity check refuses at once, put back where it last passed.
+	using namespace HollowExoFrameTests;
+	using EClaim = EHollowCarryClaim;
+	constexpr double Start = 100.0;
+	constexpr double Joined = Start + 10.0;
+	constexpr double LearnsAfter = 0.2;
+	constexpr double Earlier = 0.01;
+	const FVector PartnerAt(140.0, 0.0, 0.0);
+	const FVector Sane(0.0, 50.0, 0.0);
+
+	FTestWorldWrapper World;
+	AHollowExoFrameCharacter* Character = SpawnCharacter(*this, World);
+	AHollowExoFrameCharacter* Partner = Character ? HollowGameTests::SpawnExoFrame(*this, World.GetTestWorld(), FTransform(PartnerAt)) : nullptr;
+	if (!TestNotNull(TEXT("ExoFrame spawns"), Character) || !TestNotNull(TEXT("Its partner too"), Partner))
+	{
+		return false;
+	}
+	UHollowCharacterMovementComponent* Movement = Character->GetHollowMovement();
+	const UHollowCarrySettings* Settings = GetDefault<UHollowCarrySettings>();
+	const double Settle = Settings->CoopAuthoritySettleSeconds;
+	const double Timeout = Settings->CoopAuthorityTimeoutSeconds;
+	TestTrue(TEXT("Settle and timeout configured (DefaultGame.ini)"), Settle > 0.0 && Timeout > Settle * 2.0);
+	UWorld* TestWorld = World.GetTestWorld();
+	FHollowCoopCarryTuning Tether;
+	Tether.CarrierSpacing = static_cast<float>(PartnerAt.X);
+	auto Move = [Movement](const EClaim Claim) { Movement->UpdateFromCompressedFlags(HollowMoveFlags::EncodeCarry(Claim)); };
+
+	TestWorld->TimeSeconds = Start;
+	TestFalse(TEXT("A carrier alone is server-authoritative"), Movement->IsClientAuthoritative());
+	Movement->SetCoopPartner(Partner, &Tether);
+	TestTrue(TEXT("With a partner: client-authoritative and never corrected"), Movement->IsClientAuthoritative()
+		&& Movement->bIgnoreClientMovementErrorChecksAndCorrection && Movement->GetCoopPartner() == Partner);
+
+	// Leaves before its client ever claimed Coop (a quick join and leave): its moves cannot show it knows; the timeout.
+	Movement->SetCoopPartner(nullptr, nullptr);
+	TestTrue(TEXT("Left: still client-authoritative, on the way back"), Movement->IsClientAuthoritative() && Movement->IsReturningAuthority());
+	Move(EClaim::Solo);
+	TestWorld->TimeSeconds = Start + Settle * 2.0;
+	Movement->UpdateCoopReturn(/*bInSync=*/true);
+	TestTrue(TEXT("Never claimed Coop: still client-authoritative"), Movement->IsClientAuthoritative());
+	TestWorld->TimeSeconds = Start + Timeout;
+	AddExpectedMessage(TEXT("without agreeing moves"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1, /*IsRegex=*/false);
+	Movement->UpdateCoopReturn(/*bInSync=*/false);
+	TestTrue(TEXT("After the timeout: server-authoritative again"), !Movement->IsClientAuthoritative() && !Movement->IsReturningAuthority());
+
+	// The clean way back.
+	TestWorld->TimeSeconds = Joined;
+	Movement->SetCoopPartner(Partner, &Tether);
+	Move(EClaim::Coop);
+	Movement->SetCoopPartner(nullptr, nullptr);
+	Move(EClaim::Coop);   // sent before it learnt it left
+	TestWorld->TimeSeconds = Joined + LearnsAfter;
+	Move(EClaim::Solo);   // it knows: it carries on alone
+	TestWorld->TimeSeconds = Joined + LearnsAfter + Settle - Earlier;
+	Movement->UpdateCoopReturn(/*bInSync=*/true);
+	TestTrue(TEXT("Settling: still client-authoritative"), Movement->IsClientAuthoritative());
+	TestWorld->TimeSeconds = Joined + LearnsAfter + Settle;
+	Movement->UpdateCoopReturn(/*bInSync=*/false);
+	TestTrue(TEXT("Settled, but its move disagrees: still client-authoritative"), Movement->IsClientAuthoritative());
+	Movement->UpdateCoopReturn(/*bInSync=*/true);
+	TestTrue(TEXT("Settled and agreeing: server-authoritative, nothing to correct"), !Movement->IsClientAuthoritative() && !Movement->IsReturningAuthority());
+
+	// Rejoining on the way back keeps it client-authoritative; refused: back at once.
+	Movement->SetCoopPartner(Partner, &Tether);
+	Movement->SetCoopPartner(nullptr, nullptr);
+	Movement->SetCoopPartner(Partner, &Tether);
+	TestTrue(TEXT("Rejoined on the way back: client-authoritative, not returning"), Movement->IsClientAuthoritative() && !Movement->IsReturningAuthority());
+	AddExpectedMessage(TEXT("server-authoritative again, put back"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1, /*IsRegex=*/false);
+	Movement->ForceServerAuthority(Sane);
+	TestTrue(TEXT("Refused: server-authoritative at once, where it last passed"), !Movement->IsClientAuthoritative() && Character->GetActorLocation().Equals(Sane, 0.1));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowInputConfigLookupTest, "Hollow.Game.Input.ConfigLookup",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

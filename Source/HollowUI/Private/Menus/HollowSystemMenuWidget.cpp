@@ -9,6 +9,7 @@
 #include "Menus/HollowMenuRules.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Session/HollowSessionSubsystem.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Voice/HollowVoiceComponent.h"
 #include "Voice/HollowVoiceRules.h"
 
@@ -44,6 +45,10 @@ void UHollowSystemMenuWidget::NativeOnInitialized()
 	{
 		VoiceButton->OnClicked().AddUObject(this, &ThisClass::CycleVoice);
 	}
+	if (FlashesButton)
+	{
+		FlashesButton->OnClicked().AddUObject(this, &ThisClass::ToggleFlashes);
+	}
 }
 
 void UHollowSystemMenuWidget::NativeOnActivated()
@@ -51,6 +56,7 @@ void UHollowSystemMenuWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	ApplyContext(HollowMenuRules::ReadContext(GetWorld()));
 	RefreshVoiceLabel();
+	RefreshFlashesLabel();
 }
 
 void UHollowSystemMenuWidget::ApplyContext(const FHollowMenuContext& Context)
@@ -142,6 +148,34 @@ void UHollowSystemMenuWidget::RefreshVoiceLabel()
 		if (Voice)
 		{
 			Button->SetLabel(VoiceLabel(Voice->GetMode()));
+		}
+	}
+}
+
+FText UHollowSystemMenuWidget::FlashesLabel(const bool bReduced)
+{
+	return bReduced ? LOCTEXT("FlashesReduced", "Flashes: Reduced") : LOCTEXT("FlashesFull", "Flashes: Full");
+}
+
+void UHollowSystemMenuWidget::ToggleFlashes()
+{
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		Settings->SetReducedFlashes(!Settings->IsReducedFlashes());   // saved at once, applied on this machine
+	}
+	RefreshFlashesLabel();
+}
+
+void UHollowSystemMenuWidget::RefreshFlashesLabel()
+{
+	UHollowButton* Button = Cast<UHollowButton>(FlashesButton);
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	if (Button)
+	{
+		Button->SetVisibility(Settings ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (Settings)
+		{
+			Button->SetLabel(FlashesLabel(Settings->IsReducedFlashes()));
 		}
 	}
 }

@@ -6,7 +6,7 @@
 
 class APawn;
 
-/** How a heavy object is carried (Docs/Architecture/03 sec. 3.5). Solo arrives in S3-02, Coop and Dragged in S3-06. */
+/** How a heavy object is carried (Docs/Architecture/03 sec. 3.5). Solo arrives in S3-02, Coop in S3-06; Dragged is reserved. */
 UENUM(BlueprintType)
 enum class EHollowCarryMode : uint8
 {
@@ -47,7 +47,7 @@ struct HOLLOWPHYSICS_API FHollowCarryNetState
 	UPROPERTY()
 	TObjectPtr<APawn> Primary = nullptr;
 
-	/** Second carrier in Coop (S3-06). */
+	/** Second carrier in Coop (S3-06, ADR-0028): the player who joined an already carried object. */
 	UPROPERTY()
 	TObjectPtr<APawn> Secondary = nullptr;
 
@@ -57,6 +57,20 @@ struct HOLLOWPHYSICS_API FHollowCarryNetState
 
 	bool IsCarried() const { return Mode != EHollowCarryMode::None; }
 	bool IsCarriedBy(const APawn* Pawn) const { return Pawn && IsCarried() && (Primary == Pawn || Secondary == Pawn); }
+};
+
+/** Why a carrier stops carrying (server; logs and tests, ADR-0028). */
+UENUM()
+enum class EHollowCarryLeave : uint8
+{
+	/** The carrier pressed Interact. */
+	Released,
+	/** The carrier is going away: died, left the game, unpossessed. */
+	Gone,
+	/** The two carriers drifted further apart than the tether allows. */
+	TetherBroken,
+	/** The server's sanity check refused the carrier's own movement (too fast, inside the world). */
+	Violation
 };
 
 namespace HollowCarry

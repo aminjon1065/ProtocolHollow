@@ -58,4 +58,25 @@ bool FHollowMovementSpeedModelTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowMovementMoveStepsTest, "Hollow.Physics.Movement.MoveSteps",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowMovementMoveStepsTest::RunTest(const FString& Parameters)
+{
+	// ADR-0028 (the cause of ADR-0015's first-step correction): a client frame longer than MaxMoveDeltaTime goes out as
+	// several whole moves, so the client simulates the time the server derives from the timestamps.
+	constexpr float MaxMove = 0.125f;     // GameNetworkManager MaxMoveDeltaTime (test data)
+	constexpr float Frame30 = 1.f / 30.f;
+	constexpr float Hitch = 0.18f;        // a long frame seen in the S3-06 smoke
+	constexpr float Freeze = 5.f;
+	TestEqual(TEXT("An ordinary frame: one move"), HollowMovementMath::MoveSteps(Frame30, MaxMove), 1);
+	TestEqual(TEXT("Exactly the limit: one move"), HollowMovementMath::MoveSteps(MaxMove, MaxMove), 1);
+	const int32 Steps = HollowMovementMath::MoveSteps(Hitch, MaxMove);
+	TestEqual(TEXT("A 0.18 s frame: two moves"), Steps, 2);
+	TestTrue(TEXT("...each within the limit, together the whole frame"), Hitch / Steps <= MaxMove && FMath::IsNearlyEqual(Steps * (Hitch / Steps), Hitch));
+	TestEqual(TEXT("A freeze is capped (the engine clamps the rest)"), HollowMovementMath::MoveSteps(Freeze, MaxMove), HollowMovementMath::MaxMovesPerFrame);
+	TestEqual(TEXT("No limit known: one move"), HollowMovementMath::MoveSteps(Hitch, 0.f), 1);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

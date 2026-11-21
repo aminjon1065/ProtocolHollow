@@ -164,7 +164,7 @@ AAIController
 | `UHollowCharacterMovementComponent` | Physics | ходьба, low-G и zero-G, штрафы переноски через **кастомные saved moves** | предсказание CMC |
 | `UHollowInteractionComponent` | Game | локальный sweep по каналу `Interaction` по таймеру (`UHollowInteractionSettings`, 15 Гц, без Tick) из глаз pawn; `Server_Interact` с мягкой серверной проверкой (линия видимости, дальность + допуск, темп, блокирующие теги ASC). Взаимодействие — компонент, не GAS-способность (S1-06) | RPC |
 | `UHollowEquipmentComponent` | Game | инструмент в руках, сокеты FP и TP, точка луча | публичный rep сборки |
-| `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели. *S3-02:* предсказание подъёма (заявка в CMC), `Server_Drop`, `GE_Carry_Solo` на ASC, серверный режим для CMC; цели крепления визуала — FP-камера и TP-меш ([ADR-0015](../ADR/ADR-0015-solo-carry-claim.md)) | state через `UHollowCarryableComponent` |
+| `UHollowCarrierComponent` | Physics | сторона носильщика: хват, тетер в коопе, IK-цели. *S3-02:* предсказание подъёма (заявка в CMC), `Server_Drop`, `GE_Carry_Solo` на ASC, серверный режим для CMC; цели крепления визуала — FP-камера и TP-меш ([ADR-0015](../ADR/ADR-0015-solo-carry-claim.md)). *S3-06:* предсказанное подключение (заявка `Coop`), партнёр и тетер в CMC (`HollowCarryTether`), `GE_Carry_Coop`, выход из коопа вместо сброса; санитарная проверка и поза носилок — на `UHollowCarryableComponent`, client-auth — в CMC ([ADR-0028](../ADR/ADR-0028-coop-carry-tether-client-authority.md)) | state через `UHollowCarryableComponent` |
 | `UHollowExoFrameComponent` | Game | применяет `UHollowExoFrameDefinition`: AbilitySet, init-GE, таланты | на сервере |
 | `UHollowVisorComponent` | UI | диегетика шлема поверх моделей визора (S2-06 начал с экранного `W_Visor`, [ADR-0013](../ADR/ADR-0013-ui-foundation-commonui.md)); только косметика и только локально. *S4-08:* стекло шлема — элемент самого `W_Visor` (`W_VisorFrame`), компонент на персонаже не понадобился ([ADR-0026](../ADR/ADR-0026-diegetic-visor-resonance-tags-helmet-lamp.md)) | — |
 | `UVOIPTalker` (движковый) | Net | 3D-голос с аттенюацией и эффектами шлема и рации | движковый VOIP |
@@ -214,7 +214,8 @@ UGameplayAbility
    │  └─ GA_Tool_Welder · GA_Tool_PlasmaCutter   BP-наследники без своего кода: вся разница в UHollowToolDefinition (DA),
    │                                             а смысл работы (сварка / резка) решает мишень — двери S2-04, швы S2-07
    ├─ UHollowGA_PulseMine   (взаимодействие — UHollowInteractionComponent, не способность; переноска тоже: S3-02 обходится без
-   │                         UHollowGA_CarryHeavy, подъём — через Interact, эффекты — UHollowCarrySoloEffect / UHollowStaminaRecoveryEffect)
+   │                         UHollowGA_CarryHeavy, подъём — через Interact, эффекты — UHollowCarrySoloEffect / UHollowStaminaRecoveryEffect;
+   │                         S3-06: общая база UHollowCarryEffect, UHollowCarryCoopEffect)
    └─ (враги, [AI]) UHollowGA_EnemyAttack (S3-04: ServerOnly, событие + цель, замах → удар → восстановление, DA_Attack_*)
                     ├─ UHollowGA_PilgrimBreach · UHollowGA_PilgrimMelee   (S3-04)
                     └─ UHollowGA_StalkerAmbush

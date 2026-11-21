@@ -44,6 +44,7 @@
 #include "Generation/HollowSectorTemplates.h"
 #include "HAL/IConsoleManager.h"
 #include "HollowGameLog.h"
+#include "Movement/HollowCharacterMovementComponent.h"
 #include "Interaction/HollowInteractionComponent.h"
 #include "Interaction/HollowInteractionSettings.h"
 #include "AbilitySystemGlobals.h"
@@ -398,6 +399,13 @@ namespace HollowDevConsole
 		if (!Nearest)
 		{
 			UE_LOG(LogHollowGame, Warning, TEXT("%s: no pawn or no target for %s."), Command, *Player.GetName());
+			return;
+		}
+		if (const UHollowCharacterMovementComponent* Movement = Cast<UHollowCharacterMovementComponent>(Character->GetCharacterMovement());
+			Movement && Movement->IsClientAuthoritative())
+		{
+			// Carrying with a partner (ADR-0028): its client owns its position, a server move would not stick.
+			UE_LOG(LogHollowGame, Warning, TEXT("%s: %s is client-authoritative (co-op carry), not moved."), Command, *Player.GetName());
 			return;
 		}
 		// Stay on the pawn's side of the target, well inside interaction and tool reach, on the floor it stands on (the

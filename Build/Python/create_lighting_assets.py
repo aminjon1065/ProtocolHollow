@@ -12,6 +12,9 @@ node-only materials (no project textures, no packs), so the LFS footprint stays 
   /Game/Hollow/Maps/L_Raid_Dev                     volumetric height fog, unbound post-process (exposure, Lumen quality)
 
 Flicker comes from MPC_Resonance (S4-02): Intensity and Time + FlickerTimeOffset, so it is in phase on every machine.
+With the player's reduced flashes (MPC_Resonance ReducedFlashes, H-1, ADR-0029) the drop-outs and brown-outs hold a
+steady dim and the Critical strobe becomes a slow smooth pulse (REDUCED: nothing over 2 Hz). REDUCED is part of the
+material hashes only, so changing it rebuilds those materials, never a room level.
 Material graphs and level contents are built from the specs below; a hash of each spec is kept (asset metadata,
 or a marker actor in a level), so a level is re-saved only when its spec changes - every save is a new LFS object.
 A room level art-locked on its definition (bArtLocked, ADR-0027: finished by hand) is never touched; the tests still check it.
@@ -49,6 +52,7 @@ MARKER_LABEL = "HollowLightingSpec"
 LEGACY_LIGHT = "Light"        # the single greybox light of create_docks_greybox.py before S4-03
 INTENSITY = "Intensity"
 TIME_OFFSET = "FlickerTimeOffset"
+REDUCED_FLASHES = "ReducedFlashes"
 
 # ---------------------------------------------------------------- budget (data, S4-03 clarification 4)
 
@@ -63,6 +67,10 @@ MAX_SHADOWED_IN_VIEW = 4      # Block 3 sec. 3.9 (RTX 3060)
 FLICKER = {"version": 1, "wave_a_hz": 5.3, "wave_b_hz": 1.7, "dropout_gain": 3.0, "dropout_bias": 0.6, "flicker_from": 0.25, "flicker_span": 0.5,
            "strobe_from": 0.75, "strobe_span": 0.25, "strobe_hz": 2.0}
 DYING = {"version": 1, "from": 0.5, "span": 0.5, "slow_hz": 0.43, "fast_hz": 9.1, "dip_gain": 2.0, "depth": 0.75}
+# Reduced flashes (H-1, ADR-0029): drop-outs and brown-outs become a steady dim of this share of their depth, the
+# Critical strobe a sine of strobe_hz dimming down to 1 - strobe_depth.
+REDUCED = {"version": 1, "dropout_level": 0.8, "brownout_share": 0.5, "strobe_hz": 0.5, "strobe_depth": 0.5}
+MAX_REDUCED_HZ = 2.0
 SURFACE_SPEC = {"version": 1, "grime_floor": 0.6, "grime_gain": 3.0, "grime_roughness": 0.5, "grime_darken": 0.6}
 SURFACE_DEFAULTS = {"scalars": {"Metallic": 0.7, "Roughness": 0.45, "PanelSize": 200.0, "SeamWidth": 1.5, "SeamDarken": 0.6, "GrimeScale": 150.0,
                                 "GrimeAmount": 0.35, "StripeWidth": 30.0, "StripeAmount": 0.0},
@@ -294,17 +302,28 @@ class Graph(object):
         time = self.add(11, self.node(unreal.MaterialExpressionTime, 12), offset)   # in phase on every machine
         return intensity, time
 
+    def reduced(self):
+        """MPC_Resonance ReducedFlashes: 1 if the player chose reduced flashes (H-1)."""
+        return self.node(unreal.MaterialExpressionCollectionParameter, 12, collection=self.collection, parameter_name=REDUCED_FLASHES)
+
     def emergency(self, intensity, time):
-        """1 at Low, drop-outs growing from Medium, a strobe at Critical (FLICKER)."""
-        f = FLICKER
+        """1 at Low, drop-outs growing from Medium, a strobe at Critical (FLICKER); steady dim and a slow pulse when reduced."""
+        f, r = FLICKER, REDUCED
         wave = self.mul(8, self.wave(9, time, f["wave_a_hz"]), self.wave(9, time, f["wave_b_hz"]))
         dropout = self.saturate(6, self.add(7, self.mul(7, wave, const=f["dropout_gain"]), const=f["dropout_bias"]))
         one = self.const(6, 1.0)
-        flicker = self.lerp(5, one, dropout, self.ramp(6, intensity, f["flicker_from"], f["flicker_span"]))
+        flicker_ramp = self.ramp(6, intensity, f["flicker_from"], f["flicker_span"])
+        flicker = self.lerp(5, one, dropout, flicker_ramp)
         pulse = self.single(unreal.MaterialExpressionFloor, 6,
                             self.mul(7, self.single(unreal.MaterialExpressionFrac, 8, self.mul(9, time, const=f["strobe_hz"])), const=2.0))
-        strobe = self.lerp(5, one, pulse, self.ramp(6, intensity, f["strobe_from"], f["strobe_span"]))
-        return self.mul(4, flicker, strobe)
+        strobe_ramp = self.ramp(6, intensity, f["strobe_from"], f["strobe_span"])
+        strobe = self.lerp(5, one, pulse, strobe_ramp)
+        full = self.mul(4, flicker, strobe)
+        # Reduced: the same ramps, a steady drop-out level and a smooth slow pulse instead of the square strobe.
+        calm = self.lerp(5, one, self.const(6, r["dropout_level"]), flicker_ramp)
+        slow = self.sub(6, one, self.mul(7, self.add(8, self.mul(9, self.wave(10, time, r["strobe_hz"]), const=0.5), const=0.5), const=r["strobe_depth"]))
+        soft = self.lerp(5, one, slow, strobe_ramp)
+        return self.lerp(3, full, self.mul(4, calm, soft), self.reduced())
 
 
 def rebuild_if_changed(path, factory, spec, build):
@@ -334,8 +353,11 @@ def build_dying(material, collection):
     d = DYING
     intensity, time = g.resonance()
     dip = g.saturate(5, g.mul(6, g.mul(7, g.wave(8, time, d["slow_hz"]), g.wave(8, time, d["fast_hz"])), const=d["dip_gain"]))
-    brownout = g.mul(4, g.mul(5, dip, g.ramp(6, intensity, d["from"], d["span"])), const=d["depth"])
-    if not mel.connect_material_property(g.single(unreal.MaterialExpressionOneMinus, 3, brownout), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
+    ramp = g.ramp(6, intensity, d["from"], d["span"])
+    brownout = g.mul(4, g.mul(5, dip, ramp), const=d["depth"])
+    steady = g.mul(4, ramp, const=d["depth"] * REDUCED["brownout_share"])   # reduced flashes: a steady dim (H-1)
+    dimming = g.lerp(3, brownout, steady, g.reduced())
+    if not mel.connect_material_property(g.single(unreal.MaterialExpressionOneMinus, 2, dimming), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
         raise RuntimeError("Could not connect M_LF_DyingTube")
 
 
@@ -387,14 +409,20 @@ def build_emissive(material, collection):
         raise RuntimeError("Could not connect M_Hollow_Emissive")
 
 
+# Material hashes: REDUCED only here (not in the room hashes), so it never re-saves a level.
+EMERGENCY_SPEC = ["emergency", FLICKER, REDUCED]
+DYING_SPEC = ["dying", DYING, REDUCED]
+EMISSIVE_SPEC = ["emissive", FLICKER, EMISSIVE_DEFAULTS, REDUCED]
+
+
 def ensure_materials():
     collection = load(COLLECTION)
     factory = unreal.MaterialFactoryNew()
     made = {
-        LF_EMERGENCY: rebuild_if_changed(LF_EMERGENCY, factory, ["emergency", FLICKER], lambda m: build_emergency(m, collection)),
-        LF_DYING: rebuild_if_changed(LF_DYING, factory, ["dying", DYING], lambda m: build_dying(m, collection)),
+        LF_EMERGENCY: rebuild_if_changed(LF_EMERGENCY, factory, EMERGENCY_SPEC, lambda m: build_emergency(m, collection)),
+        LF_DYING: rebuild_if_changed(LF_DYING, factory, DYING_SPEC, lambda m: build_dying(m, collection)),
         SURFACE: rebuild_if_changed(SURFACE, factory, ["surface", SURFACE_SPEC, SURFACE_DEFAULTS], build_surface),
-        EMISSIVE: rebuild_if_changed(EMISSIVE, factory, ["emissive", FLICKER, EMISSIVE_DEFAULTS], lambda m: build_emissive(m, collection)),
+        EMISSIVE: rebuild_if_changed(EMISSIVE, factory, EMISSIVE_SPEC, lambda m: build_emissive(m, collection)),
     }
     instances = {}
     for name, (parent_path, values) in sorted(MATERIAL_INSTANCES.items()):
@@ -702,10 +730,12 @@ def check(condition, message):
 def validate(rooms):
     budget = load(BUDGET)
     check(len(budget.get_editor_property("rooms")) == len(BUDGET_ROOMS), "a limit per room type")
-    for path, spec in ((LF_EMERGENCY, ["emergency", FLICKER]), (LF_DYING, ["dying", DYING])):
+    for path, spec in ((LF_EMERGENCY, EMERGENCY_SPEC), (LF_DYING, DYING_SPEC)):
         material = load(path)
         check(material.get_editor_property("material_domain") == unreal.MaterialDomain.MD_LIGHT_FUNCTION, path + " is a light function")
         check(assets.get_metadata_tag(material, SPEC_TAG) == digest(spec), path + " matches its spec")
+    check(assets.get_metadata_tag(load(EMISSIVE), SPEC_TAG) == digest(EMISSIVE_SPEC), EMISSIVE + " matches its spec")
+    check(REDUCED["strobe_hz"] <= MAX_REDUCED_HZ, "no reduced-flashes pulse over 2 Hz")
     validator = unreal.get_editor_subsystem(unreal.EditorValidatorSubsystem)
     for room in rooms:
         level = load(room.get_editor_property("room_level").get_path_name().split(".")[0])

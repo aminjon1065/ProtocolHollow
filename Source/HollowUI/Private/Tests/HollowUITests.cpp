@@ -17,6 +17,7 @@
 #include "Doors/HollowDoorStateComponent.h"
 #include "Foundation/HollowPrimaryLayout.h"
 #include "Foundation/HollowUISettings.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Framework/HollowGameState.h"
 #include "GameplayEffect.h"
 #include "HollowUITags.h"
@@ -483,6 +484,17 @@ bool FHollowUIVisorTelemetryTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("High: the glass glows"), MaxResonance > 0.f && Frame->GetTier() == EHollowResonanceTier::High && Frame->GetAlert() == Style->GetTierLook(EHollowResonanceTier::High).Alert
 		&& Frame->GetAlert() > 0.f);
 	TestTrue(FString::Printf(TEXT("...the readout at %d%%, High"), Readout->GetPercent()), Readout->GetPercent() == FMath::RoundToInt32(HighShare * 100.f) && Readout->GetTier() == EHollowResonanceTier::High);
+	// Reduced flashes (H-1, ADR-0029): the glow holds steady instead of pulsing, as bright.
+	if (UHollowGameUserSettings* UserSettings = UHollowGameUserSettings::Get(); TestNotNull(TEXT("The game's settings class"), UserSettings))
+	{
+		const bool bReducedBefore = UserSettings->IsReducedFlashes();
+		const FHollowVisorTierLook& HighLook = Style->GetTierLook(EHollowResonanceTier::High);
+		UserSettings->SetReducedFlashes(false, /*bSave=*/false);
+		TestTrue(TEXT("High: the glow pulses"), HighLook.PulseHz > 0.f && Frame->GetPulseHz() == HighLook.PulseHz);
+		UserSettings->SetReducedFlashes(true, /*bSave=*/false);
+		TestTrue(TEXT("Reduced flashes: a steady glow, as bright"), Frame->GetPulseHz() == 0.f && Frame->GetAlert() == HighLook.Alert);
+		UserSettings->SetReducedFlashes(bReducedBefore, /*bSave=*/false);
+	}
 	SetAttribute(*Rig.AbilitySystem, UHollowResonanceSet::GetResonanceAttribute(), MaxResonance * CriticalShare);
 	Squad->Evaluate();
 	TestTrue(TEXT("Critical: the strongest glow"), Frame->GetTier() == EHollowResonanceTier::Critical && Frame->GetAlert() >= Style->GetTierLook(EHollowResonanceTier::High).Alert);

@@ -164,6 +164,21 @@ void UHollowGameUserSettings::SetVoiceMode(const EHollowVoiceMode Mode)
 	}
 }
 
+void UHollowGameUserSettings::SetReducedFlashes(const bool bReduced, const bool bSave)
+{
+	if (bReduced == bReducedFlashes)
+	{
+		return;
+	}
+	bReducedFlashes = bReduced;
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	UE_LOG(LogHollowGame, Display, TEXT("Reduced flashes %s"), bReduced ? TEXT("on") : TEXT("off"));
+	OnReducedFlashesChanged.Broadcast();
+}
+
 void UHollowGameUserSettings::InitializePreset()
 {
 	if (!FApp::CanEverRender())

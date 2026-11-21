@@ -5,7 +5,7 @@
   /Game/Hollow/UI/Input/DA_InputGlyphs                                 key labels for prompts
   /Game/Hollow/UI/Foundation/BP_ButtonStyle_Menu, W_MenuButton, W_PrimaryLayout
   /Game/Hollow/UI/Visor/W_StatBar, W_InteractionPrompt, W_TargetStatus   (W_Visor itself: create_visor_assets.py, S4-08)
-  /Game/Hollow/UI/Menus/W_SystemMenu (S4-06: + Invite, Start raid, Leave session; S4-07: + Voice), W_MainMenu
+  /Game/Hollow/UI/Menus/W_SystemMenu (S4-06: + Invite, Start raid, Leave session; S4-07: + Voice; H-1: + Flashes), W_MainMenu
   /Game/Hollow/Core/Framework/BP_GameMode_FrontEnd   AHollowFrontEndGameMode with the HUD; the game mode of L_Boot (S4-06)
   /Game/Hollow/UI/Visor/W_RaidStatus, /Game/Hollow/UI/Menus/W_Debrief      (S3-03)
   DA_Tool_Welder/PlasmaCutter ActionLabel, BP_GameMode_Hub/Raid HUDClass = AHollowHUD   (if unset)
@@ -33,6 +33,7 @@ BOOT_MAP = "/Game/Hollow/Maps/L_Boot"
 # System menu, top to bottom (S4-06): the session buttons go between Resume and Quit; HollowMenuRules shows those that apply.
 SESSION_BUTTONS = [("InviteButton", "Invite friends"), ("StartRaidButton", "Start raid"), ("LeaveButton", "Leave session")]
 VOICE_BUTTON = ("VoiceButton", "Voice: Push-to-talk")   # S4-07: the label follows the mode at run time
+FLASHES_BUTTON = ("FlashesButton", "Flashes: Full")      # H-1 (ADR-0029): the label follows the choice at run time
 MAIN_MENU_BUTTONS = [("HostButton", "Host co-op"), ("SoloButton", "Play solo"), ("QuitButton", "Quit")]
 TOOL_LABELS = {
     "/Game/Hollow/Tools/Welder/DA_Tool_Welder": "Welding",
@@ -386,10 +387,10 @@ def ensure_system_menu_session_buttons():
         log("W_SystemMenu: %s added" % ", ".join(added))
 
 
-def ensure_system_menu_voice_button():
-    """S4-07: the voice mode toggle, just before Quit."""
+def ensure_system_menu_toggle(button):
+    """A settings toggle just before Quit: S4-07 the voice mode, H-1 reduced flashes (after the voice)."""
     blueprint = load(MENUS_DIR + "/W_SystemMenu")
-    name, label = VOICE_BUTTON
+    name, label = button
     if author.find_widget(blueprint, name) is not None:
         return
     panel = author.find_widget(blueprint, "Panel")
@@ -402,7 +403,7 @@ def ensure_system_menu_voice_button():
     button.set_editor_property("label", unreal.Text(label))
     box_slot(button, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
     if not author.compile(blueprint):
-        raise RuntimeError("W_SystemMenu does not compile with the voice button")
+        raise RuntimeError("W_SystemMenu does not compile with %s" % name)
     save(blueprint)
     log("W_SystemMenu: %s added" % name)
 
@@ -540,7 +541,7 @@ def validate():
                          (MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)):
         generated = load(path).generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
-    for name, _ in SESSION_BUTTONS + [VOICE_BUTTON]:
+    for name, _ in SESSION_BUTTONS + [VOICE_BUTTON, FLASHES_BUTTON]:
         check(author.find_widget(load(MENUS_DIR + "/W_SystemMenu"), name) is not None, "W_SystemMenu has " + name)
     for path in TOOL_LABELS:
         check(not load(path).get_editor_property("action_label").is_empty(), path + " action label")
@@ -563,7 +564,8 @@ def main():
     ensure_raid_status()
     ensure_system_menu()
     ensure_system_menu_session_buttons()
-    ensure_system_menu_voice_button()
+    ensure_system_menu_toggle(VOICE_BUTTON)
+    ensure_system_menu_toggle(FLASHES_BUTTON)
     ensure_main_menu()
     ensure_debrief()
     ensure_tool_labels()

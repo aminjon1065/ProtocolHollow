@@ -71,6 +71,17 @@ void UHollowCarrierComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+APawn* UHollowCarrierComponent::GetPartner() const
+{
+	const UHollowCarryableComponent* Carryable = Carried.Get();
+	if (!Carryable || Carryable->GetCarryState().Mode != EHollowCarryMode::Coop)
+	{
+		return nullptr;
+	}
+	const FHollowCarryNetState& State = Carryable->GetCarryState();
+	return State.Primary == GetPawn() ? State.Secondary.Get() : State.Primary.Get();
+}
+
 bool UHollowCarrierComponent::HandleInteractInput(AActor* Focus)
 {
 	if (IsCarrying())
@@ -79,14 +90,21 @@ bool UHollowCarrierComponent::HandleInteractInput(AActor* Focus)
 		return true;
 	}
 	UHollowCarryableComponent* Carryable = Focus ? Focus->FindComponentByClass<UHollowCarryableComponent>() : nullptr;
-	if (!PendingPickup.IsValid() && Carryable && Carryable->CanBeginSolo(GetPawn()))
+	if (PendingPickup.IsValid() || !Carryable)
 	{
-		// Claim the slowdown at once: the server sees slow moves no later than the request (ADR-0015).
+		return false;
+	}
+	const bool bLift = Carryable->CanBeginSolo(GetPawn());
+	if (bLift || Carryable->CanJoin(GetPawn()))
+	{
+		// Claim the slowdown at once: the server sees slow moves no later than the request (ADR-0015, ADR-0028).
 		PendingPickup = Carryable;
+		PendingClaim = bLift ? EHollowCarryClaim::Solo : EHollowCarryClaim::Coop;
 		GetWorld()->GetTimerManager().SetTimer(PredictionTimer, this, &ThisClass::HandlePredictionTimeout,
 			FMath::Max(GetDefault<UHollowCarrySettings>()->PickupPredictionTimeoutSeconds, UE_KINDA_SMALL_NUMBER), /*bLoop=*/false);
 		RefreshClaim();
-		UE_LOG(LogHollowPhysics, Log, TEXT("%s: predicting the pick-up of %s"), *GetNameSafe(GetOwner()), *GetNameSafe(Carryable->GetOwner()));
+		UE_LOG(LogHollowPhysics, Log, TEXT("%s: predicting the %s of %s"), *GetNameSafe(GetOwner()), bLift ? TEXT("pick-up") : TEXT("join"),
+			*GetNameSafe(Carryable->GetOwner()));
 	}
 	return false;
 }
@@ -105,13 +123,26 @@ bool UHollowCarrierComponent::ServerPickUp(UHollowCarryableComponent* Carryable)
 	return Carryable->BeginSolo(GetPawn());   // the state change calls NotifyCarryChanged
 }
 
+bool UHollowCarrierComponent::ServerJoin(UHollowCarryableComponent* Carryable)
+{
+	if (!GetOwner()->HasAuthority() || IsCarrying() || !Carryable)
+	{
+		return false;
+	}
+	return Carryable->BeginCoop(GetPawn());
+}
+
 void UHollowCarrierComponent::ServerDrop(const bool bForce)
 {
 	UHollowCarryableComponent* Carryable = Carried.Get();
-	const APawn* Pawn = GetPawn();
+	APawn* Pawn = GetPawn();
 	if (!GetOwner()->HasAuthority() || !Carryable || !Pawn || !Carryable->GetDefinition())
 	{
 		return;
+	}
+	if (Carryable->ReleaseCarrier(Pawn, bForce ? EHollowCarryLeave::Gone : EHollowCarryLeave::Released))
+	{
+		return;   // the partner carries on alone
 	}
 	Carryable->Release(Pawn->GetVelocity() * Carryable->GetDefinition()->InheritVelocityFraction, bForce);
 }
@@ -135,6 +166,11 @@ void UHollowCarrierComponent::NotifyCarryChanged(UHollowCarryableComponent* Carr
 	}
 
 	const EHollowCarryClaim Claim = Carried.IsValid() ? HollowCarry::ClaimFor(Carried->GetCarryState().Mode) : EHollowCarryClaim::None;
+	const APawn* Partner = GetPartner();
+	if (UHollowCharacterMovementComponent* Movement = GetMovement())
+	{
+		Movement->SetCoopPartner(Partner, Partner ? &Carried->GetDefinition()->Coop : nullptr);   // every machine: the tether
+	}
 	if (GetOwner()->HasAuthority())
 	{
 		if (Carried.IsValid())
@@ -151,8 +187,8 @@ void UHollowCarrierComponent::NotifyCarryChanged(UHollowCarryableComponent* Carr
 		}
 	}
 	RefreshClaim();
-	UE_LOG(LogHollowPhysics, Log, TEXT("%s: carrying %s (%s)"), *GetNameSafe(GetOwner()), Carried.IsValid() ? *GetNameSafe(Carried->GetOwner()) : TEXT("nothing"),
-		*HollowEnumToString(Claim));
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: carrying %s (%s%s%s)"), *GetNameSafe(GetOwner()), Carried.IsValid() ? *GetNameSafe(Carried->GetOwner()) : TEXT("nothing"),
+		*HollowEnumToString(Claim), Partner ? TEXT(" with ") : TEXT(""), Partner ? *GetNameSafe(Partner) : TEXT(""));
 }
 
 void UHollowCarrierComponent::HandleControllerChanged(APawn* Pawn, AController* OldController, AController* NewController)
@@ -178,7 +214,7 @@ void UHollowCarrierComponent::RefreshClaim()
 	}
 	else if (PendingPickup.IsValid())
 	{
-		Claim = EHollowCarryClaim::Solo;
+		Claim = PendingClaim;
 	}
 	Movement->SetClaimedCarry(Claim);
 }
@@ -196,20 +232,27 @@ void UHollowCarrierComponent::HandlePredictionTimeout()
 
 void UHollowCarrierComponent::ApplyCarryEffect(const UHollowCarryableComponent& Carryable)
 {
-	if (CarryEffect.IsValid())
+	const UHollowCarryableDefinition* Definition = Carryable.GetDefinition();
+	const TSubclassOf<UGameplayEffect> Wanted = !Definition ? nullptr
+		: Carryable.GetCarryState().Mode == EHollowCarryMode::Coop ? Definition->CoopEffect : Definition->SoloEffect;
+	if (CarryEffect.IsValid() && CarryEffectClass == Wanted)
 	{
 		return;
 	}
 	UAbilitySystemComponent* AbilitySystem = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-	const UHollowCarryableDefinition* Definition = Carryable.GetDefinition();
-	if (!AbilitySystem || !Definition || !Definition->SoloEffect)
+	if (!AbilitySystem || !Wanted)
 	{
+		RemoveCarryEffect();
 		UE_LOG(LogHollowPhysics, Warning, TEXT("%s: no ability system or carry effect; carrying %s without its effect."), *GetNameSafe(GetOwner()),
 			*GetNameSafe(Carryable.GetOwner()));
 		return;
 	}
-	CarryEffect = AbilitySystem->ApplyGameplayEffectToSelf(Definition->SoloEffect.GetDefaultObject(), HollowCarrierPrivate::EffectLevel,
+	// The mode changed (Solo <-> Coop): the new effect first, so the carrying tag never lapses (stamina recovery stays paused).
+	const FActiveGameplayEffectHandle Applied = AbilitySystem->ApplyGameplayEffectToSelf(Wanted.GetDefaultObject(), HollowCarrierPrivate::EffectLevel,
 		AbilitySystem->MakeEffectContext());
+	RemoveCarryEffect();
+	CarryEffect = Applied;
+	CarryEffectClass = Wanted;
 	CarryEffectOwner = AbilitySystem;
 }
 
@@ -224,6 +267,7 @@ void UHollowCarrierComponent::RemoveCarryEffect()
 		AbilitySystem->RemoveActiveGameplayEffect(CarryEffect);
 	}
 	CarryEffect.Invalidate();
+	CarryEffectClass = nullptr;
 	CarryEffectOwner = nullptr;
 }
 

@@ -53,7 +53,8 @@ FHollowInteractionInfo AHollowAetherCore::GetInteractionInfo(const AActor* Inter
 	FHollowInteractionInfo Info;
 	if (const UHollowCarryableDefinition* Definition = Carryable->GetDefinition())
 	{
-		Info.Prompt = Definition->PickupPrompt;
+		// Someone carries it alone: the other side is free (ADR-0028).
+		Info.Prompt = Carryable->GetCarryState().Mode == EHollowCarryMode::Solo ? Definition->JoinPrompt : Definition->PickupPrompt;
 	}
 	return Info;
 }
@@ -62,14 +63,18 @@ bool AHollowAetherCore::CanInteract(const AActor* Interactor) const
 {
 	// Both hands: not while a tool runs (the carry effect blocks tools the other way round).
 	const IGameplayTagAssetInterface* Tags = Cast<IGameplayTagAssetInterface>(Interactor);
-	return Carryable->CanBeginSolo(Cast<APawn>(Interactor)) && !(Tags && Tags->HasMatchingGameplayTag(HollowTags::State_Tool_Active));
+	const APawn* Pawn = Cast<APawn>(Interactor);
+	return (Carryable->CanBeginSolo(Pawn) || Carryable->CanJoin(Pawn)) && !(Tags && Tags->HasMatchingGameplayTag(HollowTags::State_Tool_Active));
 }
 
 void AHollowAetherCore::Interact(AActor* Interactor)
 {
 	if (UHollowCarrierComponent* Carrier = Interactor ? Interactor->FindComponentByClass<UHollowCarrierComponent>() : nullptr)
 	{
-		Carrier->ServerPickUp(Carryable);
+		if (!Carrier->ServerPickUp(Carryable))
+		{
+			Carrier->ServerJoin(Carryable);   // carried by someone else alone: take the other side
+		}
 	}
 }
 

@@ -12,7 +12,7 @@ enum class EHollowVoiceMode : uint8;
  * overlay, start the raid, leave the session) and quit. A session button shows only where it applies
  * (HollowMenuRules::SystemMenuOptions). Never pauses the game, solo or co-op (parity, CLAUDE.md sec. 1). Back (Esc / B)
  * closes it; gamepad focus starts on Resume. The voice button cycles how the voice goes out (S4-07: push-to-talk,
- * open mic, muted), saved in the player's settings.
+ * open mic, muted), saved in the player's settings; the flashes button switches reduced flashes (H-1, ADR-0029).
  */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowSystemMenuWidget : public UHollowActivatableWidget
@@ -27,9 +27,13 @@ public:
 	UCommonButtonBase* GetStartRaidButton() const { return StartRaidButton; }
 	UCommonButtonBase* GetLeaveButton() const { return LeaveButton; }
 	UCommonButtonBase* GetVoiceButton() const { return VoiceButton; }
+	UCommonButtonBase* GetFlashesButton() const { return FlashesButton; }
 
 	/** The voice button's label for Mode ("Voice: Push-to-talk"...). */
 	static FText VoiceLabel(EHollowVoiceMode Mode);
+
+	/** The flashes button's label ("Flashes: Full" / "Flashes: Reduced", H-1). */
+	static FText FlashesLabel(bool bReduced);
 
 	/** Shows the session buttons that apply to Context (on activation: the local player's). */
 	void ApplyContext(const struct FHollowMenuContext& Context);
@@ -59,6 +63,10 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UCommonButtonBase> VoiceButton;
 
+	/** Reduced flashes toggle (H-1, ADR-0029; optional for the same reason). */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UCommonButtonBase> FlashesButton;
+
 private:
 	void Resume();
 	void Quit();
@@ -67,4 +75,6 @@ private:
 	void Leave();
 	void CycleVoice();
 	void RefreshVoiceLabel();
+	void ToggleFlashes();
+	void RefreshFlashesLabel();
 };

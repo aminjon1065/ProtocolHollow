@@ -28,4 +28,13 @@ namespace HollowMovementMath
 	{
 		return CanSprint(Tuning, bWantsToSprint, bIsCrouching, MoveDirection, FacingDirection) ? Tuning.SprintSpeedMultiplier : 1.f;
 	}
+
+	int32 MoveSteps(const float DeltaTime, const float MaxMoveDeltaTime, const int32 MaxMoves)
+	{
+		if (MaxMoveDeltaTime <= 0.f || DeltaTime <= MaxMoveDeltaTime)
+		{
+			return 1;
+		}
+		return FMath::Clamp(FMath::CeilToInt32(DeltaTime / MaxMoveDeltaTime), 1, FMath::Max(MaxMoves, 1));
+	}
 }

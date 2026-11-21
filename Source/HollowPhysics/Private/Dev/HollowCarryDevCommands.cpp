@@ -32,10 +32,27 @@ namespace HollowCarryDevConsole
 				continue;
 			}
 			const FHollowCarryNetState& State = Carryable->GetCarryState();
-			UE_LOG(LogHollowPhysics, Display, TEXT("Hollow.Carry.Dump: %s %s by %s serial %d, shown %s, at %s, simulating %d, rep movement %d, dormancy %s, attached to %s"),
-				*It->GetName(), *HollowEnumToString(State.Mode), *GetNameSafe(State.Primary), State.TransitionSerial,
-				*HollowEnumToString(Carryable->GetPresentation()), *It->GetActorLocation().ToCompactString(), Body->IsSimulatingPhysics(),
+			const UPrimitiveComponent* Visual = Carryable->GetVisual();
+			UE_LOG(LogHollowPhysics, Display, TEXT("Hollow.Carry.Dump: %s %s by %s%s%s serial %d, shown %s, at %s, visual at %s, simulating %d, rep movement %d, dormancy %s, attached to %s"),
+				*It->GetName(), *HollowEnumToString(State.Mode), *GetNameSafe(State.Primary), State.Secondary ? TEXT(" and ") : TEXT(""),
+				State.Secondary ? *GetNameSafe(State.Secondary) : TEXT(""), State.TransitionSerial,
+				*HollowEnumToString(Carryable->GetPresentation()), *It->GetActorLocation().ToCompactString(),
+				Visual ? *Visual->GetComponentLocation().ToCompactString() : TEXT("none"), Body->IsSimulatingPhysics(),
 				It->IsReplicatingMovement(), *HollowEnumToString(It->NetDormancy.GetValue()), *GetNameSafe(Body->GetAttachParent()));
+		}
+		if (World->GetNetMode() != NM_Client)
+		{
+			// The server's view of every carrier: whose position it takes from the client (co-op carry, ADR-0028).
+			for (TActorIterator<ACharacter> It(World); It; ++It)
+			{
+				const UHollowCharacterMovementComponent* Movement = Cast<UHollowCharacterMovementComponent>(It->GetCharacterMovement());
+				if (Movement && It->FindComponentByClass<UHollowCarrierComponent>())
+				{
+					UE_LOG(LogHollowPhysics, Display, TEXT("Hollow.Carry.Dump: server sees %s at %s, server carry %s, client-authoritative %d, returning %d"),
+						*It->GetName(), *It->GetActorLocation().ToCompactString(), *HollowEnumToString(Movement->GetServerCarry().Current),
+						Movement->IsClientAuthoritative(), Movement->IsReturningAuthority());
+				}
+			}
 		}
 
 		const UGameInstance* GameInstance = World->GetGameInstance();
@@ -48,15 +65,17 @@ namespace HollowCarryDevConsole
 			UE_LOG(LogHollowPhysics, Display, TEXT("Hollow.Carry.Dump: no local carrier."));
 			return;
 		}
-		UE_LOG(LogHollowPhysics, Display, TEXT("Hollow.Carry.Dump: pawn %s at %s carrying %s (pending %s), claim %s, effective %s, max speed %.0f, speed %.0f, jump %d"),
+		UE_LOG(LogHollowPhysics, Display, TEXT("Hollow.Carry.Dump: pawn %s at %s carrying %s (pending %s) with %s, claim %s, effective %s, max speed %.0f, speed %.0f, jump %d, corrections %d"),
 			*Character->GetName(), *Character->GetActorLocation().ToCompactString(), Carrier->GetCarried() ? *GetNameSafe(Carrier->GetCarried()->GetOwner()) : TEXT("nothing"),
-			Carrier->GetPendingPickup() ? *GetNameSafe(Carrier->GetPendingPickup()->GetOwner()) : TEXT("none"), *HollowEnumToString(Movement->GetClaimedCarry()),
-			*HollowEnumToString(Movement->GetEffectiveCarry()), Movement->GetMaxSpeed(), Movement->Velocity.Size2D(), Character->CanJump());
+			Carrier->GetPendingPickup() ? *GetNameSafe(Carrier->GetPendingPickup()->GetOwner()) : TEXT("none"),
+			Carrier->GetPartner() ? *GetNameSafe(Carrier->GetPartner()) : TEXT("nobody"), *HollowEnumToString(Movement->GetClaimedCarry()),
+			*HollowEnumToString(Movement->GetEffectiveCarry()), Movement->GetMaxSpeed(), Movement->Velocity.Size2D(), Character->CanJump(),
+			Movement->GetCorrectionCount());
 	}
 
 	FAutoConsoleCommandWithWorld DumpCommand(
 		TEXT("Hollow.Carry.Dump"),
-		TEXT("Prints this machine's carryables (carry state, how they are shown, physics, movement replication, dormancy) and the local carrier's claim and speed."),
+		TEXT("Prints this machine's carryables (carry state, how they are shown, physics, movement replication, dormancy), the server's carriers (client authority) and the local carrier's claim, partner, speed and corrections."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&Dump));
 }
 

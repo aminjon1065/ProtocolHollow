@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Carry/HollowCarryCoop.h"
 #include "Engine/DataAsset.h"
 #include "UObject/PrimaryAssetId.h"
 #include "Templates/SubclassOf.h"
@@ -44,6 +45,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	FText PickupPrompt;
 
+	/** Prompt for a second player taking the other side of an object someone carries (ADR-0028). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	FText JoinPrompt;
+
 	/** The item this object counts as when the squad extracts with it (an Aether core is sold to the corporation). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction", meta = (AllowedTypes = "HollowItem"))
 	FPrimaryAssetId LootItem;
@@ -66,6 +71,14 @@ public:
 	/** Applied to a solo carrier by the server for as long as it carries (state tag, stamina drain, Resonance). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
 	TSubclassOf<UGameplayEffect> SoloEffect;
+
+	/** Applied to each of two carriers instead of SoloEffect (state tag, a lighter stamina drain, Resonance; ADR-0028). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Coop")
+	TSubclassOf<UGameplayEffect> CoopEffect;
+
+	/** Spacing and tether of two carriers; the pose between them is HollowCarryCoop::Pose at the grip height. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Coop")
+	FHollowCoopCarryTuning Coop;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics", meta = (ClampMin = "1", Units = "Kilograms"))
 	float Mass = 1.f;

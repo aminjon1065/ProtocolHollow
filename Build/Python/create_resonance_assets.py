@@ -3,8 +3,10 @@
   /Game/Hollow/GAS/Resonance/DA_ResonanceConfig        UHollowResonanceConfig: tiers, hysteresis, server rate
   /Game/Hollow/GAS/Effects/GE_Dev_ResonanceAdd         instant Resonance change (SetByCaller Hollow.Data.ResonanceGain), dev only
   /Game/Hollow/FX/Resonance/
-      MPC_Resonance                                    Intensity 0..1, FlickerTimeOffset (server time - world time)
+      MPC_Resonance                                    Intensity 0..1, FlickerTimeOffset (server time - world time),
+                                                       ReducedFlashes 0/1 (the player's choice, H-1, ADR-0029)
       M_PP_Resonance                                   post-process: chromatic split, desaturation, vignette, flicker
+                                                       (steady with ReducedFlashes)
       DA_ResonancePresentation                         UHollowResonancePresentationConfig
   /Game/Hollow/Audio/Modulation/SMP_Resonance_Lowpass  low-pass frequency parameter of the bus
   /Game/Hollow/Audio/Modulation/CB_Resonance           Audio Modulation control bus the presentation drives
@@ -45,18 +47,22 @@ CONFIG_VALUES = {"tier_thresholds": [0.25, 0.5, 0.75], "hysteresis": 0.03, "upda
 # Presentation (data). The bus is a low-pass frequency parameter: 1.0 = 20 kHz, 0.7 = about 2.5 kHz (log scale).
 INTENSITY = "Intensity"
 TIME_OFFSET = "FlickerTimeOffset"
-PRESENTATION_VALUES = {"intensity_parameter": INTENSITY, "time_offset_parameter": TIME_OFFSET, "bus_value_calm": 1.0, "bus_value_full": 0.7,
-                       "bus_fade_seconds": 0.25, "ease_seconds": 1.5, "step_seconds": 0.05}
+REDUCED_FLASHES = "ReducedFlashes"
+PRESENTATION_VALUES = {"intensity_parameter": INTENSITY, "time_offset_parameter": TIME_OFFSET, "reduced_flashes_parameter": REDUCED_FLASHES,
+                       "bus_value_calm": 1.0, "bus_value_full": 0.7, "bus_fade_seconds": 0.25, "ease_seconds": 1.5, "step_seconds": 0.05}
 
 # Hearing of the Echo-Stalker by squad Resonance (data, S4-02 clarification 7): x1 at 0 up to x2 at full.
 HEARING_KEYS = [(0.0, 1.0), (0.25, 1.25), (0.5, 1.6), (1.0, 2.0)]
 
-# Post-process look at full Resonance (data). Flicker starts with the High tier.
+# Post-process look at full Resonance (data). Flicker starts with the High tier. With ReducedFlashes (ADR-0029) the
+# flicker becomes its average dimming, held steady (0 Hz).
 MATERIAL = {
-    "version": 1,
+    "version": 2,
     "flicker_hz": 7.0, "flicker_from": 0.5, "flicker_depth": 0.15,
+    "reduced_flicker_hz": 0.0,
     "chroma_uv": 0.004, "desaturation": 0.4, "vignette_scale": 1.4, "vignette_depth": 0.6,
 }
+MAX_REDUCED_HZ = 2.0   # H-1: nothing faster than this with reduced flashes
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 assets = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
@@ -182,7 +188,7 @@ def ensure_collection():
     collection, created = existing_or_new(COLLECTION, unreal.MaterialParameterCollection, unreal.MaterialParameterCollectionFactoryNew())
     scalars = list(collection.get_editor_property("scalar_parameters"))
     names = [str(p.get_editor_property("parameter_name")) for p in scalars]
-    missing = [name for name in (INTENSITY, TIME_OFFSET) if name not in names]
+    missing = [name for name in (INTENSITY, TIME_OFFSET, REDUCED_FLASHES) if name not in names]
     for name in missing:
         parameter = unreal.CollectionScalarParameter()
         parameter.set_editor_property("parameter_name", name)
@@ -191,7 +197,7 @@ def ensure_collection():
     if missing or created:
         collection.set_editor_property("scalar_parameters", scalars)
         save(collection)
-        log("MPC_Resonance ready")
+        log("MPC_Resonance ready (%s added)" % ", ".join(missing))
     return collection
 
 
@@ -259,7 +265,13 @@ def build_material(material, collection):
     wave01 = g.math(Add, 5, g.math(Mul, 5, wave, const_b=0.5), const_b=0.5)
     ramp = g.math(Mul, 7, g.math(Sub, 8, intensity, const_b=m["flicker_from"]), const_b=1.0 / (1.0 - m["flicker_from"]))
     depth = g.math(Mul, 5, g.single(unreal.MaterialExpressionSaturate, 6, ramp), const_b=m["flicker_depth"])
-    brightness = g.single(unreal.MaterialExpressionOneMinus, 3, g.math(Mul, 4, depth, wave01))
+    flickering = g.single(unreal.MaterialExpressionOneMinus, 4, g.math(Mul, 4, depth, wave01))
+    # Reduced flashes: the flicker's average (the wave's mean is one half), steady.
+    steady = g.single(unreal.MaterialExpressionOneMinus, 4, g.math(Mul, 4, depth, const_b=0.5))
+    brightness = g.node(unreal.MaterialExpressionLinearInterpolate, 3)
+    g.wire(flickering, brightness, "A")
+    g.wire(steady, brightness, "B")
+    g.wire(g.parameter(REDUCED_FLASHES, 4), brightness, "Alpha")
 
     # Chromatic split: red and blue sampled apart along X.
     uv = g.node(unreal.MaterialExpressionScreenPosition, 9)
@@ -398,6 +410,9 @@ def validate():
     check(len(thresholds) == 3 and thresholds == sorted(thresholds), "three ascending tier thresholds")
     check(all(b - a > config.get_editor_property("hysteresis") for a, b in zip(thresholds, thresholds[1:])), "tiers further apart than the hysteresis")
     check(assets.get_metadata_tag(load(MATERIAL_PATH), SPEC_TAG) == spec_hash(), "M_PP_Resonance matches the spec")
+    names = [str(p.get_editor_property("parameter_name")) for p in load(COLLECTION).get_editor_property("scalar_parameters")]
+    check(all(name in names for name in (INTENSITY, TIME_OFFSET, REDUCED_FLASHES)), "MPC_Resonance scalars")
+    check(MATERIAL["reduced_flicker_hz"] <= MAX_REDUCED_HZ, "no reduced-flashes flicker over 2 Hz")
     presentation = load(PRESENTATION)
     check(presentation.get_editor_property("collection") == load(COLLECTION) and presentation.get_editor_property("bus") == load(BUS), "presentation assets")
     check(same(load(STALKER_DEFINITION).get_editor_property("hearing_resonance_curve"), hearing_curve()), "stalker hearing curve")

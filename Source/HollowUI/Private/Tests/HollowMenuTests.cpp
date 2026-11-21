@@ -119,6 +119,9 @@ bool FHollowMenuWidgetsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Co-op host in the hub: all three"), Shown(System->GetInviteButton()) && Shown(System->GetStartRaidButton()) && Shown(System->GetLeaveButton()));
 		System->ApplyContext(Context(true, false, true, true));
 		TestTrue(TEXT("Client: only Leave"), !Shown(System->GetInviteButton()) && !Shown(System->GetStartRaidButton()) && Shown(System->GetLeaveButton()));
+		// H-1 (ADR-0029): the reduced-flashes toggle, shown wherever the menu is, labelled with the choice.
+		TestTrue(TEXT("...has the flashes toggle, shown"), System->GetFlashesButton() && Shown(System->GetFlashesButton()));
+		TestFalse(TEXT("...its two labels differ"), UHollowSystemMenuWidget::FlashesLabel(true).EqualTo(UHollowSystemMenuWidget::FlashesLabel(false)));
 		System->DeactivateWidget();
 	}
 	// Bug bash: Back (Esc / B) closes a debrief like its button (it was ignored).

@@ -9,6 +9,7 @@
 #include "Resonance/HollowResonanceMath.h"
 #include "Resonance/HollowResonancePresentationConfig.h"
 #include "Resonance/HollowSquadResonanceComponent.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "SoundControlBus.h"
 #include "TimerManager.h"
 #include "Util/HollowEnumUtils.h"
@@ -39,11 +40,19 @@ void UHollowResonancePresentationSubsystem::Initialize(FSubsystemCollectionBase&
 	{
 		GameStateHandle = World->GameStateSetEvent.AddUObject(this, &ThisClass::HandleGameStateSet);
 	}
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		ReducedFlashesHandle = Settings->OnReducedFlashesChanged.AddUObject(this, &ThisClass::ApplyReducedFlashes);
+	}
 }
 
 void UHollowResonancePresentationSubsystem::Deinitialize()
 {
 	Detach();
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		Settings->OnReducedFlashesChanged.Remove(ReducedFlashesHandle);
+	}
 	if (UWorld* World = GetWorld())
 	{
 		World->GameStateSetEvent.Remove(GameStateHandle);
@@ -55,7 +64,27 @@ void UHollowResonancePresentationSubsystem::Deinitialize()
 void UHollowResonancePresentationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
+	ApplyReducedFlashes();   // hub and menus too: their lights read the collection without a squad
 	HandleGameStateSet(InWorld.GetGameState());
+}
+
+bool UHollowResonancePresentationSubsystem::IsReducedFlashes()
+{
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	return Settings && Settings->IsReducedFlashes();
+}
+
+void UHollowResonancePresentationSubsystem::ApplyReducedFlashes()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Config || Config->ReducedFlashesParameter.IsNone())
+	{
+		return;
+	}
+	if (UMaterialParameterCollectionInstance* Instance = CollectionAsset ? World->GetParameterCollectionInstance(CollectionAsset) : nullptr)
+	{
+		Instance->SetScalarParameterValue(Config->ReducedFlashesParameter, IsReducedFlashes() ? 1.f : 0.f);
+	}
 }
 
 void UHollowResonancePresentationSubsystem::HandleGameStateSet(AGameStateBase* GameState)
@@ -71,6 +100,7 @@ void UHollowResonancePresentationSubsystem::SetConfig(const UHollowResonancePres
 	Config = InConfig;
 	CollectionAsset = Config ? Config->Collection.LoadSynchronous() : nullptr;
 	Bus = Config ? Config->Bus.LoadSynchronous() : nullptr;
+	ApplyReducedFlashes();
 }
 
 void UHollowResonancePresentationSubsystem::Attach(UHollowSquadResonanceComponent* InSquad)

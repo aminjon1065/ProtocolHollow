@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Carry/HollowCarryCoop.h"
 #include "Carry/HollowCarryPolicy.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -32,6 +33,11 @@ namespace HollowMoveFlags
  * Heavy carrying (ADR-0015): the locally controlled carrier claims its carry slowdown in every move; the server
  * simulates a remote carrier with HollowCarryPolicy::Effective(claim, server state), so speed, acceleration, sprint
  * and jump agree on both sides whenever the client claims what the server knows.
+ *
+ * Co-op carrying (ADR-0028): a carrier is tethered to its partner (HollowCarryTether) by whoever controls it. The
+ * partner is an interpolated proxy there, so the server could never agree: a remote co-op carrier's position comes
+ * from its client meanwhile (client-authoritative, checked by the carried object's sanity timer), and after the carry
+ * the server takes over again only once the client's own moves agree with its simulation (FHollowCoopReturn).
  */
 UCLASS()
 class HOLLOWPHYSICS_API UHollowCharacterMovementComponent : public UCharacterMovementComponent
@@ -62,6 +68,38 @@ public:
 	/** The slowdown movement uses now: the policy for a remote carrier on the server, otherwise the claim. */
 	EHollowCarryClaim GetEffectiveCarry() const;
 
+	/**
+	 * Co-op carry, every machine: the partner this character is tethered to while two carry (null: no longer). On the
+	 * server a remote carrier turns client-authoritative with a partner and starts the way back without one.
+	 */
+	void SetCoopPartner(const APawn* Partner, const FHollowCoopCarryTuning* Tether);
+	const APawn* GetCoopPartner() const { return CoopPartner.Get(); }
+
+	/** Server: whether this remote carrier's position comes from its client now (co-op carry, or on the way back). */
+	bool IsClientAuthoritative() const { return bServerAcceptClientAuthoritativePosition; }
+
+	/** Server: a carrier that left a co-op carry and is still client-authoritative. */
+	bool IsReturningAuthority() const { return CoopReturn.IsSet(); }
+
+	/** Server: the sanity check refused this carrier: server-authoritative at once, back at SaneLocation (corrected). */
+	void ForceServerAuthority(const FVector& SaneLocation);
+
+	/** Server: the client timestamp of the newest move of this remote character (0 before any). */
+	double GetClientTimeStamp() const;
+
+	/**
+	 * Server, client-authoritative: the newest position the server took from the client (a checked move) and that move's
+	 * client timestamp. Between checked moves the server simulates the character itself (without the client's tether),
+	 * so only these are the client's own claims. False before the first one since it turned client-authoritative.
+	 */
+	bool GetAcceptedClientMove(FVector& OutLocation, double& OutTimeStamp) const;
+
+	/** Walking speed (no sprint) of a carry claim: what a carrier may move at, for the server's sanity check. */
+	float GetCarryWalkSpeed(EHollowCarryClaim Claim) const;
+
+	/** Corrections this machine received for its own movement since it spawned (dev statistics, Hollow.Carry.Dump). */
+	int32 GetCorrectionCount() const { return CorrectionCount; }
+
 	/** Applies a tuning asset immediately (e.g. when an ExoFrame class is selected). */
 	void SetMovementTuning(const UHollowMovementTuning* InTuning);
 	const UHollowMovementTuning* GetMovementTuning() const { return Tuning; }
@@ -70,6 +108,7 @@ public:
 	virtual float GetMaxSpeed() const override;
 	virtual float GetMaxAcceleration() const override;
 	virtual bool CanAttemptJump() const override;
+	virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration) override;
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 
 #if WITH_EDITOR
@@ -79,6 +118,10 @@ public:
 protected:
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 	virtual bool ClientUpdatePositionAfterServerUpdate() override;
+	virtual void MoveAutonomous(float ClientTimeStamp, float DeltaTime, uint8 CompressedFlags, const FVector& NewAccel) override;
+	/** Owning client: a frame longer than MaxMoveDeltaTime goes out as several moves (HollowMovementMath::MoveSteps). */
+	virtual void ReplicateMoveToServer(float DeltaTime, const FVector& NewAcceleration) override;
+	virtual void ServerMove_PerformMovement(const FCharacterNetworkMoveData& MoveData) override;
 
 private:
 	void ApplyTuning(const UHollowMovementTuning& InTuning);
@@ -86,6 +129,11 @@ private:
 	const FHollowCarryModeTuning* GetCarryTuning() const;
 	/** Server, remote carrier: is the move being simulated with the server's floor instead of its claim? */
 	bool IsCarryFloorEnforced() const;
+	/** Server: a character another machine controls (its moves arrive as server moves). */
+	bool IsRemoteOnServer() const;
+	void SetClientAuthority(bool bClientAuthoritative);
+	/** Server, after a checked move of a carrier on the way back: server-authoritative again once FHollowCoopReturn allows. */
+	void UpdateCoopReturn(bool bInSync);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Movement")
 	TObjectPtr<const UHollowMovementTuning> Tuning;
@@ -102,6 +150,27 @@ private:
 	/** Server: whether the last simulated move of a remote carrier ran on the floor instead of its claim (logged on change). */
 	bool bCarryFloorEnforced = false;
 
+	/** Co-op carry: the partner and the carried object's tether (every machine). */
+	TWeakObjectPtr<const APawn> CoopPartner;
+	FHollowCoopCarryTuning CoopTether;
+
+	/** Server: the way back to server authority after a co-op carry (set while it lasts). */
+	TOptional<FHollowCoopReturn> CoopReturn;
+	/** Server: the client claimed Coop since this carrier turned client-authoritative (only then can it show it left). */
+	bool bSawCoopClaim = false;
+
+	/** Server, client-authoritative: the newest client position taken and its move's client timestamp. */
+	FVector AcceptedClientLocation = FVector::ZeroVector;
+	double AcceptedClientTimeStamp = 0.0;
+	bool bHasAcceptedClientMove = false;
+
+	/** Server: where this character's own simulation of the last server move ended, before the client's position was taken. */
+	FVector SimulatedLocation = FVector::ZeroVector;
+	bool bHasSimulatedLocation = false;
+
+	int32 CorrectionCount = 0;
+
 	friend class FHollowSavedMoveSprintFlagTest;   // automation tests driving the server-side flag decode
 	friend class FHollowSavedMoveCarryBitsTest;
+	friend class FHollowCoopAuthorityTest;
 };

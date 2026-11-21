@@ -3,6 +3,7 @@
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Components/Image.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Util/HollowEnumUtils.h"
 #include "ViewModels/HollowVisorContext.h"
 #include "Visor/HollowVisorStyle.h"
@@ -22,13 +23,26 @@ UHollowVisorFrameWidget::UHollowVisorFrameWidget(const FObjectInitializer& Objec
 void UHollowVisorFrameWidget::BindContext(UHollowVisorContext& InContext)
 {
 	SourcesHandle = InContext.OnSourcesChanged.AddUObject(this, &ThisClass::Rebind);
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		ReducedFlashesHandle = Settings->OnReducedFlashesChanged.AddUObject(this, &ThisClass::HandleReducedFlashesChanged);
+	}
 	Rebind();
 }
 
 void UHollowVisorFrameWidget::UnbindContext(UHollowVisorContext& InContext)
 {
 	InContext.OnSourcesChanged.Remove(SourcesHandle);
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		Settings->OnReducedFlashesChanged.Remove(ReducedFlashesHandle);
+	}
 	TierWatch.Unbind();
+}
+
+void UHollowVisorFrameWidget::HandleReducedFlashesChanged()
+{
+	Apply(GetTier());
 }
 
 void UHollowVisorFrameWidget::Rebind()
@@ -42,7 +56,9 @@ void UHollowVisorFrameWidget::Apply(const EHollowResonanceTier Tier)
 	const UHollowVisorStyle* Style = GetContext() ? GetContext()->GetStyle() : nullptr;
 	static const FHollowVisorTierLook Calm;
 	const FHollowVisorTierLook& Look = Style ? Style->GetTierLook(Tier) : Calm;
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
 	Alert = Look.Alert;
+	PulseHz = Settings && Settings->IsReducedFlashes() ? 0.f : FMath::Clamp(Look.PulseHz, 0.f, UHollowVisorStyle::MaxPulseHz);   // ADR-0029: steady
 	if (!GlassMaterial && Glass)
 	{
 		GlassMaterial = Glass->GetDynamicMaterial();   // null if the brush holds no material
@@ -51,12 +67,13 @@ void UHollowVisorFrameWidget::Apply(const EHollowResonanceTier Tier)
 	{
 		GlassMaterial->SetScalarParameterValue(AlertParameter, Look.Alert);
 		GlassMaterial->SetVectorParameterValue(AlertColorParameter, Look.Color);
-		GlassMaterial->SetScalarParameterValue(PulseParameter, FMath::Clamp(Look.PulseHz, 0.f, UHollowVisorStyle::MaxPulseHz));
+		GlassMaterial->SetScalarParameterValue(PulseParameter, PulseHz);
 		GlassMaterial->SetScalarParameterValue(InterferenceParameter, Look.Interference);
 	}
 }
 
 FString UHollowVisorFrameWidget::Describe() const
 {
-	return FString::Printf(TEXT("glass %s, alert %.2f%s"), *HollowEnumToString(GetTier()), Alert, GlassMaterial ? TEXT("") : TEXT(" (no material)"));
+	return FString::Printf(TEXT("glass %s, alert %.2f, pulse %.1f Hz%s"), *HollowEnumToString(GetTier()), Alert, PulseHz,
+		GlassMaterial ? TEXT("") : TEXT(" (no material)"));
 }

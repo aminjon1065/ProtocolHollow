@@ -170,7 +170,8 @@ bool FHollowCarrySoloCycleTest::RunTest(const FString& Parameters)
 		&& Rig.Core->GetVisual()->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson);
 	TestFalse(TEXT("Nobody lifts a carried core"), Rig.Core->CanInteract(Character));
 	AHollowExoFrameCharacter* Other = SpawnOtherPlayer(*this, Rig);
-	TestFalse(TEXT("Not even another player"), Rig.Core->CanInteract(Other));
+	TestTrue(TEXT("Another player may take the other side (S3-06, Hollow.Game.Carry.CoopCycle)"), Rig.Core->CanInteract(Other)
+		&& Rig.Core->GetInteractionInfo(Other).Prompt.EqualTo(Rig.Definition->JoinPrompt));
 
 	const float StaminaAtLift = Attribute(Rig, UHollowSurvivalSet::GetStaminaAttribute());
 	Advance(Rig, CarrySeconds);

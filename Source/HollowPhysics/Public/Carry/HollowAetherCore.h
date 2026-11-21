@@ -13,7 +13,8 @@ class UStaticMeshComponent;
  * Heavy Aether core (ADR-0015): the raid's loot, carried with both hands. A box body (root: physics, collision,
  * Predictive Interpolation while dropped) and a visual mesh that each machine attaches locally while it is carried.
  * Spawned by the server at a CoreSpawn socket, resting (kinematic, dormant). Lifting goes through the normal
- * interaction (UHollowInteractionComponent); all carry logic lives in UHollowCarryableComponent. No Tick.
+ * interaction (UHollowInteractionComponent), and so does a second player taking the other side of a carried core
+ * (ADR-0028); all carry logic lives in UHollowCarryableComponent. No Tick.
  */
 UCLASS()
 class HOLLOWPHYSICS_API AHollowAetherCore : public AActor, public IHollowInteractable
