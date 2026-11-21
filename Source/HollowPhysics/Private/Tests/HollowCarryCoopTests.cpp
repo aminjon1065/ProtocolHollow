@@ -14,6 +14,7 @@ namespace HollowCarryCoopTests
 	constexpr float Break = 100.f;
 	constexpr float MaxSpeed = 300.f;
 	constexpr double Tolerance = 0.01;
+	constexpr float VectorTolerance = 0.01f;   // the engine's FVector / FTransform TestEqual takes a float tolerance
 	constexpr double GripHeight = 5.0;
 	constexpr float Interval = 0.25f;
 	constexpr float SpeedTolerance = 1.3f;
@@ -49,8 +50,8 @@ bool FHollowCarryTetherTest::RunTest(const FString& Parameters)
 	};
 
 	const FVector Sideways(0.0, 200.0, -50.0);
-	TestEqual(TEXT("In the slack: unchanged"), Constrain(Sideways, Spacing), Sideways, Tolerance);
-	TestEqual(TEXT("At the slack's far edge: unchanged"), Constrain(FVector(-100.0, 0.0, 0.0), Spacing + Slack), FVector(-100.0, 0.0, 0.0), Tolerance);
+	TestEqual(TEXT("In the slack: unchanged"), Constrain(Sideways, Spacing), Sideways, VectorTolerance);
+	TestEqual(TEXT("At the slack's far edge: unchanged"), Constrain(FVector(-100.0, 0.0, 0.0), Spacing + Slack), FVector(-100.0, 0.0, 0.0), VectorTolerance);
 
 	// Stretched by 10 cm: pull 40 cm/s towards the partner, walking away cancelled, sideways kept.
 	const double Stretch = 10.0;
@@ -63,13 +64,13 @@ bool FHollowCarryTetherTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Stretched far: the pull is capped"), Constrain(FVector::ZeroVector, Spacing + Slack + 1000.0).X, static_cast<double>(MaxPull), Tolerance);
 
 	// Squeezed: no further in, away is fine.
-	TestEqual(TEXT("Squeezed: walking in is cancelled"), Constrain(FVector(200.0, 50.0, 0.0), Spacing - Slack - 1.0), FVector(0.0, 50.0, 0.0), Tolerance);
+	TestEqual(TEXT("Squeezed: walking in is cancelled"), Constrain(FVector(200.0, 50.0, 0.0), Spacing - Slack - 1.0), FVector(0.0, 50.0, 0.0), VectorTolerance);
 	TestEqual(TEXT("Squeezed: walking away is fine"), Constrain(FVector(-200.0, 0.0, 0.0), Spacing - Slack - 1.0).X, -200.0, Tolerance);
 
 	// Speed cap along the ground, and a partner above or below counts along the ground only.
 	TestEqual(TEXT("Never faster than the carry speed"), Constrain(FVector(0.0, 500.0, 0.0), Spacing).Size2D(), static_cast<double>(MaxSpeed), Tolerance);
 	TestEqual(TEXT("A partner on the stairs above: along the ground"),
-		HollowCarryTether::Constrain(Sideways, Self, FVector(Spacing, 0.0, 300.0), Tuning, MaxSpeed), Sideways, Tolerance);
+		HollowCarryTether::Constrain(Sideways, Self, FVector(Spacing, 0.0, 300.0), Tuning, MaxSpeed), Sideways, VectorTolerance);
 	TestEqual(TEXT("On one spot: no direction, only the cap"), HollowCarryTether::Constrain(FVector(400.0, 0.0, 0.0), Self, Self, Tuning, MaxSpeed).X,
 		static_cast<double>(MaxSpeed), Tolerance);
 
@@ -92,14 +93,14 @@ bool FHollowCarryCoopPoseTest::RunTest(const FString& Parameters)
 	const FTransform Primary(FRotator(0.0, 90.0, 0.0), FVector(0.0, 0.0, 100.0));
 	const FTransform Secondary(FRotator(0.0, -45.0, 0.0), FVector(Spacing, 0.0, 140.0));
 	const FTransform Pose = HollowCarryCoop::Pose(Primary, Secondary, GripHeight);
-	TestEqual(TEXT("Midway between the grips"), Pose.GetLocation(), FVector(Spacing * 0.5, 0.0, 120.0 + GripHeight), Tolerance);
-	TestEqual(TEXT("X axis from the primary to the secondary"), Pose.GetRotation().GetForwardVector(), FVector::ForwardVector, Tolerance);
-	TestEqual(TEXT("Level although they stand at different heights"), Pose.GetRotation().GetUpVector(), FVector::UpVector, Tolerance);
+	TestEqual(TEXT("Midway between the grips"), Pose.GetLocation(), FVector(Spacing * 0.5, 0.0, 120.0 + GripHeight), VectorTolerance);
+	TestEqual(TEXT("X axis from the primary to the secondary"), Pose.GetRotation().GetForwardVector(), FVector::ForwardVector, VectorTolerance);
+	TestEqual(TEXT("Level although they stand at different heights"), Pose.GetRotation().GetUpVector(), FVector::UpVector, VectorTolerance);
 	const FTransform Swapped = HollowCarryCoop::Pose(Secondary, Primary, GripHeight);
-	TestEqual(TEXT("Swapped carriers: the same spot"), Swapped.GetLocation(), Pose.GetLocation(), Tolerance);
-	TestEqual(TEXT("...facing the other way"), Swapped.GetRotation().GetForwardVector(), -FVector::ForwardVector, Tolerance);
+	TestEqual(TEXT("Swapped carriers: the same spot"), Swapped.GetLocation(), Pose.GetLocation(), VectorTolerance);
+	TestEqual(TEXT("...facing the other way"), Swapped.GetRotation().GetForwardVector(), -FVector::ForwardVector, VectorTolerance);
 	const FTransform Stacked = HollowCarryCoop::Pose(Primary, FTransform(FVector(0.0, 0.0, 300.0)), GripHeight);
-	TestEqual(TEXT("On one spot: the primary's facing"), Stacked.GetRotation().GetForwardVector(), FVector::RightVector, Tolerance);
+	TestEqual(TEXT("On one spot: the primary's facing"), Stacked.GetRotation().GetForwardVector(), FVector::RightVector, VectorTolerance);
 	return true;
 }
 

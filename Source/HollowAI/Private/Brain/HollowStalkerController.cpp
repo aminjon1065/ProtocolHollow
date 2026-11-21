@@ -266,11 +266,11 @@ void AHollowStalkerController::CheckAmbush()
 		return;
 	}
 	APawn* Victim = nullptr;
-	HollowAIPlayers::ForEach(GetWorld(), [&](APawn& Pawn)
+	HollowAIPlayers::ForEach(GetWorld(), [&](APawn& Player)
 	{
-		if (!Victim && GapTo(&Pawn) <= Definition->AmbushTriggerRange && LineOfSightTo(&Pawn))
+		if (!Victim && GapTo(&Player) <= Definition->AmbushTriggerRange && LineOfSightTo(&Player))
 		{
-			Victim = &Pawn;
+			Victim = &Player;
 		}
 	});
 	if (!Victim)
@@ -342,7 +342,7 @@ void AHollowStalkerController::EnterVent()
 	}
 	const int32 Entry = ExitVent;
 	TArray<FVector> Players;
-	HollowAIPlayers::ForEach(GetWorld(), [&Players](APawn& Pawn) { Players.Add(Pawn.GetActorLocation()); });
+	HollowAIPlayers::ForEach(GetWorld(), [&Players](APawn& Player) { Players.Add(Player.GetActorLocation()); });
 	ExitVent = Vents->FarthestNodeFrom(Entry, Players);
 	const float Trip = FMath::Max(Vents->TravelSeconds(Entry, ExitVent), 0.f);
 	Enemy->SetInVent(true);

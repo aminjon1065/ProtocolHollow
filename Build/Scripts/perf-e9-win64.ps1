@@ -31,7 +31,7 @@ param(
     [int] $ResY = 1080,
     # Windowed instead of fullscreen (the measurement turns vsync off either way).
     [switch] $Windowed,
-    # Use the build already in -BuildDir (default Packages\Win64\<Configuration>\Windows).
+    # Use the build already in -BuildDir (default Packages\Win64\<Configuration>, as package-win64.ps1 archives it).
     [switch] $SkipPackage,
     [string] $BuildDir,
     [switch] $ClientTrace,
@@ -51,7 +51,7 @@ $Clients           = 3
 $Welders           = 2
 
 $ProjectRoot = Get-HollowProjectRoot
-if (-not $BuildDir) { $BuildDir = Join-Path $ProjectRoot "Packages\Win64\$Configuration\Windows" }
+if (-not $BuildDir) { $BuildDir = Join-Path $ProjectRoot "Packages\Win64\$Configuration" }
 
 # --- 1. Build -----------------------------------------------------------------------------------------------------------
 if (-not $SkipPackage) {

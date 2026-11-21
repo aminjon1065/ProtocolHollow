@@ -26,10 +26,10 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 	Inventory = CreateDefaultSubobject<UHollowInventoryComponent>(TEXT("Inventory"));
 
 	// The engine default for player states is far too low for an ability system owner.
-	const float NetUpdateFrequency = GetDefault<UHollowNetworkSettings>()->PlayerStateNetUpdateFrequency;
-	if (NetUpdateFrequency > 0.f)
+	const float ConfiguredFrequency = GetDefault<UHollowNetworkSettings>()->PlayerStateNetUpdateFrequency;
+	if (ConfiguredFrequency > 0.f)
 	{
-		SetNetUpdateFrequency(NetUpdateFrequency);
+		SetNetUpdateFrequency(ConfiguredFrequency);
 	}
 }
 

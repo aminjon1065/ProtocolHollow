@@ -202,11 +202,11 @@ APawn* AHollowAIController::GetTarget() const
 	double ClosestDistance = TNumericLimits<double>::Max();
 	for (const TWeakObjectPtr<APawn>& Weak : Seen)
 	{
-		APawn* Pawn = Weak.Get();
-		const double Distance = Pawn ? FVector::DistSquared(Pawn->GetActorLocation(), GetPawn()->GetActorLocation()) : 0.0;
-		if (Pawn && IsCandidate(Pawn) && Distance < ClosestDistance)
+		APawn* Candidate = Weak.Get();
+		const double Distance = Candidate ? FVector::DistSquared(Candidate->GetActorLocation(), GetPawn()->GetActorLocation()) : 0.0;
+		if (Candidate && IsCandidate(Candidate) && Distance < ClosestDistance)
 		{
-			Closest = Pawn;
+			Closest = Candidate;
 			ClosestDistance = Distance;
 		}
 	}
@@ -244,8 +244,8 @@ void AHollowAIController::ForgetStimulus()
 
 void AHollowAIController::HandlePerception(AActor* Actor, const FAIStimulus Stimulus)
 {
-	APawn* Pawn = Cast<APawn>(Actor);
-	if (!IsCandidate(Pawn))
+	APawn* SensedPawn = Cast<APawn>(Actor);
+	if (!IsCandidate(SensedPawn))
 	{
 		return;
 	}
@@ -253,11 +253,11 @@ void AHollowAIController::HandlePerception(AActor* Actor, const FAIStimulus Stim
 	{
 		if (Stimulus.WasSuccessfullySensed())
 		{
-			ReportSeen(Pawn);
+			ReportSeen(SensedPawn);
 		}
 		else
 		{
-			ReportLost(Pawn, Stimulus.StimulusLocation);
+			ReportLost(SensedPawn, Stimulus.StimulusLocation);
 		}
 	}
 	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Hearing>() && Stimulus.WasSuccessfullySensed() && IsAudibleFromItsRoom(Stimulus))
@@ -286,21 +286,21 @@ bool AHollowAIController::IsAudibleFromItsRoom(const FAIStimulus& Stimulus) cons
 	return bAudible;
 }
 
-void AHollowAIController::ReportSeen(APawn* Pawn)
+void AHollowAIController::ReportSeen(APawn* SeenPawn)
 {
-	if (!IsCandidate(Pawn))
+	if (!IsCandidate(SeenPawn))
 	{
 		return;
 	}
 	const APawn* Before = GetTarget();
-	Seen.AddUnique(Pawn);
-	if (Pawn == Target.Get())
+	Seen.AddUnique(SeenPawn);
+	if (SeenPawn == Target.Get())
 	{
 		GetWorldTimerManager().ClearTimer(ForgetTargetTimer);   // back in sight before it was forgotten
 	}
 	if (!Before && GetTarget())
 	{
-		UE_LOG(LogHollowAI, Log, TEXT("%s: sees %s"), *GetNameSafe(GetPawn()), *Pawn->GetName());
+		UE_LOG(LogHollowAI, Log, TEXT("%s: sees %s"), *GetNameSafe(GetPawn()), *SeenPawn->GetName());
 		if (ShouldReconsiderOnPerception())
 		{
 			Reconsider();
@@ -308,11 +308,11 @@ void AHollowAIController::ReportSeen(APawn* Pawn)
 	}
 }
 
-void AHollowAIController::ReportLost(APawn* Pawn, const FVector& LastSeenLocation)
+void AHollowAIController::ReportLost(APawn* LostPawn, const FVector& LastSeenLocation)
 {
 	const UHollowEnemyDefinition* Definition = GetDefinition();
-	Seen.Remove(Pawn);
-	if (Target.Get() != Pawn || !Definition)
+	Seen.Remove(LostPawn);
+	if (Target.Get() != LostPawn || !Definition)
 	{
 		return;
 	}
@@ -487,9 +487,9 @@ void AHollowAIController::FinishInvestigation(const bool bSuccess)
 bool AHollowAIController::MoveForActivity(const FVector& Goal, AActor* GoalActor, const float AcceptanceRadius, const float Speed)
 {
 	const UHollowEnemyDefinition* Definition = GetDefinition();
-	if (const ACharacter* Character = Cast<ACharacter>(GetPawn()))
+	if (const ACharacter* Body = Cast<ACharacter>(GetPawn()))
 	{
-		Character->GetCharacterMovement()->MaxWalkSpeed = Speed;
+		Body->GetCharacterMovement()->MaxWalkSpeed = Speed;
 	}
 	ActivityMove = FAIRequestID::InvalidRequest;   // a request this one aborts is no longer ours
 	FAIMoveRequest Request;

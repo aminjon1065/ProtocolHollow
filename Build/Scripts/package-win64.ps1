@@ -9,7 +9,7 @@
       * Cooker garbage collection when free physical memory < 3 GB            ([CookSettings])
     Incremental cook by default (-iterate). Fails if MSVC reports a warning in project sources.
 
-    Output: <repo>\Packages\Win64\<Configuration>\Windows\ProtocolHollow.exe
+    Output: <repo>\Packages\Win64\<Configuration>\ProtocolHollow.exe
     Log:    <repo>\Saved\Logs\package-win64-<Configuration>-<timestamp>.log
 
     Requirements: Visual Studio 2022 with MSVC 14.44.35211+ (or 14.50.35723+), Windows SDK 10.0.22621, UE 5.8.
@@ -125,4 +125,11 @@ if ($ProjectWarnings.Count -gt 0) {
     exit 1
 }
 
-Write-Host "OK: packaged to $(Join-Path $OutputDir 'Windows')" -ForegroundColor Green
+# UE 5.8 archives straight into -archivedirectory (no platform subfolder), the same layout as package-mac.sh.
+$GameExe = Get-ChildItem -Path (Join-Path $OutputDir 'ProtocolHollow\Binaries\Win64') -Filter 'ProtocolHollow*.exe' -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if (-not $GameExe) {
+    Write-Host "FAILED: BuildCookRun succeeded but no game executable under $OutputDir. See $LogFile" -ForegroundColor Red
+    exit 1
+}
+Write-Host "OK: packaged to $OutputDir (game: $($GameExe.FullName))" -ForegroundColor Green
