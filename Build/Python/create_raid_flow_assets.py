@@ -3,6 +3,7 @@
   /Game/Hollow/Items/Tools/DA_Item_Welder|DA_Item_PlasmaCutter   UHollowItemDefinition: insurable tools
   /Game/Hollow/Items/Consumables/DA_Item_FuelCell|DA_Item_PulseMine  consumables, not insurable (what they do in a raid:
                                                                  create_inventory_assets.py)
+  /Game/Hollow/Items/Materials/DA_Item_Scrap|DA_Item_AetherShard  workbench materials (S5-02), never taken into a raid
   /Game/Hollow/Items/AetherCore/DA_Item_AetherCore               the raid's loot, sold on extraction
   /Game/Hollow/GAS/Effects/GE_Damage_Generic                     instant IncomingDamage (SetByCaller Hollow.Data.Damage)
   /Game/Hollow/GAS/Effects/GE_State_Dead                         UHollowDeadEffect (Hollow.State.Dead)
@@ -43,6 +44,8 @@ ITEMS = [
     ("Tools/DA_Item_PlasmaCutter", "Plasma cutter", "Hollow.Item.Type.Tool", 400, True, 1),
     ("Consumables/DA_Item_FuelCell", "Fuel cell", "Hollow.Item.Type.Consumable", 25, False, 10),
     ("Consumables/DA_Item_PulseMine", "Pulse mine", "Hollow.Item.Type.Consumable", 40, False, 3),
+    ("Materials/DA_Item_Scrap", "Scrap", "Hollow.Item.Type.Material", 8, False, 50),
+    ("Materials/DA_Item_AetherShard", "Aether shard", "Hollow.Item.Type.Material", 20, False, 20),
     ("AetherCore/DA_Item_AetherCore", "Aether core", "Hollow.Item.Type.AetherCore", 500, False, 1),
 ]
 CORE_ITEM = "AetherCore/DA_Item_AetherCore"

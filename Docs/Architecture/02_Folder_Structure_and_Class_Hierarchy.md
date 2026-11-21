@@ -288,6 +288,12 @@ ResolveEscrow), UHollowProfileSaveGame (версия), UHollowProfileSubsystem (
 (способности предмета на время рейда), UHollowGameplayAbility::ItemCostPerUse + IHollowItemCostSource (GAS),
 FHollowRaidResult::Spent. Transfer и DropToWorld — с добычей и крафтом.
 
+Реализовано в S5-02 (ADR-0031): склад профиля FHollowProfile::Stash (слоты по MaxStack), UHollowCraftingRecipe (тип
+HollowRecipe) вместо UHollowRecipeDefinition, UHollowEconomyConfig (DA_EconomyConfig: предложения магазина, проценты
+продажи и страховки, размер склада, лимит страховок) вместо UHollowEconomyConfig на CurveTable, чистые HollowCraftingRules
+(Buy/Sell/Craft/Insure/Equip/Unequip + Apply с id транзакции) вместо FHollowCraftingRules::Validate/Execute; страховка
+разовая (Delta.InsuranceUsed).
+
 Компоненты и подсистемы:
 ├─ UHollowInventoryComponent   [PlayerState] серверный API: TryAdd, TryRemove, Transfer, DropToWorld
 ├─ UHollowLoadoutComponent     [PlayerState] публичная сборка в руках (видят все)

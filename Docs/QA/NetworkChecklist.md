@@ -91,6 +91,15 @@
 | I3 | Клиент режет (ЛКМ) несколько секунд, затем R (геймпад Y), затем ещё раз R | Первый R: топливо выросло, «FUEL CELL 2». Второй при полном баке ничего не тратит |
 | I4 | Оба эвакуируются | В дебрифе строка «Used»: у хоста мина ×1, у клиента ячейка ×1; `Hollow.Profile.Dump` — в профилях столько же меньше |
 
+## Экономика хаба (S5-02, [ADR-0031](../ADR/ADR-0031-hub-economy-crafting-shop-insurance.md))
+UI появится в S5-03/S5-04, пока — консоль. Профили, созданные до S5-02, начинают с пустым складом: `Hollow.Shop.Buy DA_Item_Scrap 6` и `Hollow.Shop.Buy DA_Item_AetherShard 1`.
+
+| # | Шаг | Ожидание |
+|---|---|---|
+| H1 | В хабе на клиенте: `Hollow.Craft.Make DA_Recipe_PulseMine`, `Hollow.Profile.Equip DA_Item_PulseMine`, `Hollow.Shop.Insure 1` | У клиента «Applied», `Hollow.Profile.Dump` показывает мину в лоадауте и застрахованный резак. `Hollow.Profile.Dump` на хосте не изменился: профиль у каждого свой |
+| H2 | Рейд; клиент жмёт G — мина ставится; затем клиента убивают (`Hollow.Dev.Kill Others` на хосте) | Дебриф клиента: «Insurance used: DA_Item_Welder x1, DA_Item_PlasmaCutter x1»; в профиле сварка и резак без страховки, склад не тронут |
+| H3 | Во время рейда на клиенте: `Hollow.Shop.Buy DA_Item_Scrap 1` | «InRaid», кредиты не меняются |
+
 ## После арт-пасса ([ADR-0027](../ADR/ADR-0027-art-prep-locks-tool-mount-montages-budget.md), когда назначены меши и монтажи)
 | # | Действие | Ожидание |
 |---|---|---|

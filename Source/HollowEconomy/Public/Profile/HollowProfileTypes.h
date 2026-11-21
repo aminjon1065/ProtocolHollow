@@ -26,7 +26,7 @@ struct HOLLOWECONOMY_API FHollowRaidStats
 	int32 CoresDelivered = 0;
 };
 
-/** One player's meta profile, owned by their machine (ADR-0005). The vertical slice keeps credits and a loadout. */
+/** One player's meta profile, owned by their machine (ADR-0005): credits, the loadout taken into raids, the stash. */
 USTRUCT(BlueprintType)
 struct HOLLOWECONOMY_API FHollowProfile
 {
@@ -37,6 +37,13 @@ struct HOLLOWECONOMY_API FHollowProfile
 
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	TArray<FHollowLoadoutSlot> Loadout;
+
+	/**
+	 * What the player owns outside the loadout (ADR-0031): bought, crafted, taken off the loadout. Never at risk in a
+	 * raid (only the loadout goes into escrow). Stacks of at most the item's MaxStack, one per stash slot.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FHollowItemStack> Stash;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	FHollowRaidStats Stats;
@@ -96,12 +103,16 @@ struct HOLLOWECONOMY_API FHollowProfileState
 
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	bool bReportPending = false;
+
+	/** Ids of the last profile transactions applied (HollowCraftingRules::Apply, ADR-0031): one sent again changes nothing. */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FGuid> RecentTransactions;
 };
 
 /** Pure rules of the profile and its raid escrow (ADR-0005, ADR-0016). Tested by Hollow.Economy.Profile.Escrow. */
 namespace HollowProfileRules
 {
-	/** Applies a resolved delta: credits, lost loadout items, counters. */
+	/** Applies a resolved delta: credits, spent and lost loadout items, spent insurance, counters. */
 	HOLLOWECONOMY_API void Apply(FHollowProfile& Profile, const FHollowProfileDelta& Delta, EHollowRaidOutcome Outcome);
 
 	/**

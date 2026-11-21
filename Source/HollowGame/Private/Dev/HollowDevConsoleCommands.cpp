@@ -773,14 +773,16 @@ namespace HollowDevConsole
 			const FHollowLoadoutSlot& Slot = Profile.Loadout[Index];
 			Loadout += FString::Printf(TEXT(" [%d] %s x%d%s"), Index, *Slot.Item.PrimaryAssetName.ToString(), Slot.Count, Slot.bInsured ? TEXT(" insured") : TEXT(""));
 		}
-		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: %d credits, loadout:%s | escrow %s | raids %d, extractions %d, deaths %d, cores %d"),
-			Profile.Credits, Loadout.IsEmpty() ? TEXT(" -") : *Loadout, Profiles->GetEscrow().IsActive() ? *Profiles->GetEscrow().RaidId.ToString() : TEXT("none"),
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: %d credits, loadout:%s | stash%s | escrow %s | raids %d, extractions %d, deaths %d, cores %d"),
+			Profile.Credits, Loadout.IsEmpty() ? TEXT(" -") : *Loadout, *DescribeStacks(Profile.Stash),
+			Profiles->GetEscrow().IsActive() ? *Profiles->GetEscrow().RaidId.ToString() : TEXT("none"),
 			Profile.Stats.Raids, Profile.Stats.Extractions, Profile.Stats.Deaths, Profile.Stats.CoresDelivered);
 		if (const FHollowRaidReport* Report = Profiles->GetPendingReport())
 		{
-			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: debrief pending: %s, credits %d -> %d, kept%s, lost%s, spent%s, sold%s"),
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: debrief pending: %s, credits %d -> %d, kept%s, insurance used%s, lost%s, spent%s, sold%s"),
 				*HollowEnumToString(Report->Result.Outcome), Report->CreditsBefore, Report->CreditsAfter, *DescribeStacks(Report->Delta.Kept),
-				*DescribeStacks(Report->Delta.Lost), *DescribeStacks(Report->Delta.Spent), *DescribeStacks(Report->Delta.Sold));
+				*DescribeStacks(Report->Delta.InsuranceUsed), *DescribeStacks(Report->Delta.Lost), *DescribeStacks(Report->Delta.Spent),
+				*DescribeStacks(Report->Delta.Sold));
 		}
 	}
 

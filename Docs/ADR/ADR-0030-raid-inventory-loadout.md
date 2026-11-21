@@ -19,7 +19,7 @@
 ## Решение
 1. **Сдача в рейде, по запросу хоста** (уточнение 4).
    - Каждый приход игрока (вход или seamless travel, `AHollowRaidGameMode::GenericPlayerInitialization`) отправляет `Client_RequestLoadout(RaidId)`. Игроков, пришедших до `BeginPlay` рейда (хост после travel), рейд опрашивает на `BeginPlay`.
-   - Машина игрока отвечает `Server_SubmitLoadout(FHollowLoadoutSnapshot{RaidId, Slots})` из профиля (`UHollowProfileSubsystem::GetLoadoutForRaid`). Перед этим незакрытый escrow чужого рейда закрывается как `Abandoned`: потерянное там в новый рейд не попадает.
+   - Машина игрока отвечает `Server_SubmitLoadout(FHollowLoadoutSnapshot{RaidId, Slots})` из профиля (`UHollowProfileSubsystem::GetLoadoutForRaid`). Перед этим незакрытый escrow чужого рейда закрывается как `Abandoned`: потерянное там в новый рейд не попадает. *S5-02: слоты уходят как есть, по одному на слот. Слитый результат проверки (два слота мин как один стек 4) хост обрезал бы до стека; нашёл смоук `economy`, [ADR-0031](ADR-0031-hub-economy-crafting-shop-insurance.md).*
    - `UHollowRaidFlowComponent::AcceptLoadout` принимает лоадаут один раз за рейд, только для этого `RaidId` и только в фазах `Assembling` и `Deploying`. Всё остальное — Warning без кика.
    - Вариант Блока 2 (сдача в хабе и перенос через `CopyProperties`) отклонён:
      - PlayerState при seamless travel пересоздаётся;

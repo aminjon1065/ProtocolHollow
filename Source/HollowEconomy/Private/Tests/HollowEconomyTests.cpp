@@ -90,7 +90,7 @@ bool FHollowResolverExtractionTest::RunTest(const FString& Parameters)
 	FHollowProfile Profile = MakeProfile();
 	HollowProfileRules::Apply(Profile, Delta, EHollowRaidOutcome::Extracted);
 	TestEqual(TEXT("Credits grow by the sale"), Profile.Credits, StartingCredits + Cores * CoreValue);
-	TestTrue(TEXT("The loadout is unchanged, insurance included"), Profile.Loadout == MakeContext().Loadout);
+	TestTrue(TEXT("The loadout is unchanged, insurance included (it saved nothing)"), Profile.Loadout == MakeContext().Loadout && Delta.InsuranceUsed.IsEmpty());
 	TestTrue(TEXT("Counters"), Profile.Stats.Raids == 1 && Profile.Stats.Extractions == 1 && Profile.Stats.Deaths == 0 && Profile.Stats.CoresDelivered == Cores);
 	return true;
 }
@@ -110,11 +110,13 @@ bool FHollowResolverDeathTest::RunTest(const FString& Parameters)
 		TestEqual(What + TEXT(": the uninsured cutter is lost"), CountOf(Delta.Lost, Cutter), 1);
 		TestEqual(What + TEXT(": fuel cannot be insured, even when marked"), CountOf(Delta.Lost, FuelCell), FuelCells);
 		TestTrue(What + TEXT(": the loot is lost, nothing earned"), Delta.Sold.IsEmpty() && Delta.Credits == 0);
+		TestTrue(What + TEXT(": the welder's insurance paid out"), Delta.InsuranceUsed.Num() == 1 && CountOf(Delta.InsuranceUsed, Welder) == 1);
 
 		FHollowProfile Profile = MakeProfile();
 		HollowProfileRules::Apply(Profile, Delta, Outcome);
 		TestEqual(What + TEXT(": credits already earned stay"), Profile.Credits, StartingCredits);
-		TestTrue(What + TEXT(": the loadout keeps the welder only, still insured"), Profile.Loadout.Num() == 1 && Profile.Loadout[0] == Slot(Welder, 1, true));
+		TestTrue(What + TEXT(": the loadout keeps the welder only, its insurance spent (single-use, ADR-0031)"), Profile.Loadout.Num() == 1
+			&& Profile.Loadout[0] == Slot(Welder, 1, false));
 		TestTrue(What + TEXT(": counted as a death"), Profile.Stats.Deaths == 1 && Profile.Stats.Extractions == 0);
 	}
 	return true;

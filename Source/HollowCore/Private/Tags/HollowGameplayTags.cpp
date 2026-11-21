@@ -114,6 +114,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Tool, "Hollow.Item.Type.Tool", "Signature tool (welder, plasma cutter).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Consumable, "Hollow.Item.Type.Consumable", "Consumable (fuel cell, stim).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_AetherCore, "Hollow.Item.Type.AetherCore", "Heavy Aether core: sold to the corporation on extraction.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Material, "Hollow.Item.Type.Material", "Crafting material (S5-02): bought or salvaged, used on the workbench, never taken into a raid.");
 
 	// SetByCaller
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_Damage, "Hollow.Data.Damage", "SetByCaller: damage magnitude.");

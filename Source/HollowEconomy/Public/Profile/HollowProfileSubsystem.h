@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Crafting/HollowCraftingRules.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Profile/HollowProfileTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -22,6 +23,7 @@ class HOLLOWECONOMY_API UHollowProfileSubsystem : public UGameInstanceSubsystem
 
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowRaidReport, const FHollowRaidReport&);
+	DECLARE_MULTICAST_DELEGATE(FOnHollowProfileChanged);
 
 	static UHollowProfileSubsystem* Get(const UObject* WorldContext);
 
@@ -36,9 +38,9 @@ public:
 	const FHollowRaidReport* GetPendingReport() const;
 
 	/**
-	 * What this player takes into raid RaidId (ADR-0030, the host asks while the raid assembles): the loadout as stacks,
-	 * checked by the same rules as on the host. An unresolved escrow of another raid is first resolved as Abandoned,
-	 * so nothing lost there can come along.
+	 * What this player takes into raid RaidId (ADR-0030, the host asks while the raid assembles): the loadout's slots as
+	 * they are (the host checks each one; what it will not take is logged here by the same rules). An unresolved escrow
+	 * of another raid is first resolved as Abandoned, so nothing lost there can come along.
 	 */
 	TArray<FHollowItemStack> GetLoadoutForRaid(const FGuid& RaidId);
 
@@ -50,6 +52,12 @@ public:
 
 	/** The debrief has been seen. */
 	void AcknowledgeReport();
+
+	/**
+	 * A transaction of the hub's shop, workbench or loadout locker (ADR-0031) on this machine's profile, under
+	 * HollowCraftingRules with the project's terms; saved and announced when it applied. Anything else changed nothing.
+	 */
+	EHollowTransactionResult ApplyTransaction(const FHollowProfileTransaction& Transaction);
 
 	/** Development: insure or uninsure a loadout slot (insurance UI comes later). False for a bad slot or an uninsurable item. */
 	bool SetSlotInsured(int32 SlotIndex, bool bInsured);
@@ -65,6 +73,9 @@ public:
 
 	/** A raid was resolved (result, lost host, abandoned escrow). */
 	FOnHollowRaidReport OnRaidReport;
+
+	/** Credits, loadout or stash changed (a transaction, a raid's result, a development edit): the hub's screens refresh. */
+	FOnHollowProfileChanged OnProfileChanged;
 
 private:
 	void Load();

@@ -45,11 +45,15 @@ mkdir -p "${REPORT_DIR}"
 
 echo "Running automation tests '${FILTER}' (timeout ${TIMEOUT_SEC}s) -> ${RUN_DIR}"
 EDITOR_EXIT=0
+# -LogCmds: the 5.8 editor's home screen checks the internet every 5 s (https://www.google.com/generate_204); on a slow
+# network its LogHttp retry warning lands in whatever test runs then and fails --strict (KnownIssues E-6). The project
+# makes no HTTP requests, so only that category is quietened.
 hollow_run_with_timeout "${TIMEOUT_SEC}" "${RUN_DIR}/Console.txt" \
 	"${HOLLOW_EDITOR_CMD}" "${HOLLOW_UPROJECT}" \
 	-ExecCmds="Automation RunTests ${FILTER}; Quit" \
 	-TestExit="Automation Test Queue Empty" \
 	-unattended -nullrhi -nosplash -nosound -nop4 \
+	-LogCmds="LogHttp Error" \
 	-abslog="${EDITOR_LOG}" \
 	-ReportExportPath="${REPORT_DIR}" || EDITOR_EXIT=$?
 if [[ ${EDITOR_EXIT} -eq ${HOLLOW_TIMEOUT_EXIT} ]]; then

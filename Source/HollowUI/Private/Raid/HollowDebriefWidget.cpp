@@ -58,11 +58,13 @@ FText UHollowDebriefWidget::GetDetails() const
 	Args.Add(TEXT("Kept"), DescribeItems(Report.Delta.Kept));
 	Args.Add(TEXT("Lost"), DescribeItems(Report.Delta.Lost));
 	Args.Add(TEXT("Used"), DescribeItems(Report.Delta.Spent));
+	Args.Add(TEXT("Insured"), DescribeItems(Report.Delta.InsuranceUsed));
 	return FText::Format(LOCTEXT("Details",
 		"Aboard the shuttle: {Aboard} of {Squad}    Raid time: {Minutes}:{Seconds}\n"
 		"Delivered: {Sold} (+{Earned} cr)\n"
 		"Credits: {Before} -> {After}\n"
 		"Kept: {Kept}\n"
+		"Insurance used: {Insured}\n"
 		"Used: {Used}\n"
 		"Lost: {Lost}"), Args);
 }

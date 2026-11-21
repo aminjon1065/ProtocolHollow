@@ -6,6 +6,8 @@
 
 #include "HollowEconomySettings.generated.h"
 
+class UHollowEconomyConfig;
+
 /** Local profile settings (Project Settings > Game > Hollow Economy, DefaultGame.ini). */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Hollow Economy"))
 class HOLLOWECONOMY_API UHollowEconomySettings : public UDeveloperSettings
@@ -26,6 +28,14 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "New profile")
 	TArray<FHollowLoadoutSlot> StartingLoadout;
+
+	/** A new profile's stash (ADR-0031): enough materials for a first craft. */
+	UPROPERTY(Config, EditAnywhere, Category = "New profile")
+	TArray<FHollowItemStack> StartingStash;
+
+	/** The hub economy: shop, sell and insurance prices, stash size (DA_EconomyConfig). */
+	UPROPERTY(Config, EditAnywhere, Category = "Hub")
+	TSoftObjectPtr<UHollowEconomyConfig> EconomyConfig;
 
 	/** The most loadout slots a raid accepts (ADR-0030): later ones are dropped. */
 	UPROPERTY(Config, EditAnywhere, Category = "Loadout", meta = (ClampMin = "1"))

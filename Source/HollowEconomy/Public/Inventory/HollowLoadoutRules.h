@@ -58,7 +58,10 @@ namespace HollowLoadoutRules
 	/** Validate with UHollowEconomySettings and the slots' item definitions (loaded synchronously: tiny data assets). */
 	HOLLOWECONOMY_API TArray<FHollowItemStack> ValidateForRaid(TConstArrayView<FHollowItemStack> Slots, TArray<FHollowLoadoutIssue>* OutIssues = nullptr);
 
-	/** A profile's loadout as the stacks a snapshot sends. */
+	/**
+	 * A profile's loadout as the stacks a snapshot sends: one per slot, never merged (Validate's result merges the slots
+	 * of one item, and a merged stack over MaxStack would be cut down when checked again).
+	 */
 	HOLLOWECONOMY_API TArray<FHollowItemStack> ToStacks(TConstArrayView<FHollowLoadoutSlot> Loadout);
 
 	/** "DA_Item_Welder x1, DA_Item_FuelCell x3" ("none" if empty), for logs. */

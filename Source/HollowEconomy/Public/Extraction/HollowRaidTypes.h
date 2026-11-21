@@ -88,4 +88,8 @@ struct HOLLOWECONOMY_API FHollowProfileDelta
 	/** Loadout items used up in the raid: taken from the profile whatever the outcome (never more than the loadout held). */
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	TArray<FHollowItemStack> Spent;
+
+	/** Insured items kept although the player did not come back (ADR-0031): their slots' insurance is spent. */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> InsuranceUsed;
 };

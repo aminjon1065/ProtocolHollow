@@ -71,11 +71,15 @@ if (-not $NoBuild) {
 }
 
 # Start-Process joins arguments verbatim, so values with spaces are quoted here.
+# -LogCmds: the 5.8 editor's home screen checks the internet every 5 s (https://www.google.com/generate_204); on a slow
+# network its LogHttp retry warning lands in whatever test runs then and fails -Strict (KnownIssues E-6). The project
+# makes no HTTP requests, so only that category is quietened.
 $EditorArgs = @(
     "`"$UProject`"",
     "-ExecCmds=`"Automation RunTests $Filter; Quit`"",
     '-TestExit="Automation Test Queue Empty"',
     '-unattended', '-nullrhi', '-nosplash', '-nosound', '-nop4',
+    '-LogCmds="LogHttp Error"',
     "-abslog=`"$EditorLog`"",
     "-ReportExportPath=`"$ReportDir`""
 ) -join ' '

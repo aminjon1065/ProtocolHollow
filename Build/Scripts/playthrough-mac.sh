@@ -21,13 +21,16 @@
 #          the client dies, the host extracts with the core. Every carrier logs its corrections (p.NetShowCorrections).
 #   carrysolo  ADR-0015 investigation: host + 1 headless client behind --net; the client walks 2 rooms carrying the core
 #          alone, then 2 rooms without it (the control), logging corrections.
+#   economy  S5-02 hub economy (ADR-0031), one process: in the hub a refused craft (one shard short), a shard bought, two
+#          pulse mines and a fuel cell crafted, the mines equipped, the cutter insured, the cell sold; in the raid a
+#          transaction refused, then the player dies: the insured welder and cutter come home, their insurance spent.
 #   loadout  S5-01 raid inventory (ADR-0030): host + 1 headless client behind --net, the client's profile without pulse
 #          mines; both dump their inventories; the client presses G (no mine), the host lays one; the client burns fuel
 #          with the cutter, refuels (R: one cell) and presses R again on a full tank (refused); both extract; the
 #          profiles show what was spent.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -36,7 +39,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout ]] || { sed -n '2,31p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy ]] || { sed -n '2,34p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -206,6 +209,30 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 118 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 119 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	economy)
+		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
+		h "Hollow.Dev.RunAfter 10 Hollow.Profile.Dump"
+		h "Hollow.Dev.RunAfter 10.5 Hollow.Shop.Dump"
+		h "Hollow.Dev.RunAfter 11 Hollow.Craft.Make DA_Recipe_PulseMine 2"           # one shard in the stash: refused, nothing taken
+		h "Hollow.Dev.RunAfter 11.5 Hollow.Shop.Buy DA_Item_AetherShard 1"
+		h "Hollow.Dev.RunAfter 12 Hollow.Craft.Make DA_Recipe_PulseMine 2"           # 6 scrap, 2 shards, 20 cr
+		h "Hollow.Dev.RunAfter 12.5 Hollow.Shop.Buy DA_Item_Scrap 2"
+		h "Hollow.Dev.RunAfter 13 Hollow.Craft.Make DA_Recipe_FuelCell 1"
+		h "Hollow.Dev.RunAfter 13.5 Hollow.Profile.Equip DA_Item_PulseMine 2"        # onto the 2 mines: a full slot and a new one
+		h "Hollow.Dev.RunAfter 14 Hollow.Shop.Insure 1"                              # the cutter (the welder came insured)
+		h "Hollow.Dev.RunAfter 14.5 Hollow.Shop.Sell DA_Item_FuelCell 1"
+		h "Hollow.Dev.RunAfter 15 Hollow.Craft.Dump"
+		h "Hollow.Dev.RunAfter 15.5 Hollow.Profile.Dump"
+		h "$(key 18 Escape)"; h "$(key 19 $DOWN)"; h "$(key 20 $PRESS)"               # system menu: Resume -> Start raid
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Inventory.Dump"
+		h "Hollow.Dev.RunInRaid 4 Hollow.Shop.Buy DA_Item_Scrap 1"                   # the loadout is in escrow: refused
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.Kill"
+		h "Hollow.Dev.RunInRaid 40 Hollow.Profile.Dump"                              # back in the hub after the debrief
+		h "Hollow.Dev.RunInRaid 41 Hollow.Shop.Dump"
+		h "Hollow.Dev.RunInRaid 42 Hollow.UI.Dump"
+		END='Hollow[.]UI[.]Dump: layer'
+		;;
 	loadout)
 		C1+=("Hollow.Profile.SetSlot DA_Item_PulseMine 0")                           # before the raid: client 1 brings no mines
 		h "$(key 6 $PRESS)"
@@ -247,9 +274,9 @@ case "$MODE" in
 esac
 join() { local IFS=','; echo "$*"; }
 
-if [[ "$MODE" == solo ]]; then
+if [[ "$MODE" == solo || "$MODE" == economy ]]; then
 	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
-	wait_for "$OUT/Host.log" "$END" 400 || echo "the solo playthrough did not finish"
+	wait_for "$OUT/Host.log" "$END" 400 || echo "the $MODE playthrough did not finish"
 else
 	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" 'listening on port' 240 || { echo "the host never listened"; exit 1; }
@@ -279,7 +306,7 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot" "$log" | grep -v "Command Line\|commandline" | strip | head -90
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as" "$log" | grep -v "Command Line\|commandline" | strip | head -90
 done
 echo "===== errors, ensures, crashes"
 { grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log || true; } | strip | sort | uniq -c | sort -rn | head -30   # none is no failure

@@ -27,6 +27,17 @@ namespace HollowProfileRules
 			}
 		}
 		Profile.Loadout.RemoveAll([](const FHollowLoadoutSlot& Slot) { return Slot.Count <= 0; });
+		// Insurance is single-use (ADR-0031): what it saved, it no longer covers.
+		for (const FHollowItemStack& Saved : Delta.InsuranceUsed)
+		{
+			for (FHollowLoadoutSlot& Slot : Profile.Loadout)
+			{
+				if (Slot.bInsured && Slot.Item == Saved.Item)
+				{
+					Slot.bInsured = false;
+				}
+			}
+		}
 
 		++Profile.Stats.Raids;
 		Profile.Stats.Extractions += Outcome == EHollowRaidOutcome::Extracted ? 1 : 0;

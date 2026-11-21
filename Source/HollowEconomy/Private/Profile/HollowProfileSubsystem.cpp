@@ -71,12 +71,15 @@ TArray<FHollowItemStack> UHollowProfileSubsystem::GetLoadoutForRaid(const FGuid&
 		HandleReport(HollowProfileRules::ResolveEscrow(State, EHollowRaidOutcome::Abandoned, FDateTime::UtcNow(),
 			FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State))), TEXT("a new raid asks for the loadout before the last one was resolved"));
 	}
+	// The snapshot carries the slots as they are: the host checks every slot against its stack, so a merged result (two
+	// slots of one item as one) would be cut down there. The same rules here only tell what the host will not take.
+	TArray<FHollowItemStack> Slots = HollowLoadoutRules::ToStacks(State.Profile.Loadout);
 	TArray<FHollowLoadoutIssue> Issues;
-	TArray<FHollowItemStack> Loadout = HollowLoadoutRules::ValidateForRaid(HollowLoadoutRules::ToStacks(State.Profile.Loadout), &Issues);
+	HollowLoadoutRules::ValidateForRaid(Slots, &Issues);
 	UE_CLOG(!Issues.IsEmpty(), LogHollowEconomy, Warning, TEXT("Profile: loadout for raid %s not taken as it is: %s"), *RaidId.ToString(),
 		*HollowLoadoutRules::Describe(Issues));
-	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: loadout for raid %s: %s"), *RaidId.ToString(), *HollowLoadoutRules::Describe(Loadout));
-	return Loadout;
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: loadout for raid %s: %s"), *RaidId.ToString(), *HollowLoadoutRules::Describe(Slots));
+	return Slots;
 }
 
 void UHollowProfileSubsystem::BeginRaid(const FGuid& RaidId)
@@ -103,6 +106,21 @@ void UHollowProfileSubsystem::ApplyRaidResult(const FHollowRaidResult& Result)
 	HandleReport(Report, TEXT("host's result"));
 }
 
+EHollowTransactionResult UHollowProfileSubsystem::ApplyTransaction(const FHollowProfileTransaction& Transaction)
+{
+	FHollowProfileState& State = Save->State;
+	const int32 CreditsBefore = State.Profile.Credits;
+	const EHollowTransactionResult Result = HollowCraftingRules::Apply(State, Transaction, FHollowEconomyTerms::Load(State, &Transaction));
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: %s -> %s (credits %d -> %d)"), *Transaction.Describe(), *HollowEnumToString(Result), CreditsBefore,
+		State.Profile.Credits);
+	if (Result == EHollowTransactionResult::Applied)
+	{
+		Persist();
+		OnProfileChanged.Broadcast();
+	}
+	return Result;
+}
+
 void UHollowProfileSubsystem::AcknowledgeReport()
 {
 	if (Save->State.bReportPending)
@@ -126,6 +144,7 @@ bool UHollowProfileSubsystem::SetSlotInsured(const int32 SlotIndex, const bool b
 	}
 	Slot.bInsured = bInsured;
 	Persist();
+	OnProfileChanged.Broadcast();
 	return true;
 }
 
@@ -153,6 +172,7 @@ bool UHollowProfileSubsystem::SetLoadoutSlot(const FPrimaryAssetId& Item, const 
 		Slot->bInsured = bInsured && Catalog.IsInsurable(Item);
 	}
 	Persist();
+	OnProfileChanged.Broadcast();
 	return true;
 }
 
@@ -160,6 +180,7 @@ void UHollowProfileSubsystem::ResetProfile()
 {
 	MakeNewProfile();
 	Persist();
+	OnProfileChanged.Broadcast();
 }
 
 void UHollowProfileSubsystem::Load()
@@ -186,7 +207,9 @@ void UHollowProfileSubsystem::MakeNewProfile()
 	Save->State = FHollowProfileState();
 	Save->State.Profile.Credits = Settings->StartingCredits;
 	Save->State.Profile.Loadout = Settings->StartingLoadout;
-	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: new profile with %d credits and %d loadout slots"), Settings->StartingCredits, Settings->StartingLoadout.Num());
+	Save->State.Profile.Stash = Settings->StartingStash;
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: new profile with %d credits, %d loadout slots and %d stash stacks"), Settings->StartingCredits,
+		Settings->StartingLoadout.Num(), Settings->StartingStash.Num());
 }
 
 void UHollowProfileSubsystem::Persist() const
@@ -202,11 +225,12 @@ void UHollowProfileSubsystem::HandleReport(const TOptional<FHollowRaidReport>& R
 	{
 		return;
 	}
-	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: raid %s resolved as %s (%s): credits %d -> %d, %d item(s) kept, %d lost, %d sold"),
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: raid %s resolved as %s (%s): credits %d -> %d, %d item(s) kept, %d lost, %d sold, %d insurance(s) used"),
 		*Report->Result.RaidId.ToString(), *HollowEnumToString(Report->Result.Outcome), Why, Report->CreditsBefore, Report->CreditsAfter,
-		Report->Delta.Kept.Num(), Report->Delta.Lost.Num(), Report->Delta.Sold.Num());
+		Report->Delta.Kept.Num(), Report->Delta.Lost.Num(), Report->Delta.Sold.Num(), Report->Delta.InsuranceUsed.Num());
 	Persist();
 	OnRaidReport.Broadcast(Report.GetValue());
+	OnProfileChanged.Broadcast();
 }
 
 void UHollowProfileSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, const ENetworkFailure::Type FailureType, const FString& ErrorString)

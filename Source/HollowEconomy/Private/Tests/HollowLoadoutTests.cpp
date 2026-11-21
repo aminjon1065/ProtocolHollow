@@ -133,6 +133,14 @@ bool FHollowLoadoutSyncValidateTest::RunTest(const FString& Parameters)
 	const TArray<FHollowItemStack> FromProfile = HollowLoadoutRules::ToStacks(MakeLoadout());
 	TestTrue(TEXT("A profile's loadout as stacks, slot by slot"), FromProfile.Num() == 4 && CountOf(FromProfile, FuelCell) == 3 && CountOf(FromProfile, Mine) == 2);
 	TestTrue(TEXT("A valid loadout passes untouched"), HollowLoadoutRules::Validate(FromProfile, MakeCatalog(), RaidTypes(), MaxSlots) == FromProfile);
+
+	// Two slots of one item (S5-02: equipping onto a full slot opens a second one): the snapshot sends both, the raid takes
+	// both. Their merged result, checked again, would be over the stack: it is never what is sent.
+	const TArray<FHollowItemStack> Split = HollowLoadoutRules::ToStacks({Slot(Mine, MineStack, false), Slot(Mine, 1, false)});
+	TArray<FHollowLoadoutIssue> SplitIssues;
+	const TArray<FHollowItemStack> Taken = HollowLoadoutRules::Validate(Split, MakeCatalog(), RaidTypes(), MaxSlots, &SplitIssues);
+	TestTrue(TEXT("Two slots of mines: both go in"), Split.Num() == 2 && SplitIssues.IsEmpty() && CountOf(Taken, Mine) == MineStack + 1);
+	TestTrue(TEXT("...their merged stack would be cut down"), CountOf(HollowLoadoutRules::Validate(Taken, MakeCatalog(), RaidTypes(), MaxSlots), Mine) == MineStack);
 	return true;
 }
 
@@ -165,7 +173,7 @@ bool FHollowLoadoutSyncResolveTest::RunTest(const FString& Parameters)
 		&& CountOf(Dead.Lost, FuelCell) == 1 && CountOf(Dead.Lost, Mine) == 0);
 	Profile.Loadout = MakeLoadout();
 	HollowProfileRules::Apply(Profile, Dead, EHollowRaidOutcome::Dead);
-	TestTrue(TEXT("...the profile keeps the welder"), Profile.Loadout.Num() == 1 && Profile.Loadout[0] == Slot(Welder, 1, true));
+	TestTrue(TEXT("...the profile keeps the welder, its insurance spent"), Profile.Loadout.Num() == 1 && Profile.Loadout[0] == Slot(Welder, 1, false));
 
 	// The host's result carries the spending through the escrow; a lost host spends nothing.
 	const FDateTime Now(2026, 11, 21, 12, 0, 0);

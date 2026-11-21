@@ -53,8 +53,12 @@ FHollowProfileDelta FHollowExtractionResolver::Resolve(const FHollowRaidContext&
 			*Spend -= Spent;
 		}
 		AddStack(Delta.Spent, Slot.Item, Spent);
-		const bool bKept = bKeepAll || (Slot.bInsured && Catalog.IsInsurable(Slot.Item));
-		AddStack(bKept ? Delta.Kept : Delta.Lost, Slot.Item, Slot.Count - Spent);
+		const bool bSavedByInsurance = !bKeepAll && Slot.bInsured && Catalog.IsInsurable(Slot.Item);
+		AddStack(bKeepAll || bSavedByInsurance ? Delta.Kept : Delta.Lost, Slot.Item, Slot.Count - Spent);
+		if (bSavedByInsurance)
+		{
+			AddStack(Delta.InsuranceUsed, Slot.Item, Slot.Count - Spent);
+		}
 	}
 	if (KeepsLoot(Outcome))
 	{
