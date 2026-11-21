@@ -4,6 +4,7 @@
 #include "Misc/CoreMisc.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Crafting/HollowShipUpgradeDefinition.h"
 #include "HollowEconomyLog.h"
 #include "Inventory/HollowLoadoutRules.h"
 #include "Items/HollowItemTypes.h"
@@ -99,8 +100,9 @@ void UHollowProfileSubsystem::BeginRaid(const FGuid& RaidId)
 void UHollowProfileSubsystem::ApplyRaidResult(const FHollowRaidResult& Result)
 {
 	FHollowProfileState& State = Save->State;
+	const int32 CoreValuePercent = HollowCraftingRules::SumEffects(State.Profile.Upgrades, UHollowShipUpgradeDefinition::LoadAllById()).CoreValuePercent;
 	const TOptional<FHollowRaidReport> Report = HollowProfileRules::ApplyResult(State, Result,
-		FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State, &Result)));
+		FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State, &Result)), CoreValuePercent);
 	UE_CLOG(!Report, LogHollowEconomy, Warning, TEXT("Profile: result for raid %s ignored (escrow %s)"), *Result.RaidId.ToString(),
 		*State.Escrow.RaidId.ToString());
 	HandleReport(Report, TEXT("host's result"));

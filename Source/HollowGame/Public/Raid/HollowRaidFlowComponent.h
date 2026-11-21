@@ -51,6 +51,10 @@ public:
 	EHollowRaidOutcome GetOutcome(const AController* Player) const;
 	const FGuid& GetRaidId() const { return RaidId; }
 
+	/** The contract the hub sent the squad on (ADR-0032; the sector is still UHollowSectorSettings::RaidSector until S7-04). */
+	void SetContract(const FPrimaryAssetId& InContract) { Contract = InContract; }
+	const FPrimaryAssetId& GetContract() const { return Contract; }
+
 	/** Development: one line about the flow. */
 	FString Describe() const;
 
@@ -74,6 +78,7 @@ private:
 	void UpdateState(EHollowRaidPhase Phase, float PhaseEndServerTime, int32 LivingInZone, int32 CoresInZone);
 
 	FGuid RaidId;
+	FPrimaryAssetId Contract;
 	double StartTime = 0.0;
 	TMap<TWeakObjectPtr<AController>, EHollowRaidOutcome> Outcomes;
 	/** Players whose loadout this raid took. */

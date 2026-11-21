@@ -58,8 +58,10 @@ REDUCED_FLASHES = "ReducedFlashes"
 
 BIG_ROOM = {"max_lights": 6, "max_shadowed": 2, "max_shadowed_flickering": 1, "max_light_functions": 3, "max_volumetric_shadows": 1, "pass_through": False}
 PASS_THROUGH = {"max_lights": 3, "max_shadowed": 0, "max_shadowed_flickering": 0, "max_light_functions": 2, "max_volumetric_shadows": 0, "pass_through": True}
+# The hub shuttle (S5-03 clarification 4): calm, no flicker; not a sector room (create_hub_assets.py lights it).
+HUB = {"max_lights": 8, "max_shadowed": 2, "max_shadowed_flickering": 0, "max_light_functions": 0, "max_volumetric_shadows": 1, "pass_through": False}
 BUDGET_ROOMS = {"Spawn": BIG_ROOM, "Extraction": BIG_ROOM, "CoreVault": BIG_ROOM, "Hangar": BIG_ROOM, "Storage": BIG_ROOM,
-                "Corridor": PASS_THROUGH, "Junction": PASS_THROUGH}
+                "Corridor": PASS_THROUGH, "Junction": PASS_THROUGH, "Hub": HUB}
 MAX_SHADOWED_IN_VIEW = 4      # Block 3 sec. 3.9 (RTX 3060)
 
 # ---------------------------------------------------------------- materials (data)

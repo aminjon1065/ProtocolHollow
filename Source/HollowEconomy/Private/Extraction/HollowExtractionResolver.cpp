@@ -1,5 +1,7 @@
 #include "Extraction/HollowExtractionResolver.h"
 
+#include "Tags/HollowGameplayTags.h"
+
 namespace HollowExtractionPrivate
 {
 	void AddStack(TArray<FHollowItemStack>& Stacks, const FPrimaryAssetId& Item, const int32 Count)
@@ -62,10 +64,14 @@ FHollowProfileDelta FHollowExtractionResolver::Resolve(const FHollowRaidContext&
 	}
 	if (KeepsLoot(Outcome))
 	{
+		constexpr int64 PercentBase = 100;
 		for (const FHollowItemStack& Stack : Context.Loot)
 		{
 			AddStack(Delta.Sold, Stack.Item, Stack.Count);
-			Delta.Credits += Catalog.GetValue(Stack.Item) * FMath::Max(Stack.Count, 0);
+			const int64 Value = static_cast<int64>(Catalog.GetValue(Stack.Item)) * FMath::Max(Stack.Count, 0);
+			const bool bCore = Catalog.GetItemType(Stack.Item).MatchesTag(HollowTags::Item_Type_AetherCore);
+			const int64 Earned = bCore ? Value * (PercentBase + FMath::Max(Context.CoreValuePercent, 0)) / PercentBase : Value;
+			Delta.Credits += static_cast<int32>(FMath::Min<int64>(Earned, MAX_int32));
 		}
 	}
 	return Delta;

@@ -5,7 +5,8 @@
 /**
  * Turns one player's raid into the change to their profile (Docs/Architecture/02 sec. 2.5, ADR-0005, ADR-0016).
  * Pure, runs on the player's own machine. Tested by Hollow.Economy.Resolver.*:
- * - Extracted: the whole loadout is kept and the loot is sold (each extracted player gets the full squad loot).
+ * - Extracted: the whole loadout is kept and the loot is sold (each extracted player gets the full squad loot); Aether
+ *   cores bring Context.CoreValuePercent more (ship upgrades, ADR-0032).
  * - Dead, MissingInAction, Abandoned: only insured slots of insurable items are kept, the loot is lost; the insurance
  *   of those slots is spent (InsuranceUsed, ADR-0031).
  * - SignalLost: the loadout is kept, the loot is lost.

@@ -62,6 +62,8 @@ struct FHollowRaidContext
 	TArray<FHollowItemStack> Loot;
 	/** Loadout items used up in the raid (FHollowRaidResult::Spent; none without the host's result). */
 	TArray<FHollowItemStack> Spent;
+	/** Extra percent of their value sold Aether cores bring (the owned ship upgrades, ADR-0032). */
+	int32 CoreValuePercent = 0;
 };
 
 /** The change a raid makes to one profile (FHollowExtractionResolver), and its explanation for the debrief. */

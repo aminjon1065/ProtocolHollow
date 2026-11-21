@@ -11,12 +11,21 @@ class UWorld;
  */
 namespace HollowRaidLauncher
 {
+	/** The travel URL option that names the raid's contract (ADR-0032). */
+	inline constexpr const TCHAR* ContractOption = TEXT("Contract");
+
 	/** Whether Package (a long package name) is the hub map (UHollowNetworkSettings::HubMap). */
 	HOLLOWGAME_API bool IsHubMap(const FString& Package);
 
 	/** Whether this machine may send the squad into a raid now: it hosts (solo or co-op) and stands in the hub. */
 	HOLLOWGAME_API bool CanStartRaid(const UWorld* World);
 
-	/** Travels the session to the raid map with Seed (a random one if unset). False on a client or without a raid map. */
+	/**
+	 * Travels the session to the raid map with Seed (a random one if unset) and the hub's selected contract. False on a
+	 * client or without a raid map.
+	 */
 	HOLLOWGAME_API bool Travel(UWorld* World, TOptional<int32> Seed = {});
+
+	/** The raid map's travel URL for SectorSeed and the hub's selected contract (empty without a raid map). */
+	HOLLOWGAME_API FString MakeTravelUrl(const UWorld* World, int32 SectorSeed);
 }

@@ -6,6 +6,7 @@
 
 #include "HollowPlayerController.generated.h"
 
+class AHollowHubTerminal;
 class UHollowVoiceComponent;
 
 /**
@@ -43,6 +44,14 @@ public:
 	 */
 	UFUNCTION(Server, Reliable)
 	void Server_SubmitLoadout(const FHollowLoadoutSnapshot& Loadout);
+
+	/** The server validated this player's use of a hub terminal (ADR-0032): this machine opens it (UHollowHubTerminalSubsystem). */
+	UFUNCTION(Client, Reliable)
+	void Client_OpenTerminal(AHollowHubTerminal* Terminal);
+
+	/** The host picks the squad's contract (ADR-0032); anyone else is refused softly. */
+	UFUNCTION(Server, Reliable)
+	void Server_SelectContract(const FPrimaryAssetId& Contract);
 
 protected:
 	virtual void BeginPlay() override;

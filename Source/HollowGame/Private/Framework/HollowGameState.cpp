@@ -1,6 +1,7 @@
 #include "Framework/HollowGameState.h"
 
 #include "Assembly/HollowSectorStateComponent.h"
+#include "Hub/HollowHubStateComponent.h"
 #include "Raid/HollowRaidStateComponent.h"
 #include "Resonance/HollowSquadResonanceComponent.h"
 #include "Sector/HollowSectorLoaderComponent.h"
@@ -14,6 +15,7 @@ AHollowGameState::AHollowGameState(const FObjectInitializer& ObjectInitializer)
 	SectorLoader = CreateDefaultSubobject<UHollowSectorLoaderComponent>(TEXT("SectorLoader"));
 	RaidState = CreateDefaultSubobject<UHollowRaidStateComponent>(TEXT("RaidState"));
 	SquadResonance = CreateDefaultSubobject<UHollowSquadResonanceComponent>(TEXT("SquadResonance"));
+	HubState = CreateDefaultSubobject<UHollowHubStateComponent>(TEXT("HubState"));
 }
 
 void AHollowGameState::AddPlayerState(APlayerState* PlayerState)
