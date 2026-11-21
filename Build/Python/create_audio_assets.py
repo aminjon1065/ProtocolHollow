@@ -11,6 +11,7 @@
 
 MetaSounds and levels keep a hash of their spec (asset metadata, or a marker actor in a level): a MetaSound is rebuilt and
 a level re-saved only when its spec changes - every save is a new LFS object.
+A room level art-locked on its definition (bArtLocked, ADR-0027: finished by hand) is never touched; the tests still check it.
 Run after create_lighting_assets.py:  Build/Scripts/run-editor-python.sh Build/Python/create_audio_assets.py
 """
 import hashlib
@@ -592,7 +593,17 @@ def tags_of(actor):
     return [str(t) for t in actor.get_editor_property("tags")]
 
 
+def art_locked(room):
+    """ADR-0027: a room level finished by hand (bArtLocked on its definition) is never touched; the tests still check it."""
+    if room.get_editor_property("art_locked"):
+        log("%s: art-locked, level kept as is" % room.get_name())
+        return True
+    return False
+
+
 def ensure_room(room, reverbs, sounds):
+    if art_locked(room):
+        return False
     spec = acoustics_spec(room)
     wanted = digest(spec)
     level_path = room.get_editor_property("room_level").get_path_name().split(".")[0]

@@ -2,7 +2,6 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "Algo/Count.h"
 #include "Components/LightComponent.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
@@ -62,8 +61,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLightRoomBudgetsTest, "Hollow.Game.Light
 
 bool FHollowLightRoomBudgetsTest::RunTest(const FString& Parameters)
 {
-	// Every Docks room level within its type's budget (DA_LightBudget, ADR-0021); every room has its emergency light;
-	// the hero room's rig: two shadowed panels (one of them failing), and the shipped limits keep a view within 4 shadowed.
+	// Every Docks room level within its type's budget (DA_LightBudget, ADR-0021), art-locked ones too (ADR-0027); every
+	// room has its emergency light; the hero room's rig (HollowLightBudget::CheckHeroRig); the shipped limits keep a view
+	// within 4 shadowed.
 	using namespace HollowLightingTests;
 	const UHollowLightBudgetConfig* Budget = UHollowLightBudgetConfig::Get();
 	const UMaterialInterface* Emergency = LoadObject<UMaterialInterface>(nullptr, EmergencyFunction);
@@ -93,10 +93,10 @@ bool FHollowLightRoomBudgetsTest::RunTest(const FString& Parameters)
 			!Lights.ContainsByPredicate([](const ULightComponent* Light) { return Light->Mobility != EComponentMobility::Movable; }));
 		if (Room->GetName() == HeroRoom)
 		{
-			const TArray<FHollowLightInfo> Info = HollowLightBudget::CollectLevel(*Level->PersistentLevel);
-			TestEqual(TEXT("Hero room: two shadowed panels"), static_cast<int32>(Algo::CountIf(Info, [](const FHollowLightInfo& L) { return L.bShadowed; })), 2);
-			TestEqual(TEXT("...one of them failing (shadowed and flickering)"),
-				static_cast<int32>(Algo::CountIf(Info, [](const FHollowLightInfo& L) { return L.bShadowed && L.bLightFunction; })), 1);
+			// The scripted rig: two shadowed panels, one failing; lit by hand (art-locked, ADR-0027): at least the failing one.
+			const TArray<FString> Rig = HollowLightBudget::CheckHeroRig(HollowLightBudget::CollectLevel(*Level->PersistentLevel), Room->IsArtLocked());
+			TestTrue(FString::Printf(TEXT("Hero room rig%s%s%s"), Room->IsArtLocked() ? TEXT(" (art-locked)") : TEXT(""), Rig.IsEmpty() ? TEXT("") : TEXT(": "),
+				*FString::Join(Rig, TEXT("; "))), Rig.IsEmpty());
 		}
 	}
 	return true;

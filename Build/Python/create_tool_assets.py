@@ -6,6 +6,8 @@
   /Game/Hollow/GAS/Cues/GCN_Tool_Beam                               greybox beam cue (GameplayCue.Hollow.Tool.Beam)
   /Game/Hollow/World/Interactables/BP_ToolTestTarget                 dev target, placed between the hub's player starts
   DA_AbilitySet_ExoFrame                                            both tools (Cutter: PrimaryUse, Welder: SecondaryUse) + cooling
+  BP_ExoFrame                                                       the cutter in hand at spawn (UHollowToolMountComponent, ADR-0027;
+                                                                    held meshes and muzzle sockets are DA_Tool_* data of the art pass)
 
 Creates or adds only what is missing, then validates.
 Run after create_exoframe_assets.py and create_gas_assets.py:
@@ -23,6 +25,8 @@ INPUT_CONFIG_PATH = "/Game/Hollow/Core/Input/DA_InputConfig_Raid"
 EFFECTS_DIR = "/Game/Hollow/GAS/Effects"
 CUE_PATH = "/Game/Hollow/GAS/Cues/GCN_Tool_Beam"
 ABILITY_SET_PATH = "/Game/Hollow/Characters/ExoFrame/DA_AbilitySet_ExoFrame"
+EXOFRAME_BP = "/Game/Hollow/Characters/ExoFrame/BP_ExoFrame"
+DEFAULT_HELD_TOOL = "/Game/Hollow/Tools/PlasmaCutter/DA_Tool_PlasmaCutter"
 TARGET_BP_PATH = "/Game/Hollow/World/Interactables/BP_ToolTestTarget"
 HUB_MAP = "/Game/Hollow/Maps/L_Hub_Dev"
 
@@ -339,6 +343,17 @@ def check(condition, message):
         raise RuntimeError("validation failed: " + message)
 
 
+def ensure_tool_mount():
+    """ADR-0027: the tool the ExoFrame holds before it uses one (its mesh, if any, is the tool's data)."""
+    exo_bp = load(EXOFRAME_BP)
+    mount = unreal.get_default_object(exo_bp.generated_class()).get_editor_property("tool_mount")
+    tool = load(DEFAULT_HELD_TOOL)
+    if mount.get_editor_property("default_tool") != tool:
+        mount.set_editor_property("default_tool", tool)
+        save(exo_bp)
+        log("BP_ExoFrame: holds DA_Tool_PlasmaCutter at spawn")
+
+
 def validate(abilities, expected_targets):
     config = load(INPUT_CONFIG_PATH).get_editor_property("ability_actions")
     for _, tag_name, _ in ABILITY_INPUTS:
@@ -348,6 +363,8 @@ def validate(abilities, expected_targets):
         check(any(e.get_editor_property("ability") == ability_class for e in granted), "ability set grants " + ability_class.get_name())
     cue = unreal.get_default_object(load(CUE_PATH).generated_class())
     check(same_tag(cue.get_editor_property("gameplay_cue_tag"), make_tag("GameplayCue.Hollow.Tool.Beam")), "beam cue tag")
+    mount = unreal.get_default_object(load(EXOFRAME_BP).generated_class()).get_editor_property("tool_mount")
+    check(mount.get_editor_property("default_tool") == load(DEFAULT_HELD_TOOL), "BP_ExoFrame holds the cutter at spawn")
     targets = [a for a in actors.get_all_level_actors() if isinstance(a, unreal.HollowToolTestTarget)]
     check(len(targets) >= expected_targets, "tool targets in L_Hub_Dev")
     log("validation passed")
@@ -364,6 +381,7 @@ def main():
     abilities = [(ensure_tool(spec, effects), spec["input"]) for spec in TOOLS.values()]
     ensure_ability_set(abilities, cooling)
     ensure_cue()
+    ensure_tool_mount()
     validate(abilities, ensure_target())
     unreal.log(SUCCESS_MARKER)
 

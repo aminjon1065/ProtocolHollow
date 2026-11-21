@@ -13,7 +13,8 @@ class UStaticMeshComponent;
 
 /**
  * Looping beam of a continuous tool (GameplayCue.Hollow.Tool.Beam), purely cosmetic and local to every machine: a
- * stretched mesh from the wielder's muzzle to its own trace hit, plus a glow at the hit. Remote wielders aim with
+ * stretched mesh from the wielder's muzzle (the held tool's, UHollowToolMountComponent; else MuzzleOffset) to its own
+ * trace hit, plus a glow at the hit. Remote wielders aim with
  * their replicated base aim rotation, so no hit point is replicated. Updated by a timer only while active (no Tick).
  * Greybox visual; Niagara replaces the mesh on the art pass (GCN_Tool_Beam is data).
  */
@@ -43,7 +44,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Beam")
 	FName ColorParameter;
 
-	/** Where the beam leaves the tool, from the eyes in view space (forward, right, up). */
+	/** Where the beam leaves while no held tool has a muzzle: from the eyes in view space (forward, right, up). */
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Beam")
 	FVector MuzzleOffset = FVector::ZeroVector;
 

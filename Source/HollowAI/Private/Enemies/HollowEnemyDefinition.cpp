@@ -1,6 +1,7 @@
 #include "Enemies/HollowEnemyDefinition.h"
 
 #include "Abilities/HollowAbilitySet.h"
+#include "Animation/AnimMontage.h"
 #include "NavFilters/NavigationQueryFilter.h"
 #include "StateTree.h"
 
@@ -47,6 +48,16 @@ EDataValidationResult UHollowEnemyDefinition::IsDataValid(FDataValidationContext
 	if (FootstepSound.IsValid() && (!FootstepCadence.IsValid() || FootstepCadence.MinSpeed > PatrolSpeed))
 	{
 		Fail(LOCTEXT("Footsteps", "FootstepCadence needs an Interval and a ReferenceSpeed, and a MinSpeed no higher than PatrolSpeed (a patrol is heard)."));
+	}
+	// Montages are presentation: the server drives the body, so root motion would fight its movement (warning, ADR-0027).
+	for (const FSoftObjectPath& Path : Montages.Assigned())
+	{
+		const UAnimMontage* Montage = Cast<UAnimMontage>(Path.TryLoad());
+		if (Montage && Montage->HasRootMotion())
+		{
+			Context.AddWarning(FText::Format(LOCTEXT("RootMotion", "{0}: montage {1} has root motion; enemy montages are presentation only (the server moves the body)."),
+				FText::FromName(GetFName()), FText::FromName(Montage->GetFName())));
+		}
 	}
 	if (Result == EDataValidationResult::NotValidated)
 	{

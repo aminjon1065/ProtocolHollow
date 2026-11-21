@@ -12,7 +12,8 @@ public class HollowEditor : ModuleRules
 		{
 			"Core",
 			"CoreUObject",
-			"Engine"
+			"Engine",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

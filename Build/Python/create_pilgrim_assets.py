@@ -62,6 +62,8 @@ PILGRIM_ATTRIBUTES = [("HollowHealthSet", "MaxHealth", 2000.0), ("HollowHealthSe
 BREACH = {"windup_seconds": 1.2, "recovery_seconds": 1.0, "reach": 200.0, "radius": 0.0, "damage": 0.0, "structural_damage": 120.0}
 MELEE = {"windup_seconds": 0.8, "recovery_seconds": 1.0, "reach": 150.0, "radius": 60.0, "damage": 35.0, "structural_damage": 0.0}
 WINDUP_CUE = "GameplayCue.Hollow.Enemy.Windup"
+# Which montage of DA_Enemy_IronPilgrim shows each attack (ADR-0027; the montages themselves come with the art pass).
+ATTACK_MONTAGES = {"DA_Attack_Pilgrim_Breach": "BREACH", "DA_Attack_Pilgrim_Melee": "MELEE"}
 
 # Enemy definition (data).
 DEFINITION_VALUES = {
@@ -238,6 +240,7 @@ def ensure_attack(path, values, damage_effect):
     attack, created = data_asset(path, unreal.HollowEnemyAttackDefinition)
     wanted = dict(values)
     wanted["windup_cue"] = make_tag(WINDUP_CUE)
+    wanted["montage"] = getattr(unreal.HollowEnemyMontage, ATTACK_MONTAGES[path.rsplit("/", 1)[1]])
     changed = apply_values(attack, wanted)
     if values["damage"] > 0.0 and attack.get_editor_property("damage_effect") != damage_effect:
         attack.set_editor_property("damage_effect", damage_effect)

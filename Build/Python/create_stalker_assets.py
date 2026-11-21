@@ -244,6 +244,7 @@ def ensure_attack(damage_effect):
     attack, created = data_asset(AMBUSH_ATTACK, unreal.HollowEnemyAttackDefinition)
     wanted = dict(AMBUSH)
     wanted["windup_cue"] = make_tag(WINDUP_CUE)
+    wanted["montage"] = unreal.HollowEnemyMontage.MELEE   # the strike out of an ambush (ADR-0027)
     changed = apply_values(attack, wanted)
     if attack.get_editor_property("damage_effect") != damage_effect:
         attack.set_editor_property("damage_effect", damage_effect)

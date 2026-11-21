@@ -16,10 +16,12 @@ class UHollowFootstepAudioComponent;
 class UHollowFootstepNoiseComponent;
 class UHollowCharacterMovementComponent;
 class UHollowInteractionComponent;
+class UHollowToolMountComponent;
 class UHollowInputConfig;
 class UInputMappingContext;
 class USkeletalMeshComponent;
 class USpotLightComponent;
+class UStaticMeshComponent;
 struct FInputActionValue;
 
 /** The helmet lamp switched on or off on this machine (the visor's lamp line, S4-08). */
@@ -49,6 +51,7 @@ public:
 	UHollowCarrierComponent* GetCarrierComponent() const { return CarrierComponent; }
 	UHollowFootstepNoiseComponent* GetFootstepNoise() const { return FootstepNoise; }
 	USpotLightComponent* GetHelmetLight() const { return HelmetLight; }
+	UHollowToolMountComponent* GetToolMount() const { return ToolMount; }
 
 	/** The helmet lamp's cone from where the pawn looks while it is switched on and its wearer lives (any machine; the server's view drives the AI, ADR-0019). */
 	virtual bool GetLightCone(FHollowLightCone& OutCone) const override;
@@ -129,6 +132,18 @@ private:
 	/** On the camera: its cone, brightness, reach and shadows are data (BP_ExoFrame). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<USpotLightComponent> HelmetLight;
+
+	/** The tool in the first-person hands (ADR-0027): first-person rendering, only the owner sees it. */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UStaticMeshComponent> FirstPersonToolMesh;
+
+	/** The tool on the body: everyone else sees it, the owner its shadow. */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UStaticMeshComponent> ToolMesh;
+
+	/** Drives both tool meshes and tells where the beam leaves the tool; hand sockets and the default tool are data. */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowToolMountComponent> ToolMount;
 
 	/** The lamp's own data (BP_ExoFrame) before ApplyHelmetShadows. */
 	bool bHelmetLampCastsShadows = false;

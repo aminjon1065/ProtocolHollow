@@ -3,6 +3,8 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 
+#include "Enemies/HollowEnemyMontages.h"
+
 #include "HollowEnemyAttackDefinition.generated.h"
 
 class UGameplayEffect;
@@ -45,4 +47,8 @@ public:
 	/** Cue on the attacker while it winds up (replicated: every player sees the blow coming). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation", meta = (Categories = "GameplayCue.Hollow"))
 	FGameplayTag WindupCue;
+
+	/** Which of the enemy's montages shows this attack (UHollowEnemyDefinition::Montages, ADR-0027). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+	EHollowEnemyMontage Montage = EHollowEnemyMontage::Melee;
 };

@@ -55,7 +55,10 @@ void UHollowGA_EnemyAttack::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	}
 	if (Attack->WindupCue.IsValid())
 	{
-		ActorInfo->AbilitySystemComponent->AddGameplayCue(Attack->WindupCue);
+		// The attack rides along (its cue parameters replicate with the cue): every machine shows its montage (ADR-0027).
+		FGameplayCueParameters Parameters;
+		Parameters.SourceObject = Attack;
+		ActorInfo->AbilitySystemComponent->AddGameplayCue(Attack->WindupCue, Parameters);
 		bWindupCueActive = true;
 	}
 	UAbilityTask_WaitDelay* Windup = UAbilityTask_WaitDelay::WaitDelay(this, FMath::Max(Attack->WindupSeconds, UE_KINDA_SMALL_NUMBER));

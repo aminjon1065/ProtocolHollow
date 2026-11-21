@@ -1,9 +1,11 @@
 #include "Cues/HollowEnemyWindupCue.h"
 
+#include "Abilities/HollowEnemyAttackDefinition.h"
 #include "Audio/HollowAudioSubsystem.h"
 #include "Components/PointLightComponent.h"
 #include "Enemies/HollowEnemyCharacter.h"
 #include "Enemies/HollowEnemyDefinition.h"
+#include "Enemies/HollowEnemyMontageComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowEnemyWindupCue)
 
@@ -25,6 +27,12 @@ bool AHollowEnemyWindupCue::OnActive_Implementation(AActor* MyTarget, const FGam
 	if (Audio && Definition && Definition->WindupSound.IsValid())
 	{
 		Audio->PlayAttached(Definition->WindupSound, Enemy->GetRootComponent());
+	}
+	// The attack's montage (ADR-0027), fitted so its blow lands when the wind-up ends; nothing without one.
+	const UHollowEnemyAttackDefinition* Attack = Cast<UHollowEnemyAttackDefinition>(Parameters.SourceObject.Get());
+	if (UHollowEnemyMontageComponent* Montages = Enemy && Attack ? Enemy->GetMontages() : nullptr)
+	{
+		Montages->Play(Attack->Montage, Attack->WindupSeconds);
 	}
 	return Super::OnActive_Implementation(MyTarget, Parameters);
 }

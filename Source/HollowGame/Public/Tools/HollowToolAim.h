@@ -23,4 +23,10 @@ namespace HollowToolAim
 	 * channel. The beam cue and the visor share it, so the bar always describes what the beam touches.
 	 */
 	HOLLOWGAME_API FHollowToolAimTrace TraceLocal(const APawn& Pawn, const UHollowToolDefinition& Tool);
+
+	/**
+	 * Where a pawn's beam starts on this machine (ADR-0027): the held tool's muzzle (UHollowToolMountComponent), or
+	 * without one FallbackOffset from the eyes along the aim (forward, right, up).
+	 */
+	HOLLOWGAME_API FVector BeamStart(const APawn& Pawn, const FHollowToolAimTrace& Trace, const FVector& FallbackOffset);
 }

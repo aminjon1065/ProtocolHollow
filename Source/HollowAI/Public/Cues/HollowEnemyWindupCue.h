@@ -8,7 +8,8 @@ class UPointLightComponent;
 
 /**
  * Wind-up telegraph of an enemy attack (GameplayCue.Hollow.Enemy.Windup): a glow on the attacker while the blow is
- * coming, and its voice (UHollowEnemyDefinition::WindupSound, S4-04), on every machine. Greybox: Niagara replaces the
+ * coming, its voice (UHollowEnemyDefinition::WindupSound, S4-04) and the attack's montage (the cue carries the attack
+ * as its source object, ADR-0027), on every machine. Greybox: Niagara replaces the
  * light on the art pass (GCN_Enemy_Windup is data).
  */
 UCLASS(Abstract)

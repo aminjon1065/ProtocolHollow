@@ -75,6 +75,17 @@ namespace HollowLightBudget
 
 	/** A room's level against the shipped budget (DA_LightBudget): what breaks it, or why it cannot be checked. */
 	HOLLOWPCG_API TArray<FString> CheckRoomLevel(const UHollowRoomDefinition& Room, const ULevel& Level);
+
+	/** The hero room's rig as create_lighting_assets.py builds it (S4-03): two shadowed panels, one of them failing. */
+	constexpr int32 HeroShadowedPanels = 2;
+	constexpr int32 HeroFailingPanels = 1;
+
+	/**
+	 * The hero room's lights against its rig (empty when it holds). A failing panel is shadowed and has a light function
+	 * (the Resonance brown-outs). Art-locked (ADR-0027), the room is lit by hand: the budget caps it, and only one failing
+	 * panel is required.
+	 */
+	HOLLOWPCG_API TArray<FString> CheckHeroRig(TConstArrayView<FHollowLightInfo> Lights, bool bArtLocked);
 }
 
 /** Light limits per room type and per frame (DA_LightBudget, UHollowLevelMetrics::LightBudget). */

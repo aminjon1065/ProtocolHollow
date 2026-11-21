@@ -12,6 +12,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "TimerManager.h"
 #include "Tools/HollowToolAim.h"
+#include "Tools/HollowToolMountComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowToolBeamCue)
 
@@ -51,6 +52,10 @@ bool AHollowToolBeamCue::OnActive_Implementation(AActor* MyTarget, const FGamepl
 		BeamMaterial->SetVectorParameterValue(ColorParameter, Tool->BeamColor);
 	}
 	Glow->SetLightColor(Tool->BeamColor);
+	if (UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(Wielder.Get()))
+	{
+		Mount->ShowTool(Tool.Get());   // the running tool in hand on this machine too (cosmetic; the cue is what replicates)
+	}
 	Beam->SetVisibility(true);
 	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
 	{
@@ -90,7 +95,7 @@ void AHollowToolBeamCue::UpdateBeam()
 	const FHollowToolAimTrace Trace = HollowToolAim::TraceLocal(*Pawn, *Definition);
 	const bool bHit = Trace.bHit;
 	const FVector Impact = Trace.End;
-	const FVector Muzzle = Trace.Eyes + Trace.Aim.RotateVector(MuzzleOffset);
+	const FVector Muzzle = HollowToolAim::BeamStart(*Pawn, Trace, MuzzleOffset);   // the held tool's muzzle, or in front of the eyes
 
 	const FVector Span = Impact - Muzzle;
 	const FVector MeshSize = Mesh->GetBoundingBox().GetSize();

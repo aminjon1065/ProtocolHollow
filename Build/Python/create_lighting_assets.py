@@ -14,6 +14,7 @@ node-only materials (no project textures, no packs), so the LFS footprint stays 
 Flicker comes from MPC_Resonance (S4-02): Intensity and Time + FlickerTimeOffset, so it is in phase on every machine.
 Material graphs and level contents are built from the specs below; a hash of each spec is kept (asset metadata,
 or a marker actor in a level), so a level is re-saved only when its spec changes - every save is a new LFS object.
+A room level art-locked on its definition (bArtLocked, ADR-0027: finished by hand) is never touched; the tests still check it.
 Run after create_resonance_assets.py:  Build/Scripts/run-editor-python.sh Build/Python/create_lighting_assets.py
 """
 import hashlib
@@ -41,6 +42,8 @@ CUBE = "/Engine/BasicShapes/Cube.Cube"
 CYLINDER = "/Engine/BasicShapes/Cylinder.Cylinder"
 SHAPE_SIZE = 100.0            # engine basic shapes are 100 uu
 SPEC_TAG = "HollowSpec"
+# Bumped when the way rigs are built changes (2: fixtures and dressing without collision through their profile).
+RIG_VERSION = 2
 MANAGED_TAG = "HollowLighting"
 MARKER_LABEL = "HollowLightingSpec"
 LEGACY_LIGHT = "Light"        # the single greybox light of create_docks_greybox.py before S4-03
@@ -532,7 +535,9 @@ def dressing(actor, mesh, material, scale):
     component = actor.static_mesh_component
     component.set_static_mesh(load(mesh))
     component.set_material(0, material)
-    component.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)   # looks only: gameplay, sockets and navmesh untouched
+    # Looks only: gameplay, sockets and navmesh untouched. The profile itself, not just the flag: a loaded actor takes its
+    # collision from its profile, so a BlockAll actor with the flag off collided again (found by Hollow.Editor.ArtBudget, ADR-0027).
+    component.set_collision_profile_name("NoCollision")
     component.set_editor_property("can_ever_affect_navigation", False)
     actor.set_actor_scale3d(scale)
 
@@ -599,9 +604,19 @@ def level_marker(level_actors):
     return None
 
 
+def art_locked(room):
+    """ADR-0027: a room level finished by hand (bArtLocked on its definition) is never touched; the tests still check it."""
+    if room.get_editor_property("art_locked"):
+        log("%s: art-locked, level kept as is" % room.get_name())
+        return True
+    return False
+
+
 def ensure_room(room, metrics, materials, instances, hero):
+    if art_locked(room):
+        return False
     spec = rig_spec(room, metrics, hero)
-    wanted = digest(spec, FLICKER, DYING)
+    wanted = digest(spec, FLICKER, DYING, RIG_VERSION)
     level_path = room.get_editor_property("room_level").get_path_name().split(".")[0]
     if not levels.load_level(level_path):
         raise RuntimeError("Could not load " + level_path)

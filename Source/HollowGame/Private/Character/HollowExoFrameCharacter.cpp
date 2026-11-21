@@ -10,6 +10,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
@@ -29,6 +30,7 @@
 #include "Raid/HollowRaidSettings.h"
 #include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
+#include "Tools/HollowToolMountComponent.h"
 #include "Voice/HollowVoiceTalker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowExoFrameCharacter)
@@ -63,6 +65,14 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	HelmetLight = CreateDefaultSubobject<USpotLightComponent>(TEXT("HelmetLight"));
 	HelmetLight->SetupAttachment(FirstPersonCamera);
 
+	// The tool in hand (ADR-0027): hand sockets, the default tool and each tool's mesh are data.
+	FirstPersonToolMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FirstPersonToolMesh"));
+	FirstPersonToolMesh->SetupAttachment(GetRootComponent());   // into the hands once they have a mesh (AttachToHands)
+	ToolMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ToolMesh"));
+	ToolMesh->SetupAttachment(GetRootComponent());
+	ToolMount = CreateDefaultSubobject<UHollowToolMountComponent>(TEXT("ToolMount"));
+	ToolMount->Setup(FirstPersonToolMesh, ToolMesh, FirstPersonCamera);
+
 	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
 	CarrierComponent = CreateDefaultSubobject<UHollowCarrierComponent>(TEXT("Carrier"));
 	FootstepNoise = CreateDefaultSubobject<UHollowFootstepNoiseComponent>(TEXT("FootstepNoise"));
@@ -76,6 +86,7 @@ void AHollowExoFrameCharacter::PostInitializeComponents()
 	bHelmetLampCastsShadows = HelmetLight->CastShadows;
 	ApplyHelmetShadows();   // a copy no one on this machine controls (yet)
 	CarrierComponent->SetAttachTargets(FirstPersonCamera, GetMesh());
+	ToolMount->AttachToHands(FirstPersonMesh, GetMesh());
 }
 
 void AHollowExoFrameCharacter::PossessedBy(AController* NewController)

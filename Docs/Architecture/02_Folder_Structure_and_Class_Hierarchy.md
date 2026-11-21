@@ -415,6 +415,11 @@ Door → BP_Door (S2-04), Bulkhead → BP_Bulkhead_Plate | BP_Bulkhead_Twin (S3-
 - узлы `FHollowSTTask_{Stunned, Track, Ambush, Retreat}`, `FHollowSTCond_{IsStunned, IsHunting, IsRetreating}`; удар `UHollowGA_EnemyMelee` → `UHollowGA_PilgrimMelee` · `UHollowGA_StalkerAmbush`;
 - GAS: `UHollowStunnedEffect`, `UHollowPulseMineCooldownEffect`, `UHollowStalkerTraitsEffect`; Game: `UHollowGA_PulseMine`, `AHollowPulseMine`, `UHollowPulseMineDefinition`.
 
+*Art-Prep* ([ADR-0027](../ADR/ADR-0027-art-prep-locks-tool-mount-montages-budget.md)):
+- AI: `FHollowEnemyMontages` в `UHollowEnemyDefinition` (Melee, Breach, Stunned, VentEnter, VentExit), `UHollowEnemyAttackDefinition::Montage`, `UHollowEnemyMontageComponent` на `AHollowEnemyCharacter` — монтажи из cue замаха (атака в `SourceObject`), тега оглушения и состояния шахты.
+- Game: `UHollowToolMountComponent` и меши `FirstPersonToolMesh` / `ToolMesh` у ExoFrame; `HollowToolAim::BeamStart`. GAS: `UHollowToolDefinition::{HeldMesh, HeldTransform, MuzzleSocket}`.
+- PCG: `UHollowRoomDefinition::bArtLocked` (editor-only), `HollowLightBudget::CheckHeroRig`. Editor: `UHollowArtBudgetSettings`, `HollowArtBudget`, `UHollowArtBudgetValidator`.
+
 *S4-08* ([ADR-0026](../ADR/ADR-0026-diegetic-visor-resonance-tags-helmet-lamp.md)): у лампы появился выключатель — `bHelmetLampOn` (push, `COND_SkipOwner`), `UHollowGA_HelmetLamp` + `UHollowHelmetLampCooldownEffect`; `GetLightCone` смотрит на выключатель, `UHollowEnvQueryTest_OutOfLightCone` не менялся.
 
 ```

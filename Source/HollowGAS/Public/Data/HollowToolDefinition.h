@@ -8,6 +8,7 @@
 #include "HollowToolDefinition.generated.h"
 
 class UGameplayEffect;
+class UStaticMesh;
 
 /**
  * Stats of a continuous tool (welder, plasma cutter), primary asset type HollowTool. Everything a tool ability does
@@ -87,4 +88,23 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics", meta = (ClampMin = "0", Units = "Centimeters"))
 	float BeamWidth = 0.f;
+
+	/**
+	 * The tool in hand (ADR-0027, art pass): shown by UHollowToolMountComponent in the first-person hands and on the
+	 * body. Empty: nothing in hand, the beam leaves from in front of the eyes.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Held")
+	TSoftObjectPtr<UStaticMesh> HeldMesh;
+
+	/** The held mesh relative to the hand's socket. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Held")
+	FTransform HeldTransform = FTransform::Identity;
+
+	/** Socket of HeldMesh the beam leaves from. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Held")
+	FName MuzzleSocket = TEXT("Muzzle");
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+#endif
 };

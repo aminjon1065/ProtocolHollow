@@ -3,6 +3,7 @@
 #include "Data/HollowToolDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Tools/HollowToolMountComponent.h"
 
 FHollowToolAimTrace HollowToolAim::TraceLocal(const APawn& Pawn, const UHollowToolDefinition& Tool)
 {
@@ -17,4 +18,15 @@ FHollowToolAimTrace HollowToolAim::TraceLocal(const APawn& Pawn, const UHollowTo
 		Trace.End = Trace.Hit.ImpactPoint;
 	}
 	return Trace;
+}
+
+FVector HollowToolAim::BeamStart(const APawn& Pawn, const FHollowToolAimTrace& Trace, const FVector& FallbackOffset)
+{
+	FVector Muzzle;
+	const UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(&Pawn);
+	if (Mount && Mount->GetMuzzleLocation(Muzzle))
+	{
+		return Muzzle;
+	}
+	return Trace.Eyes + Trace.Aim.RotateVector(FallbackOffset);
 }

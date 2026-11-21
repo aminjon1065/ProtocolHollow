@@ -121,6 +121,35 @@ TArray<FString> HollowLightBudget::CheckRoomLevel(const UHollowRoomDefinition& R
 	return CheckRoom(CollectLevel(Level), *Limits, RoomReach(Room));
 }
 
+TArray<FString> HollowLightBudget::CheckHeroRig(const TConstArrayView<FHollowLightInfo> Lights, const bool bArtLocked)
+{
+	int32 Shadowed = 0;
+	int32 Failing = 0;
+	for (const FHollowLightInfo& Light : Lights)
+	{
+		Shadowed += Light.bShadowed ? 1 : 0;
+		Failing += Light.bShadowed && Light.bLightFunction ? 1 : 0;
+	}
+	TArray<FString> Problems;
+	if (bArtLocked)
+	{
+		if (Failing < HeroFailingPanels)
+		{
+			Problems.Add(FString::Printf(TEXT("needs a failing panel (shadowed, with a light function), has %d"), Failing));
+		}
+		return Problems;
+	}
+	if (Shadowed != HeroShadowedPanels)
+	{
+		Problems.Add(FString::Printf(TEXT("%d shadowed panels, the rig has %d"), Shadowed, HeroShadowedPanels));
+	}
+	if (Failing != HeroFailingPanels)
+	{
+		Problems.Add(FString::Printf(TEXT("%d failing panels, the rig has %d"), Failing, HeroFailingPanels));
+	}
+	return Problems;
+}
+
 const UHollowLightBudgetConfig* UHollowLightBudgetConfig::Get()
 {
 	return GetDefault<UHollowLevelMetrics>()->LightBudget.LoadSynchronous();

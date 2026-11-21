@@ -4,6 +4,8 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 
+#include "Enemies/HollowEnemyMontages.h"
+
 #include "HollowEnemyDefinition.generated.h"
 
 class UHollowAbilitySet;
@@ -133,4 +135,12 @@ public:
 	/** A dead enemy stays this long before it is removed. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0.01", Units = "Seconds"))
 	float DeathLingerSeconds = 0.f;
+
+	/** Optional montages of its moments (ADR-0027, art pass); empty slots keep the greybox behaviour. Never root motion. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	FHollowEnemyMontages Montages;
+
+	/** Section of an attack montage where the blow lands: its start is fitted to the end of the wind-up. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+	FName ImpactSection = TEXT("Impact");
 };

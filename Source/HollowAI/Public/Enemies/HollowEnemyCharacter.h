@@ -7,6 +7,7 @@
 
 class UHollowAbilitySystemComponent;
 class UHollowEnemyDefinition;
+class UHollowEnemyMontageComponent;
 class UHollowFootstepAudioComponent;
 class UHollowHealthSet;
 
@@ -26,6 +27,7 @@ public:
 
 	const UHollowEnemyDefinition* GetDefinition() const { return Definition; }
 	UHollowHealthSet* GetHealthSet() const { return HealthSet; }
+	UHollowEnemyMontageComponent* GetMontages() const { return Montages; }
 	bool IsDead() const { return bDead; }
 
 	/** Server: stops the brain and abilities, freezes in place and goes away after the definition's linger time. */
@@ -54,14 +56,24 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Enemy")
 	TObjectPtr<UHollowFootstepAudioComponent> FootstepAudio;
 
+	/** Its montages (UHollowEnemyDefinition::Montages, ADR-0027) on every machine; empty slots play nothing. */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Enemy")
+	TObjectPtr<UHollowEnemyMontageComponent> Montages;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Enemy")
 	TObjectPtr<UHollowEnemyDefinition> Definition;
 
 private:
 	void HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, float Damage);
 	void ApplyDeadPresentation();
-	void ApplyVentPresentation();
+	/**
+	 * Collision and movement follow the vent state at once; going in (bAnimate: seen happen, not from a first bunch) the
+	 * body hides once its VentEnter montage has played, which keeps it relevant meanwhile (ADR-0027).
+	 */
+	void ApplyVentPresentation(bool bAnimate);
 	void PlayVentSound() const;
+	/** The grille and the VentExit montage where it comes out. */
+	void PresentVentExit();
 	/** Server: stamps the exit (its first bunch tells late machines) and rattles the grille. */
 	void MarkVentExit();
 
@@ -86,4 +98,5 @@ private:
 
 	FHollowAbilitySetHandles GrantedAbilities;
 	FDelegateHandle OutOfHealthHandle;
+	FTimerHandle VentHideTimer;
 };

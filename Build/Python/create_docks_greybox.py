@@ -10,7 +10,8 @@ For every room of ROOMS:
 Level and data asset are generated from the same spec, so openings and connectors match by construction.
 All sizes come from UHollowLevelMetrics (DefaultGame.ini); conventions in Docs/QA/LevelMetrics.md.
 Creates only what is missing (never overwrites work done in the editor), keeps the sockets of existing definitions in step
-with ROOMS (S4-01: VentNode openings of the Echo-Stalker's vents, ADR-0019), then validates.
+with ROOMS (S4-01: VentNode openings of the Echo-Stalker's vents, ADR-0019), then validates. Levels finished by hand are
+art-locked on their definition (bArtLocked, ADR-0027); this script never rewrites an existing level anyway.
 Run: Build/Scripts/run-editor-python.sh Build/Python/create_docks_greybox.py
 """
 import collections
