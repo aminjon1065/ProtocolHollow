@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Components/SpotLightComponent.h"
+#include "GenericPlatform/GenericApplication.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/ConfigCacheIni.h"
@@ -139,6 +140,31 @@ bool FHollowGraphicsHelmetShadowsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Another player's lamp: no shadows"), Other->GetHelmetLight()->CastShadows != 0);
 	Own->GetController()->UnPossess();
 	TestFalse(TEXT("No longer this machine's: no shadows"), Own->GetHelmetLight()->CastShadows != 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowGraphicsDisplayTest, "Hollow.Game.Graphics.Display",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowGraphicsDisplayTest::RunTest(const FString& Parameters)
+{
+	// S4-06 bug bash: a fullscreen window needs a known monitor (otherwise the Mac window is placed below the screen and
+	// takes no clicks). The settings remember the primary one, never override a choice, and do nothing without monitors.
+	auto MakeMonitor = [](const TCHAR* Id, const bool bPrimary)
+	{
+		FMonitorInfo Monitor;
+		Monitor.ID = Id;
+		Monitor.Name = Id;
+		Monitor.bIsPrimary = bPrimary;
+		return Monitor;
+	};
+	FDisplayMetrics Metrics;
+	Metrics.MonitorInfo.Add(MakeMonitor(TEXT("Side"), false));
+	Metrics.MonitorInfo.Add(MakeMonitor(TEXT("Main"), true));
+	TestEqual(TEXT("None chosen: the primary monitor"), UHollowGameUserSettings::DisplayToChoose(Metrics, FString(), INDEX_NONE), 1);
+	TestEqual(TEXT("A chosen index stays"), UHollowGameUserSettings::DisplayToChoose(Metrics, FString(), 0), static_cast<int32>(INDEX_NONE));
+	TestEqual(TEXT("A chosen ID stays"), UHollowGameUserSettings::DisplayToChoose(Metrics, TEXT("Side"), INDEX_NONE), static_cast<int32>(INDEX_NONE));
+	TestEqual(TEXT("No monitors: nothing to choose"), UHollowGameUserSettings::DisplayToChoose(FDisplayMetrics(), FString(), INDEX_NONE), static_cast<int32>(INDEX_NONE));
 	return true;
 }
 

@@ -5,7 +5,7 @@
   /Game/Hollow/UI/Input/DA_InputGlyphs                                 key labels for prompts
   /Game/Hollow/UI/Foundation/BP_ButtonStyle_Menu, W_MenuButton, W_PrimaryLayout
   /Game/Hollow/UI/Visor/W_StatBar, W_InteractionPrompt, W_TargetStatus, W_Visor
-  /Game/Hollow/UI/Menus/W_SystemMenu (S4-06: + Invite, Start raid, Leave session), W_MainMenu
+  /Game/Hollow/UI/Menus/W_SystemMenu (S4-06: + Invite, Start raid, Leave session; S4-07: + Voice), W_MainMenu
   /Game/Hollow/Core/Framework/BP_GameMode_FrontEnd   AHollowFrontEndGameMode with the HUD; the game mode of L_Boot (S4-06)
   /Game/Hollow/UI/Visor/W_RaidStatus (added to W_Visor), /Game/Hollow/UI/Menus/W_Debrief      (S3-03)
   DA_Tool_Welder/PlasmaCutter ActionLabel, BP_GameMode_Hub/Raid HUDClass = AHollowHUD   (if unset)
@@ -32,6 +32,7 @@ FRONT_END_GAME_MODE = FRAMEWORK_DIR + "/BP_GameMode_FrontEnd"
 BOOT_MAP = "/Game/Hollow/Maps/L_Boot"
 # System menu, top to bottom (S4-06): the session buttons go between Resume and Quit; HollowMenuRules shows those that apply.
 SESSION_BUTTONS = [("InviteButton", "Invite friends"), ("StartRaidButton", "Start raid"), ("LeaveButton", "Leave session")]
+VOICE_BUTTON = ("VoiceButton", "Voice: Push-to-talk")   # S4-07: the label follows the mode at run time
 MAIN_MENU_BUTTONS = [("HostButton", "Host co-op"), ("SoloButton", "Play solo"), ("QuitButton", "Quit")]
 TOOL_LABELS = {
     "/Game/Hollow/Tools/Welder/DA_Tool_Welder": "Welding",
@@ -448,6 +449,27 @@ def ensure_system_menu_session_buttons():
         log("W_SystemMenu: %s added" % ", ".join(added))
 
 
+def ensure_system_menu_voice_button():
+    """S4-07: the voice mode toggle, just before Quit."""
+    blueprint = load(MENUS_DIR + "/W_SystemMenu")
+    name, label = VOICE_BUTTON
+    if author.find_widget(blueprint, name) is not None:
+        return
+    panel = author.find_widget(blueprint, "Panel")
+    quit_index = panel.get_child_index(author.find_widget(blueprint, "QuitButton")) if panel else -1
+    if quit_index < 0:
+        raise RuntimeError("W_SystemMenu has no Panel with a QuitButton")
+    button = author.insert_widget(blueprint, load(FOUNDATION_DIR + "/W_MenuButton").generated_class(), name, "Panel", quit_index)
+    if button is None:
+        raise RuntimeError("Could not add %s to W_SystemMenu" % name)
+    button.set_editor_property("label", unreal.Text(label))
+    box_slot(button, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
+    if not author.compile(blueprint):
+        raise RuntimeError("W_SystemMenu does not compile with the voice button")
+    save(blueprint)
+    log("W_SystemMenu: %s added" % name)
+
+
 def ensure_main_menu():
     blueprint = new_widget_blueprint(MENUS_DIR + "/W_MainMenu", unreal.HollowMainMenuWidget)
     if blueprint is None:
@@ -597,7 +619,7 @@ def validate():
         generated = load(path).generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
     check(author.find_widget(load(VISOR_DIR + "/W_Visor"), "RaidStatus") is not None, "W_Visor shows the raid line")
-    for name, _ in SESSION_BUTTONS:
+    for name, _ in SESSION_BUTTONS + [VOICE_BUTTON]:
         check(author.find_widget(load(MENUS_DIR + "/W_SystemMenu"), name) is not None, "W_SystemMenu has " + name)
     for path in TOOL_LABELS:
         check(not load(path).get_editor_property("action_label").is_empty(), path + " action label")
@@ -622,6 +644,7 @@ def main():
     ensure_visor_raid_status()
     ensure_system_menu()
     ensure_system_menu_session_buttons()
+    ensure_system_menu_voice_button()
     ensure_main_menu()
     ensure_debrief()
     ensure_tool_labels()

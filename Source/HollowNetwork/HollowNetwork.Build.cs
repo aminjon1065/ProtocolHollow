@@ -22,7 +22,8 @@ public class HollowNetwork : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"OnlineSubsystemUtils"
+			"OnlineSubsystemUtils",
+			"Voice"   // the microphone meter of the voice -> AI path (S4-07): the engine's capture, on Mac and Win64
 		});
 
 		// A Shipping build started outside the Steam client (the test builds of the Vertical Slice, AppID 480, ADR-0024) finds

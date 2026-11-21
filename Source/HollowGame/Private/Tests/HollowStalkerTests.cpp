@@ -15,6 +15,7 @@
 #include "Gadgets/HollowGA_PulseMine.h"
 #include "Gadgets/HollowPulseMine.h"
 #include "Gadgets/HollowPulseMineDefinition.h"
+#include "Noise/HollowNoiseConfig.h"
 #include "Noise/HollowNoiseSubsystem.h"
 #include "Resonance/HollowResonanceConfig.h"
 #include "Resonance/HollowResonanceMath.h"
@@ -25,6 +26,8 @@
 #include "Threat/HollowThreatConfig.h"
 #include "Threat/HollowThreatDirectorSubsystem.h"
 #include "Threat/HollowVentNetworkSubsystem.h"
+#include "Voice/HollowVoiceComponent.h"
+#include "Voice/HollowVoiceSettings.h"
 
 namespace HollowStalkerTests
 {
@@ -731,6 +734,56 @@ bool FHollowStalkerResonanceHearingTest::RunTest(const FString& Parameters)
 	Squad->Evaluate();
 	TestNearlyEqual(TEXT("Nobody alive in the Aether: calm again"), Brain->GetHearingRange(), Definition->HearingRange, Tolerance);
 	TestEqual(TEXT("The Pilgrim's hearing never changed"), PilgrimBrain->GetHearingRange(), PilgrimHearing);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowStalkerHearsVoiceTest, "Hollow.Game.Stalker.HearsVoice",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowStalkerHearsVoiceTest::RunTest(const FString& Parameters)
+{
+	// S4-07 (ADR-0025): a player's voice reaches the Echo-Stalker as the noise of its tier (DA_NoiseConfig) - a whisper
+	// through the wall ten metres away is lost, a shout is heard where the player stands and heats the player's room
+	// (the director's hunt follows the heat, ADR-0019).
+	using namespace HollowStalkerTests;
+	FEnemyScene Scene;
+	if (!Scene.Create(*this, EWall::None))
+	{
+		return false;
+	}
+	UHollowThreatConfig* Config = MakeConfig();   // no stalker class: the director stays out of it
+	StartThreat(Scene.World, Config, TwoRooms());
+	AHollowExoFrameCharacter* Player = nullptr;
+	if (!Scene.SpawnPlayer(*this, RoomA, Player))
+	{
+		return false;
+	}
+	AHollowEnemyCharacter* Stalker = Scene.SpawnEnemy(*this, StalkerClass, FVector(RoomB.X, RoomB.Y, 120.0));
+	AHollowStalkerController* Brain = BrainOf(Stalker);
+	UHollowVoiceComponent* Voice = HollowGameTests::AddVoice(Player->GetController());
+	const UHollowVoiceSettings* VoiceSettings = GetDefault<UHollowVoiceSettings>();
+	const FHollowVoiceTier* Whisper = VoiceSettings->Tiers.FindByPredicate([](const FHollowVoiceTier& T) { return T.NoiseTag == HollowTags::Noise_Voice_Whisper; });
+	const FHollowVoiceTier* Shout = VoiceSettings->Tiers.FindByPredicate([](const FHollowVoiceTier& T) { return T.NoiseTag == HollowTags::Noise_Voice_Shout; });
+	const FHollowNoiseRule* ShoutRule = UHollowNoiseSubsystem::Get(Scene.World)->GetConfig()->FindRule(HollowTags::Noise_Voice_Shout);
+	if (!TestNotNull(TEXT("Stalker brain"), Brain) || !TestNotNull(TEXT("Voice"), Voice) || !TestNotNull(TEXT("Whisper tier"), Whisper)
+		|| !TestNotNull(TEXT("Shout tier"), Shout) || !TestNotNull(TEXT("Shout rule"), ShoutRule))
+	{
+		return false;
+	}
+	UHollowActivityHeatmapSubsystem* Heatmap = UHollowActivityHeatmapSubsystem::Get(Scene.World);
+	Advance(Scene.TestWorld, HearSeconds);
+	TestFalse(TEXT("Quiet: nothing heard"), Brain->HasStimulus());
+
+	TestTrue(TEXT("A whisper goes out"), Voice->HandleReport(Whisper->MinLevel));
+	Advance(Scene.TestWorld, HearSeconds, [Brain] { return Brain->HasStimulus(); });
+	TestFalse(TEXT("...but not through the wall ten metres away"), Brain->HasStimulus());
+
+	const float HeatBefore = Heatmap->GetRoomHeat(West);
+	TestTrue(TEXT("A shout goes out"), Voice->HandleReport(Shout->MinLevel));
+	TestTrue(TEXT("...and heats the player's room"), Heatmap->GetRoomHeat(West) >= HeatBefore + Config->Heatmap.NoisePerLoudness * ShoutRule->Loudness - KINDA_SMALL_NUMBER);
+	Advance(Scene.TestWorld, HearSeconds, [Brain] { return Brain->HasStimulus(); });
+	TestTrue(TEXT("The stalker hears the shout"), Brain->HasStimulus());
+	TestTrue(TEXT("...where the player is"), FVector::Dist2D(Brain->GetStimulusLocation(), Player->GetActorLocation()) < StimulusTolerance);
 	return true;
 }
 

@@ -68,6 +68,10 @@ TArray<FString> HollowSoundRules::Check(const TConstArrayView<FHollowSoundEntry>
 	TArray<FString> Problems;
 	for (const FHollowNoiseRule& Rule : Noise.Rules)
 	{
+		if (Rule.NoiseTag.MatchesTag(HollowTags::Noise_Voice))
+		{
+			continue;   // players hear a voice through its VOIP talker, not the bank (S4-07)
+		}
 		if (!Entries.ContainsByPredicate([&Rule](const FHollowSoundEntry& Entry) { return Entry.GetNoiseTag() == Rule.NoiseTag; }))
 		{
 			Problems.Add(FString::Printf(TEXT("%s: the AI hears it, players cannot (no sound)"), *Rule.NoiseTag.ToString()));

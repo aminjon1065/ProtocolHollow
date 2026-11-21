@@ -2,8 +2,11 @@
 
 #include "GameFramework/GameUserSettings.h"
 #include "Settings/HollowGraphicsSettings.h"
+#include "Voice/HollowVoiceRules.h"
 
 #include "HollowGameUserSettings.generated.h"
+
+struct FDisplayMetrics;
 
 /**
  * The player's settings (GameUserSettings.ini) with the graphics preset (ADR-0023). The first launch on a machine picks
@@ -27,6 +30,12 @@ public:
 
 	EHollowGraphicsPreset GetPreset() const { return GraphicsPreset; }
 
+	/** How the player's voice goes out (S4-07): push-to-talk unless the player chose otherwise. */
+	EHollowVoiceMode GetVoiceMode() const { return VoiceMode; }
+
+	/** Keeps the voice mode for the next launch. */
+	void SetVoiceMode(EHollowVoiceMode Mode);
+
 	/** Only the preset's scalability and its console variables (what tests check: no window, no saving). */
 	static bool ApplyScalability(const FHollowGraphicsPresetSpec& Spec);
 
@@ -38,12 +47,26 @@ public:
 
 	static FString PresetName(EHollowGraphicsPreset Preset);
 
+	/**
+	 * The monitor to remember when the settings name none (DisplayID empty, DisplayIndex -1): the primary one, or
+	 * INDEX_NONE to keep the settings as they are. Without a known monitor the engine places a fullscreen window by
+	 * FGenericWindow::GetFullScreenInfo, which on Mac (UE 5.8) answers a position below the screen: Slate then sends
+	 * every click and hover elsewhere and no menu button can be pressed (S4-06 bug bash).
+	 */
+	static int32 DisplayToChoose(const FDisplayMetrics& Metrics, const FString& DisplayID, int32 DisplayIndex);
+
 private:
 	EHollowGraphicsPreset ChooseFirstPreset();
+
+	/** Remembers the primary monitor if none is chosen and re-places the window on it; true if it changed the settings. */
+	bool EnsureDisplayChosen();
 
 	UPROPERTY(Config)
 	EHollowGraphicsPreset GraphicsPreset = EHollowGraphicsPreset::High;
 
 	UPROPERTY(Config)
 	bool bGraphicsPresetChosen = false;
+
+	UPROPERTY(Config)
+	EHollowVoiceMode VoiceMode = EHollowVoiceMode::PushToTalk;
 };

@@ -5,11 +5,12 @@
 #   solo   E2: main menu "Play solo" -> hub -> system menu "Start raid" -> lift the core -> extract -> debrief -> hub ->
 #          "Leave session" -> main menu.
 #   coop   host + 3 headless clients: "Host co-op", clients join, "Start raid"; the host lifts the core, a second player
-#          trying to join the carry is refused (co-op carry was cut, S3-06) without harm, everyone extracts;
+#          trying to join the carry is refused (co-op carry was cut, S3-06) without harm, client 1 shouts (a simulated
+#          microphone, S4-07: the host hears it as Hollow.Noise.Voice.Shout), everyone extracts;
 #          back in the hub a second raid: the clients die, the host extracts; results and profiles on every machine.
 #   soak   host + 3 headless clients, a raid of --minutes (default 20) with the AI alive (the players take no damage:
 #          Hollow.Dev.Invulnerable) and something happening every
-#          minute (doors, welding, a breach, the core, mines, Resonance), a CSV capture of the whole raid
+#          minute (doors, welding, a breach, the core, mines, Resonance, a client's shout every third minute), a CSV capture of the whole raid
 #          (Hollow.Perf.Capture: hitches, memory), then everyone extracts.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
@@ -82,6 +83,8 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore All"
 		h "Hollow.Dev.RunInRaid 4 Hollow.Interact"
 		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Interact")                               # a second carrier: refused (S3-06 cut)
+		C1+=("Hollow.Dev.RunInRaid 7 Hollow.Voice.Simulate 230 3")                   # a shout (S4-07): the host logs Voice ... Shout
+		C1+=("Hollow.Dev.RunInRaid 8 Hollow.Voice.Dump")
 		h "Hollow.Dev.RunInRaid 9 Hollow.Carry.Dump"
 		h "Hollow.Dev.RunInRaid 12 Hollow.Dev.GoToExtraction All"
 		# The second raid: registered once the first is over, so these wait for the next ready raid.
@@ -109,6 +112,7 @@ case "$MODE" in
 			h "Hollow.Dev.RunInRaid $((m * 60)) ${ACTIONS[$(((m - 1) % ${#ACTIONS[@]}))]}"
 			C+=("Hollow.Dev.RunInRaid $((m * 60 + 5)) Hollow.Tool.Hold Hollow.Input.SecondaryUse 8")
 			((m % 4 == 0)) && C1+=("Hollow.Dev.RunInRaid $((m * 60 + 20)) Hollow.Tool.Hold Hollow.Input.Gadget 0.2")
+			((m % 3 == 0)) && C1+=("Hollow.Dev.RunInRaid $((m * 60 + 30)) Hollow.Voice.Simulate 230 3")   # a shout the AI hears
 		done
 		h "Hollow.Dev.RunInRaid $((SECONDS_TOTAL + 5)) Hollow.Dev.GoToExtraction All"
 		h "Hollow.Dev.RunInRaid $((SECONDS_TOTAL + 50)) Hollow.Profile.Dump"
@@ -140,7 +144,7 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI" "$log" | grep -v "Command Line\|commandline" | strip | head -40
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump" "$log" | grep -v "Command Line\|commandline" | strip | head -40
 done
 echo "===== errors, ensures, crashes"
 grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log | strip | sort | uniq -c | sort -rn | head -30

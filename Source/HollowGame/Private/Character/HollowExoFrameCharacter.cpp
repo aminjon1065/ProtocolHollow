@@ -27,6 +27,7 @@
 #include "Raid/HollowRaidSettings.h"
 #include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
+#include "Voice/HollowVoiceTalker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowExoFrameCharacter)
 
@@ -122,6 +123,7 @@ void AHollowExoFrameCharacter::InitializeFromPlayerState()
 		return;
 	}
 	InitializeAbilitySystem(HollowPlayerState->GetHollowAbilitySystemComponent(), HollowPlayerState);
+	HollowPlayerState->GetVoiceTalker()->RefreshPlacement();   // the voice comes from this helmet now (S4-07)
 
 	// The server learns of death from the health set (on the player state); clients follow the replicated flag.
 	const UHollowAbilitySystemComponent* AbilitySystem = GetHollowAbilitySystemComponent();
@@ -196,6 +198,10 @@ void AHollowExoFrameCharacter::ApplyDeadPresentation()
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	HelmetLight->SetVisibility(false);
+	if (const AHollowPlayerState* HollowPlayerState = GetPlayerState<AHollowPlayerState>())
+	{
+		HollowPlayerState->GetVoiceTalker()->RefreshPlacement();   // the dead talk on the radio (S4-07)
+	}
 }
 
 bool AHollowExoFrameCharacter::GetLightCone(FHollowLightCone& OutCone) const

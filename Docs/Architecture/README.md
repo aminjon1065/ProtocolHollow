@@ -78,11 +78,26 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0021, все в статусе *Accepted*
   - **Bug bash исправил:**
     - Back (Esc / B) теперь закрывает дебриф;
     - Shipping не компилировался: `GetActiveStateNames` у StateTree есть только с gameplay debugger; теперь вызов под `WITH_GAMEPLAY_DEBUGGER`, есть `build-editor-mac.sh --shipping`;
+    - на Mac в оконном полном экране меню не принимало кликов (ошибка движка `GetFullScreenInfo` без выбранного монитора): `UHollowGameUserSettings` запоминает основной монитор и переставляет окно;
     - для soak добавлены `Hollow.State.Invulnerable` и `Hollow.Dev.Invulnerable`.
   - **Скрипты:** `package-mac.sh` (самодостаточный `.app`, 953 МБ, шлюз предупреждений) и `playthrough-mac.sh solo / coop / soak` — собранный билд проходится через меню.
   - **На собранном Mac-билде:**
     - solo: E2 PASS;
     - coop: 4 игрока, два рейда, хеши совпали, итоги и профили верны;
     - soak: 20 минут, 4 игрока, 92,9 FPS, 0 рывков, память стабильна, ошибок 0.
-  - **Тесты** 117/117 строго (`Hollow.UI.Menus.{Rules, Widgets}`, `Hollow.Game.Build.Settings`, расширен `Hollow.GAS.Damage.Execution`).
+  - **Тесты** 118/118 строго (`Hollow.UI.Menus.{Rules, Widgets}`, `Hollow.Game.Build.Settings`, `Hollow.Game.Graphics.Display`, расширен `Hollow.GAS.Damage.Execution`).
   - **Ждут живого прогона:** E1 Mac ↔ Windows по NetworkChecklist и E9 на ноутбуке.
+- **S4-07 «Proximity Voice Chat и голос → ИИ»** ([ADR-0025](../ADR/ADR-0025-proximity-voice-to-ai.md)):
+  - **Голос в игре:** движковый VOIP (Steam / Null) на Mac и Win64.
+    - `UHollowVoiceSubsystem` (Network) — единственное место, связанное с бэкендом. Передача — `ToggleSpeaking`; свой измеритель микрофона (`IVoiceCapture`, RMS из PCM): движковый захват Mac громкость не считает.
+    - `UHollowVoiceComponent` на PlayerController: PTT (V / LB, `IMC_Voice`), Open Mic, Mute; режим хранится в `UHollowGameUserSettings`, переключается кнопкой «Voice: …» в системном меню.
+  - **Голос → ИИ:**
+    - клиент: таймер 0,1 с, `FHollowVoiceThrottle`, `Server_ReportVoiceLoudness(uint8)` (unreliable, ≤ 5 Гц);
+    - сервер: `FHollowVoiceRateGuard` → живой ExoFrame → `Hollow.Noise.Voice.{Whisper|Speech|Shout}` по порогам `UHollowVoiceSettings` → шум у головы (`DA_NoiseConfig`: 4 / 15 / 40 м) → слух Пилигрима и Хищника (× Резонанс) и тепловая карта.
+    - ИИ слышит только переданный голос.
+  - **Звучание:** `UHollowVoiceTalker` на PlayerState. Живой — 3D от головы (`ATT_Hollow_Voice`, «шлем»); мёртвый или без тела — 2D «рация». Эффекты — пресеты Synthesis (плагин включён явно), класс звука `SC_Hollow_Voice`; 13 ассетов, 44 КБ, `create_voice_assets.py`.
+  - **Mac:** `NSMicrophoneUsageDescription` и entitlement `audio-input`; дубли ключей `Info.Template.plist` из S4-06 убраны.
+  - **Инструменты:** `Hollow.Voice.Simulate <0..255> <сек>`, `Hollow.Voice.Mode`, `Hollow.Voice.Dump`; в `playthrough-mac.sh` клиенты кричат.
+  - **Тесты** 122/122 строго: `Hollow.Core.Voice.Rules`, `Hollow.Game.Voice.{Report, Talker}`, `Hollow.Game.Stalker.HearsVoice`, расширен `Hollow.Game.Build.Settings`.
+  - **Собранный билд, coop на 4 процессах:** крик клиента хост слышит как `Hollow.Noise.Voice.Shout`.
+  - **Не проверен настоящий микрофон:** у Mac mini нет устройства ввода. Это пункты V1–V6 живого прогона.

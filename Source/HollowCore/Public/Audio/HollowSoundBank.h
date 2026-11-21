@@ -105,7 +105,7 @@ namespace HollowSoundRules
 	HOLLOWCORE_API float AudibleRange(const FHollowSoundEntry& Entry, const UHollowNoiseConfig& Noise, float ReferenceHearingRange);
 
 	/**
-	 * What breaks the agreement: a noise rule players cannot hear (no entry), an entry without a sound, a duplicate tag,
+	 * What breaks the agreement: a noise rule players cannot hear (no entry; voices are heard through VOIP), an entry without a sound, a duplicate tag,
 	 * a link to a noise without a rule, a player-only sound without a range.
 	 */
 	HOLLOWCORE_API TArray<FString> Check(TConstArrayView<FHollowSoundEntry> Entries, const UHollowNoiseConfig& Noise);

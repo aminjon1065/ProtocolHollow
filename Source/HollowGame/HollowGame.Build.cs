@@ -30,6 +30,7 @@ public class HollowGame : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"AIModule",
+			"ApplicationCore",   // FDisplayMetrics: the game window's monitor (S4-06)
 			"DeveloperSettings",
 			"GameFeatures",
 			"NavigationSystem",

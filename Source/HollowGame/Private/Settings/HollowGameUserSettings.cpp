@@ -1,6 +1,7 @@
 #include "Settings/HollowGameUserSettings.h"
 
 #include "Engine/Engine.h"
+#include "GenericPlatform/GenericApplication.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "HollowGameLog.h"
@@ -130,11 +131,48 @@ EHollowGraphicsPreset UHollowGameUserSettings::ChooseFirstPreset()
 	return Preset;
 }
 
+int32 UHollowGameUserSettings::DisplayToChoose(const FDisplayMetrics& Metrics, const FString& DisplayID, const int32 DisplayIndex)
+{
+	if (!DisplayID.IsEmpty() || DisplayIndex != INDEX_NONE)
+	{
+		return INDEX_NONE;   // the player's (or an earlier launch's) choice stays
+	}
+	return Metrics.MonitorInfo.IndexOfByPredicate([](const FMonitorInfo& Monitor) { return Monitor.bIsPrimary; });
+}
+
+bool UHollowGameUserSettings::EnsureDisplayChosen()
+{
+	FDisplayMetrics Metrics;
+	FDisplayMetrics::RebuildDisplayMetrics(Metrics);
+	const int32 Monitor = DisplayToChoose(Metrics, GetDisplayID(), GetDisplayIndex());
+	if (Monitor == INDEX_NONE)
+	{
+		return false;
+	}
+	SetDisplayProperties(Metrics.MonitorInfo[Monitor].ID, Monitor);
+	ApplyResolutionSettings(/*bCheckForCommandLineOverrides=*/true);   // the window already exists: place it by the monitor now
+	UE_LOG(LogHollowGame, Display, TEXT("Display: %s (monitor %d) remembered for the game window."), *Metrics.MonitorInfo[Monitor].Name, Monitor);
+	return true;
+}
+
+void UHollowGameUserSettings::SetVoiceMode(const EHollowVoiceMode Mode)
+{
+	if (Mode != VoiceMode)
+	{
+		VoiceMode = Mode;
+		SaveSettings();
+	}
+}
+
 void UHollowGameUserSettings::InitializePreset()
 {
 	if (!FApp::CanEverRender())
 	{
 		return;   // a headless client or server: nothing to show, nothing to save
+	}
+	if (EnsureDisplayChosen())
+	{
+		SaveSettings();   // the next launch opens its window on that monitor from the start
 	}
 	if (const TOptional<EHollowGraphicsPreset> Forced = PresetFromCommandLine())
 	{

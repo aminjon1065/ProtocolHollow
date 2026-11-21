@@ -12,6 +12,7 @@ class APlayerController;
 class UHollowAbilitySystemComponent;
 class UHollowPromptModel;
 class UHollowToolTargetModel;
+class UHollowVoiceComponent;
 
 /**
  * What the visor of one local player shows comes from here (ADR-0013): it follows the player's pawn and its ability
@@ -43,6 +44,12 @@ public:
 
 	UHollowPromptModel* GetPrompt() const { return Prompt; }
 	UHollowToolTargetModel* GetToolTarget() const { return ToolTarget; }
+
+	/**
+	 * The player's voice (S4-07): OnVoiceActivityChanged drives the microphone indicator (drawn by the S4-08 visor);
+	 * who else is talking comes from UHollowVoiceTalker::OnTalkingChanged.
+	 */
+	UHollowVoiceComponent* GetVoice() const;
 
 	/** The pawn or its ability system changed: rebind. */
 	FOnHollowVisorSourcesChanged OnSourcesChanged;

@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "Framework/HollowPlayerState.h"
 #include "GameFramework/PlayerController.h"
+#include "Voice/HollowVoiceComponent.h"
 #include "Tests/AutomationCommon.h"
 
 /** Shared fixtures of the HollowGame automation tests. */
@@ -38,9 +39,10 @@ namespace HollowGameTests
 	 * bLocalPlayer: a standalone player on this machine (test worlds have no ULocalPlayer, so the engine would not
 	 * call the controller local otherwise); needed for LocalPredicted abilities.
 	 */
-	inline APlayerController* PossessAsPlayer(UWorld* World, AHollowExoFrameCharacter* Character, const bool bLocalPlayer = false)
+	template <typename TController = APlayerController>
+	TController* PossessAsPlayer(UWorld* World, AHollowExoFrameCharacter* Character, const bool bLocalPlayer = false)
 	{
-		APlayerController* Controller = World->SpawnActor<APlayerController>();
+		TController* Controller = World->SpawnActor<TController>();
 		if (bLocalPlayer)
 		{
 			Controller->SetAsLocalPlayerController();
@@ -50,6 +52,29 @@ namespace HollowGameTests
 		Controller->PlayerState = PlayerState;
 		Controller->Possess(Character);
 		return Controller;
+	}
+
+	/**
+	 * Gives Controller the voice of AHollowPlayerController (S4-07), begun, so a test reports as the server would.
+	 * Begins the controller's play too (test worlds do not begin play by themselves).
+	 */
+	inline UHollowVoiceComponent* AddVoice(AController* Controller)
+	{
+		if (!Controller)
+		{
+			return nullptr;
+		}
+		UHollowVoiceComponent* Voice = UHollowVoiceComponent::Get(Controller);
+		if (!Voice)
+		{
+			Voice = NewObject<UHollowVoiceComponent>(Controller);
+			Voice->RegisterComponent();
+		}
+		if (!Controller->HasActorBegunPlay())
+		{
+			Controller->DispatchBeginPlay();
+		}
+		return Voice;
 	}
 }
 

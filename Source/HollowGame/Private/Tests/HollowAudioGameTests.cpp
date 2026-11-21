@@ -32,6 +32,7 @@
 #include "Sound/ReverbEffect.h"
 #include "Sound/SoundClass.h"
 #include "Tests/HollowDocksTestRooms.h"
+#include "Tags/HollowGameplayTags.h"
 
 namespace HollowAudioGameTests
 {
@@ -122,6 +123,11 @@ bool FHollowAudioConsistencyTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Late arrivals are told by a freshness window"), GetDefault<UHollowAudioSettings>()->FreshEventSeconds > 0.f);
 	for (const FHollowNoiseRule& Rule : Noise->Rules)
 	{
+		if (Rule.NoiseTag.MatchesTag(HollowTags::Noise_Voice))
+		{
+			TestNull(*FString::Printf(TEXT("%s: heard through VOIP, not the bank (S4-07)"), *Rule.NoiseTag.ToString()), Bank->Find(Rule.NoiseTag));
+			continue;
+		}
 		const FHollowSoundEntry* Entry = Bank->Find(Rule.NoiseTag);
 		TestTrue(FString::Printf(TEXT("%s: a sound carrying as far as the Pilgrim hears it"), *Rule.NoiseTag.ToString()),
 			Entry && FMath::IsNearlyEqual(HollowSoundRules::AudibleRange(*Entry, *Noise, Reference), Noise->RangeFor(Rule, Pilgrim->HearingRange), RangeTolerance));
@@ -189,6 +195,10 @@ bool FHollowAudioEventsTest::RunTest(const FString& Parameters)
 	const float Reference = GetDefault<UHollowAudioSettings>()->ReferenceHearingRange;
 	for (const FHollowNoiseRule& Rule : Noise->Rules)
 	{
+		if (Rule.NoiseTag.MatchesTag(HollowTags::Noise_Voice))
+		{
+			continue;   // a voice is played by its VOIP talker (S4-07)
+		}
 		TestEqual(FString::Printf(TEXT("%s: heard as far as its rule carries"), *Rule.NoiseTag.ToString()), Audio->GetAudibleRange(Rule.NoiseTag),
 			Noise->RangeFor(Rule, Reference), RangeTolerance);
 	}

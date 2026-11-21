@@ -2,13 +2,19 @@
 
 #include "CommonButtonBase.h"
 #include "Engine/GameInstance.h"
+#include "Foundation/HollowButton.h"
+#include "GameFramework/PlayerController.h"
 #include "HollowUILog.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Menus/HollowMenuRules.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Session/HollowSessionSubsystem.h"
+#include "Voice/HollowVoiceComponent.h"
+#include "Voice/HollowVoiceRules.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowSystemMenuWidget)
+
+#define LOCTEXT_NAMESPACE "HollowSystemMenu"
 
 UHollowSystemMenuWidget::UHollowSystemMenuWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -34,12 +40,17 @@ void UHollowSystemMenuWidget::NativeOnInitialized()
 	{
 		LeaveButton->OnClicked().AddUObject(this, &ThisClass::Leave);
 	}
+	if (VoiceButton)
+	{
+		VoiceButton->OnClicked().AddUObject(this, &ThisClass::CycleVoice);
+	}
 }
 
 void UHollowSystemMenuWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	ApplyContext(HollowMenuRules::ReadContext(GetWorld()));
+	RefreshVoiceLabel();
 }
 
 void UHollowSystemMenuWidget::ApplyContext(const FHollowMenuContext& Context)
@@ -101,3 +112,38 @@ void UHollowSystemMenuWidget::Quit()
 	UE_LOG(LogHollowUI, Log, TEXT("%s: quit requested"), *GetName());
 	UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, /*bIgnorePlatformRestrictions=*/false);
 }
+
+FText UHollowSystemMenuWidget::VoiceLabel(const EHollowVoiceMode Mode)
+{
+	switch (Mode)
+	{
+	case EHollowVoiceMode::OpenMic: return LOCTEXT("VoiceOpenMic", "Voice: Open mic");
+	case EHollowVoiceMode::Muted:   return LOCTEXT("VoiceMuted", "Voice: Muted");
+	default:                        return LOCTEXT("VoicePushToTalk", "Voice: Push-to-talk");
+	}
+}
+
+void UHollowSystemMenuWidget::CycleVoice()
+{
+	if (UHollowVoiceComponent* Voice = UHollowVoiceComponent::Get(GetOwningPlayer()))
+	{
+		Voice->SetMode(HollowVoiceRules::NextMode(Voice->GetMode()));
+	}
+	RefreshVoiceLabel();
+}
+
+void UHollowSystemMenuWidget::RefreshVoiceLabel()
+{
+	UHollowButton* Button = Cast<UHollowButton>(VoiceButton);
+	const UHollowVoiceComponent* Voice = UHollowVoiceComponent::Get(GetOwningPlayer());
+	if (Button)
+	{
+		Button->SetVisibility(Voice ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (Voice)
+		{
+			Button->SetLabel(VoiceLabel(Voice->GetMode()));
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

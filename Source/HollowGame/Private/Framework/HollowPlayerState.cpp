@@ -6,6 +6,7 @@
 #include "Attributes/HollowSurvivalSet.h"
 #include "Attributes/HollowToolSet.h"
 #include "Session/HollowNetworkSettings.h"
+#include "Voice/HollowVoiceTalker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowPlayerState)
 
@@ -20,6 +21,7 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 	SurvivalSet = CreateDefaultSubobject<UHollowSurvivalSet>(TEXT("SurvivalSet"));
 	ResonanceSet = CreateDefaultSubobject<UHollowResonanceSet>(TEXT("ResonanceSet"));
 	ToolSet = CreateDefaultSubobject<UHollowToolSet>(TEXT("ToolSet"));
+	VoiceTalker = CreateDefaultSubobject<UHollowVoiceTalker>(TEXT("VoiceTalker"));
 
 	// The engine default for player states is far too low for an ability system owner.
 	const float NetUpdateFrequency = GetDefault<UHollowNetworkSettings>()->PlayerStateNetUpdateFrequency;
@@ -32,4 +34,10 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 UAbilitySystemComponent* AHollowPlayerState::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
+}
+
+void AHollowPlayerState::OnSetUniqueId()
+{
+	Super::OnSetUniqueId();
+	VoiceTalker->TryRegister();
 }

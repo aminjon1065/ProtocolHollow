@@ -31,6 +31,11 @@ RULES = [
     ("Hollow.Noise.Core.Drop", 0.8, 2500.0, 0.0),
     ("Hollow.Noise.Impact.Heavy", 1.0, 3000.0, 0.0),
     ("Hollow.Noise.Structural.Breach", 2.0, 6000.0, 0.0),
+    # S4-07 (ADR-0025): a transmitted voice by its tier (UHollowVoiceSettings): a whisper 4 m, speech 15 m, a shout 40 m
+    # (louder than welding, quieter than a breach); heard again at most twice a second while it lasts.
+    ("Hollow.Noise.Voice.Whisper", 0.15, 400.0, 0.5),
+    ("Hollow.Noise.Voice.Speech", 0.5, 1500.0, 0.5),
+    ("Hollow.Noise.Voice.Shout", 1.5, 4000.0, 0.5),
 ]
 # Footsteps (data): checked twice a second; crouch-walking (180) stays under the minimum; walking (400) is the reference.
 FOOTSTEPS = {"footstep_interval": 0.5, "footstep_min_speed": 200.0, "footstep_reference_speed": 400.0,

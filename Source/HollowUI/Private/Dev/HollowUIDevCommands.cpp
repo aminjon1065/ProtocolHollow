@@ -4,6 +4,7 @@
 #include "CommonActivatableWidget.h"
 #include "CommonInputSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Foundation/HollowHUD.h"
@@ -20,6 +21,7 @@
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "ViewModels/HollowVisorContext.h"
+#include "Voice/HollowVoiceComponent.h"
 #include "Visor/HollowStatBarWidget.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
@@ -59,6 +61,21 @@ namespace HollowUIDevConsole
 		if (const APawn* Pawn = Player->GetPawn())
 		{
 			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: pawn at %s"), *Pawn->GetActorLocation().ToCompactString());
+		}
+		if (const UHollowVoiceComponent* Voice = Context->GetVoice())
+		{
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: voice %s"), *Voice->Describe());
+		}
+		// Where Slate believes the game window and the cursor are: a click lands only inside that window (S4-06: the
+		// windowed-fullscreen Mac window lost every click).
+		if (const UGameViewportClient* Viewport = World->GetGameViewport())
+		{
+			const TSharedPtr<SWindow> Window = Viewport->GetWindow();
+			const FSlateApplication& Slate = FSlateApplication::Get();
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: window at %s size %s, mode %d (0 fullscreen, 1 windowed fullscreen, 2 windowed), cursor %s (inside %d), DPI scale %.2f"),
+				Window ? *Window->GetPositionInScreen().ToString() : TEXT("-"), Window ? *Window->GetSizeInScreen().ToString() : TEXT("-"),
+				Window ? static_cast<int32>(Window->GetWindowMode()) : -1, *Slate.GetCursorPos().ToString(),
+				Window ? Window->IsScreenspaceMouseWithin(Slate.GetCursorPos()) : 0, Window ? Window->GetDPIScaleFactor() : 0.f);
 		}
 
 		const UCommonActivatableWidgetContainerBase* GameLayer = Layout->GetLayer(HollowUITags::UI_Layer_Game);

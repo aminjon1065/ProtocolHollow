@@ -432,6 +432,16 @@ struct FHollowNoiseEvent
 - Сам звук идёт через движковый VOIP поверх игрового соединения. `UVOIPTalker` на каждого игрока, `FVoiceSettings` с аттенюацией, окклюзией и цепочкой эффектов «шлем/рация».
 - **Для ИИ** клиент сам меряет огибающую своего микрофона и шлёт `Server_ReportVoiceLoudness(uint8)` как unreliable RPC с частотой до 5 Гц, только если громкость выше порога или изменилась. Сервер делает clamp и вызывает `ReportNoise({Hollow.Noise.Voice, PawnLocation, Pawn, Loudness})`.
 - Так голос перестаёт зависеть от выбранного voice-бэкенда: Steam, EOS или Vivox меняются без правки ИИ. Читерить, говоря «тише», в PvE бессмысленно.
+- *Реализация S4-07* ([ADR-0025](../ADR/ADR-0025-proximity-voice-to-ai.md)):
+  - **Бэкенд** знает только `UHollowVoiceSubsystem` (Network). Передача — `ToggleSpeaking`.
+  - **Измеритель микрофона** свой (`IVoiceCapture`), громкость — RMS из PCM: движковый захват Mac громкость не считает.
+  - **Клиент.** `UHollowVoiceComponent` на PlayerController — PTT (V / LB), Open Mic или Mute; таймер 0,1 с; `FHollowVoiceThrottle` (≤ 5 Гц, ровный уровень раз в 0,5 с).
+  - **Сервер.** `FHollowVoiceRateGuard` → живой ExoFrame → тир `Hollow.Noise.Voice.{Whisper|Speech|Shout}` по порогам 60 / 120 / 200 (`UHollowVoiceSettings`) → шум у головы. Правила тиров — в `DA_NoiseConfig` (4 / 15 / 40 м).
+  - **ИИ слышит только переданный голос.**
+  - **Воспроизведение.** `UHollowVoiceTalker` на PlayerState:
+    - живой — 3D от головы, `ATT_Hollow_Voice`, «шлем» (Synthesis);
+    - без живого тела — 2D «рация».
+  - Окклюзия и реверб — от комнатных Audio Gameplay Volume.
 - **Резонанс:** радиус слуха Эхо-Хищника умножается на `ResonanceMultiplierCurve(SquadResonance)`. Это кривая в данных.
   - *Реализация S4-02* ([ADR-0020](../ADR/ADR-0020-squad-resonance.md)): кривая — `UHollowStalkerDefinition::HearingResonanceCurve` (×1 → ×2), на уровне отряда из `UHollowSquadResonanceComponent`. Слух перенастраивается только при изменении уровня; Пилигрим не меняется. Шумы громче не становятся.
 

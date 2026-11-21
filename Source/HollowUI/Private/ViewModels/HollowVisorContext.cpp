@@ -11,6 +11,7 @@
 #include "HollowUILog.h"
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
+#include "Voice/HollowVoiceComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowVisorContext)
 
@@ -77,6 +78,11 @@ UHollowVisorContext* UHollowVisorContext::Get(const APlayerController* InPlayer)
 APlayerController* UHollowVisorContext::GetPlayer() const
 {
 	return Player.Get();
+}
+
+UHollowVoiceComponent* UHollowVisorContext::GetVoice() const
+{
+	return UHollowVoiceComponent::Get(Player.Get());
 }
 
 AHollowExoFrameCharacter* UHollowVisorContext::GetCharacter() const

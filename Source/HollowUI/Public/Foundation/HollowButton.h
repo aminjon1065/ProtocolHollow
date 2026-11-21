@@ -15,6 +15,9 @@ class HOLLOWUI_API UHollowButton : public UCommonButtonBase
 public:
 	const FText& GetLabel() const { return Label; }
 
+	/** Changes the label while the menu is up (a toggle shows its state, S4-07). */
+	void SetLabel(const FText& InLabel);
+
 protected:
 	virtual void NativePreConstruct() override;
 

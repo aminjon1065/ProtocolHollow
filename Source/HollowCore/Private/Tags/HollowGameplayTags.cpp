@@ -51,7 +51,10 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Structural, "Hollow.Damage.Structural", "Structural damage to doors, bulkheads and barricades.");
 
 	// Noise
-	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Voice, "Hollow.Noise.Voice", "Proximity voice chat loudness.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Voice, "Hollow.Noise.Voice", "Proximity voice chat loudness (parent of the tiers; players hear voices through VOIP).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Voice_Whisper, "Hollow.Noise.Voice.Whisper", "A transmitted voice at whisper level (S4-07).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Voice_Speech, "Hollow.Noise.Voice.Speech", "A transmitted voice at speaking level (S4-07).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Voice_Shout, "Hollow.Noise.Voice.Shout", "A transmitted voice at shouting level (S4-07).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Footstep, "Hollow.Noise.Footstep", "Footsteps.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Tool_Cutter, "Hollow.Noise.Tool.Cutter", "Plasma cutter in use.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Tool_Welder, "Hollow.Noise.Tool.Welder", "Welder in use.");
@@ -80,6 +83,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Sprint, "Hollow.Input.Sprint", "Sprint input.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Crouch, "Hollow.Input.Crouch", "Crouch input.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Gadget, "Hollow.Input.Gadget", "Gadget input.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_PushToTalk, "Hollow.Input.PushToTalk", "Push-to-talk (held): transmits the voice (S4-07).");
 
 	// Sector rooms and sockets
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Room_Type, "Hollow.Room.Type", "Parent of room types; every room definition carries exactly one child.");

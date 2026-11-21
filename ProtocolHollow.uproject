@@ -35,6 +35,7 @@
 		{ "Name": "Metasound",                "Enabled": true },
 		{ "Name": "AudioModulation",          "Enabled": true },
 		{ "Name": "AudioGameplayVolume",      "Enabled": true },
+		{ "Name": "Synthesis",                "Enabled": true },
 		{ "Name": "SignificanceManager",      "Enabled": true },
 		{ "Name": "AnimationBudgetAllocator", "Enabled": true },
 		{ "Name": "DataValidation",           "Enabled": true },
