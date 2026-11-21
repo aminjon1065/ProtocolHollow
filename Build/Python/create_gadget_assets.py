@@ -5,9 +5,11 @@
   /Game/Hollow/Gadgets/PulseMine/
       DA_PulseMine                                   UHollowPulseMineDefinition (arming, radii, stun, noise)
       BP_PulseMine                                   AHollowPulseMine: greybox disc and its flash
-      GA_PulseMine                                   UHollowGA_PulseMine: mine class and cooldown
+      GA_PulseMine                                   UHollowGA_PulseMine: mine class and cooldown; costs one mine item per use
+      DA_AbilitySet_PulseMine                        GA_PulseMine on Hollow.Input.Gadget, granted by the pulse mine item while
+                                                     it is in the raid inventory (ADR-0030; create_inventory_assets.py links it)
   IA_Gadget (G, gamepad right shoulder) in IMC_Raid and DA_InputConfig_Raid (Hollow.Input.Gadget)
-  DA_AbilitySet_ExoFrame                             GA_PulseMine on Hollow.Input.Gadget
+  DA_AbilitySet_ExoFrame                             no longer grants GA_PulseMine (S5-01)
   BP_ExoFrame                                        helmet lamp cone, brightness and reach (the stalker avoids its cone)
 
 Creates or fills only what is missing or differs, then validates.
@@ -26,6 +28,8 @@ MINE_DIR = "/Game/Hollow/Gadgets/PulseMine"
 MINE_DEFINITION = MINE_DIR + "/DA_PulseMine"
 MINE_BP = MINE_DIR + "/BP_PulseMine"
 MINE_ABILITY = MINE_DIR + "/GA_PulseMine"
+MINE_ABILITY_SET = MINE_DIR + "/DA_AbilitySet_PulseMine"
+MINES_PER_USE = 1   # UHollowGA_PulseMine's item cost (its C++ default)
 ACTIONS_DIR = "/Game/Hollow/Core/Input/Actions"
 IMC_PATH = "/Game/Hollow/Core/Input/IMC_Raid"
 INPUT_CONFIG_PATH = "/Game/Hollow/Core/Input/DA_InputConfig_Raid"
@@ -236,17 +240,25 @@ def ensure_input():
 
 
 def ensure_ability_set(ability_class):
-    ability_set = load(ABILITY_SET_PATH)
-    granted = list(ability_set.get_editor_property("granted_abilities"))
-    if any(e.get_editor_property("ability") == ability_class for e in granted):
+    """The mine comes from its item (ADR-0030): its own set grants it, the suit's no longer does."""
+    suit = load(ABILITY_SET_PATH)
+    granted = list(suit.get_editor_property("granted_abilities"))
+    kept = [e for e in granted if e.get_editor_property("ability") != ability_class]
+    if len(kept) != len(granted):
+        suit.set_editor_property("granted_abilities", kept)
+        save(suit)
+        log("DA_AbilitySet_ExoFrame: no GA_PulseMine")
+    mine_set, _ = data_asset(MINE_ABILITY_SET, unreal.HollowAbilitySet)
+    entries = mine_set.get_editor_property("granted_abilities")
+    if len(entries) == 1 and entries[0].get_editor_property("ability") == ability_class \
+            and same(entries[0].get_editor_property("input_tag"), make_tag(GADGET_INPUT[1])):
         return
     entry = unreal.HollowAbilitySetAbility()
     entry.set_editor_property("ability", ability_class)
     entry.set_editor_property("input_tag", make_tag(GADGET_INPUT[1]))
-    granted.append(entry)
-    ability_set.set_editor_property("granted_abilities", granted)
-    save(ability_set)
-    log("granted GA_PulseMine in DA_AbilitySet_ExoFrame")
+    mine_set.set_editor_property("granted_abilities", [entry])
+    save(mine_set)
+    log("DA_AbilitySet_PulseMine: GA_PulseMine on " + GADGET_INPUT[1])
 
 
 def ensure_lamp():
@@ -276,9 +288,12 @@ def validate(mine_class, ability_class):
     ability = unreal.get_default_object(ability_class)
     check(ability.get_editor_property("mine_class") == mine_class, "GA_PulseMine mine")
     check(ability.get_editor_property("cooldown_gameplay_effect_class") == load(COOLDOWN_EFFECT).generated_class(), "GA_PulseMine cooldown")
-    granted = load(ABILITY_SET_PATH).get_editor_property("granted_abilities")
-    check(any(e.get_editor_property("ability") == ability_class and same(e.get_editor_property("input_tag"), make_tag(GADGET_INPUT[1]))
-              for e in granted), "ExoFrame ability set grants GA_PulseMine on the gadget input")
+    check(ability.get_editor_property("item_cost_per_use") == MINES_PER_USE, "GA_PulseMine costs one mine")
+    check(not any(e.get_editor_property("ability") == ability_class for e in load(ABILITY_SET_PATH).get_editor_property("granted_abilities")),
+          "the suit does not grant GA_PulseMine")
+    granted = load(MINE_ABILITY_SET).get_editor_property("granted_abilities")
+    check(len(granted) == 1 and granted[0].get_editor_property("ability") == ability_class
+          and same(granted[0].get_editor_property("input_tag"), make_tag(GADGET_INPUT[1])), "DA_AbilitySet_PulseMine grants GA_PulseMine on the gadget input")
     action = load(ACTIONS_DIR + "/" + GADGET_INPUT[0])
     mapped = [m for m in load(IMC_PATH).get_editor_property("default_key_mappings").get_editor_property("mappings")
               if m.get_editor_property("action") == action]

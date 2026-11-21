@@ -35,6 +35,13 @@ public:
 	/** The resolved raid the player has not seen yet, if any. */
 	const FHollowRaidReport* GetPendingReport() const;
 
+	/**
+	 * What this player takes into raid RaidId (ADR-0030, the host asks while the raid assembles): the loadout as stacks,
+	 * checked by the same rules as on the host. An unresolved escrow of another raid is first resolved as Abandoned,
+	 * so nothing lost there can come along.
+	 */
+	TArray<FHollowItemStack> GetLoadoutForRaid(const FGuid& RaidId);
+
 	/** This machine is in raid RaidId (every machine, the host included). */
 	void BeginRaid(const FGuid& RaidId);
 
@@ -46,6 +53,12 @@ public:
 
 	/** Development: insure or uninsure a loadout slot (insurance UI comes later). False for a bad slot or an uninsurable item. */
 	bool SetSlotInsured(int32 SlotIndex, bool bInsured);
+
+	/**
+	 * Development (crafting and the shop come later): Item's loadout slot holds Count (0 removes it; a new slot comes
+	 * last). Insured only if the item can be. False for an unknown item.
+	 */
+	bool SetLoadoutSlot(const FPrimaryAssetId& Item, int32 Count, bool bInsured);
 
 	/** Development: back to a new profile. */
 	void ResetProfile();

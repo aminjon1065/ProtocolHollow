@@ -7,6 +7,7 @@
 
 class UHollowAbilitySystemComponent;
 class UHollowHealthSet;
+class UHollowInventoryComponent;
 class UHollowResonanceSet;
 class UHollowSurvivalSet;
 class UHollowToolSet;
@@ -29,6 +30,9 @@ public:
 
 	/** How this player's voice sounds on this machine (S4-07): from the helmet of a living body, else on the radio. */
 	UHollowVoiceTalker* GetVoiceTalker() const { return VoiceTalker; }
+
+	/** The raid inventory (ADR-0030): the accepted loadout; its items grant the tools and consumables on this ability system. */
+	UHollowInventoryComponent* GetInventory() const { return Inventory; }
 
 protected:
 	/** The voice backend knows a player by its unique net id: the talker registers once it is known (server or client). */
@@ -53,4 +57,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Voice")
 	TObjectPtr<UHollowVoiceTalker> VoiceTalker;
+
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Inventory")
+	TObjectPtr<UHollowInventoryComponent> Inventory;
 };

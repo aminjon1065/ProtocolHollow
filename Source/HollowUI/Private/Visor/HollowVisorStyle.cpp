@@ -46,7 +46,7 @@ EDataValidationResult UHollowVisorStyle::IsDataValid(FDataValidationContext& Con
 			Result = EDataValidationResult::Invalid;
 		}
 	}
-	const FText* Texts[] = {&ResonanceFormat, &PushToTalkLabel, &OpenMicLabel, &MutedLabel, &TransmittingFormat, &TalkingFormat, &LampOnLabel, &LampOffLabel, &LampFormat};
+	const FText* Texts[] = {&ResonanceFormat, &PushToTalkLabel, &OpenMicLabel, &MutedLabel, &TransmittingFormat, &TalkingFormat, &LampOnLabel, &LampOffLabel, &LampFormat, &SupplyFormat, &SupplySeparator};
 	for (const FText* Text : Texts)
 	{
 		if (Text->IsEmpty())

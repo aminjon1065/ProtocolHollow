@@ -8,7 +8,8 @@
 class AHollowPulseMine;
 
 /**
- * Lays a kinetic pulse mine at the feet (Gadget input, ADR-0019). Predicted commit (the cooldown effect,
+ * Lays a kinetic pulse mine at the feet (Gadget input, ADR-0019). Granted by the pulse mine item and costs one of it
+ * per use (ADR-0030): no mine in the raid inventory, no mine laid. Predicted commit (the cooldown effect,
  * GE_Cooldown_PulseMine); the server spawns MineClass on the floor below the pawn and takes back the player's
  * previous mine if it has not gone off: one active mine per player.
  */

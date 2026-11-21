@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HollowEconomyLog.h"
+#include "Inventory/HollowLoadoutRules.h"
 #include "Items/HollowItemTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Profile/HollowEconomySettings.h"
@@ -62,6 +63,22 @@ const FHollowRaidReport* UHollowProfileSubsystem::GetPendingReport() const
 	return Save->State.bReportPending ? &Save->State.PendingReport : nullptr;
 }
 
+TArray<FHollowItemStack> UHollowProfileSubsystem::GetLoadoutForRaid(const FGuid& RaidId)
+{
+	FHollowProfileState& State = Save->State;
+	if (State.Escrow.IsActive() && State.Escrow.RaidId != RaidId)
+	{
+		HandleReport(HollowProfileRules::ResolveEscrow(State, EHollowRaidOutcome::Abandoned, FDateTime::UtcNow(),
+			FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State))), TEXT("a new raid asks for the loadout before the last one was resolved"));
+	}
+	TArray<FHollowLoadoutIssue> Issues;
+	TArray<FHollowItemStack> Loadout = HollowLoadoutRules::ValidateForRaid(HollowLoadoutRules::ToStacks(State.Profile.Loadout), &Issues);
+	UE_CLOG(!Issues.IsEmpty(), LogHollowEconomy, Warning, TEXT("Profile: loadout for raid %s not taken as it is: %s"), *RaidId.ToString(),
+		*HollowLoadoutRules::Describe(Issues));
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: loadout for raid %s: %s"), *RaidId.ToString(), *HollowLoadoutRules::Describe(Loadout));
+	return Loadout;
+}
+
 void UHollowProfileSubsystem::BeginRaid(const FGuid& RaidId)
 {
 	FHollowProfileState& State = Save->State;
@@ -108,6 +125,33 @@ bool UHollowProfileSubsystem::SetSlotInsured(const int32 SlotIndex, const bool b
 		return false;
 	}
 	Slot.bInsured = bInsured;
+	Persist();
+	return true;
+}
+
+bool UHollowProfileSubsystem::SetLoadoutSlot(const FPrimaryAssetId& Item, const int32 Count, const bool bInsured)
+{
+	const FHollowItemCatalog Catalog = FHollowItemCatalog::Load(MakeArrayView(&Item, 1));
+	if (!Catalog.Contains(Item))
+	{
+		return false;
+	}
+	TArray<FHollowLoadoutSlot>& Loadout = Save->State.Profile.Loadout;
+	FHollowLoadoutSlot* Slot = Loadout.FindByPredicate([&Item](const FHollowLoadoutSlot& S) { return S.Item == Item; });
+	if (Count <= 0)
+	{
+		Loadout.RemoveAll([&Item](const FHollowLoadoutSlot& S) { return S.Item == Item; });
+	}
+	else
+	{
+		if (!Slot)
+		{
+			Slot = &Loadout.AddDefaulted_GetRef();
+			Slot->Item = Item;
+		}
+		Slot->Count = Count;
+		Slot->bInsured = bInsured && Catalog.IsInsurable(Item);
+	}
 	Persist();
 	return true;
 }

@@ -15,6 +15,8 @@
 #include "Gadgets/HollowGA_PulseMine.h"
 #include "Gadgets/HollowPulseMine.h"
 #include "Gadgets/HollowPulseMineDefinition.h"
+#include "Inventory/HollowInventoryComponent.h"
+#include "Items/HollowItemDefinition.h"
 #include "Noise/HollowNoiseConfig.h"
 #include "Noise/HollowNoiseSubsystem.h"
 #include "Resonance/HollowResonanceConfig.h"
@@ -39,6 +41,7 @@ namespace HollowStalkerTests
 	const TCHAR* const KineticEffect = TEXT("/Game/Hollow/GAS/Effects/GE_Damage_Kinetic.GE_Damage_Kinetic_C");
 	const TCHAR* const MineClass = TEXT("/Game/Hollow/Gadgets/PulseMine/BP_PulseMine.BP_PulseMine_C");
 	const TCHAR* const MineAbilityClass = TEXT("/Game/Hollow/Gadgets/PulseMine/GA_PulseMine.GA_PulseMine_C");
+	const TCHAR* const MineItemPath = TEXT("/Game/Hollow/Items/Consumables/DA_Item_PulseMine.DA_Item_PulseMine");
 
 	// The scene's floor (X 0..2000, Y -2300..500) as sector rooms (test data): West of the wall line and East of it;
 	// for the ambush, East split into South-East and North-East.
@@ -644,21 +647,24 @@ bool FHollowGadgetPulseMineTest::RunTest(const FString& Parameters)
 {
 	// GA_PulseMine (ADR-0019): a mine on the floor at the feet, then the cooldown; one mine per player (a new one takes
 	// the old one back); armed after ArmSeconds; players never set it off, an enemy in TriggerRadius does; the blast
-	// is the player's noise; the spent mine goes.
+	// is the player's noise; the spent mine goes. The mines are the player's (ADR-0030): two in the raid inventory, two laid.
 	using namespace HollowStalkerTests;
 	FEnemyScene Scene;
 	const TSubclassOf<UGameplayAbility> Ability = LoadClass<UGameplayAbility>(nullptr, MineAbilityClass);
-	if (!TestNotNull(TEXT("GA_PulseMine"), Ability.Get()) || !Scene.Create(*this, EWall::None))
+	UHollowItemDefinition* MineItem = LoadObject<UHollowItemDefinition>(nullptr, MineItemPath);
+	if (!TestNotNull(TEXT("GA_PulseMine"), Ability.Get()) || !TestNotNull(TEXT("DA_Item_PulseMine"), MineItem) || !Scene.Create(*this, EWall::None))
 	{
 		return false;
 	}
 	AHollowExoFrameCharacter* Player = nullptr;
 	UHollowAbilitySystemComponent* Abilities = Scene.SpawnPlayer(*this, RoomA, Player, 0.f, /*bLocalPlayer=*/true);
-	if (!Abilities)
+	UHollowInventoryComponent* Inventory = Player ? UHollowInventoryComponent::Get(Player->GetPlayerState()) : nullptr;
+	if (!Abilities || !TestNotNull(TEXT("Raid inventory"), Inventory))
 	{
 		return false;
 	}
-	Abilities->GiveAbility(FGameplayAbilitySpec(Ability, 1));
+	constexpr int32 MinesTaken = 2;
+	Inventory->AddItem(MineItem, MinesTaken);   // the item grants GA_PulseMine
 	Advance(Scene.TestWorld, StepSeconds * 0.1f);   // on the floor
 	auto Mines = [&Scene]
 	{
@@ -699,6 +705,10 @@ bool FHollowGadgetPulseMineTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	Abilities->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(HollowTags::Cooldown_Gadget_PulseMine));
+	TestTrue(TEXT("Both mines laid: none left"), Inventory->GetCount(MineItem) == 0);
+	TestFalse(TEXT("...so no third one, even after the cooldown"), Abilities->TryActivateAbilityByClass(Ability));
+	TestTrue(TEXT("...the second still lies there"), IsValid(Second) && Mines().Num() == 1);
 	Advance(Scene.TestWorld, Definition->ArmSeconds * 0.5f);
 	TestFalse(TEXT("Not armed at once"), Second->IsArmed());
 	Advance(Scene.TestWorld, Definition->ArmSeconds);

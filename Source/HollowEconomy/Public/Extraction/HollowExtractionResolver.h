@@ -8,7 +8,9 @@
  * - Extracted: the whole loadout is kept and the loot is sold (each extracted player gets the full squad loot).
  * - Dead, MissingInAction, Abandoned: only insured slots of insurable items are kept, the loot is lost.
  * - SignalLost: the loadout is kept, the loot is lost.
- * Credits already in the profile are never touched; insurance is not consumed.
+ * What was used up in the raid (Context.Spent, ADR-0030) is gone in every case, taken from the slots holding it in
+ * order; the outcome then decides about the rest. Credits already in the profile are never touched; insurance is not
+ * consumed.
  */
 struct HOLLOWECONOMY_API FHollowExtractionResolver
 {

@@ -105,4 +105,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lamp")
 	FLinearColor LampOffColor = FLinearColor::Gray;
+
+	/** One consumable of the raid inventory (S5-01): {0} = its name, {1} = how many are left. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Supplies")
+	FText SupplyFormat;
+
+	/** Between two consumables. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Supplies")
+	FText SupplySeparator;
 };

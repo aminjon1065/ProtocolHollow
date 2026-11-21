@@ -38,11 +38,23 @@ FHollowProfileDelta FHollowExtractionResolver::Resolve(const FHollowRaidContext&
 	{
 		return Delta;   // no decision yet: nothing changes
 	}
+	TMap<FPrimaryAssetId, int32> ToSpend;
+	for (const FHollowItemStack& Stack : Context.Spent)
+	{
+		ToSpend.FindOrAdd(Stack.Item) += FMath::Max(Stack.Count, 0);
+	}
 	const bool bKeepAll = KeepsLoadout(Outcome);
 	for (const FHollowLoadoutSlot& Slot : Context.Loadout)
 	{
+		int32* Spend = ToSpend.Find(Slot.Item);
+		const int32 Spent = Spend ? FMath::Clamp(*Spend, 0, FMath::Max(Slot.Count, 0)) : 0;
+		if (Spend)
+		{
+			*Spend -= Spent;
+		}
+		AddStack(Delta.Spent, Slot.Item, Spent);
 		const bool bKept = bKeepAll || (Slot.bInsured && Catalog.IsInsurable(Slot.Item));
-		AddStack(bKept ? Delta.Kept : Delta.Lost, Slot.Item, Slot.Count);
+		AddStack(bKept ? Delta.Kept : Delta.Lost, Slot.Item, Slot.Count - Spent);
 	}
 	if (KeepsLoot(Outcome))
 	{

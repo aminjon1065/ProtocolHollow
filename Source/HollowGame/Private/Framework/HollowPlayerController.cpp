@@ -8,6 +8,7 @@
 #include "HollowGameLog.h"
 #include "InputMappingContext.h"
 #include "Profile/HollowProfileSubsystem.h"
+#include "Raid/HollowRaidFlowComponent.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Util/HollowEnumUtils.h"
 #include "Voice/HollowVoiceComponent.h"
@@ -76,4 +77,32 @@ void AHollowPlayerController::Client_ReceiveRaidResult_Implementation(const FHol
 	{
 		Profile->ApplyRaidResult(Result);
 	}
+}
+
+void AHollowPlayerController::Client_RequestLoadout_Implementation(const FGuid& RaidId)
+{
+	UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this);
+	if (!Profile)
+	{
+		UE_LOG(LogHollowGame, Warning, TEXT("%s: raid %s asks for the loadout, but this machine has no profile; going in empty-handed"), *GetName(),
+			*RaidId.ToString());
+	}
+	FHollowLoadoutSnapshot Loadout;
+	Loadout.RaidId = RaidId;
+	if (Profile)
+	{
+		Loadout.Slots = Profile->GetLoadoutForRaid(RaidId);
+	}
+	Server_SubmitLoadout(Loadout);
+}
+
+void AHollowPlayerController::Server_SubmitLoadout_Implementation(const FHollowLoadoutSnapshot& Loadout)
+{
+	const AHollowRaidGameMode* Raid = GetWorld()->GetAuthGameMode<AHollowRaidGameMode>();
+	if (!Raid)
+	{
+		UE_LOG(LogHollowGame, Verbose, TEXT("%s sent a loadout outside a raid; ignored."), *GetName());
+		return;
+	}
+	Raid->GetRaidFlow()->AcceptLoadout(this, Loadout);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/PrimaryAssetId.h"
 
 #include "HollowItemTypes.generated.h"
@@ -41,12 +42,16 @@ struct HOLLOWECONOMY_API FHollowLoadoutSlot
 /** The economy facts of items by id, for the pure rules (built from the definitions; tests fill it by hand). */
 struct HOLLOWECONOMY_API FHollowItemCatalog
 {
-	void Add(const FPrimaryAssetId& Item, int32 Value, bool bInsurable);
+	void Add(const FPrimaryAssetId& Item, int32 Value, bool bInsurable, int32 MaxStack = 1, const FGameplayTag& ItemType = FGameplayTag());
 	bool Contains(const FPrimaryAssetId& Item) const { return Entries.Contains(Item); }
 	/** Value of one; unknown items are worth nothing. */
 	int32 GetValue(const FPrimaryAssetId& Item) const;
 	/** Unknown items cannot be insured. */
 	bool IsInsurable(const FPrimaryAssetId& Item) const;
+	/** How many one loadout slot holds (at least 1); 0 for unknown items. */
+	int32 GetMaxStack(const FPrimaryAssetId& Item) const;
+	/** Its Hollow.Item.Type.* child; none for unknown items. */
+	FGameplayTag GetItemType(const FPrimaryAssetId& Item) const;
 
 	/** Loads (synchronously: tiny data assets) the definitions of Items and catalogs them. */
 	static FHollowItemCatalog Load(TConstArrayView<FPrimaryAssetId> Items);
@@ -56,6 +61,8 @@ private:
 	{
 		int32 Value = 0;
 		bool bInsurable = false;
+		int32 MaxStack = 1;
+		FGameplayTag ItemType;
 	};
 	TMap<FPrimaryAssetId, FEntry> Entries;
 };

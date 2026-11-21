@@ -778,9 +778,9 @@ namespace HollowDevConsole
 			Profile.Stats.Raids, Profile.Stats.Extractions, Profile.Stats.Deaths, Profile.Stats.CoresDelivered);
 		if (const FHollowRaidReport* Report = Profiles->GetPendingReport())
 		{
-			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: debrief pending: %s, credits %d -> %d, kept%s, lost%s, sold%s"),
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: debrief pending: %s, credits %d -> %d, kept%s, lost%s, spent%s, sold%s"),
 				*HollowEnumToString(Report->Result.Outcome), Report->CreditsBefore, Report->CreditsAfter, *DescribeStacks(Report->Delta.Kept),
-				*DescribeStacks(Report->Delta.Lost), *DescribeStacks(Report->Delta.Sold));
+				*DescribeStacks(Report->Delta.Lost), *DescribeStacks(Report->Delta.Spent), *DescribeStacks(Report->Delta.Sold));
 		}
 	}
 
@@ -797,6 +797,22 @@ namespace HollowDevConsole
 		const int32 Slot = FCString::Atoi(*Args[0]);
 		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Insure: slot %d %s: %s"), Slot, bInsured ? TEXT("insured") : TEXT("uninsured"),
 			Profiles->SetSlotInsured(Slot, bInsured) ? TEXT("done") : TEXT("refused (no such slot or not insurable)"));
+	}
+
+	/** Usage: Hollow.Profile.SetSlot <Item> <Count> [Insured] */
+	void ProfileSetSlot(const TArray<FString>& Args, UWorld* World)
+	{
+		UHollowProfileSubsystem* Profiles = UHollowProfileSubsystem::Get(World);
+		if (!Profiles || Args.Num() < 2 || !Args[1].IsNumeric())
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Usage: Hollow.Profile.SetSlot <Item> <Count> [Insured]"));
+			return;
+		}
+		const FPrimaryAssetId Item(TEXT("HollowItem"), FName(*Args[0]));
+		const int32 Count = FCString::Atoi(*Args[1]);
+		const bool bInsured = Args.Num() > 2 && Args[2].Equals(TEXT("Insured"), ESearchCase::IgnoreCase);
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.SetSlot: %s x%d%s: %s"), *Item.ToString(), Count, bInsured ? TEXT(" insured") : TEXT(""),
+			Profiles->SetLoadoutSlot(Item, Count, bInsured) ? TEXT("done") : TEXT("refused (unknown item)"));
 	}
 
 	void ProfileReset(UWorld* World)
@@ -1088,6 +1104,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Profile.Insure"),
 		TEXT("Insures (or, with Off, uninsures) a loadout slot of the local profile. Usage: Hollow.Profile.Insure <Slot> [Off]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ProfileInsure));
+
+	FAutoConsoleCommandWithWorldAndArgs ProfileSetSlotCommand(
+		TEXT("Hollow.Profile.SetSlot"),
+		TEXT("Sets how many of an item the local profile's loadout holds (0 removes the slot; Insured if the item can be). Usage: Hollow.Profile.SetSlot <Item> <Count> [Insured]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ProfileSetSlot));
 
 	FAutoConsoleCommandWithWorld ProfileResetCommand(
 		TEXT("Hollow.Profile.Reset"),

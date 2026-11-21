@@ -9,7 +9,8 @@ class UHollowSectorAuthorityComponent;
 
 /**
  * Raid game mode, thin (CLAUDE.md sec. 8): the sector lifecycle lives in UHollowSectorAuthorityComponent, phases,
- * extraction and outcomes in UHollowRaidFlowComponent (ADR-0016). Players get a pawn only once the sector is ready.
+ * extraction and outcomes in UHollowRaidFlowComponent (ADR-0016). Players get a pawn only once the sector is ready;
+ * their loadout is asked for on arrival (ADR-0030).
  */
 UCLASS()
 class HOLLOWGAME_API AHollowRaidGameMode : public AHollowGameModeBase
@@ -23,6 +24,8 @@ public:
 	UHollowRaidFlowComponent* GetRaidFlow() const { return RaidFlow; }
 
 protected:
+	/** Every arrival (login or seamless travel): the raid asks for the player's loadout (ADR-0030). */
+	virtual void GenericPlayerInitialization(AController* NewPlayer) override;
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 

@@ -2,6 +2,7 @@
 
 #include "Extraction/HollowRaidTypes.h"
 #include "GameFramework/PlayerController.h"
+#include "Inventory/HollowLoadoutRules.h"
 
 #include "HollowPlayerController.generated.h"
 
@@ -31,6 +32,17 @@ public:
 	/** The host's result of this player's raid (ADR-0005): applied to the local profile, which shows the debrief. */
 	UFUNCTION(Client, Reliable)
 	void Client_ReceiveRaidResult(const FHollowRaidResult& Result);
+
+	/** The raid asks what this player takes into it (ADR-0030): answered from the local profile by Server_SubmitLoadout. */
+	UFUNCTION(Client, Reliable)
+	void Client_RequestLoadout(const FGuid& RaidId);
+
+	/**
+	 * What this player takes into raid Loadout.RaidId (ADR-0005, ADR-0030). Checked by the host softly, like every Hollow
+	 * RPC: what the rules refuse is dropped, nobody is kicked.
+	 */
+	UFUNCTION(Server, Reliable)
+	void Server_SubmitLoadout(const FHollowLoadoutSnapshot& Loadout);
 
 protected:
 	virtual void BeginPlay() override;

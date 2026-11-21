@@ -5,10 +5,12 @@
 
 #include "HollowItemDefinition.generated.h"
 
+class UHollowAbilitySet;
+
 /**
  * An item of the economy (Docs/Architecture/02 sec. 2.5): identity, type, value and insurance. Light by design: every
- * definition may be loaded at once and referenced by FPrimaryAssetId in profiles and network messages. Behaviour
- * fragments (equippable, stack rules, Resonance) arrive with the inventory.
+ * definition may be loaded at once and referenced by FPrimaryAssetId in profiles and network messages; what it does in
+ * a raid is a soft reference (AbilitySet), loaded only when it is taken into one (ADR-0030).
  */
 UCLASS(BlueprintType)
 class HOLLOWECONOMY_API UHollowItemDefinition : public UPrimaryDataAsset
@@ -38,6 +40,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economy")
 	bool bInsurable = false;
 
+	/** How many one loadout slot holds. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (ClampMin = "1"))
 	int32 MaxStack = 1;
+
+	/**
+	 * Abilities and effects the player has while the item is in their raid inventory (ADR-0030): a tool on its input, a
+	 * consumable's use (its abilities take the item as their cost: UHollowGameplayAbility::ItemCostPerUse). None: the
+	 * item does nothing in a raid.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Raid")
+	TSoftObjectPtr<UHollowAbilitySet> AbilitySet;
 };

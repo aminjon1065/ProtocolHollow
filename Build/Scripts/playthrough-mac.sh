@@ -21,18 +21,22 @@
 #          the client dies, the host extracts with the core. Every carrier logs its corrections (p.NetShowCorrections).
 #   carrysolo  ADR-0015 investigation: host + 1 headless client behind --net; the client walks 2 rooms carrying the core
 #          alone, then 2 rooms without it (the control), logging corrections.
+#   loadout  S5-01 raid inventory (ADR-0030): host + 1 headless client behind --net, the client's profile without pulse
+#          mines; both dump their inventories; the client presses G (no mine), the host lays one; the client burns fuel
+#          with the cutter, refuels (R: one cell) and presses R again on a full tank (refused); both extract; the
+#          profiles show what was spent.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
-#   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry modes' default), bad = Network Emulation
+#   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
 #   --client-fps  frame limit of the headless clients (default 30)
 set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo ]] || { sed -n '2,27p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout ]] || { sed -n '2,31p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -55,7 +59,9 @@ case "$NET" in
 	bad) NET_ARGS=(-PktEmulationProfile=Bad) ;;
 	*) echo "Unknown --net: $NET (0, 150 or bad)" >&2; exit 2 ;;
 esac
-[[ "$MODE" == carry* && "$NET" == none ]] && NET_ARGS=(-PktLag=150)   # the carry smokes always run behind a slow network
+if [[ ("$MODE" == carry* || "$MODE" == loadout) && "$NET" == none ]]; then
+	NET_ARGS=(-PktLag=150)   # the carry and loadout smokes always run behind a slow network
+fi
 GAME="$APP/Contents/MacOS/ProtocolHollow"
 [[ -x "$GAME" ]] || { echo "No packaged game at $APP (Build/Scripts/package-mac.sh)" >&2; exit 2; }
 
@@ -200,6 +206,23 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 118 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 119 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	loadout)
+		C1+=("Hollow.Profile.SetSlot DA_Item_PulseMine 0")                           # before the raid: client 1 brings no mines
+		h "$(key 6 $PRESS)"
+		h "$(key 30 Escape)"; h "$(key 31 $DOWN)"; h "$(key 32 $DOWN)"; h "$(key 33 $PRESS)"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Inventory.Dump"; C+=("Hollow.Dev.RunInRaid 3 Hollow.Inventory.Dump")
+		C1+=("Hollow.Dev.RunInRaid 4 Hollow.Tool.Hold Hollow.Input.Gadget 0.2")      # no mine in its inventory: nothing laid
+		h "Hollow.Dev.RunInRaid 5 Hollow.Tool.Hold Hollow.Input.Gadget 0.2"          # the host lays one of its two
+		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Tool.Hold Hollow.Input.PrimaryUse 4")    # the cutter burns 20 fuel
+		C1+=("Hollow.Dev.RunInRaid 11 Hollow.Tool.Hold Hollow.Input.Reload 0.2")     # a cell goes in
+		C1+=("Hollow.Dev.RunInRaid 13 Hollow.Tool.Hold Hollow.Input.Reload 0.2")     # the tank is full: no second cell
+		h "Hollow.Dev.RunInRaid 14 Hollow.Inventory.Dump"; C+=("Hollow.Dev.RunInRaid 14 Hollow.Inventory.Dump")
+		h "Hollow.Dev.RunInRaid 14.5 Hollow.UI.Dump"                                 # the host's visor: its supplies
+		h "Hollow.Dev.RunInRaid 15 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 60 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 61 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
 	soak)
 		h "$(key 6 $PRESS)"
 		h "$(key 30 Escape)"; h "$(key 31 $DOWN)"; h "$(key 32 $DOWN)"; h "$(key 33 $PRESS)"
@@ -231,7 +254,7 @@ else
 	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" 'listening on port' 240 || { echo "the host never listened"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
@@ -256,8 +279,8 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate" "$log" | grep -v "Command Line\|commandline" | strip | head -90
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot" "$log" | grep -v "Command Line\|commandline" | strip | head -90
 done
 echo "===== errors, ensures, crashes"
-grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log | strip | sort | uniq -c | sort -rn | head -30
+{ grep -hE "(LogHollow[A-Za-z]*|LogNet|LogAbilitySystem|LogOnline|LogGameMode|LogLoad|LogStreaming|LogScript): (Error|Warning)|Ensure condition failed|Assertion failed|Fatal error|appError" "$OUT"/*.log || true; } | strip | sort | uniq -c | sort -rn | head -30   # none is no failure
 echo "Logs: $OUT"

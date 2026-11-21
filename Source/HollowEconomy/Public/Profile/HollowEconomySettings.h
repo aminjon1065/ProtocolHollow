@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "GameplayTagContainer.h"
 #include "Items/HollowItemTypes.h"
 
 #include "HollowEconomySettings.generated.h"
@@ -25,4 +26,12 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "New profile")
 	TArray<FHollowLoadoutSlot> StartingLoadout;
+
+	/** The most loadout slots a raid accepts (ADR-0030): later ones are dropped. */
+	UPROPERTY(Config, EditAnywhere, Category = "Loadout", meta = (ClampMin = "1"))
+	int32 MaxLoadoutSlots = 1;
+
+	/** Item types a loadout may take into a raid (Hollow.Item.Type.* children); anything else (an Aether core) is dropped. */
+	UPROPERTY(Config, EditAnywhere, Category = "Loadout", meta = (Categories = "Hollow.Item.Type"))
+	FGameplayTagContainer LoadoutItemTypes;
 };

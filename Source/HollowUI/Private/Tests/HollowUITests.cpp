@@ -20,6 +20,8 @@
 #include "Settings/HollowGameUserSettings.h"
 #include "Framework/HollowGameState.h"
 #include "GameplayEffect.h"
+#include "Inventory/HollowInventoryComponent.h"
+#include "Items/HollowItemDefinition.h"
 #include "HollowUITags.h"
 #include "ICommonInputModule.h"
 #include "InputAction.h"
@@ -42,6 +44,7 @@
 #include "Visor/HollowLampIndicatorWidget.h"
 #include "Visor/HollowResonanceReadoutWidget.h"
 #include "Visor/HollowStatBarWidget.h"
+#include "Visor/HollowSupplyReadoutWidget.h"
 #include "Visor/HollowVisorFrameWidget.h"
 #include "Visor/HollowVisorStyle.h"
 #include "Visor/HollowVoiceIndicatorWidget.h"
@@ -63,6 +66,10 @@ namespace HollowUITests
 	const TCHAR* const ReadoutClass = TEXT("/Game/Hollow/UI/Visor/W_ResonanceReadout.W_ResonanceReadout_C");
 	const TCHAR* const VoiceIndicatorClass = TEXT("/Game/Hollow/UI/Visor/W_VoiceIndicator.W_VoiceIndicator_C");
 	const TCHAR* const LampIndicatorClass = TEXT("/Game/Hollow/UI/Visor/W_LampIndicator.W_LampIndicator_C");
+	const TCHAR* const SupplyReadoutClass = TEXT("/Game/Hollow/UI/Visor/W_SupplyReadout.W_SupplyReadout_C");
+	const TCHAR* const MineItemPath = TEXT("/Game/Hollow/Items/Consumables/DA_Item_PulseMine.DA_Item_PulseMine");
+	const TCHAR* const CellItemPath = TEXT("/Game/Hollow/Items/Consumables/DA_Item_FuelCell.DA_Item_FuelCell");
+	const TCHAR* const WelderItemPath = TEXT("/Game/Hollow/Items/Tools/DA_Item_Welder.DA_Item_Welder");
 	const TCHAR* const VisorGlass = TEXT("/Game/Hollow/UI/Visor/M_UI_VisorGlass.M_UI_VisorGlass");
 
 	/** Test data. */
@@ -436,16 +443,23 @@ bool FHollowUIVisorTelemetryTest::RunTest(const FString& Parameters)
 {
 	// S4-08 (ADR-0026): the diegetic visor follows its sources' events, nothing ticks. The glass glows with the squad
 	// tier the player carries (High, Critical); the readout shows the squad's level and tier; the voice line the mode,
-	// the transmission and who else talks; the lamp line the switch. Without a body the glass calms down.
+	// the transmission and who else talks; the lamp line the switch; the supply line the consumables of the raid
+	// inventory (S5-01). Without a body the glass calms down.
 	using namespace HollowUITests;
 	const UHollowVisorStyle* Style = GetDefault<UHollowUISettings>()->VisorStyle.LoadSynchronous();
 	const TSubclassOf<UHollowVisorElement> FrameClass = LoadClass<UHollowVisorElement>(nullptr, VisorFrameClass);
 	const TSubclassOf<UHollowVisorElement> ReadoutWidgetClass = LoadClass<UHollowVisorElement>(nullptr, ReadoutClass);
 	const TSubclassOf<UHollowVisorElement> VoiceClass = LoadClass<UHollowVisorElement>(nullptr, VoiceIndicatorClass);
 	const TSubclassOf<UHollowVisorElement> LampClass = LoadClass<UHollowVisorElement>(nullptr, LampIndicatorClass);
+	const TSubclassOf<UHollowVisorElement> SupplyClass = LoadClass<UHollowVisorElement>(nullptr, SupplyReadoutClass);
+	UHollowItemDefinition* MineItem = LoadObject<UHollowItemDefinition>(nullptr, MineItemPath);
+	UHollowItemDefinition* CellItem = LoadObject<UHollowItemDefinition>(nullptr, CellItemPath);
+	UHollowItemDefinition* WelderItem = LoadObject<UHollowItemDefinition>(nullptr, WelderItemPath);
 	FPlayerRig Rig;
 	if (!TestNotNull(TEXT("DA_VisorStyle"), Style) || !TestNotNull(TEXT("W_VisorFrame"), FrameClass.Get()) || !TestNotNull(TEXT("W_ResonanceReadout"), ReadoutWidgetClass.Get())
-		|| !TestNotNull(TEXT("W_VoiceIndicator"), VoiceClass.Get()) || !TestNotNull(TEXT("W_LampIndicator"), LampClass.Get()) || !BuildPlayer(*this, Rig))
+		|| !TestNotNull(TEXT("W_VoiceIndicator"), VoiceClass.Get()) || !TestNotNull(TEXT("W_LampIndicator"), LampClass.Get())
+		|| !TestNotNull(TEXT("W_SupplyReadout"), SupplyClass.Get()) || !TestTrue(TEXT("The consumable and tool items"), MineItem && CellItem && WelderItem)
+		|| !BuildPlayer(*this, Rig))
 	{
 		return false;
 	}
@@ -467,7 +481,9 @@ bool FHollowUIVisorTelemetryTest::RunTest(const FString& Parameters)
 	UHollowResonanceReadoutWidget* Readout = Cast<UHollowResonanceReadoutWidget>(Make(ReadoutWidgetClass));
 	UHollowVoiceIndicatorWidget* VoiceLine = Cast<UHollowVoiceIndicatorWidget>(Make(VoiceClass));
 	UHollowLampIndicatorWidget* LampLine = Cast<UHollowLampIndicatorWidget>(Make(LampClass));
-	if (!TestTrue(TEXT("The visor's elements"), Frame && Readout && VoiceLine && LampLine && Voice))
+	UHollowSupplyReadoutWidget* SupplyLine = Cast<UHollowSupplyReadoutWidget>(Make(SupplyClass));
+	UHollowInventoryComponent* Inventory = UHollowInventoryComponent::Get(Rig.Controller->PlayerState);
+	if (!TestTrue(TEXT("The visor's elements"), Frame && Readout && VoiceLine && LampLine && SupplyLine && Voice && Inventory))
 	{
 		return false;
 	}
@@ -524,12 +540,33 @@ bool FHollowUIVisorTelemetryTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...off"), LampLine->GetLampText().EqualTo(Style->LampOffLabel));
 	Rig.Character->SetHelmetLampOn(true);
 
-	// Without a body (spectating): calm glass, the squad's own tier, no lamp line.
+	// Supplies: nothing to show without consumables; then each consumable and how many are left, a tool not listed.
+	TestFalse(TEXT("No consumables: no supply line"), SupplyLine->IsShown());
+	Inventory->AddItem(WelderItem, 1);
+	TestFalse(TEXT("...a tool is no supply"), SupplyLine->IsShown());
+	Inventory->AddItem(MineItem, 2);
+	Inventory->AddItem(CellItem, 3);
+	const auto Line = [Style](const TArray<TPair<const UHollowItemDefinition*, int32>>& Items)
+	{
+		TArray<FText> Parts;
+		for (const TPair<const UHollowItemDefinition*, int32>& Item : Items)
+		{
+			Parts.Add(FText::Format(Style->SupplyFormat, Item.Key->DisplayName.ToUpper(), Item.Value));
+		}
+		return FText::Join(Style->SupplySeparator, Parts);
+	};
+	TestTrue(FString::Printf(TEXT("Mines and cells (%s)"), *SupplyLine->GetSupplyText().ToString()), SupplyLine->IsShown()
+		&& SupplyLine->GetSupplyText().EqualTo(Line({{MineItem, 2}, {CellItem, 3}})));
+	Inventory->ConsumeItem(MineItem, 1);
+	TestTrue(TEXT("...a mine laid: one left"), SupplyLine->GetSupplyText().EqualTo(Line({{MineItem, 1}, {CellItem, 3}})));
+
+	// Without a body (spectating): calm glass, the squad's own tier, no lamp or supply line.
 	Rig.Controller->UnPossess();
 	TestTrue(TEXT("No body: calm glass"), Frame->GetTier() == EHollowResonanceTier::Low && Frame->GetAlert() == Style->GetTierLook(EHollowResonanceTier::Low).Alert);
 	TestTrue(TEXT("...the readout keeps the squad's tier"), Readout->GetTier() == EHollowResonanceTier::Critical);
 	TestTrue(TEXT("...no lamp line"), LampLine->GetLampText().IsEmpty());
-	for (UHollowVisorElement* Element : TArray<UHollowVisorElement*>{Frame, Readout, VoiceLine, LampLine})
+	TestFalse(TEXT("...no supply line"), SupplyLine->IsShown());
+	for (UHollowVisorElement* Element : TArray<UHollowVisorElement*>{Frame, Readout, VoiceLine, LampLine, SupplyLine})
 	{
 		Element->SetContext(nullptr);
 	}

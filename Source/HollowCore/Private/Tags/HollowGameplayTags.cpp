@@ -8,6 +8,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool, "Hollow.Ability.Tool", "Parent of all signature tool abilities.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_PlasmaCutter, "Hollow.Ability.Tool.PlasmaCutter", "Engineer plasma cutter: cuts locks, seams and welds.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_Welder, "Hollow.Ability.Tool.Welder", "Engineer welder: seals doors.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_Refuel, "Hollow.Ability.Tool.Refuel", "Burns a fuel cell into the tool tank (S5-01): blocked like the tools while carrying or dead.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Interact, "Hollow.Ability.Interact", "Generic interaction ability.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Carry_Heavy, "Hollow.Ability.Carry.Heavy", "Pick up / carry a heavy Aether core.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Gadget_PulseMine, "Hollow.Ability.Gadget.PulseMine", "Kinetic pulse mine (stuns the Echo-Stalker).");
@@ -20,6 +21,7 @@ namespace HollowTags
 	// Cooldowns
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Gadget_PulseMine, "Hollow.Cooldown.Gadget.PulseMine", "Pulse mine recharging: a player places no new one meanwhile.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_HelmetLamp, "Hollow.Cooldown.HelmetLamp", "Helmet lamp switched a moment ago: no strobing.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Tool_Refuel, "Hollow.Cooldown.Tool.Refuel", "A fuel cell went in a moment ago: a held key burns no second one.");
 
 	// Gameplay events (ability triggers)
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Event_Enemy, "Hollow.Event.Enemy", "Parent of the gameplay events that trigger enemy abilities.");
@@ -88,6 +90,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Gadget, "Hollow.Input.Gadget", "Gadget input.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_PushToTalk, "Hollow.Input.PushToTalk", "Push-to-talk (held): transmits the voice (S4-07).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_HelmetLamp, "Hollow.Input.HelmetLamp", "Helmet lamp on / off (S4-08).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Reload, "Hollow.Input.Reload", "Refuel the tools from a fuel cell (S5-01).");
 
 	// Sector rooms and sockets
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Room_Type, "Hollow.Room.Type", "Parent of room types; every room definition carries exactly one child.");

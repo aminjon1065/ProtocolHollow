@@ -14,6 +14,7 @@ UHollowGA_PulseMine::UHollowGA_PulseMine(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	ActivationPolicy = EHollowAbilityActivationPolicy::OnInputTriggered;
+	ItemCostPerUse = 1;   // every mine laid is one of the mines the player brought (DA_Item_PulseMine grants this, ADR-0030)
 	SetAssetTags(FGameplayTagContainer(HollowTags::Ability_Gadget_PulseMine));
 	ActivationBlockedTags.AddTag(HollowTags::State_Dead);
 }

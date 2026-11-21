@@ -5,7 +5,10 @@
   /Game/Hollow/Tools/<Tool>/DA_Tool_<Tool>, GA_Tool_<Tool>          tool definitions and abilities (Welder, PlasmaCutter)
   /Game/Hollow/GAS/Cues/GCN_Tool_Beam                               greybox beam cue (GameplayCue.Hollow.Tool.Beam)
   /Game/Hollow/World/Interactables/BP_ToolTestTarget                 dev target, placed between the hub's player starts
-  DA_AbilitySet_ExoFrame                                            both tools (Cutter: PrimaryUse, Welder: SecondaryUse) + cooling
+  /Game/Hollow/Tools/<Tool>/DA_AbilitySet_<Tool>                    the tool on its input (Cutter: PrimaryUse, Welder: SecondaryUse),
+                                                                    granted by the tool's item while it is in the raid inventory
+                                                                    (ADR-0030; create_inventory_assets.py links the items)
+  DA_AbilitySet_ExoFrame                                            cooling only (the tools left it in S5-01)
   BP_ExoFrame                                                       the cutter in hand at spawn (UHollowToolMountComponent, ADR-0027;
                                                                     held meshes and muzzle sockets are DA_Tool_* data of the art pass)
 
@@ -256,28 +259,49 @@ def ensure_tool(spec, effects):
     return ability_bp.generated_class()
 
 
+def tool_set_path(spec):
+    return "%s/DA_AbilitySet_%s" % (spec["dir"], spec["asset"])
+
+
 def ensure_ability_set(abilities, cooling):
+    """Cooling stays with the suit; the tools come from their items (ADR-0030), so the suit's set no longer grants them."""
     ability_set = load(ABILITY_SET_PATH)
+    tool_classes = [ability_class for ability_class, _ in abilities]
     granted = list(ability_set.get_editor_property("granted_abilities"))
-    changed = False
-    for ability_class, input_tag in abilities:
-        if not any(e.get_editor_property("ability") == ability_class for e in granted):
-            entry = unreal.HollowAbilitySetAbility()
-            entry.set_editor_property("ability", ability_class)
-            entry.set_editor_property("input_tag", make_tag(input_tag))
-            granted.append(entry)
-            changed = True
+    kept = [e for e in granted if e.get_editor_property("ability") not in tool_classes]
     effects = list(ability_set.get_editor_property("granted_effects"))
+    changed = len(kept) != len(granted)
     if not any(e.get_editor_property("gameplay_effect") == cooling for e in effects):
         entry = unreal.HollowAbilitySetEffect()
         entry.set_editor_property("gameplay_effect", cooling)
         effects.append(entry)
         changed = True
     if changed:
-        ability_set.set_editor_property("granted_abilities", granted)
+        ability_set.set_editor_property("granted_abilities", kept)
         ability_set.set_editor_property("granted_effects", effects)
         save(ability_set)
-        log("granted the tools and cooling in DA_AbilitySet_ExoFrame")
+        log("DA_AbilitySet_ExoFrame: cooling, no tools")
+
+
+def ensure_tool_set(spec, ability_class):
+    """The tool's own set: its ability on its input, nothing else."""
+    path = tool_set_path(spec)
+    if assets.does_asset_exist(path):
+        tool_set = load(path)
+    else:
+        factory = unreal.DataAssetFactory()
+        factory.set_editor_property("data_asset_class", unreal.HollowAbilitySet)
+        tool_set = create(path, unreal.HollowAbilitySet, factory)
+    granted = tool_set.get_editor_property("granted_abilities")
+    if len(granted) == 1 and granted[0].get_editor_property("ability") == ability_class \
+            and same_tag(granted[0].get_editor_property("input_tag"), make_tag(spec["input"])):
+        return
+    entry = unreal.HollowAbilitySetAbility()
+    entry.set_editor_property("ability", ability_class)
+    entry.set_editor_property("input_tag", make_tag(spec["input"]))
+    tool_set.set_editor_property("granted_abilities", [entry])
+    save(tool_set)
+    log("DA_AbilitySet_%s: GA_Tool_%s on %s" % (spec["asset"], spec["asset"], spec["input"]))
 
 
 # ---------------------------------------------------------------- cue and dev target
@@ -359,8 +383,11 @@ def validate(abilities, expected_targets):
     for _, tag_name, _ in ABILITY_INPUTS:
         check(sum(1 for e in config if same_tag(e.get_editor_property("input_tag"), make_tag(tag_name))) == 1, "one ability action for " + tag_name)
     granted = load(ABILITY_SET_PATH).get_editor_property("granted_abilities")
-    for ability_class, _ in abilities:
-        check(any(e.get_editor_property("ability") == ability_class for e in granted), "ability set grants " + ability_class.get_name())
+    for (ability_class, input_tag), spec in zip(abilities, TOOLS.values()):
+        check(not any(e.get_editor_property("ability") == ability_class for e in granted), "the suit does not grant " + ability_class.get_name())
+        tool_set = load(tool_set_path(spec)).get_editor_property("granted_abilities")
+        check(len(tool_set) == 1 and tool_set[0].get_editor_property("ability") == ability_class
+              and same_tag(tool_set[0].get_editor_property("input_tag"), make_tag(input_tag)), "DA_AbilitySet_%s grants its tool" % spec["asset"])
     cue = unreal.get_default_object(load(CUE_PATH).generated_class())
     check(same_tag(cue.get_editor_property("gameplay_cue_tag"), make_tag("GameplayCue.Hollow.Tool.Beam")), "beam cue tag")
     mount = unreal.get_default_object(load(EXOFRAME_BP).generated_class()).get_editor_property("tool_mount")
@@ -380,6 +407,8 @@ def main():
     cooling = ensure_effect("GE_Tool_Cooling", unreal.GameplayEffect, configure_cooling)
     abilities = [(ensure_tool(spec, effects), spec["input"]) for spec in TOOLS.values()]
     ensure_ability_set(abilities, cooling)
+    for (ability_class, _), spec in zip(abilities, TOOLS.values()):
+        ensure_tool_set(spec, ability_class)
     ensure_cue()
     ensure_tool_mount()
     validate(abilities, ensure_target())

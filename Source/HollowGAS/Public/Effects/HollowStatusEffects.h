@@ -37,6 +37,16 @@ public:
 	explicit UHollowHelmetLampCooldownEffect(const FObjectInitializer& ObjectInitializer);
 };
 
+/** A fuel cell just went in (cooldown of GA_ToolRefuel, S5-01): Hollow.Cooldown.Tool.Refuel for the duration (data). */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowToolRefuelCooldownEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowToolRefuelCooldownEffect(const FObjectInitializer& ObjectInitializer);
+};
+
 /** What the Echo-Stalker is (GE_Stalker_Traits, from its ability set): immune to kinetic damage for good. */
 UCLASS(Abstract)
 class HOLLOWGAS_API UHollowStalkerTraitsEffect : public UGameplayEffect

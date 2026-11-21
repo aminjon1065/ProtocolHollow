@@ -7,7 +7,10 @@
 #include "EngineUtils.h"
 #include "Framework/HollowPlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerState.h"
 #include "HollowGameLog.h"
+#include "Inventory/HollowInventoryComponent.h"
+#include "Inventory/HollowLoadoutRules.h"
 #include "Raid/HollowExtractionZone.h"
 #include "Raid/HollowRaidRules.h"
 #include "Raid/HollowRaidSettings.h"
@@ -43,6 +46,57 @@ void UHollowRaidFlowComponent::BeginPlay()
 		}
 	}
 	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: waiting for the sector"), *RaidId.ToString());
+	// Players who arrived before the raid had its id (the host's own after seamless travel) are asked now.
+	for (const TWeakObjectPtr<AHollowPlayerController>& Player : Arrived)
+	{
+		RequestLoadout(Player.Get());
+	}
+}
+
+void UHollowRaidFlowComponent::HandlePlayerArrived(AHollowPlayerController* Player)
+{
+	if (Player)
+	{
+		Arrived.AddUnique(Player);
+		RequestLoadout(Player);
+	}
+}
+
+void UHollowRaidFlowComponent::RequestLoadout(AHollowPlayerController* Player)
+{
+	if (!Player || !RaidId.IsValid() || LoadoutsTaken.Contains(Player))
+	{
+		return;
+	}
+	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: asks %s for the loadout"), *RaidId.ToString(), *Player->GetName());
+	Player->Client_RequestLoadout(RaidId);
+}
+
+bool UHollowRaidFlowComponent::AcceptLoadout(AController* Player, const FHollowLoadoutSnapshot& Loadout)
+{
+	const UHollowRaidStateComponent* StateComponent = GetStateComponent();
+	const EHollowRaidPhase Phase = StateComponent ? StateComponent->GetState().Phase : EHollowRaidPhase::Assembling;
+	UHollowInventoryComponent* Inventory = Player ? UHollowInventoryComponent::Get(Player->PlayerState) : nullptr;
+	const TCHAR* Refused = !GetOwner()->HasAuthority() ? TEXT("not the host")
+		: !Inventory ? TEXT("no inventory")
+		: (!RaidId.IsValid() || Loadout.RaidId != RaidId) ? TEXT("for another raid")
+		: (Phase != EHollowRaidPhase::Assembling && Phase != EHollowRaidPhase::Deploying) ? TEXT("the raid has begun")
+		: LoadoutsTaken.Contains(Player) ? TEXT("already taken")
+		: nullptr;
+	if (Refused)
+	{
+		UE_LOG(LogHollowGame, Warning, TEXT("Raid %s: loadout of %s for raid %s ignored: %s"), *RaidId.ToString(), *GetNameSafe(Player),
+			*Loadout.RaidId.ToString(), Refused);
+		return false;
+	}
+	TArray<FHollowLoadoutIssue> Issues;
+	const TArray<FHollowItemStack> Accepted = HollowLoadoutRules::ValidateForRaid(Loadout.Slots, &Issues);
+	UE_CLOG(!Issues.IsEmpty(), LogHollowGame, Warning, TEXT("Raid %s: loadout of %s cut down: %s"), *RaidId.ToString(), *Player->GetName(),
+		*HollowLoadoutRules::Describe(Issues));
+	LoadoutsTaken.Add(Player);
+	Inventory->ResetFromLoadout(Accepted);
+	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s takes %s"), *RaidId.ToString(), *Player->GetName(), *Inventory->Describe());
+	return true;
 }
 
 void UHollowRaidFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -293,11 +347,15 @@ void UHollowRaidFlowComponent::EndRaid(const TCHAR* Why)
 		// Still undecided here: the raid ended around them (nobody else left alive) - they were not aboard.
 		Result.Outcome = HollowRaidRules::OutcomeAtDeparture(GetOutcome(Player), /*bInZone=*/false);
 		Result.Loot = Result.Outcome == EHollowRaidOutcome::Extracted ? Loot : TArray<FHollowItemStack>();
+		if (const UHollowInventoryComponent* Inventory = UHollowInventoryComponent::Get(Player->PlayerState))
+		{
+			Result.Spent = Inventory->GetSpent();
+		}
 		Result.RaidSeconds = RaidSeconds;
 		Result.SquadExtracted = SquadExtracted;
 		Result.SquadSize = SquadSize;
-		UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s -> %s, %d loot stack(s)"), *RaidId.ToString(), *Player->GetName(),
-			*HollowEnumToString(Result.Outcome), Result.Loot.Num());
+		UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s -> %s, %d loot stack(s), spent %s"), *RaidId.ToString(), *Player->GetName(),
+			*HollowEnumToString(Result.Outcome), Result.Loot.Num(), *HollowLoadoutRules::Describe(Result.Spent));
 		Player->Client_ReceiveRaidResult(Result);
 	}
 	UE_LOG(LogHollowGame, Log, TEXT("Raid %s over: %s; %d of %d extracted; back to the hub in %.0f s"), *RaidId.ToString(), Why, SquadExtracted,

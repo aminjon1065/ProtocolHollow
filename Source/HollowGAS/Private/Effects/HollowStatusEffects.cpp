@@ -45,6 +45,13 @@ UHollowHelmetLampCooldownEffect::UHollowHelmetLampCooldownEffect(const FObjectIn
 	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CooldownTag")), HollowTags::Cooldown_HelmetLamp));
 }
 
+UHollowToolRefuelCooldownEffect::UHollowToolRefuelCooldownEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CooldownTag")), HollowTags::Cooldown_Tool_Refuel));
+}
+
 UHollowStalkerTraitsEffect::UHollowStalkerTraitsEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

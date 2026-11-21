@@ -1,7 +1,8 @@
 """Creates the S3-03 raid flow content (idempotent, ADR-0010, ADR-0016).
 
   /Game/Hollow/Items/Tools/DA_Item_Welder|DA_Item_PlasmaCutter   UHollowItemDefinition: insurable tools
-  /Game/Hollow/Items/Consumables/DA_Item_FuelCell                consumable, not insurable
+  /Game/Hollow/Items/Consumables/DA_Item_FuelCell|DA_Item_PulseMine  consumables, not insurable (what they do in a raid:
+                                                                 create_inventory_assets.py)
   /Game/Hollow/Items/AetherCore/DA_Item_AetherCore               the raid's loot, sold on extraction
   /Game/Hollow/GAS/Effects/GE_Damage_Generic                     instant IncomingDamage (SetByCaller Hollow.Data.Damage)
   /Game/Hollow/GAS/Effects/GE_State_Dead                         UHollowDeadEffect (Hollow.State.Dead)
@@ -41,6 +42,7 @@ ITEMS = [
     ("Tools/DA_Item_Welder", "Welder", "Hollow.Item.Type.Tool", 300, True, 1),
     ("Tools/DA_Item_PlasmaCutter", "Plasma cutter", "Hollow.Item.Type.Tool", 400, True, 1),
     ("Consumables/DA_Item_FuelCell", "Fuel cell", "Hollow.Item.Type.Consumable", 25, False, 10),
+    ("Consumables/DA_Item_PulseMine", "Pulse mine", "Hollow.Item.Type.Consumable", 40, False, 3),
     ("AetherCore/DA_Item_AetherCore", "Aether core", "Hollow.Item.Type.AetherCore", 500, False, 1),
 ]
 CORE_ITEM = "AetherCore/DA_Item_AetherCore"

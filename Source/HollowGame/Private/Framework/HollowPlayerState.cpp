@@ -5,6 +5,7 @@
 #include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowSurvivalSet.h"
 #include "Attributes/HollowToolSet.h"
+#include "Inventory/HollowInventoryComponent.h"
 #include "Session/HollowNetworkSettings.h"
 #include "Voice/HollowVoiceTalker.h"
 
@@ -22,6 +23,7 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 	ResonanceSet = CreateDefaultSubobject<UHollowResonanceSet>(TEXT("ResonanceSet"));
 	ToolSet = CreateDefaultSubobject<UHollowToolSet>(TEXT("ToolSet"));
 	VoiceTalker = CreateDefaultSubobject<UHollowVoiceTalker>(TEXT("VoiceTalker"));
+	Inventory = CreateDefaultSubobject<UHollowInventoryComponent>(TEXT("Inventory"));
 
 	// The engine default for player states is far too low for an ability system owner.
 	const float NetUpdateFrequency = GetDefault<UHollowNetworkSettings>()->PlayerStateNetUpdateFrequency;

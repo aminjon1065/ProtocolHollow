@@ -14,6 +14,7 @@ public class HollowEconomy : ModuleRules
 			"CoreUObject",
 			"DeveloperSettings",
 			"Engine",
+			"GameplayAbilities",   // the raid inventory grants its items' abilities (ADR-0030)
 			"GameplayTags",
 			"NetCore",
 			"HollowCore",

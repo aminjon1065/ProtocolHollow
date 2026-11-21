@@ -1,5 +1,6 @@
 #include "Framework/HollowRaidGameMode.h"
 
+#include "Framework/HollowPlayerController.h"
 #include "Raid/HollowRaidFlowComponent.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 
@@ -11,6 +12,12 @@ AHollowRaidGameMode::AHollowRaidGameMode(const FObjectInitializer& ObjectInitial
 	SessionPhase = EHollowSessionPhase::Raid;   // drop-in joins are refused during a raid (ADR-0006)
 	SectorAuthority = CreateDefaultSubobject<UHollowSectorAuthorityComponent>(TEXT("SectorAuthority"));
 	RaidFlow = CreateDefaultSubobject<UHollowRaidFlowComponent>(TEXT("RaidFlow"));
+}
+
+void AHollowRaidGameMode::GenericPlayerInitialization(AController* NewPlayer)
+{
+	Super::GenericPlayerInitialization(NewPlayer);
+	RaidFlow->HandlePlayerArrived(Cast<AHollowPlayerController>(NewPlayer));
 }
 
 void AHollowRaidGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)

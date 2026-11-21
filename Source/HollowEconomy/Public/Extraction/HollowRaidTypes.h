@@ -39,6 +39,10 @@ struct HOLLOWECONOMY_API FHollowRaidResult
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	TArray<FHollowItemStack> Loot;
 
+	/** Loadout items this player used up in the raid (mines laid, fuel cells burnt; the host's inventory, ADR-0030). */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> Spent;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	float RaidSeconds = 0.f;
 
@@ -56,6 +60,8 @@ struct FHollowRaidContext
 {
 	TArray<FHollowLoadoutSlot> Loadout;
 	TArray<FHollowItemStack> Loot;
+	/** Loadout items used up in the raid (FHollowRaidResult::Spent; none without the host's result). */
+	TArray<FHollowItemStack> Spent;
 };
 
 /** The change a raid makes to one profile (FHollowExtractionResolver), and its explanation for the debrief. */
@@ -78,4 +84,8 @@ struct HOLLOWECONOMY_API FHollowProfileDelta
 	/** Loot sold to the corporation for Credits. */
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	TArray<FHollowItemStack> Sold;
+
+	/** Loadout items used up in the raid: taken from the profile whatever the outcome (never more than the loadout held). */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> Spent;
 };

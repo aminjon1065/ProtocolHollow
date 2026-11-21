@@ -10,16 +10,19 @@ namespace HollowProfileRules
 	void Apply(FHollowProfile& Profile, const FHollowProfileDelta& Delta, const EHollowRaidOutcome Outcome)
 	{
 		Profile.Credits = FMath::Max(0, Profile.Credits + Delta.Credits);
-		for (const FHollowItemStack& Lost : Delta.Lost)
+		for (const TArray<FHollowItemStack>* Gone : {&Delta.Spent, &Delta.Lost})
 		{
-			int32 Remaining = Lost.Count;
-			for (FHollowLoadoutSlot& Slot : Profile.Loadout)
+			for (const FHollowItemStack& Stack : *Gone)
 			{
-				if (Remaining > 0 && Slot.Item == Lost.Item)
+				int32 Remaining = Stack.Count;
+				for (FHollowLoadoutSlot& Slot : Profile.Loadout)
 				{
-					const int32 Taken = FMath::Min(Slot.Count, Remaining);
-					Slot.Count -= Taken;
-					Remaining -= Taken;
+					if (Remaining > 0 && Slot.Item == Stack.Item)
+					{
+						const int32 Taken = FMath::Min(Slot.Count, Remaining);
+						Slot.Count -= Taken;
+						Remaining -= Taken;
+					}
 				}
 			}
 		}
@@ -41,6 +44,7 @@ namespace HollowProfileRules
 			FHollowRaidContext Context;
 			Context.Loadout = State.Escrow.Loadout;
 			Context.Loot = Result.Loot;
+			Context.Spent = Result.Spent;
 			FHollowRaidReport Report;
 			Report.Result = Result;
 			Report.Delta = FHollowExtractionResolver::Resolve(Context, Result.Outcome, Catalog);
@@ -103,9 +107,12 @@ namespace HollowProfileRules
 		}
 		if (Result)
 		{
-			for (const FHollowItemStack& Stack : Result->Loot)
+			for (const TArray<FHollowItemStack>* Stacks : {&Result->Loot, &Result->Spent})
 			{
-				Items.AddUnique(Stack.Item);
+				for (const FHollowItemStack& Stack : *Stacks)
+				{
+					Items.AddUnique(Stack.Item);
+				}
 			}
 		}
 		return Items;

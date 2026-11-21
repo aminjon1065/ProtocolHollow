@@ -283,6 +283,11 @@ FHollowItemStack / FHollowLoadoutSlot / FHollowItemCatalog, FHollowExtractionRes
 Dead/MIA/Abandoned: только застрахованное; SignalLost: лоадаут цел), HollowProfileRules (Apply, BeginRaid, ApplyResult,
 ResolveEscrow), UHollowProfileSaveGame (версия), UHollowProfileSubsystem (escrow, отчёт для дебрифа), UHollowEconomySettings.
 
+Реализовано в S5-01 (ADR-0030): UHollowInventoryComponent на AHollowPlayerState (FHollowInventoryList, COND_OwnerOnly, push;
+записи Item/Count/Taken), HollowLoadoutRules (мягкая проверка лоадаута на хосте), UHollowItemDefinition::AbilitySet
+(способности предмета на время рейда), UHollowGameplayAbility::ItemCostPerUse + IHollowItemCostSource (GAS),
+FHollowRaidResult::Spent. Transfer и DropToWorld — с добычей и крафтом.
+
 Компоненты и подсистемы:
 ├─ UHollowInventoryComponent   [PlayerState] серверный API: TryAdd, TryRemove, Transfer, DropToWorld
 ├─ UHollowLoadoutComponent     [PlayerState] публичная сборка в руках (видят все)
@@ -486,7 +491,9 @@ sequenceDiagram
 ```
 
 - *S3-03:* escrow пишется не до `ServerTravel`, а когда машина видит RaidId рейда (фаза после `Assembling`); `Server_SubmitLoadout`
-  перенесён в задачу инвентаря. Итог приходит в `Debrief` (10 с), неподтверждённый дебриф показывается снова в хабе. Уход хоста →
+  перенесён в задачу инвентаря. *S5-01 ([ADR-0030](../ADR/ADR-0030-raid-inventory-loadout.md)):* лоадаут сдаётся уже в рейде —
+  хост на приходе игрока шлёт `Client_RequestLoadout(RaidId)`, машина игрока отвечает `Server_SubmitLoadout`, хост принимает
+  один раз в `Assembling`/`Deploying` и заполняет инвентарь рейда; перенос через `CopyProperties` не нужен. Итог приходит в `Debrief` (10 с), неподтверждённый дебриф показывается снова в хабе. Уход хоста →
   `SignalLost` по таймауту соединения, найденный при запуске маркер → `Abandoned` ([ADR-0016](../ADR/ADR-0016-raid-flow-extraction-escrow.md)).
 - **Seed** выбирает только хост, один раз, в хабе. Это единственное место с недетерминированным источником. Для «ежедневных контрактов» seed берётся как хеш даты.
 - **Seamless travel:** нужна `L_Transition`, а в PIE включается `net.AllowPIESeamlessTravel 1`.

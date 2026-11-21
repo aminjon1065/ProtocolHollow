@@ -1,6 +1,8 @@
 #include "Abilities/HollowGameplayAbility.h"
 
+#include "Abilities/HollowItemCostSource.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowGameplayAbility)
 
@@ -46,4 +48,43 @@ void UHollowGameplayAbility::OnGiveAbility(const FGameplayAbilityActorInfo* Acto
 	{
 		AbilityDefaults->TryActivateOnSpawn(ActorInfo, Spec);
 	}
+}
+
+bool UHollowGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags))
+	{
+		return false;
+	}
+	if (ItemCostPerUse <= 0)
+	{
+		return true;
+	}
+	const UObject* Item = GetSourceObject(Handle, ActorInfo);
+	const IHollowItemCostSource* Source = ActorInfo ? IHollowItemCostSource::Find(ActorInfo->OwnerActor.Get()) : nullptr;
+	if (Item && Source && Source->GetItemCount(Item) >= ItemCostPerUse)
+	{
+		return true;
+	}
+	if (OptionalRelevantTags)
+	{
+		OptionalRelevantTags->AddTag(UAbilitySystemGlobals::Get().ActivateFailCostTag);
+	}
+	return false;
+}
+
+void UHollowGameplayAbility::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
+	if (ItemCostPerUse <= 0 || !ActorInfo || !ActorInfo->IsNetAuthority())
+	{
+		return;
+	}
+	IHollowItemCostSource* Source = IHollowItemCostSource::Find(ActorInfo->OwnerActor.Get());
+	const UObject* Item = GetSourceObject(Handle, ActorInfo);
+	// CommitAbility checked the cost a moment ago on this machine, so this only fails on a broken setup.
+	const bool bTaken = Source && Item && Source->ConsumeItem(Item, ItemCostPerUse);
+	ensureMsgf(bTaken, TEXT("%s: could not take its item cost (%d of %s)"), *GetName(), ItemCostPerUse, *GetNameSafe(Item));
 }

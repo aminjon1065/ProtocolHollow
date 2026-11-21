@@ -7,8 +7,9 @@
   /Game/Hollow/UI/Visor/W_ResonanceReadout    "RES 63%  HIGH" and its bar
   /Game/Hollow/UI/Visor/W_VoiceIndicator      microphone mode, transmission level, who is talking
   /Game/Hollow/UI/Visor/W_LampIndicator       "[F] LAMP ON"
+  /Game/Hollow/UI/Visor/W_SupplyReadout       "PULSE MINE 2   FUEL CELL 3": the consumables of the raid inventory (S5-01)
   /Game/Hollow/UI/Visor/W_Visor               the visor: glass, crosshair, target, prompt and the telemetry at the edges
-                                              (health and stamina, tool fuel and heat, voice and lamp, Resonance, raid)
+                                              (health and stamina, tool fuel and heat, supplies, voice and lamp, Resonance, raid)
 
 Nothing heavy: one node-only material and small widget trees. Every asset keeps a hash of its spec (metadata
 "HollowSpec") and is rebuilt only when its spec changes - every save is a new LFS object.
@@ -61,6 +62,7 @@ STYLE_TEXTS = {
     "push_to_talk_label": "MIC  PTT", "open_mic_label": "MIC  OPEN", "muted_label": "MIC  MUTED",
     "transmitting_format": "{0}  >> TX", "talking_format": "VOX  {0}",
     "lamp_on_label": "LAMP ON", "lamp_off_label": "LAMP OFF", "lamp_format": "[{0}] {1}",
+    "supply_format": "{0} {1}", "supply_separator": "   ",
 }
 STYLE_COLORS = {
     "telemetry_color": (0.6, 0.88, 1.0, 0.9),
@@ -81,17 +83,19 @@ WIDGETS = {
     "W_ResonanceReadout": {"version": 1, "text": TELEMETRY_TEXT, "bar": READOUT_BAR, "gap": GAP},
     "W_VoiceIndicator": {"version": 1, "text": TELEMETRY_TEXT, "small": TELEMETRY_SMALL, "bar": VOICE_BAR, "gap": GAP},
     "W_LampIndicator": {"version": 1, "text": TELEMETRY_TEXT},
+    "W_SupplyReadout": {"version": 1, "text": TELEMETRY_TEXT},
 }
 
 # W_Visor layout (data): distances from the screen edges, inside the glass's rim.
 LAYOUT = {
-    "version": 2,
+    "version": 3,
     "edge": 48.0,
     "crosshair": 6.0,
     "target": [360.0, 48.0, 60.0],             # size, below the crosshair
     "prompt_offset": 120.0,
     "health": [320.0, 26.0], "stamina": [320.0, 20.0], "bar_gap": 32.0,
     "tool_bar": [300.0, 24.0], "tool_gap": 36.0,
+    "supply_above_tools": 72.0,
     "lamp_below_voice": 64.0,
     "colors": {"health": (0.75, 0.15, 0.15, 1.0), "stamina": (0.35, 0.85, 0.55, 1.0), "fuel": (0.2, 0.6, 1.0, 1.0),
                "heat": (1.0, 0.55, 0.1, 1.0), "alert": (1.0, 0.1, 0.05, 1.0), "crosshair": (1.0, 1.0, 1.0, 1.0)},
@@ -437,6 +441,18 @@ def ensure_lamp():
     finish(blueprint, spec)
 
 
+def ensure_supply():
+    spec = WIDGETS["W_SupplyReadout"]
+    blueprint = widget_blueprint("W_SupplyReadout", unreal.HollowSupplyReadoutWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.Overlay, "Root")
+    supply = add(blueprint, unreal.TextBlock, "SupplyText", "Root")
+    telemetry_text(supply, spec["text"], unreal.TextJustify.RIGHT)
+    box_slot(supply, H.H_ALIGN_RIGHT, V.V_ALIGN_BOTTOM)
+    finish(blueprint, spec)
+
+
 def configure_bar(bar, label, set_name, attribute, max_attribute, fill_color, alert_tag=None):
     bar.set_editor_property("label", unreal.Text(label))
     bar.set_editor_property("attribute", make_attribute(set_name, attribute))
@@ -502,6 +518,8 @@ def ensure_visor():
     heat = add(blueprint, bar_class, "ToolHeatBar", "Root")
     configure_bar(heat, "Heat", "HollowToolSet", "ToolHeat", "MaxToolHeat", colors["heat"], OVERHEATED_TAG)
     canvas_slot(heat, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge), unreal.Vector2D(*L["tool_bar"]))
+    supply = add(blueprint, cls("W_SupplyReadout"), "SupplyReadout", "Root")
+    canvas_slot(supply, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge - L["supply_above_tools"]), auto_size=True)
 
     # Top: voice and lamp on the left, the raid in the middle, Resonance on the right.
     voice = add(blueprint, cls("W_VoiceIndicator"), "VoiceIndicator", "Root")
@@ -535,7 +553,7 @@ def validate():
     check(all(0.0 <= t.get_editor_property("pulse_hz") <= 3.0 for t in tiers), "no visor pulse over 3 Hz")
     for path, parent in (("W_VisorFrame", unreal.HollowVisorFrameWidget), ("W_ResonanceReadout", unreal.HollowResonanceReadoutWidget),
                          ("W_VoiceIndicator", unreal.HollowVoiceIndicatorWidget), ("W_LampIndicator", unreal.HollowLampIndicatorWidget),
-                         ("W_Visor", unreal.HollowVisorWidget)):
+                         ("W_SupplyReadout", unreal.HollowSupplyReadoutWidget), ("W_Visor", unreal.HollowVisorWidget)):
         blueprint = load(VISOR_DIR + "/" + path)
         generated = blueprint.generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
@@ -543,7 +561,7 @@ def validate():
         check(up_to_date(blueprint, digest(spec)), path + " matches its spec")
     visor = load(VISOR_DIR + "/W_Visor")
     for name in ("Layers", "VisorFrame", "Root", "Crosshair", "TargetStatus", "InteractionPrompt", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar",
-                 "VoiceIndicator", "LampIndicator", "RaidStatus", "ResonanceReadout"):
+                 "VoiceIndicator", "LampIndicator", "SupplyReadout", "RaidStatus", "ResonanceReadout"):
         check(author.find_widget(visor, name) is not None, "W_Visor shows " + name)
     with open(unreal.Paths.project_dir() + INI) as ini:
         text = ini.read()
@@ -559,6 +577,7 @@ def main():
     ensure_readout()
     ensure_voice()
     ensure_lamp()
+    ensure_supply()
     ensure_visor()
     validate()
     unreal.log(SUCCESS_MARKER)
