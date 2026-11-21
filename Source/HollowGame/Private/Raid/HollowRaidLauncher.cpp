@@ -2,6 +2,7 @@
 
 #include "Engine/World.h"
 #include "HollowGameLog.h"
+#include "Hub/HollowHubStateComponent.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Sector/HollowSectorSettings.h"
 #include "Session/HollowNetworkSettings.h"
@@ -26,8 +27,23 @@ bool HollowRaidLauncher::Travel(UWorld* World, const TOptional<int32> Seed)
 		UE_LOG(LogHollowGame, Warning, TEXT("A raid is started by the host, with UHollowSectorSettings::RaidMap set."));
 		return false;
 	}
-	const int32 SectorSeed = Seed.IsSet() ? Seed.GetValue() : UHollowSectorAuthorityComponent::MakeRandomSeed();
-	const FString Url = FString::Printf(TEXT("%s?Seed=%d"), *RaidMap, SectorSeed);
+	const FString Url = MakeTravelUrl(World, Seed.IsSet() ? Seed.GetValue() : UHollowSectorAuthorityComponent::MakeRandomSeed());
 	UE_LOG(LogHollowGame, Log, TEXT("Raid: travelling to %s"), *Url);
 	return World->ServerTravel(Url);
+}
+
+FString HollowRaidLauncher::MakeTravelUrl(const UWorld* World, const int32 SectorSeed)
+{
+	const FString RaidMap = GetDefault<UHollowSectorSettings>()->RaidMap.GetLongPackageName();
+	if (RaidMap.IsEmpty())
+	{
+		return FString();
+	}
+	FString Url = FString::Printf(TEXT("%s?Seed=%d"), *RaidMap, SectorSeed);
+	// The contract the host picked in the hub goes along (ADR-0032).
+	if (const UHollowHubStateComponent* Hub = UHollowHubStateComponent::Get(World); Hub && Hub->GetSelectedContract().IsValid())
+	{
+		Url += FString::Printf(TEXT("?%s=%s"), ContractOption, *Hub->GetSelectedContract().PrimaryAssetName.ToString());
+	}
+	return Url;
 }

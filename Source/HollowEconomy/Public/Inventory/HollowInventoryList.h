@@ -21,7 +21,7 @@ struct HOLLOWECONOMY_API FHollowInventoryEntry : public FFastArraySerializerItem
 	UPROPERTY()
 	int32 Count = 0;
 
-	/** Brought into the raid (the accepted loadout, plus what was added since). */
+	/** Brought into the raid from the profile (the accepted loadout, plus what was added since; not the ship's free items). */
 	UPROPERTY()
 	int32 Taken = 0;
 };

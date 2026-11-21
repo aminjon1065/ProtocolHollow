@@ -499,7 +499,11 @@ sequenceDiagram
 - *S3-03:* escrow пишется не до `ServerTravel`, а когда машина видит RaidId рейда (фаза после `Assembling`); `Server_SubmitLoadout`
   перенесён в задачу инвентаря. *S5-01 ([ADR-0030](../ADR/ADR-0030-raid-inventory-loadout.md)):* лоадаут сдаётся уже в рейде —
   хост на приходе игрока шлёт `Client_RequestLoadout(RaidId)`, машина игрока отвечает `Server_SubmitLoadout`, хост принимает
-  один раз в `Assembling`/`Deploying` и заполняет инвентарь рейда; перенос через `CopyProperties` не нужен. Итог приходит в `Debrief` (10 с), неподтверждённый дебриф показывается снова в хабе. Уход хоста →
+  один раз в `Assembling`/`Deploying` и заполняет инвентарь рейда; перенос через `CopyProperties` не нужен.
+- *S5-03 ([ADR-0032](../ADR/ADR-0032-hub-skiff-terminals-upgrades.md)):* хаб — `L_Hub_Skiff`. Терминалы (`AHollowHubTerminal`)
+  открывают локальный профиль игрока: сервер проверяет E и шлёт `Client_OpenTerminal` только ему. Контракт выбирает хост
+  (`UHollowHubStateComponent` на GameState), он уходит в URL рейда `?Contract=`. Апгрейды челнока игрок сообщает в снимке
+  лоадаута, их предметы хост кладёт в инвентарь сверх лоадаута. Итог приходит в `Debrief` (10 с), неподтверждённый дебриф показывается снова в хабе. Уход хоста →
   `SignalLost` по таймауту соединения, найденный при запуске маркер → `Abandoned` ([ADR-0016](../ADR/ADR-0016-raid-flow-extraction-escrow.md)).
 - **Seed** выбирает только хост, один раз, в хабе. Это единственное место с недетерминированным источником. Для «ежедневных контрактов» seed берётся как хеш даты.
 - **Seamless travel:** нужна `L_Transition`, а в PIE включается `net.AllowPIESeamlessTravel 1`.

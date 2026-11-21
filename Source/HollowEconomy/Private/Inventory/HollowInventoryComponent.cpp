@@ -46,27 +46,30 @@ void UHollowInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME_WITH_PARAMS_FAST(UHollowInventoryComponent, Inventory, Params);
 }
 
-void UHollowInventoryComponent::ResetFromLoadout(const TConstArrayView<FHollowItemStack> Accepted)
+void UHollowInventoryComponent::ResetFromLoadout(const TConstArrayView<FHollowItemStack> Accepted, const TConstArrayView<FHollowItemStack> Bonus)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
 	Clear();
-	for (const FHollowItemStack& Stack : Accepted)
+	for (const TConstArrayView<FHollowItemStack>* Stacks : {&Accepted, &Bonus})
 	{
-		UHollowItemDefinition* Item = UAssetManager::IsInitialized()
-			? Cast<UHollowItemDefinition>(UAssetManager::Get().GetPrimaryAssetPath(Stack.Item).TryLoad()) : nullptr;
-		if (!Item)
+		for (const FHollowItemStack& Stack : *Stacks)
 		{
-			UE_LOG(LogHollowEconomy, Warning, TEXT("%s: unknown item %s left out of the inventory"), *GetNameSafe(GetOwner()), *Stack.Item.ToString());
-			continue;
+			UHollowItemDefinition* Item = UAssetManager::IsInitialized()
+				? Cast<UHollowItemDefinition>(UAssetManager::Get().GetPrimaryAssetPath(Stack.Item).TryLoad()) : nullptr;
+			if (!Item)
+			{
+				UE_LOG(LogHollowEconomy, Warning, TEXT("%s: unknown item %s left out of the inventory"), *GetNameSafe(GetOwner()), *Stack.Item.ToString());
+				continue;
+			}
+			AddItem(Item, Stack.Count, /*bFromProfile=*/Stacks == &Accepted);
 		}
-		AddItem(Item, Stack.Count);
 	}
 }
 
-void UHollowInventoryComponent::AddItem(UHollowItemDefinition* Item, const int32 Count)
+void UHollowInventoryComponent::AddItem(UHollowItemDefinition* Item, const int32 Count, const bool bFromProfile)
 {
 	if (!Item || Count <= 0 || !GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -80,7 +83,7 @@ void UHollowInventoryComponent::AddItem(UHollowItemDefinition* Item, const int32
 		Grant(Item);
 	}
 	Entry->Count += Count;
-	Entry->Taken += Count;
+	Entry->Taken += bFromProfile ? Count : 0;
 	Changed(Entry);
 }
 

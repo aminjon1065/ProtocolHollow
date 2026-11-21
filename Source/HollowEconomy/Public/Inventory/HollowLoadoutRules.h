@@ -19,6 +19,10 @@ struct HOLLOWECONOMY_API FHollowLoadoutSnapshot
 	/** One stack per loadout slot, in slot order. Insurance stays on the player's machine (its escrow). */
 	UPROPERTY(BlueprintReadOnly, Category = "Loadout")
 	TArray<FHollowItemStack> Slots;
+
+	/** The ship upgrades the player owns (ADR-0032): the raid gives their RaidItems on top, free. */
+	UPROPERTY(BlueprintReadOnly, Category = "Loadout")
+	TArray<FPrimaryAssetId> Upgrades;
 };
 
 /** Why a slot of a loadout was dropped or cut down (log and tests). */

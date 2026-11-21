@@ -4,6 +4,7 @@
 
 #include "HollowGameState.generated.h"
 
+class UHollowHubStateComponent;
 class UHollowRaidStateComponent;
 class UHollowSectorLoaderComponent;
 class UHollowSectorStateComponent;
@@ -21,6 +22,7 @@ public:
 	UHollowSectorStateComponent* GetSectorState() const { return SectorState; }
 	UHollowRaidStateComponent* GetRaidState() const { return RaidState; }
 	UHollowSquadResonanceComponent* GetSquadResonance() const { return SquadResonance; }
+	UHollowHubStateComponent* GetHubState() const { return HubState; }
 
 	/** Every machine: a new player gets the squad's Resonance tier tag at once (S4-08). */
 	virtual void AddPlayerState(APlayerState* PlayerState) override;
@@ -41,4 +43,8 @@ private:
 	/** Replicated squad Resonance (S4-02, GAS; 0 in the hub). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Resonance")
 	TObjectPtr<UHollowSquadResonanceComponent> SquadResonance;
+
+	/** The hub's contract choice (ADR-0032). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Hub")
+	TObjectPtr<UHollowHubStateComponent> HubState;
 };

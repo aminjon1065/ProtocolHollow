@@ -24,7 +24,9 @@ enum class EHollowTransactionKind : uint8
 	/** Count of Item from the stash into the loadout. */
 	Equip,
 	/** Count of loadout slot Slot back into the stash (0: the whole slot, its insurance gone). */
-	Unequip
+	Unequip,
+	/** Ship upgrade Upgrade, once and for good (ADR-0032). */
+	BuyUpgrade
 };
 
 /** How a profile transaction ended; anything but Applied changed nothing. */
@@ -49,7 +51,10 @@ enum class EHollowTransactionResult : uint8
 	NotForRaids,
 	NotInsurable,
 	AlreadyInsured,
-	InsuranceLimit
+	InsuranceLimit,
+	UnknownUpgrade,
+	/** The ship has this upgrade already. */
+	AlreadyOwned
 };
 
 /** One request of the hub to the local profile (ADR-0031). Its Id makes it idempotent. */
@@ -80,6 +85,10 @@ struct HOLLOWECONOMY_API FHollowProfileTransaction
 	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
 	int32 Slot = INDEX_NONE;
 
+	/** BuyUpgrade. */
+	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
+	FPrimaryAssetId Upgrade;
+
 	/** New transactions, each with a new id. */
 	static FHollowProfileTransaction Buy(const FPrimaryAssetId& Item, int32 Count);
 	static FHollowProfileTransaction Sell(const FPrimaryAssetId& Item, int32 Count);
@@ -87,6 +96,7 @@ struct HOLLOWECONOMY_API FHollowProfileTransaction
 	static FHollowProfileTransaction Insure(int32 Slot);
 	static FHollowProfileTransaction Equip(const FPrimaryAssetId& Item, int32 Count);
 	static FHollowProfileTransaction Unequip(int32 Slot, int32 Count = 0);
+	static FHollowProfileTransaction BuyUpgrade(const FPrimaryAssetId& Upgrade);
 
 	FString Describe() const;
 };
@@ -100,6 +110,27 @@ struct HOLLOWECONOMY_API FHollowRecipeTerms
 	FHollowItemStack Output;
 };
 
+/** A ship upgrade as the rules see it (UHollowShipUpgradeDefinition::ToTerms; tests fill it by hand). */
+struct HOLLOWECONOMY_API FHollowUpgradeTerms
+{
+	FPrimaryAssetId Id;
+	int32 Price = 0;
+	int32 ExtraInsuredSlots = 0;
+	int32 CoreValuePercent = 0;
+	TArray<FHollowItemStack> RaidItems;
+};
+
+/** What a ship's upgrades add up to (HollowCraftingRules::SumEffects). */
+struct HOLLOWECONOMY_API FHollowUpgradeEffects
+{
+	/** More loadout slots may be insured at once. */
+	int32 ExtraInsuredSlots = 0;
+	/** Extra percent of their value sold Aether cores bring. */
+	int32 CoreValuePercent = 0;
+	/** Given to the player's raid inventory every raid, free: used first, never taken from the profile. */
+	TArray<FHollowItemStack> RaidItems;
+};
+
 /**
  * Everything the transactions need besides the profile: item facts, the shop, recipes and limits. Built from
  * DA_EconomyConfig, the item definitions, the recipe assets and UHollowEconomySettings (Load); tests fill it by hand.
@@ -111,6 +142,8 @@ struct HOLLOWECONOMY_API FHollowEconomyTerms
 	TMap<FPrimaryAssetId, int32> ShopPrices;
 	/** By recipe id (lookups only). */
 	TMap<FPrimaryAssetId, FHollowRecipeTerms> Recipes;
+	/** By ship upgrade id (lookups only). */
+	TMap<FPrimaryAssetId, FHollowUpgradeTerms> Upgrades;
 	int32 SellPercent = 0;
 	int32 InsurancePercent = 0;
 	int32 MaxInsuredSlots = 0;
@@ -141,11 +174,16 @@ namespace HollowCraftingRules
 	HOLLOWECONOMY_API EHollowTransactionResult Buy(FHollowProfile& Profile, const FPrimaryAssetId& Item, int32 Count, const FHollowEconomyTerms& Terms);
 	HOLLOWECONOMY_API EHollowTransactionResult Sell(FHollowProfile& Profile, const FPrimaryAssetId& Item, int32 Count, const FHollowEconomyTerms& Terms);
 	HOLLOWECONOMY_API EHollowTransactionResult Craft(FHollowProfile& Profile, const FPrimaryAssetId& Recipe, int32 Times, const FHollowEconomyTerms& Terms);
+	/** At most MaxInsuredSlots plus what the ship's upgrades add. */
 	HOLLOWECONOMY_API EHollowTransactionResult Insure(FHollowProfile& Profile, int32 Slot, const FHollowEconomyTerms& Terms);
 	/** Fills uninsured slots of Item first (an insured slot never grows for free), then new slots of at most MaxStack. */
 	HOLLOWECONOMY_API EHollowTransactionResult Equip(FHollowProfile& Profile, const FPrimaryAssetId& Item, int32 Count, const FHollowEconomyTerms& Terms);
 	/** Count 0 or the whole slot: the slot goes, with its insurance. */
 	HOLLOWECONOMY_API EHollowTransactionResult Unequip(FHollowProfile& Profile, int32 Slot, int32 Count, const FHollowEconomyTerms& Terms);
+	HOLLOWECONOMY_API EHollowTransactionResult BuyUpgrade(FHollowProfile& Profile, const FPrimaryAssetId& Upgrade, const FHollowEconomyTerms& Terms);
+
+	/** The effects of the upgrades Owned names (unknown ids are ignored, each upgrade counts once). */
+	HOLLOWECONOMY_API FHollowUpgradeEffects SumEffects(TConstArrayView<FPrimaryAssetId> Owned, const TMap<FPrimaryAssetId, FHollowUpgradeTerms>& Upgrades);
 
 	/** Credits the corporation pays for one: BaseValue x SellPercent / 100, rounded down. */
 	HOLLOWECONOMY_API int32 SellPrice(const FHollowEconomyTerms& Terms, const FPrimaryAssetId& Item);

@@ -76,9 +76,18 @@ namespace HollowEconomyConsole
 			Slots.Add(FString::Printf(TEXT("[%d] %s x%d %s"), Index, *Slot.Item.PrimaryAssetName.ToString(), Slot.Count, Slot.bInsured ? TEXT("insured")
 				: Terms.Catalog.IsInsurable(Slot.Item) ? *FString::Printf(TEXT("insure %d"), HollowCraftingRules::InsurancePrice(Terms, Slot)) : TEXT("uninsurable")));
 		}
-		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Shop.Dump: %d credits | offers %s | stash (%d/%d slots) %s | loadout %s | insured at most %d"), Profile.Credits,
-			*FString::Join(Offers, TEXT(", ")), Profile.Stash.Num(), Terms.StashSlots, Sells.IsEmpty() ? TEXT("-") : *FString::Join(Sells, TEXT(", ")),
-			Slots.IsEmpty() ? TEXT("-") : *FString::Join(Slots, TEXT(", ")), Terms.MaxInsuredSlots);
+		TArray<FString> Upgrades;
+		for (const TPair<FPrimaryAssetId, FHollowUpgradeTerms>& Upgrade : Terms.Upgrades)
+		{
+			Upgrades.Add(FString::Printf(TEXT("%s %s"), *Upgrade.Key.PrimaryAssetName.ToString(), Profile.Upgrades.Contains(Upgrade.Key) ? TEXT("owned")
+				: *FString::Printf(TEXT("%d"), Upgrade.Value.Price)));
+		}
+		Upgrades.Sort();
+		const FHollowUpgradeEffects Ship = HollowCraftingRules::SumEffects(Profile.Upgrades, Terms.Upgrades);
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Shop.Dump: %d credits | offers %s | stash (%d/%d slots) %s | loadout %s | insured at most %d | upgrades %s"),
+			Profile.Credits, *FString::Join(Offers, TEXT(", ")), Profile.Stash.Num(), Terms.StashSlots, Sells.IsEmpty() ? TEXT("-") : *FString::Join(Sells, TEXT(", ")),
+			Slots.IsEmpty() ? TEXT("-") : *FString::Join(Slots, TEXT(", ")), Terms.MaxInsuredSlots + Ship.ExtraInsuredSlots,
+			Upgrades.IsEmpty() ? TEXT("-") : *FString::Join(Upgrades, TEXT(", ")));
 	}
 
 	/** Every recipe, and how many times the stash and credits allow it now. */
@@ -153,6 +162,16 @@ namespace HollowEconomyConsole
 		Run(World, FHollowProfileTransaction::Craft(FPrimaryAssetId(TEXT("HollowRecipe"), FName(*Args[0])), CountArg(Args, 1, 1)), TEXT("Hollow.Craft.Make"));
 	}
 
+	void BuyUpgrade(const TArray<FString>& Args, UWorld* World)
+	{
+		if (Args.IsEmpty())
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Usage: Hollow.Shop.BuyUpgrade <Upgrade>"));
+			return;
+		}
+		Run(World, FHollowProfileTransaction::BuyUpgrade(FPrimaryAssetId(TEXT("HollowUpgrade"), FName(*Args[0]))), TEXT("Hollow.Shop.BuyUpgrade"));
+	}
+
 	void Equip(const TArray<FString>& Args, UWorld* World)
 	{
 		if (Args.IsEmpty())
@@ -192,6 +211,11 @@ namespace HollowEconomyConsole
 		TEXT("Hollow.Shop.Insure"),
 		TEXT("Buys single-use insurance for a loadout slot of the local profile. Usage: Hollow.Shop.Insure <Slot>"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Insure));
+
+	FAutoConsoleCommandWithWorldAndArgs ShopBuyUpgradeCommand(
+		TEXT("Hollow.Shop.BuyUpgrade"),
+		TEXT("Buys a ship upgrade for the local profile, once and for good. Usage: Hollow.Shop.BuyUpgrade <Upgrade>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&BuyUpgrade));
 
 	FAutoConsoleCommandWithWorld CraftDumpCommand(
 		TEXT("Hollow.Craft.Dump"),

@@ -9,6 +9,8 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 #include "HollowGameLog.h"
+#include "Crafting/HollowCraftingRules.h"
+#include "Crafting/HollowShipUpgradeDefinition.h"
 #include "Inventory/HollowInventoryComponent.h"
 #include "Inventory/HollowLoadoutRules.h"
 #include "Raid/HollowExtractionZone.h"
@@ -45,7 +47,7 @@ void UHollowRaidFlowComponent::BeginPlay()
 			HandleSectorReady(true);
 		}
 	}
-	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: waiting for the sector"), *RaidId.ToString());
+	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: waiting for the sector (contract %s)"), *RaidId.ToString(), Contract.IsValid() ? *Contract.ToString() : TEXT("none"));
 	// Players who arrived before the raid had its id (the host's own after seamless travel) are asked now.
 	for (const TWeakObjectPtr<AHollowPlayerController>& Player : Arrived)
 	{
@@ -94,8 +96,11 @@ bool UHollowRaidFlowComponent::AcceptLoadout(AController* Player, const FHollowL
 	UE_CLOG(!Issues.IsEmpty(), LogHollowGame, Warning, TEXT("Raid %s: loadout of %s cut down: %s"), *RaidId.ToString(), *Player->GetName(),
 		*HollowLoadoutRules::Describe(Issues));
 	LoadoutsTaken.Add(Player);
-	Inventory->ResetFromLoadout(Accepted);
-	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s takes %s"), *RaidId.ToString(), *Player->GetName(), *Inventory->Describe());
+	// The ship's upgrades the player owns give their items on top, free (ADR-0032); unknown ids give nothing.
+	const FHollowUpgradeEffects Ship = HollowCraftingRules::SumEffects(Loadout.Upgrades, UHollowShipUpgradeDefinition::LoadAllById());
+	Inventory->ResetFromLoadout(Accepted, Ship.RaidItems);
+	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s takes %s (the ship adds %s)"), *RaidId.ToString(), *Player->GetName(), *Inventory->Describe(),
+		*HollowLoadoutRules::Describe(Ship.RaidItems));
 	return true;
 }
 
@@ -381,6 +386,7 @@ FString UHollowRaidFlowComponent::Describe() const
 			Players += FString::Printf(TEXT(" %s=%s%s"), *Player->GetName(), *HollowEnumToString(GetOutcome(Player)), Player->GetPawn() ? TEXT("") : TEXT("(no pawn)"));
 		}
 	}
-	return FString::Printf(TEXT("raid %s, %d loot stack(s), zone %s, players:%s"), *RaidId.ToString(), Loot.Num(),
+	return FString::Printf(TEXT("raid %s, contract %s, %d loot stack(s), zone %s, players:%s"), *RaidId.ToString(),
+		Contract.IsValid() ? *Contract.PrimaryAssetName.ToString() : TEXT("none"), Loot.Num(),
 		Zone.IsValid() ? *GetNameSafe(Zone.Get()) : TEXT("not found yet"), *Players);
 }

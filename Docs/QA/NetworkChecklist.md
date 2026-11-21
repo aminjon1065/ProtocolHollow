@@ -100,6 +100,17 @@ UI появится в S5-03/S5-04, пока — консоль. Профили,
 | H2 | Рейд; клиент жмёт G — мина ставится; затем клиента убивают (`Hollow.Dev.Kill Others` на хосте) | Дебриф клиента: «Insurance used: DA_Item_Welder x1, DA_Item_PlasmaCutter x1»; в профиле сварка и резак без страховки, склад не тронут |
 | H3 | Во время рейда на клиенте: `Hollow.Shop.Buy DA_Item_Scrap 1` | «InRaid», кредиты не меняются |
 
+## Хаб «Скит» (S5-03, [ADR-0032](../ADR/ADR-0032-hub-skiff-terminals-upgrades.md))
+Экраны терминалов появятся в S5-04: пока открытие видно в логе («Hub: … opens the … terminal») и в `Hollow.Hub.Dump`.
+
+| # | Шаг | Ожидание |
+|---|---|---|
+| S1 | Хост «Host co-op», клиент входит | Оба в кабине челнока, свет приглушённый и ровный, без мерцания, у каждого своё место старта |
+| S2 | Клиент подходит к терминалу у правого борта и жмёт E | У клиента подсказка «Workbench», в логе клиента — «opens the Workbench terminal»; у хоста ничего не открылось |
+| S3 | Клиент подходит к пульту в кабине пилота | Подсказка «Contracts (host decides)»; `Hollow.Hub.Select DA_Contract_Docks` на клиенте — Warning у хоста, контракт не меняется |
+| S4 | Хост на пульте: E, затем `Hollow.Hub.Launch` (или Esc → Start raid) | Оба летят в рейд, в логе хоста URL с `?Contract=DA_Contract_Docks` |
+| S5 | До рейда хост покупает `Hollow.Shop.BuyUpgrade DA_Upgrade_FuelReserve`, клиент — `DA_Upgrade_CoreBonus`; эвакуироваться с ядром | В рейде у хоста на визоре «FUEL CELL 5»; после эвакуации хост +500, клиент +600 |
+
 ## После арт-пасса ([ADR-0027](../ADR/ADR-0027-art-prep-locks-tool-mount-montages-budget.md), когда назначены меши и монтажи)
 | # | Действие | Ожидание |
 |---|---|---|

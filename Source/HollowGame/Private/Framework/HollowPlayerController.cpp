@@ -6,6 +6,9 @@
 #include "EnhancedInputSubsystems.h"
 #include "Framework/HollowRaidGameMode.h"
 #include "HollowGameLog.h"
+#include "Hub/HollowHubStateComponent.h"
+#include "Hub/HollowHubTerminal.h"
+#include "Hub/HollowHubTerminalSubsystem.h"
 #include "InputMappingContext.h"
 #include "Profile/HollowProfileSubsystem.h"
 #include "Raid/HollowRaidFlowComponent.h"
@@ -92,6 +95,7 @@ void AHollowPlayerController::Client_RequestLoadout_Implementation(const FGuid& 
 	if (Profile)
 	{
 		Loadout.Slots = Profile->GetLoadoutForRaid(RaidId);
+		Loadout.Upgrades = Profile->GetProfile().Upgrades;   // the ship's free items come on top (ADR-0032)
 	}
 	Server_SubmitLoadout(Loadout);
 }
@@ -105,4 +109,23 @@ void AHollowPlayerController::Server_SubmitLoadout_Implementation(const FHollowL
 		return;
 	}
 	Raid->GetRaidFlow()->AcceptLoadout(this, Loadout);
+}
+
+void AHollowPlayerController::Client_OpenTerminal_Implementation(AHollowHubTerminal* Terminal)
+{
+	if (UHollowHubTerminalSubsystem* Terminals = UHollowHubTerminalSubsystem::Get(GetWorld()))
+	{
+		Terminals->Open(this, Terminal);
+	}
+}
+
+void AHollowPlayerController::Server_SelectContract_Implementation(const FPrimaryAssetId& Contract)
+{
+	UHollowHubStateComponent* Hub = UHollowHubStateComponent::Get(GetWorld());
+	if (!IsLocalController() || !Hub)
+	{
+		UE_LOG(LogHollowGame, Warning, TEXT("Hub: %s may not choose the contract (%s): only the host does"), *GetName(), *Contract.ToString());
+		return;
+	}
+	Hub->SelectContract(Contract);
 }

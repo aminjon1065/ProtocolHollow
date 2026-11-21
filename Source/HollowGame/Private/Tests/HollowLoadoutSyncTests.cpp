@@ -191,7 +191,12 @@ bool FHollowLoadoutSyncRaidTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...her mines unchanged"), AnnInventory->GetCount(PulseMine), Mines);
 	AddExpectedMessage(TEXT("ignored: for another raid"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1, /*IsRegex=*/false);
 	TestFalse(TEXT("A loadout for another raid is refused"), Flow->AcceptLoadout(Bob, Snapshot(FGuid::NewGuid(), {Stack(PulseMine, Mines)})));
-	TestTrue(TEXT("Bob takes only the welder"), Flow->AcceptLoadout(Bob, Snapshot(RaidId, {Stack(Welder, 1)})));
+	// Bob brings only the welder, but his ship has the fuel reserve (ADR-0032): two cells on top, free.
+	FHollowLoadoutSnapshot BobsLoadout = Snapshot(RaidId, {Stack(Welder, 1)});
+	BobsLoadout.Upgrades = {FPrimaryAssetId(TEXT("HollowUpgrade"), TEXT("DA_Upgrade_FuelReserve"))};
+	TestTrue(TEXT("Bob takes only the welder"), Flow->AcceptLoadout(Bob, BobsLoadout));
+	UHollowInventoryComponent* BobsInventory = InventoryOf(Bob);
+	TestTrue(TEXT("...and the ship's two fuel cells, with the refuel"), BobsInventory->GetCount(FuelCell) == 2 && FindSpec(BobAbilities, RefuelAbility, HollowTags::Input_Reload));
 
 	// No mine in the loadout, no mine laid.
 	TestTrue(TEXT("Bob has the welder, no mine"), FindSpec(BobAbilities, WelderAbility, HollowTags::Input_SecondaryUse) && !FindSpec(BobAbilities, MineAbility, HollowTags::Input_Gadget));
@@ -228,7 +233,9 @@ bool FHollowLoadoutSyncRaidTest::RunTest(const FString& Parameters)
 	};
 	TestTrue(FString::Printf(TEXT("Spent: both mines, two cells (%s)"), *HollowLoadoutRules::Describe(Spent)), Spent.Num() == 2 && SpentOf(PulseMine) == Mines
 		&& SpentOf(FuelCell) == 2);
-	TestTrue(TEXT("Bob spent nothing"), InventoryOf(Bob)->GetSpent().IsEmpty());
+	SetFuel(*BobAbilities, LowFuel);
+	TestTrue(TEXT("Bob refuels with a ship's cell"), BobAbilities->TryActivateAbilityByClass(RefuelAbility) && BobsInventory->GetCount(FuelCell) == 1);
+	TestTrue(TEXT("Bob spent nothing of his own"), BobsInventory->GetSpent().IsEmpty());
 
 	// Too late once the raid has begun.
 	FHollowRaidNetState InRaid = RaidState->GetState();

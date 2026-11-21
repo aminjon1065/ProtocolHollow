@@ -4,6 +4,8 @@
                                                      the stash's size, how many slots may be insured
   /Game/Hollow/Economy/Recipes/DA_Recipe_FuelCell    UHollowCraftingRecipe: 2 scrap + 5 cr -> a fuel cell
   /Game/Hollow/Economy/Recipes/DA_Recipe_PulseMine   3 scrap + 1 Aether shard + 10 cr -> a pulse mine
+  /Game/Hollow/Economy/Upgrades/DA_Upgrade_*         UHollowShipUpgradeDefinition (S5-03, ADR-0032): the Skiff's fuel
+                                                     reserve, an extra insured slot, the core contract bonus
 
 The materials themselves are items (create_raid_flow_assets.py). Every asset is set to its spec when it differs, then
 the whole economy is validated: offers and recipe items exist, recipes make consumables, no loop of buying, crafting
@@ -20,6 +22,7 @@ SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 ECONOMY_DIR = "/Game/Hollow/Economy"
 CONFIG_PATH = ECONOMY_DIR + "/DA_EconomyConfig"
 RECIPES_DIR = ECONOMY_DIR + "/Recipes"
+UPGRADES_DIR = ECONOMY_DIR + "/Upgrades"
 ITEMS_DIR = "/Game/Hollow/Items"
 INI = "Config/DefaultGame.ini"
 INI_LINE = "EconomyConfig=/Game/Hollow/Economy/DA_EconomyConfig.DA_EconomyConfig"
@@ -41,6 +44,13 @@ RECIPES = {
     "DA_Recipe_PulseMine": ("Pulse mine", [("DA_Item_Scrap", 3), ("DA_Item_AetherShard", 1)], 10, "DA_Item_PulseMine", 1),
 }
 CONSUMABLE = "Hollow.Item.Type.Consumable"
+# S5-03 clarifications 1-3: name -> (display name, description, price, extra insured slots, core value percent, raid items).
+UPGRADES = {
+    "DA_Upgrade_FuelReserve": ("Fuel reserve", "The Skiff stocks two fuel cells for every raid: used first, never from your stash.", 600, 0, 0,
+                               [("DA_Item_FuelCell", 2)]),
+    "DA_Upgrade_InsuranceSlot": ("Insurance rider", "One more loadout slot can be insured at a time.", 800, 1, 0, []),
+    "DA_Upgrade_CoreBonus": ("Core contract", "The corporation pays 20 % more for every Aether core brought out.", 1000, 0, 20, []),
+}
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 assets = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
@@ -145,6 +155,24 @@ def ensure_recipe(name, spec):
     return recipe
 
 
+def ensure_upgrade(name, spec):
+    display, description, price, slots, core_percent, raid_items = spec
+    upgrade, created = data_asset(UPGRADES_DIR + "/" + name, unreal.HollowShipUpgradeDefinition)
+    wanted_items = [stack(n, c) for n, c in raid_items]
+    values = {"price": price, "extra_insured_slots": slots, "core_value_percent": core_percent}
+    if not created and str(upgrade.get_editor_property("display_name")) == display and str(upgrade.get_editor_property("description")) == description \
+            and all(upgrade.get_editor_property(k) == v for k, v in values.items()) and texts(upgrade.get_editor_property("raid_items")) == texts(wanted_items):
+        return upgrade
+    upgrade.set_editor_property("display_name", unreal.Text(display))
+    upgrade.set_editor_property("description", unreal.Text(description))
+    for key, value in values.items():
+        upgrade.set_editor_property(key, value)
+    upgrade.set_editor_property("raid_items", wanted_items)
+    save(upgrade)
+    log("%s: %d cr" % (name, price))
+    return upgrade
+
+
 # ---------------------------------------------------------------- validation
 
 def check(condition, message):
@@ -172,6 +200,14 @@ def validate(config):
         text = ini.read()
     check(INI_LINE in text, "DefaultGame.ini: " + INI_LINE)
     check("PrimaryAssetType=\"HollowRecipe\"" in text, "DefaultGame.ini scans the recipes")
+    check("PrimaryAssetType=\"HollowUpgrade\"" in text, "DefaultGame.ini scans the ship upgrades")
+    for name, (_, _, price, slots, core_percent, raid_items) in UPGRADES.items():
+        upgrade = load(UPGRADES_DIR + "/" + name)
+        check(unreal.SystemLibrary.get_primary_asset_id_from_object(upgrade).export_text().endswith(name), name + " primary asset id")
+        check(price > 0 and (slots > 0 or core_percent > 0 or raid_items), name + " costs something and does something")
+        for item_name, count in raid_items:
+            check(item(item_name).get_editor_property("item_type").export_text() == from_text(unreal.GameplayTag(), '(TagName="%s")' % CONSUMABLE).export_text()
+                  and count > 0, "%s gives a raid consumable (%s)" % (name, item_name))
     starting = dict((n, int(c)) for n, c in re.findall(r"^\+StartingStash=\(Item=HollowItem:(\w+),Count=(\d+)", text, re.MULTILINE))
     _, mine_inputs, _, _, _ = RECIPES["DA_Recipe_PulseMine"]
     check(all(starting.get(n, 0) >= c for n, c in mine_inputs), "a new profile's stash crafts a pulse mine")
@@ -182,6 +218,8 @@ def main():
     config = ensure_config()
     for name, spec in RECIPES.items():
         ensure_recipe(name, spec)
+    for name, spec in UPGRADES.items():
+        ensure_upgrade(name, spec)
     validate(config)
     unreal.log(SUCCESS_MARKER)
 

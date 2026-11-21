@@ -29,12 +29,16 @@ public:
 
 	/**
 	 * Server: what a raid accepted of a loadout (HollowLoadoutRules::Validate) becomes the inventory, replacing what was
-	 * there; unknown items are skipped. Loads the items' ability sets synchronously (the raid is still assembling).
+	 * there; unknown items are skipped. Bonus (the ship's upgrades, ADR-0032) comes on top, free. Loads the items'
+	 * ability sets synchronously (the raid is still assembling).
 	 */
-	void ResetFromLoadout(TConstArrayView<FHollowItemStack> Accepted);
+	void ResetFromLoadout(TConstArrayView<FHollowItemStack> Accepted, TConstArrayView<FHollowItemStack> Bonus = {});
 
-	/** Server: Count more of Item (development now, loot later), granting its abilities if it is new. */
-	void AddItem(UHollowItemDefinition* Item, int32 Count);
+	/**
+	 * Server: Count more of Item (development now, loot later), granting its abilities if it is new. Not from the profile
+	 * (a ship upgrade's free items): held, but not taken, so they are used first and never spent from the profile.
+	 */
+	void AddItem(UHollowItemDefinition* Item, int32 Count, bool bFromProfile = true);
 
 	/** Server: empties the inventory and takes back what its items granted. */
 	void Clear();

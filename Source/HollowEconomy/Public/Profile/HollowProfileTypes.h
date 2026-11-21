@@ -45,6 +45,10 @@ struct HOLLOWECONOMY_API FHollowProfile
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	TArray<FHollowItemStack> Stash;
 
+	/** Ship upgrades bought (ADR-0032), each once and for good (UHollowShipUpgradeDefinition ids). */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FPrimaryAssetId> Upgrades;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	FHollowRaidStats Stats;
 };
@@ -122,8 +126,12 @@ namespace HollowProfileRules
 	HOLLOWECONOMY_API TOptional<FHollowRaidReport> BeginRaid(FHollowProfileState& State, const FGuid& RaidId, const FDateTime& NowUtc,
 		const FHollowItemCatalog& Catalog);
 
-	/** Resolves the escrow with the host's result; a result for another raid (or without escrow) is ignored. */
-	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog);
+	/**
+	 * Resolves the escrow with the host's result; a result for another raid (or without escrow) is ignored.
+	 * CoreValuePercent: the owned ship upgrades' bonus on sold Aether cores (ADR-0032).
+	 */
+	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
+		int32 CoreValuePercent = 0);
 
 	/** Resolves the escrow without a host (SignalLost, Abandoned): no loot. */
 	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ResolveEscrow(FHollowProfileState& State, EHollowRaidOutcome Outcome, const FDateTime& NowUtc,

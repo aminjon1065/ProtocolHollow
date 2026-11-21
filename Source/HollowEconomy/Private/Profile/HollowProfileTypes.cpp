@@ -50,9 +50,11 @@ namespace HollowProfileRules
 
 	namespace Private
 	{
-		FHollowRaidReport Resolve(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog)
+		FHollowRaidReport Resolve(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
+			const int32 CoreValuePercent = 0)
 		{
 			FHollowRaidContext Context;
+			Context.CoreValuePercent = CoreValuePercent;
 			Context.Loadout = State.Escrow.Loadout;
 			Context.Loot = Result.Loot;
 			Context.Spent = Result.Spent;
@@ -82,13 +84,14 @@ namespace HollowProfileRules
 		return Previous;
 	}
 
-	TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog)
+	TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
+		const int32 CoreValuePercent)
 	{
 		if (!State.Escrow.IsActive() || Result.RaidId != State.Escrow.RaidId || Result.Outcome == EHollowRaidOutcome::None)
 		{
 			return TOptional<FHollowRaidReport>();
 		}
-		return Private::Resolve(State, Result, Catalog);
+		return Private::Resolve(State, Result, Catalog, CoreValuePercent);
 	}
 
 	TOptional<FHollowRaidReport> ResolveEscrow(FHollowProfileState& State, const EHollowRaidOutcome Outcome, const FDateTime& NowUtc,

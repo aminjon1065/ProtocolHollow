@@ -45,6 +45,12 @@
   - все операции — атомарные идемпотентные транзакции `HollowCraftingRules`;
   - тесты `Hollow.Economy.Crafting.{Buy, Sell, Craft, Insurance, Equip, Transactions, Data}`;
   - UI — в S5-03/S5-04.
+- **S5-03 — сделано** (2026-11-22, [ADR-0032](../ADR/ADR-0032-hub-skiff-terminals-upgrades.md)):
+  - хаб `L_Hub_Skiff` — процедурный интерьер челнока, свет в новом лимите `Hollow.Room.Type.Hub`;
+  - три терминала `AHollowHubTerminal`: Контракты, Верстак/Магазин, Шкафчик. Открываются только у нажавшего, экраны — в S5-04;
+  - контракт `DA_Contract_Docks` выбирает хост, он уходит в URL рейда;
+  - три апгрейда челнока в профиле: запас топлива (+2 ячейки за рейд), слот страховки (+1), бонус за ядра (+20 %);
+  - тесты `Hollow.Economy.Upgrades.*`, `Hollow.Game.Hub.{Terminals, Data, Skiff}`, кооп-смоук `playthrough-mac.sh hub`.
 
 ---
 

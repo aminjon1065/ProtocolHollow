@@ -3,6 +3,7 @@
 #include "Algo/Count.h"
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowEconomyConfig.h"
+#include "Crafting/HollowShipUpgradeDefinition.h"
 #include "HollowEconomyLog.h"
 #include "Profile/HollowEconomySettings.h"
 #include "Profile/HollowProfileTypes.h"
@@ -76,10 +77,19 @@ FHollowProfileTransaction FHollowProfileTransaction::Unequip(const int32 Slot, c
 	return Transaction;
 }
 
+FHollowProfileTransaction FHollowProfileTransaction::BuyUpgrade(const FPrimaryAssetId& Upgrade)
+{
+	FHollowProfileTransaction Transaction = HollowCraftingPrivate::Make(EHollowTransactionKind::BuyUpgrade);
+	Transaction.Upgrade = Upgrade;
+	return Transaction;
+}
+
 FString FHollowProfileTransaction::Describe() const
 {
 	switch (Kind)
 	{
+	case EHollowTransactionKind::BuyUpgrade:
+		return FString::Printf(TEXT("BuyUpgrade %s"), *Upgrade.PrimaryAssetName.ToString());
 	case EHollowTransactionKind::Craft:
 		return FString::Printf(TEXT("Craft %s x%d"), *Recipe.PrimaryAssetName.ToString(), Count);
 	case EHollowTransactionKind::Insure:
@@ -123,6 +133,15 @@ FHollowEconomyTerms FHollowEconomyTerms::Load(const FHollowProfileState& State, 
 		Items.AddUnique(Recipe.Output.Item);
 		const FPrimaryAssetId Id = Recipe.Id;
 		Terms.Recipes.Add(Id, MoveTemp(Recipe));
+	}
+	for (FHollowUpgradeTerms& Upgrade : UHollowShipUpgradeDefinition::LoadAll())
+	{
+		for (const FHollowItemStack& Item : Upgrade.RaidItems)
+		{
+			Items.AddUnique(Item.Item);
+		}
+		const FPrimaryAssetId Id = Upgrade.Id;
+		Terms.Upgrades.Add(Id, MoveTemp(Upgrade));
 	}
 	for (const FHollowItemStack& Stack : State.Profile.Stash)
 	{
@@ -177,6 +196,9 @@ namespace HollowCraftingRules
 			break;
 		case EHollowTransactionKind::Unequip:
 			Result = Unequip(Profile, Transaction.Slot, Transaction.Count, Terms);
+			break;
+		case EHollowTransactionKind::BuyUpgrade:
+			Result = BuyUpgrade(Profile, Transaction.Upgrade, Terms);
 			break;
 		}
 		if (Result == EHollowTransactionResult::Applied)
@@ -299,7 +321,8 @@ namespace HollowCraftingRules
 		{
 			return EHollowTransactionResult::AlreadyInsured;
 		}
-		if (Algo::CountIf(Profile.Loadout, [](const FHollowLoadoutSlot& S) { return S.bInsured; }) >= Terms.MaxInsuredSlots)
+		const int32 MaxInsured = Terms.MaxInsuredSlots + SumEffects(Profile.Upgrades, Terms.Upgrades).ExtraInsuredSlots;
+		if (Algo::CountIf(Profile.Loadout, [](const FHollowLoadoutSlot& S) { return S.bInsured; }) >= MaxInsured)
 		{
 			return EHollowTransactionResult::InsuranceLimit;
 		}
@@ -386,6 +409,55 @@ namespace HollowCraftingRules
 			Profile.Loadout.RemoveAt(Slot);   // the slot goes, with its insurance
 		}
 		return EHollowTransactionResult::Applied;
+	}
+
+	EHollowTransactionResult BuyUpgrade(FHollowProfile& Profile, const FPrimaryAssetId& Upgrade, const FHollowEconomyTerms& Terms)
+	{
+		const FHollowUpgradeTerms* Found = Terms.Upgrades.Find(Upgrade);
+		if (!Found)
+		{
+			return EHollowTransactionResult::UnknownUpgrade;
+		}
+		if (Profile.Upgrades.Contains(Upgrade))
+		{
+			return EHollowTransactionResult::AlreadyOwned;
+		}
+		if (Found->Price > Profile.Credits)
+		{
+			return EHollowTransactionResult::NotEnoughCredits;
+		}
+		Profile.Credits -= Found->Price;
+		Profile.Upgrades.Add(Upgrade);
+		return EHollowTransactionResult::Applied;
+	}
+
+	FHollowUpgradeEffects SumEffects(const TConstArrayView<FPrimaryAssetId> Owned, const TMap<FPrimaryAssetId, FHollowUpgradeTerms>& Upgrades)
+	{
+		FHollowUpgradeEffects Effects;
+		TArray<FPrimaryAssetId, TInlineAllocator<8>> Counted;
+		for (const FPrimaryAssetId& Id : Owned)
+		{
+			const FHollowUpgradeTerms* Upgrade = Upgrades.Find(Id);
+			if (!Upgrade || Counted.Contains(Id))
+			{
+				continue;
+			}
+			Counted.Add(Id);
+			Effects.ExtraInsuredSlots += FMath::Max(Upgrade->ExtraInsuredSlots, 0);
+			Effects.CoreValuePercent += FMath::Max(Upgrade->CoreValuePercent, 0);
+			for (const FHollowItemStack& Item : Upgrade->RaidItems)
+			{
+				if (FHollowItemStack* Existing = Effects.RaidItems.FindByPredicate([&Item](const FHollowItemStack& S) { return S.Item == Item.Item; }))
+				{
+					Existing->Count += Item.Count;
+				}
+				else
+				{
+					Effects.RaidItems.Add(Item);
+				}
+			}
+		}
+		return Effects;
 	}
 
 	int32 SellPrice(const FHollowEconomyTerms& Terms, const FPrimaryAssetId& Item)
