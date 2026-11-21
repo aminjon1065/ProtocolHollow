@@ -47,8 +47,8 @@ public:
 	EHollowAIActivity GetActivity() const { return Activity; }
 
 	// Facts: perception reports them (tests may report directly).
-	void ReportSeen(APawn* Pawn);
-	void ReportLost(APawn* Pawn, const FVector& LastSeenLocation);
+	void ReportSeen(APawn* SeenPawn);
+	void ReportLost(APawn* LostPawn, const FVector& LastSeenLocation);
 	void ReportHeard(const FVector& Location);
 	/** Path following reached a nav link whose structural owner does not let it through (UHollowPathFollowingComponent). */
 	void ReportObstacle(AActor* InObstacle);

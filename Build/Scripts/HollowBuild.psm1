@@ -25,15 +25,39 @@ function Get-HollowUProject {
     return $UProject
 }
 
-# Engine root (folder containing "Engine"): explicit value, otherwise the Epic Launcher install of UE 5.8.
+# True when <Root>\Engine\Build\Build.version reports the locked engine version (ADR-0008).
+function Test-HollowEngineVersion {
+    param([string] $Root)
+    $VersionFile = Join-Path $Root 'Engine\Build\Build.version'
+    if (-not (Test-Path $VersionFile)) { return $false }
+    $Version = Get-Content $VersionFile -Raw | ConvertFrom-Json
+    return ('{0}.{1}' -f $Version.MajorVersion, $Version.MinorVersion) -eq $script:EngineVersion
+}
+
+# Engine root (folder containing "Engine"): explicit value, otherwise UE 5.8 from the Epic Launcher manifest, the
+# launcher registry key, or an engine registered by UnrealVersionSelector (HKCU Builds). The launcher manifest can be
+# empty while the engine is installed (seen on the Windows test laptop), so every candidate is checked by Build.version.
 function Resolve-HollowEngineRoot {
     param([string] $Candidate)
     if ($Candidate) { return $Candidate }
+
+    $Candidates = @()
     $Manifest = Join-Path $env:ProgramData 'Epic\UnrealEngineLauncher\LauncherInstalled.dat'
     if (Test-Path $Manifest) {
-        $Install = (Get-Content $Manifest -Raw | ConvertFrom-Json).InstallationList |
-            Where-Object { $_.AppName -eq "UE_$script:EngineVersion" } | Select-Object -First 1
-        if ($Install) { return $Install.InstallLocation }
+        $Candidates += @((Get-Content $Manifest -Raw | ConvertFrom-Json).InstallationList |
+            Where-Object { $_.AppName -eq "UE_$script:EngineVersion" } | ForEach-Object { $_.InstallLocation })
+    }
+    $Launcher = Get-ItemProperty "HKLM:\SOFTWARE\EpicGames\Unreal Engine\$script:EngineVersion" -Name 'InstalledDirectory' `
+        -ErrorAction SilentlyContinue
+    if ($Launcher) { $Candidates += $Launcher.InstalledDirectory }
+    $BuildsKey = 'HKCU:\Software\Epic Games\Unreal Engine\Builds'
+    if (Test-Path $BuildsKey) {
+        $Builds = Get-Item $BuildsKey
+        $Candidates += @($Builds.GetValueNames() | ForEach-Object { $Builds.GetValue($_) })
+    }
+
+    foreach ($Root in $Candidates) {
+        if ($Root -and (Test-HollowEngineVersion $Root)) { return (Resolve-Path $Root).Path }
     }
     throw "UE $script:EngineVersion not found. Pass -EngineRoot or set UE_ROOT."
 }

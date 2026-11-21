@@ -149,3 +149,24 @@
 | `coop` | Как в S4-08; у `BP_ExoFrame` теперь крепление инструмента | PASS: хеши совпали в обоих рейдах, фонарь и крик дошли, профили верны, предупреждений о сокетах рук нет, ошибок 0 |
 | `soak` 5 мин | Живой ИИ: замахи Пилигрима и засады Хищника идут с атакой в параметрах cue | Все 4 процесса до конца, падений нет, в отчёте 3 предупреждения сети и загрузки. FPS 75,3 — снова при GPU, занятом сторонним процессом на 97 % |
 
+## Первая сборка на Windows-ноутбуке (2026-11-22, [ADR-0009](../ADR/ADR-0009-cross-platform-toolchain.md))
+> i7-12700H, 16 ГБ RAM, RTX 3070 Laptop 8 ГБ (драйвер 621.24), Windows 11 26H2. VS 2026 с MSVC 14.50.35740, Windows SDK 10.0.22621, UE 5.8.4.
+
+| # | Тяжесть | Проблема | Что делаем |
+|---|---|---|---|
+| W-1 | High (исправлено) | **MSVC не собирал редактор:** C4458 «объявление скрывает член класса», в UE это ошибка. Локальные имена совпадали с членами движка: `Tags` (`AActor`), `Pawn` и `Character` (`AController`), `NetUpdateFrequency` (`AActor`). 9 мест в `HollowAetherCore`, `HollowAIController`, `HollowStalkerController` и `HollowPlayerState`. Apple Clang этого не видит | Переименованы, поведение не менялось. Таких ошибок жди и дальше, пока гейт MSVC не запускается после каждого спринта на Mac |
+| W-2 | Medium (исправлено) | C4305 в `HollowCarryCoopTests`: допуск `double` передавался в `TestEqual` для `FVector`/`FTransform`, где он `float`. 10 предупреждений, гейт нулевых warnings их не пропустил бы | Константа `VectorTolerance` (float) для векторных сравнений |
+| W-3 | Medium (исправлено, скрипты) | UE 5.8 кладёт архив прямо в `Packages\Win64\<Config>\`, без подпапки `Windows`. `package-win64.ps1` печатал OK с несуществующим путём, `perf-e9-win64.ps1 -SkipPackage` не нашёл бы билд; в QA-документах был тот же путь | Путь исправлен; `package-win64.ps1` проверяет, что exe на месте |
+| W-4 | Medium (исправлено, скрипты) | Скрипты не находили движок: список установок Epic Launcher пуст, UE 5.8 зарегистрирован только в `HKCU\Software\Epic Games\Unreal Engine\Builds` | `Resolve-HollowEngineRoot` ищет и в реестре, версию сверяет по `Build.version` |
+| W-5 | High (среда) | Smart App Control блокировал каждый собранный неподписанный бинарник: UBT не смог загрузить `ProtocolHollowModuleRules.dll` (`0x800711C7`, CodeIntegrity 3033/3077) | SAC выключен на машине разработки ([SteamLiveTest.md](SteamLiveTest.md) → «Подготовка»). У игроков с включённым SAC неподписанный exe тоже может не запуститься — учесть в подписи билдов (ADR-0024) |
+| W-6 | High (среда) | UBT `RulesError`: «Could not find NetFxSDK install dir», в VS не было .NET Framework 4.8 SDK | Компоненты VS — там же |
+| W-7 | Medium (среда) | Кук уткнулся в лимит выделенной памяти: файл подкачки 3,5 ГБ, свободно 0,4 ГБ, кукер сообщал «Out of memory condition». Кук всё же прошёл | Файл подкачки 16–32 ГБ |
+
+### Прогоны (2026-11-22, Windows, Development)
+| Прогон | Что | Итог |
+|---|---|---|
+| `run-tests-win64.cmd` | Сборка редактора MSVC, гейт warnings, `Hollow.*` | PASS: 154/154, столько же тестов в исходниках; 0 предупреждений |
+| `package-win64.cmd` | Первый (полный) кук | PASS: 764 пакета, 304 шейдера, 0 ошибок и предупреждений, 8 мин 53 с |
+| Смоук запуска | Собранная игра вне экрана | PASS: главное меню; `HollowSector_Docks state=Registered references=0 rooms=8`; игра сама выбрала RTX 3070 (`iGPU: false`) |
+| `solo` (сценарий `playthrough-mac.sh`, вручную на Windows) | Главное меню → «Play solo» → хаб → «Start raid» → ядро → эвакуация → дебриф → «Leave session» → главное меню | PASS: хеш сектора совпал, Extracted, кредиты 1000 → 1500, escrow none, ошибок 0 |
+

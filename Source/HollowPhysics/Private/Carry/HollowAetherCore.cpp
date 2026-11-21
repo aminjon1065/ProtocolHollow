@@ -62,9 +62,10 @@ FHollowInteractionInfo AHollowAetherCore::GetInteractionInfo(const AActor* Inter
 bool AHollowAetherCore::CanInteract(const AActor* Interactor) const
 {
 	// Both hands: not while a tool runs (the carry effect blocks tools the other way round).
-	const IGameplayTagAssetInterface* Tags = Cast<IGameplayTagAssetInterface>(Interactor);
+	const IGameplayTagAssetInterface* InteractorTags = Cast<IGameplayTagAssetInterface>(Interactor);
 	const APawn* Pawn = Cast<APawn>(Interactor);
-	return (Carryable->CanBeginSolo(Pawn) || Carryable->CanJoin(Pawn)) && !(Tags && Tags->HasMatchingGameplayTag(HollowTags::State_Tool_Active));
+	return (Carryable->CanBeginSolo(Pawn) || Carryable->CanJoin(Pawn))
+		&& !(InteractorTags && InteractorTags->HasMatchingGameplayTag(HollowTags::State_Tool_Active));
 }
 
 void AHollowAetherCore::Interact(AActor* Interactor)

@@ -6,10 +6,13 @@
 1. **Два Steam-аккаунта**, добавленные друг другу в друзья: A — на Mac, B — на Windows. Один аккаунт не может зайти сам к себе.
 2. Steam запущен и залогинен на обеих машинах. В Steam → Settings → In Game включён оверлей.
 3. **Windows-ноутбук:** Visual Studio 2022 с MSVC 14.44.35211+ (или 14.50.35723+), Windows SDK 10.0.22621, UE **5.8.4** (тот же хотфикс, что на Mac), Git + Git LFS. Клон по короткому пути: `git clone https://github.com/aminjon1065/ProtocolHollow.git C:\Dev\ProtocolHollow`, затем `git lfs pull`.
+   - Подходит и Visual Studio 2026. В Visual Studio Installer → «Отдельные компоненты» нужны: **.NET Framework 4.8 SDK** (без него UBT падает с `RulesError`: «Could not find NetFxSDK install dir»), **MSVC v14.50 (VS 2026 18.0)** (UBT выберет его сам, более новые 14.52+ Epic не проверял), **Windows 11 SDK 10.0.22621**.
+   - **Smart App Control выключен** (Безопасность Windows → Управление приложениями/браузером). Иначе Windows блокирует каждый собранный неподписанный бинарник, начиная с `ProtocolHollowModuleRules.dll` (`0x800711C7`).
+   - Файл подкачки не меньше объёма RAM (лучше 16–32 ГБ): при 16 ГБ RAM кук и линковка упираются в лимит выделенной памяти.
 
 ## Сборка
 - **Windows:** `Build\Scripts\run-tests-win64.cmd`. Проверяет MSVC-сборку и тесты, ожидаем `OK`, код 0.
-- **Windows:** `Build\Scripts\package-win64.cmd`. Первая упаковка долгая из-за компиляции шейдеров. Результат: `Packages\Win64\Development\Windows\ProtocolHollow.exe`.
+- **Windows:** `Build\Scripts\package-win64.cmd`. Первая упаковка долгая из-за компиляции шейдеров. Результат: `Packages\Win64\Development\ProtocolHollow.exe`.
 - **Mac:** `./Build/Scripts/import-placeholders.sh` (один раз после клона: плейсхолдер-персонажи из шаблонов движка, ADR-0011), затем `./Build/Scripts/build-editor-mac.sh`.
 - **Windows:** плейсхолдеры `package-win64.cmd` импортирует сам. Для запуска редактора на ноутбуке выполни `Build\Scripts\import-placeholders.cmd` вручную.
 
@@ -41,7 +44,7 @@
 
 ## Если что-то не так — пришли логи
 - **Mac:** `~/Library/Logs/ProtocolHollow/ProtocolHollow.log` (собранная игра)
-- **Windows:** `Packages\Win64\Development\Windows\ProtocolHollow\Saved\Logs\ProtocolHollow.log`
+- **Windows:** `Packages\Win64\Development\ProtocolHollow\Saved\Logs\ProtocolHollow.log`
 
 | Симптом | Вероятная причина |
 |---|---|

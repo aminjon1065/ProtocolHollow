@@ -9,13 +9,13 @@
 2. **Steam** запущен и залогинен на обеих машинах: два разных аккаунта, они в друзьях, оверлей включён (Steam → Settings → In Game).
    - AppID 480 (Spacewar): игру запускаем сами, не из библиотеки Steam, и Steam показывает её как «Spacewar». Это нормально.
 3. **Сборки:**
-   - **Windows:** `Build\Scripts\package-win64.cmd` → `Packages\Win64\Development\Windows\ProtocolHollow.exe`. Первая сборка долгая из-за шейдеров.
+   - **Windows:** `Build\Scripts\package-win64.cmd` → `Packages\Win64\Development\ProtocolHollow.exe`. Первая сборка долгая из-за шейдеров.
    - **Mac:** `./Build/Scripts/package-mac.sh` → `Packages/Mac/Development/ProtocolHollow.app`.
    - На обеих машинах — **Development**: консоль (`~`, на русской раскладке `ё`), логи и dev-команды для диагностики.
 4. **Брандмауэр Windows:** при первом запуске «Разрешить» для частных сетей.
    - macOS: если Gatekeeper не даёт открыть свою сборку, нажми ПКМ по `ProtocolHollow.app` → «Открыть». Сборка не нотаризована, ADR-0024.
 5. **Где логи и профили:**
-   - Windows: `Packages\Win64\Development\Windows\ProtocolHollow\Saved\Logs\ProtocolHollow.log`, профиль — `...\Saved\SaveGames\HollowProfile.sav`;
+   - Windows: `Packages\Win64\Development\ProtocolHollow\Saved\Logs\ProtocolHollow.log`, профиль — `...\Saved\SaveGames\HollowProfile.sav`;
    - Mac: лог `~/Library/Logs/ProtocolHollow/ProtocolHollow.log`, профиль — `~/Library/Application Support/Epic/ProtocolHollow/Saved/SaveGames/HollowProfile.sav`.
    - Перед прогоном можно сохранить копию профиля: прогон его изменит.
 
@@ -119,7 +119,7 @@ UI появится в S5-03/S5-04, пока — консоль. Профили,
 
 ## Shipping-проверка (Windows, один раз)
 0. Компиляция Shipping проверена на Mac (`Build/Scripts/build-editor-mac.sh --shipping`, ноль предупреждений); MSVC может найти своё — тогда пришли лог `Saved\Logs\package-win64-Shipping-*.log`.
-1. `Build\Scripts\package-win64.cmd -Configuration Shipping` → `Packages\Win64\Shipping\Windows\ProtocolHollow.exe`. Рядом с exe в `Binaries\Win64` лежит `steam_appid.txt` (480), ADR-0024.
+1. `Build\Scripts\package-win64.cmd -Configuration Shipping` → `Packages\Win64\Shipping\ProtocolHollow.exe`. Рядом с exe в `Binaries\Win64` лежит `steam_appid.txt` (480), ADR-0024.
 2. Запустить при работающем Steam: главное меню → «Play solo» → «Start raid» → рейд загружается; Shift+Tab открывает оверлей.
 3. Консоли, dev-команд и логов в Shipping нет. Если игра не стартует или не находит Steam, опиши, что видно на экране; диагностику повторим на Development.
 
