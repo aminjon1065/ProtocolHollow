@@ -76,6 +76,9 @@ public:
 	/** Development: back to a new profile. */
 	void ResetProfile();
 
+	/** Development: Amount more credits (live checks of what costs more than a new profile has, S6-04). False in a raid or for nothing. */
+	bool AddCredits(int32 Amount);
+
 	/** A raid was resolved (result, lost host, abandoned escrow). */
 	FOnHollowRaidReport OnRaidReport;
 

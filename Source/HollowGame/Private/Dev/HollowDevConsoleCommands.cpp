@@ -849,6 +849,16 @@ namespace HollowDevConsole
 			Profiles->SetLoadoutSlot(Item, Count, bInsured) ? TEXT("done") : TEXT("refused (unknown item)"));
 	}
 
+	/** Usage: Hollow.Profile.Credits <Amount>: the local profile gets Amount more credits (not in a raid). */
+	void ProfileCredits(const TArray<FString>& Args, UWorld* World)
+	{
+		UHollowProfileSubsystem* Profiles = UHollowProfileSubsystem::Get(World);
+		const int32 Amount = Args.IsEmpty() ? 0 : FCString::Atoi(*Args[0]);
+		const bool bDone = Profiles && Profiles->AddCredits(Amount);
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Credits: +%d %s, %d credits"), Amount, bDone ? TEXT("added") : TEXT("refused (none, or in a raid)"),
+			Profiles ? Profiles->GetProfile().Credits : 0);
+	}
+
 	void ProfileReset(UWorld* World)
 	{
 		if (UHollowProfileSubsystem* Profiles = UHollowProfileSubsystem::Get(World))
@@ -1148,6 +1158,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Profile.SetSlot"),
 		TEXT("Sets how many of an item the local profile's loadout holds (0 removes the slot; Insured if the item can be). Usage: Hollow.Profile.SetSlot <Item> <Count> [Insured]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ProfileSetSlot));
+
+	FAutoConsoleCommandWithWorldAndArgs ProfileCreditsCommand(
+		TEXT("Hollow.Profile.Credits"),
+		TEXT("Development: the local profile gets more credits (not in a raid). Usage: Hollow.Profile.Credits <Amount>"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ProfileCredits));
 
 	FAutoConsoleCommandWithWorld ProfileResetCommand(
 		TEXT("Hollow.Profile.Reset"),

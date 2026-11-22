@@ -125,6 +125,14 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Consumable, "Hollow.Item.Type.Consumable", "Consumable (fuel cell, stim).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_AetherCore, "Hollow.Item.Type.AetherCore", "Heavy Aether core: sold to the corporation on extraction.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Material, "Hollow.Item.Type.Material", "Crafting material (S5-02): bought or salvaged, used on the workbench, never taken into a raid.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Relic, "Hollow.Item.Type.Relic", "Occult relic (S6-04): crafted, taken into a raid, its effect lasts while it is in the raid inventory.");
+
+	// Equip slots
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Slot, "Hollow.Item.Slot", "Parent of equip slots: a loadout holds at most a few different items of each (S6-04).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Slot_Primary, "Hollow.Item.Slot.Primary", "On the primary use input (plasma cutter, Aether lantern).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Slot_Secondary, "Hollow.Item.Slot.Secondary", "On the secondary use input (welder).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Slot_Gadget, "Hollow.Item.Slot.Gadget", "On the gadget input (pulse mine, ritual ward).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Slot_Relic, "Hollow.Item.Slot.Relic", "A relic slot (one, two with the Reliquary).");
 
 	// Player classes
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Class, "Hollow.Class", "Parent of player classes; a player's ability system carries its class's child.");

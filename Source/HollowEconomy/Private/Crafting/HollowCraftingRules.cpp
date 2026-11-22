@@ -117,6 +117,10 @@ FHollowEconomyTerms FHollowEconomyTerms::Load(const FHollowProfileState& State, 
 	FHollowEconomyTerms Terms;
 	Terms.MaxLoadoutSlots = Settings->MaxLoadoutSlots;
 	Terms.LoadoutItemTypes = Settings->LoadoutItemTypes;
+	for (const FHollowEquipSlotLimit& Limit : Settings->EquipSlotLimits)
+	{
+		Terms.EquipSlotLimits.Add(Limit.Slot, Limit.Limit);
+	}
 	TArray<FPrimaryAssetId> Items;
 	if (const UHollowEconomyConfig* Config = UHollowEconomyConfig::Get())
 	{
@@ -373,6 +377,17 @@ namespace HollowCraftingRules
 		{
 			return EHollowTransactionResult::NotForRaids;
 		}
+		TArray<FPrimaryAssetId> Held;
+		for (const FHollowLoadoutSlot& Slot : Profile.Loadout)
+		{
+			Held.Add(Slot.Item);
+		}
+		const TMap<FGameplayTag, int32> Limits = EquipSlotLimits(Terms.EquipSlotLimits, SumEffects(Profile.Upgrades, Terms.Upgrades));
+		const bool bOneOf = Terms.Catalog.GetEquipSlot(Item).IsValid() && Terms.Catalog.GetMaxStack(Item) <= 1;
+		if (!CanTakeIntoSlot(Held, Item, Terms.Catalog, Limits) || (bOneOf && Count > 1))
+		{
+			return EHollowTransactionResult::SlotTaken;
+		}
 		TArray<FHollowItemStack> Stash = Profile.Stash;
 		if (!TakeFromStash(Stash, Item, Count))
 		{
@@ -490,6 +505,43 @@ namespace HollowCraftingRules
 		return EHollowTransactionResult::Applied;
 	}
 
+	TMap<FGameplayTag, int32> EquipSlotLimits(const TMap<FGameplayTag, int32>& Base, const FHollowUpgradeEffects& Ship)
+	{
+		TMap<FGameplayTag, int32> Limits = Base;
+		for (const TPair<FGameplayTag, int32>& Extra : Ship.ExtraEquipSlots)
+		{
+			if (int32* Limit = Limits.Find(Extra.Key))
+			{
+				*Limit += Extra.Value;   // a slot without a limit stays without one
+			}
+		}
+		return Limits;
+	}
+
+	bool CanTakeIntoSlot(const TConstArrayView<FPrimaryAssetId> Loadout, const FPrimaryAssetId& Item, const FHollowItemCatalog& Catalog,
+		const TMap<FGameplayTag, int32>& Limits)
+	{
+		const FGameplayTag Slot = Catalog.GetEquipSlot(Item);
+		const int32* Limit = Slot.IsValid() ? Limits.Find(Slot) : nullptr;
+		if (Loadout.Contains(Item))
+		{
+			return !Slot.IsValid() || Catalog.GetMaxStack(Item) > 1;   // more of it: only if it stacks (a second relic or tool does nothing)
+		}
+		if (!Limit)
+		{
+			return true;
+		}
+		TArray<FPrimaryAssetId, TInlineAllocator<8>> Different;
+		for (const FPrimaryAssetId& Held : Loadout)
+		{
+			if (Catalog.GetEquipSlot(Held) == Slot)
+			{
+				Different.AddUnique(Held);
+			}
+		}
+		return Different.Num() < *Limit;
+	}
+
 	FHollowUpgradeEffects SumEffects(const TConstArrayView<FPrimaryAssetId> Owned, const TMap<FPrimaryAssetId, FHollowUpgradeTerms>& Upgrades)
 	{
 		FHollowUpgradeEffects Effects;
@@ -504,6 +556,10 @@ namespace HollowCraftingRules
 			Counted.Add(Id);
 			Effects.ExtraInsuredSlots += FMath::Max(Upgrade->ExtraInsuredSlots, 0);
 			Effects.CoreValuePercent += FMath::Max(Upgrade->CoreValuePercent, 0);
+			for (const FHollowEquipSlotLimit& Extra : Upgrade->ExtraEquipSlots)
+			{
+				Effects.ExtraEquipSlots.FindOrAdd(Extra.Slot) += FMath::Max(Extra.Limit, 0);
+			}
 			for (const FHollowItemStack& Item : Upgrade->RaidItems)
 			{
 				if (FHollowItemStack* Existing = Effects.RaidItems.FindByPredicate([&Item](const FHollowItemStack& S) { return S.Item == Item.Item; }))

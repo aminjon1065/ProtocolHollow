@@ -6,13 +6,15 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowItemTypes)
 
-void FHollowItemCatalog::Add(const FPrimaryAssetId& Item, const int32 Value, const bool bInsurable, const int32 MaxStack, const FGameplayTag& ItemType)
+void FHollowItemCatalog::Add(const FPrimaryAssetId& Item, const int32 Value, const bool bInsurable, const int32 MaxStack, const FGameplayTag& ItemType,
+	const FGameplayTag& EquipSlot)
 {
 	FEntry& Entry = Entries.FindOrAdd(Item);
 	Entry.Value = Value;
 	Entry.bInsurable = bInsurable;
 	Entry.MaxStack = FMath::Max(MaxStack, 1);
 	Entry.ItemType = ItemType;
+	Entry.EquipSlot = EquipSlot;
 }
 
 int32 FHollowItemCatalog::GetValue(const FPrimaryAssetId& Item) const
@@ -39,6 +41,12 @@ FGameplayTag FHollowItemCatalog::GetItemType(const FPrimaryAssetId& Item) const
 	return Entry ? Entry->ItemType : FGameplayTag();
 }
 
+FGameplayTag FHollowItemCatalog::GetEquipSlot(const FPrimaryAssetId& Item) const
+{
+	const FEntry* Entry = Entries.Find(Item);
+	return Entry ? Entry->EquipSlot : FGameplayTag();
+}
+
 FHollowItemCatalog FHollowItemCatalog::Load(const TConstArrayView<FPrimaryAssetId> Items)
 {
 	FHollowItemCatalog Catalog;
@@ -58,7 +66,7 @@ FHollowItemCatalog FHollowItemCatalog::Load(const TConstArrayView<FPrimaryAssetI
 			UE_LOG(LogHollowEconomy, Warning, TEXT("Unknown item %s: worth nothing, never insured."), *Id.ToString());
 			continue;
 		}
-		Catalog.Add(Id, Definition->BaseValue, Definition->bInsurable, Definition->MaxStack, Definition->ItemType);
+		Catalog.Add(Id, Definition->BaseValue, Definition->bInsurable, Definition->MaxStack, Definition->ItemType, Definition->EquipSlot);
 	}
 	return Catalog;
 }

@@ -151,6 +151,8 @@ namespace HollowHubScreenRules
 			return LOCTEXT("UnknownClass", "Unknown class");
 		case EHollowTransactionResult::AlreadySelected:
 			return LOCTEXT("AlreadySelected", "The class you play");
+		case EHollowTransactionResult::SlotTaken:
+			return LOCTEXT("SlotTaken", "Its slot is taken: one tool a hand, one gadget, the relic slots");
 		}
 		return LOCTEXT("Unknown", "Not possible");
 	}

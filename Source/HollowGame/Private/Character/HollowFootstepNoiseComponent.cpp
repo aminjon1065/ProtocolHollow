@@ -1,5 +1,7 @@
 #include "Character/HollowFootstepNoiseComponent.h"
 
+#include "AbilitySystemGlobals.h"
+#include "Attributes/HollowGearSet.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -59,7 +61,10 @@ bool UHollowFootstepNoiseComponent::Step()
 	{
 		return false;
 	}
-	const float Scale = Config->FootstepLoudnessScale(Character->GetVelocity().Size2D());
+	// The gear's multiplier (S6-04, Ring of Silence): quieter steps the AI hears less far and heat its rooms less.
+	const float Gear = UHollowGearSet::GetMultiplier(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Character),
+		UHollowGearSet::GetFootstepNoiseMultiplierAttribute());
+	const float Scale = Config->FootstepLoudnessScale(Character->GetVelocity().Size2D()) * Gear;
 	if (Scale <= 0.f)
 	{
 		return false;

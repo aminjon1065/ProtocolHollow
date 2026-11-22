@@ -26,6 +26,7 @@ FHollowUpgradeTerms UHollowShipUpgradeDefinition::ToTerms() const
 	Terms.ExtraInsuredSlots = ExtraInsuredSlots;
 	Terms.CoreValuePercent = CoreValuePercent;
 	Terms.RaidItems = RaidItems;
+	Terms.ExtraEquipSlots = ExtraEquipSlots;
 	return Terms;
 }
 
@@ -64,14 +65,18 @@ TMap<FPrimaryAssetId, FHollowUpgradeTerms> UHollowShipUpgradeDefinition::LoadAll
 EDataValidationResult UHollowShipUpgradeDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
-	bool bValid = !DisplayName.IsEmpty() && Price > 0 && (ExtraInsuredSlots > 0 || CoreValuePercent > 0 || !RaidItems.IsEmpty());
+	bool bValid = !DisplayName.IsEmpty() && Price > 0 && (ExtraInsuredSlots > 0 || CoreValuePercent > 0 || !RaidItems.IsEmpty() || !ExtraEquipSlots.IsEmpty());
+	for (const FHollowEquipSlotLimit& Slot : ExtraEquipSlots)
+	{
+		bValid &= Slot.Slot.IsValid() && Slot.Limit > 0;
+	}
 	for (const FHollowItemStack& Item : RaidItems)
 	{
 		bValid &= Item.Item.IsValid() && Item.Count > 0;
 	}
 	if (!bValid)
 	{
-		Context.AddError(FText::Format(LOCTEXT("Upgrade", "{0}: an upgrade needs a name, a price and at least one effect (raid items each an item and a count)."),
+		Context.AddError(FText::Format(LOCTEXT("Upgrade", "{0}: an upgrade needs a name, a price and at least one effect (raid items each an item and a count, extra equip slots each a slot and a number)."),
 			FText::FromName(GetFName())));
 		Result = EDataValidationResult::Invalid;
 	}

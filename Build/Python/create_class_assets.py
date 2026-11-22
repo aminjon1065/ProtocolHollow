@@ -25,7 +25,7 @@ ATTRIBUTE_MODULE = "/Script/HollowGAS"
 INI = "Config/DefaultGame.ini"
 INI_LINES = ["DefaultClass=HollowClass:DA_Class_Engineer"]
 INI_SCAN = 'PrimaryAssetType="HollowClass"'
-RAID_ITEM_TYPES = ["Hollow.Item.Type.Tool", "Hollow.Item.Type.Consumable"]   # UHollowEconomySettings::LoadoutItemTypes
+RAID_ITEM_TYPES = ["Hollow.Item.Type.Tool", "Hollow.Item.Type.Consumable", "Hollow.Item.Type.Relic"]   # UHollowEconomySettings::LoadoutItemTypes
 ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_AetherLantern": "Tools", "DA_Item_FuelCell": "Consumables",
              "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables"}
 EFFECT_LEVEL = 1.0   # gameplay ability system levels start at 1

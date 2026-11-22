@@ -40,6 +40,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Economy")
 	bool bInsurable = false;
 
+	/**
+	 * What it takes up in a loadout (Hollow.Item.Slot.*, S6-04): its input (primary, secondary, gadget) or a relic slot;
+	 * a loadout holds at most UHollowEconomySettings::EquipSlotLimits different items of each. None: no limit (fuel cells).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (Categories = "Hollow.Item.Slot"))
+	FGameplayTag EquipSlot;
+
 	/** How many one loadout slot holds. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (ClampMin = "1"))
 	int32 MaxStack = 1;

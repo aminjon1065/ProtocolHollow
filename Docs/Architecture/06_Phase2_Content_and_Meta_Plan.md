@@ -91,6 +91,13 @@
   - вид синхронен по реплицированному времени установки: процедурная декаль рун, свет, процедурный гул `MS_Ward_Hum`;
   - расходник `DA_Item_OccultWard`: 2 в наборе оккультиста, рецепт на верстаке (2 осколка, 1 лом, 10 кр);
   - тесты `Hollow.GAS.OccultWard.Effects`, `Hollow.Game.Gadget.OccultWard`, `Hollow.Game.OccultWard.Data`, кооп-смоук `playthrough-mac.sh ward`.
+- **S6-04 — сделано** (2026-11-22, [ADR-0037](../ADR/ADR-0037-occult-relics-equip-slots.md)):
+  - слоты снаряжения: один инструмент на ЛКМ, один на ПКМ, один гаджет, реликвии (1, второй — апгрейд «Reliquary» за 1200 кр); отказ `SlotTaken` в шкафчике, конфликт отбрасывает хост — закрыты LN-4 и WD-3;
+  - 4 реликвии на верстаке (ценность 150, страхуемые), эффекты через `UGameplayEffect` на новых атрибутах `UHollowGearSet`: Ring of Silence (шаги ×0,7), Resonance Stabilizer (Резонанс ×0,75), Plasma Capacitor (резак и сварка ×1,2), Kinetic Brace (переноска ×1,15);
+  - сохранение, потеря и страховка — по правилам `FHollowExtractionResolver` без нового кода;
+  - тесты `Hollow.Economy.Relics.Rules`, `Hollow.GAS.Relics.Effects`, `Hollow.Game.Relics.{InRaid, Data}`, кооп-смоук `playthrough-mac.sh relics`.
+
+**Sprint 6 закрыт** (2026-11-22): Техно-оккультист с фонарём и печатью, реликвии и слоты снаряжения. Демо спринта покрывают смоуки `lantern`, `ward` и `relics`.
 
 ---
 

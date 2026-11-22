@@ -29,7 +29,9 @@ INI_LINE = "EconomyConfig=/Game/Hollow/Economy/DA_EconomyConfig.DA_EconomyConfig
 
 # S5-02 clarifications (data). Item names are DA_Item_* (their folders under ITEMS_DIR below).
 ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_AetherLantern": "Tools", "DA_Item_FuelCell": "Consumables",
-             "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables", "DA_Item_Scrap": "Materials", "DA_Item_AetherShard": "Materials"}
+             "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables", "DA_Item_Scrap": "Materials", "DA_Item_AetherShard": "Materials",
+             "DA_Item_Relic_RingOfSilence": "Relics", "DA_Item_Relic_ResonanceStabilizer": "Relics", "DA_Item_Relic_PlasmaCapacitor": "Relics",
+             "DA_Item_Relic_KineticBrace": "Relics"}
 # Clarification 4: tools and materials at their BaseValue; consumables only from the workbench.
 # S6-02 clarification 7: the Aether lantern (create_lantern_assets.py, value 300) is sold above its value, a class tool.
 OFFERS = [("DA_Item_Welder", 300), ("DA_Item_PlasmaCutter", 400), ("DA_Item_AetherLantern", 450), ("DA_Item_Scrap", 8), ("DA_Item_AetherShard", 20)]
@@ -45,14 +47,25 @@ RECIPES = {
     "DA_Recipe_PulseMine": ("Pulse mine", [("DA_Item_Scrap", 3), ("DA_Item_AetherShard", 1)], 10, "DA_Item_PulseMine", 1),
     # S6-03 clarification 5: the ritual ward (create_ward_assets.py) costs more Aether than the mine.
     "DA_Recipe_OccultWard": ("Ritual ward", [("DA_Item_AetherShard", 2), ("DA_Item_Scrap", 1)], 10, "DA_Item_OccultWard", 1),
+    # S6-04 clarification 7: the four occult relics (create_relic_assets.py), crafted only.
+    "DA_Recipe_Relic_RingOfSilence": ("Ring of Silence", [("DA_Item_AetherShard", 2), ("DA_Item_Scrap", 4)], 60, "DA_Item_Relic_RingOfSilence", 1),
+    "DA_Recipe_Relic_ResonanceStabilizer": ("Resonance Stabilizer", [("DA_Item_AetherShard", 3), ("DA_Item_Scrap", 2)], 60,
+                                            "DA_Item_Relic_ResonanceStabilizer", 1),
+    "DA_Recipe_Relic_PlasmaCapacitor": ("Plasma Capacitor", [("DA_Item_AetherShard", 1), ("DA_Item_Scrap", 6)], 60, "DA_Item_Relic_PlasmaCapacitor", 1),
+    "DA_Recipe_Relic_KineticBrace": ("Kinetic Brace", [("DA_Item_AetherShard", 2), ("DA_Item_Scrap", 5)], 60, "DA_Item_Relic_KineticBrace", 1),
 }
 CONSUMABLE = "Hollow.Item.Type.Consumable"
-# S5-03 clarifications 1-3: name -> (display name, description, price, extra insured slots, core value percent, raid items).
+CRAFTED_TYPES = [CONSUMABLE, "Hollow.Item.Type.Relic"]   # what the workbench makes (S6-04: relics too)
+# S5-03 clarifications 1-3: name -> (display name, description, price, extra insured slots, core value percent, raid items,
+# extra equip slots: (Hollow.Item.Slot.* child, count), S6-04).
 UPGRADES = {
     "DA_Upgrade_FuelReserve": ("Fuel reserve", "The Skiff stocks two fuel cells for every raid: used first, never from your stash.", 600, 0, 0,
-                               [("DA_Item_FuelCell", 2)]),
-    "DA_Upgrade_InsuranceSlot": ("Insurance rider", "One more loadout slot can be insured at a time.", 800, 1, 0, []),
-    "DA_Upgrade_CoreBonus": ("Core contract", "The corporation pays 20 % more for every Aether core brought out.", 1000, 0, 20, []),
+                               [("DA_Item_FuelCell", 2)], []),
+    "DA_Upgrade_InsuranceSlot": ("Insurance rider", "One more loadout slot can be insured at a time.", 800, 1, 0, [], []),
+    "DA_Upgrade_CoreBonus": ("Core contract", "The corporation pays 20 % more for every Aether core brought out.", 1000, 0, 20, [], []),
+    # S6-04 clarification 1: a second relic slot.
+    "DA_Upgrade_Reliquary": ("Reliquary", "A warded case in the Skiff's hold: a second relic goes into the loadout.", 1200, 0, 0, [],
+                             [("Hollow.Item.Slot.Relic", 1)]),
 }
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
@@ -158,19 +171,26 @@ def ensure_recipe(name, spec):
     return recipe
 
 
+def equip_slot(slot, count):
+    return from_text(unreal.HollowEquipSlotLimit(), '(Slot=(TagName="%s"),Limit=%d)' % (slot, count))
+
+
 def ensure_upgrade(name, spec):
-    display, description, price, slots, core_percent, raid_items = spec
+    display, description, price, slots, core_percent, raid_items, equip_slots = spec
     upgrade, created = data_asset(UPGRADES_DIR + "/" + name, unreal.HollowShipUpgradeDefinition)
     wanted_items = [stack(n, c) for n, c in raid_items]
+    wanted_slots = [equip_slot(s, c) for s, c in equip_slots]
     values = {"price": price, "extra_insured_slots": slots, "core_value_percent": core_percent}
     if not created and str(upgrade.get_editor_property("display_name")) == display and str(upgrade.get_editor_property("description")) == description \
-            and all(upgrade.get_editor_property(k) == v for k, v in values.items()) and texts(upgrade.get_editor_property("raid_items")) == texts(wanted_items):
+            and all(upgrade.get_editor_property(k) == v for k, v in values.items()) and texts(upgrade.get_editor_property("raid_items")) == texts(wanted_items) \
+            and texts(upgrade.get_editor_property("extra_equip_slots")) == texts(wanted_slots):
         return upgrade
     upgrade.set_editor_property("display_name", unreal.Text(display))
     upgrade.set_editor_property("description", unreal.Text(description))
     for key, value in values.items():
         upgrade.set_editor_property(key, value)
     upgrade.set_editor_property("raid_items", wanted_items)
+    upgrade.set_editor_property("extra_equip_slots", wanted_slots)
     save(upgrade)
     log("%s: %d cr" % (name, price))
     return upgrade
@@ -193,8 +213,8 @@ def validate(config):
     for name, (_, inputs, credits, output, output_count) in RECIPES.items():
         recipe = load(RECIPES_DIR + "/" + name)
         check(unreal.SystemLibrary.get_primary_asset_id_from_object(recipe).export_text().endswith(name), name + " primary asset id")
-        check(item(output).get_editor_property("item_type").export_text() == from_text(unreal.GameplayTag(), '(TagName="%s")' % CONSUMABLE).export_text(),
-              name + " makes a consumable")
+        check(item(output).get_editor_property("item_type").export_text() in [from_text(unreal.GameplayTag(), '(TagName="%s")' % t).export_text() for t in CRAFTED_TYPES],
+              name + " makes a consumable or a relic")
         check(all(n in prices for n, _ in inputs), name + ": its materials are sold in the shop")
         cost = credits + sum(prices[n] * c for n, c in inputs)
         sold = values[output] * CONFIG["sell_percent"] // 100 * output_count
@@ -204,10 +224,10 @@ def validate(config):
     check(INI_LINE in text, "DefaultGame.ini: " + INI_LINE)
     check("PrimaryAssetType=\"HollowRecipe\"" in text, "DefaultGame.ini scans the recipes")
     check("PrimaryAssetType=\"HollowUpgrade\"" in text, "DefaultGame.ini scans the ship upgrades")
-    for name, (_, _, price, slots, core_percent, raid_items) in UPGRADES.items():
+    for name, (_, _, price, slots, core_percent, raid_items, equip_slots) in UPGRADES.items():
         upgrade = load(UPGRADES_DIR + "/" + name)
         check(unreal.SystemLibrary.get_primary_asset_id_from_object(upgrade).export_text().endswith(name), name + " primary asset id")
-        check(price > 0 and (slots > 0 or core_percent > 0 or raid_items), name + " costs something and does something")
+        check(price > 0 and (slots > 0 or core_percent > 0 or raid_items or equip_slots), name + " costs something and does something")
         for item_name, count in raid_items:
             check(item(item_name).get_editor_property("item_type").export_text() == from_text(unreal.GameplayTag(), '(TagName="%s")' % CONSUMABLE).export_text()
                   and count > 0, "%s gives a raid consumable (%s)" % (name, item_name))

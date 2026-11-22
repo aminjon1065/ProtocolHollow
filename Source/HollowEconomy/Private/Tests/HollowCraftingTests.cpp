@@ -389,7 +389,8 @@ bool FHollowCraftingDataTest::RunTest(const FString& Parameters)
 			TestTrue(Input.Item.ToString() + TEXT(" is a material from the shop"), Price && Terms.Catalog.GetItemType(Input.Item).MatchesTag(HollowTags::Item_Type_Material));
 			Cost += Price ? static_cast<int64>(*Price) * Input.Count : 0;
 		}
-		TestTrue(Recipe.Id.ToString() + TEXT(" makes a consumable"), Terms.Catalog.GetItemType(Recipe.Output.Item).MatchesTag(HollowTags::Item_Type_Consumable));
+		TestTrue(Recipe.Id.ToString() + TEXT(" makes a consumable or a relic (S6-04)"), Terms.Catalog.GetItemType(Recipe.Output.Item).MatchesTag(HollowTags::Item_Type_Consumable)
+			|| Terms.Catalog.GetItemType(Recipe.Output.Item).MatchesTag(HollowTags::Item_Type_Relic));
 		TestTrue(Recipe.Id.ToString() + TEXT(": crafting to sell never pays"), static_cast<int64>(HollowCraftingRules::SellPrice(Terms, Recipe.Output.Item)) * Recipe.Output.Count < Cost);
 #if WITH_EDITOR
 		const UHollowCraftingRecipe* Asset = Cast<UHollowCraftingRecipe>(UAssetManager::Get().GetPrimaryAssetPath(Recipe.Id).TryLoad());

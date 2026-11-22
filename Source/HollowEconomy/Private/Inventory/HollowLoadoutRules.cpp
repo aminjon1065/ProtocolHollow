@@ -1,5 +1,7 @@
 #include "Inventory/HollowLoadoutRules.h"
 
+#include "Crafting/HollowCraftingRules.h"
+#include "Crafting/HollowShipUpgradeDefinition.h"
 #include "Profile/HollowEconomySettings.h"
 #include "Util/HollowEnumUtils.h"
 
@@ -10,6 +12,12 @@ namespace HollowLoadoutRules
 	TArray<FHollowItemStack> Validate(const TConstArrayView<FHollowItemStack> Slots, const FHollowItemCatalog& Catalog,
 		const FGameplayTagContainer& RaidTypes, const int32 MaxSlots, TArray<FHollowLoadoutIssue>* OutIssues)
 	{
+		return Validate(Slots, Catalog, RaidTypes, MaxSlots, TMap<FGameplayTag, int32>(), OutIssues);
+	}
+
+	TArray<FHollowItemStack> Validate(const TConstArrayView<FHollowItemStack> Slots, const FHollowItemCatalog& Catalog,
+		const FGameplayTagContainer& RaidTypes, const int32 MaxSlots, const TMap<FGameplayTag, int32>& EquipLimits, TArray<FHollowLoadoutIssue>* OutIssues)
+	{
 		const auto Report = [OutIssues](const FPrimaryAssetId& Item, const EHollowLoadoutIssue Issue)
 		{
 			if (OutIssues)
@@ -18,6 +26,7 @@ namespace HollowLoadoutRules
 			}
 		};
 		TArray<FHollowItemStack> Accepted;
+		TArray<FPrimaryAssetId> AcceptedItems;   // one entry per accepted slot, for the equip slot rule
 		int32 AcceptedSlots = 0;
 		for (const FHollowItemStack& Slot : Slots)
 		{
@@ -41,6 +50,12 @@ namespace HollowLoadoutRules
 				Report(Slot.Item, EHollowLoadoutIssue::TooManySlots);
 				continue;
 			}
+			if (!HollowCraftingRules::CanTakeIntoSlot(AcceptedItems, Slot.Item, Catalog, EquipLimits))
+			{
+				Report(Slot.Item, EHollowLoadoutIssue::SlotTaken);
+				continue;
+			}
+			AcceptedItems.Add(Slot.Item);
 			const int32 MaxStack = Catalog.GetMaxStack(Slot.Item);
 			if (Slot.Count > MaxStack)
 			{
@@ -62,7 +77,8 @@ namespace HollowLoadoutRules
 		return Accepted;
 	}
 
-	TArray<FHollowItemStack> ValidateForRaid(const TConstArrayView<FHollowItemStack> Slots, TArray<FHollowLoadoutIssue>* OutIssues)
+	TArray<FHollowItemStack> ValidateForRaid(const TConstArrayView<FHollowItemStack> Slots, const TConstArrayView<FPrimaryAssetId> Upgrades,
+		TArray<FHollowLoadoutIssue>* OutIssues)
 	{
 		TArray<FPrimaryAssetId> Items;
 		for (const FHollowItemStack& Slot : Slots)
@@ -70,7 +86,14 @@ namespace HollowLoadoutRules
 			Items.AddUnique(Slot.Item);
 		}
 		const UHollowEconomySettings* Settings = GetDefault<UHollowEconomySettings>();
-		return Validate(Slots, FHollowItemCatalog::Load(Items), Settings->LoadoutItemTypes, Settings->MaxLoadoutSlots, OutIssues);
+		TMap<FGameplayTag, int32> Base;
+		for (const FHollowEquipSlotLimit& Limit : Settings->EquipSlotLimits)
+		{
+			Base.Add(Limit.Slot, Limit.Limit);
+		}
+		const TMap<FGameplayTag, int32> Limits = HollowCraftingRules::EquipSlotLimits(Base,
+			HollowCraftingRules::SumEffects(Upgrades, UHollowShipUpgradeDefinition::LoadAllById()));
+		return Validate(Slots, FHollowItemCatalog::Load(Items), Settings->LoadoutItemTypes, Settings->MaxLoadoutSlots, Limits, OutIssues);
 	}
 
 	TArray<FHollowItemStack> ToStacks(const TConstArrayView<FHollowLoadoutSlot> Loadout)

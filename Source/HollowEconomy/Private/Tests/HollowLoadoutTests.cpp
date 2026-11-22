@@ -299,7 +299,7 @@ bool FHollowLoadoutSyncDataTest::RunTest(const FString& Parameters)
 		&& Settings->LoadoutItemTypes.HasTagExact(HollowTags::Item_Type_Consumable) && !Settings->LoadoutItemTypes.HasTag(HollowTags::Item_Type_AetherCore));
 	const TArray<FHollowItemStack> Starting = HollowLoadoutRules::ToStacks(DefaultClass->StartingLoadout);
 	TArray<FHollowLoadoutIssue> Issues;
-	const TArray<FHollowItemStack> Accepted = HollowLoadoutRules::ValidateForRaid(Starting, &Issues);
+	const TArray<FHollowItemStack> Accepted = HollowLoadoutRules::ValidateForRaid(Starting, {}, &Issues);
 	TestTrue(FString::Printf(TEXT("The starting loadout goes in as it is (%s)"), *HollowLoadoutRules::Describe(Issues)), Issues.IsEmpty() && Accepted == Starting);
 	TestTrue(TEXT("...pulse mines among it"), CountOf(Accepted, FPrimaryAssetId(TEXT("HollowItem"), TEXT("DA_Item_PulseMine"))) > 0);
 	for (const FHollowItemStack& Item : Starting)

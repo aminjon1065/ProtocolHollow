@@ -54,4 +54,8 @@ public:
 	/** Given to the player's raid inventory every raid from the ship's stores: used first, never taken from the profile. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects", meta = (TitleProperty = "Item"))
 	TArray<FHollowItemStack> RaidItems;
+
+	/** Equip slots it adds to the loadout's limits (S6-04: the Reliquary, a second relic). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects", meta = (TitleProperty = "Slot"))
+	TArray<FHollowEquipSlotLimit> ExtraEquipSlots;
 };

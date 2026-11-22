@@ -77,7 +77,7 @@ TArray<FHollowItemStack> UHollowProfileSubsystem::GetLoadoutForRaid(const FGuid&
 	// slots of one item as one) would be cut down there. The same rules here only tell what the host will not take.
 	TArray<FHollowItemStack> Slots = HollowLoadoutRules::ToStacks(State.Profile.Loadout);
 	TArray<FHollowLoadoutIssue> Issues;
-	HollowLoadoutRules::ValidateForRaid(Slots, &Issues);
+	HollowLoadoutRules::ValidateForRaid(Slots, State.Profile.Upgrades, &Issues);
 	UE_CLOG(!Issues.IsEmpty(), LogHollowEconomy, Warning, TEXT("Profile: loadout for raid %s not taken as it is: %s"), *RaidId.ToString(),
 		*HollowLoadoutRules::Describe(Issues));
 	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: loadout for raid %s: %s"), *RaidId.ToString(), *HollowLoadoutRules::Describe(Slots));
@@ -179,6 +179,18 @@ bool UHollowProfileSubsystem::SetLoadoutSlot(const FPrimaryAssetId& Item, const 
 		Slot->Count = Count;
 		Slot->bInsured = bInsured && Catalog.IsInsurable(Item);
 	}
+	Persist();
+	OnProfileChanged.Broadcast();
+	return true;
+}
+
+bool UHollowProfileSubsystem::AddCredits(const int32 Amount)
+{
+	if (!Save || Amount <= 0 || Save->State.Escrow.IsActive())
+	{
+		return false;   // a raid's result decides the credits meanwhile
+	}
+	Save->State.Profile.Credits += Amount;
 	Persist();
 	OnProfileChanged.Broadcast();
 	return true;

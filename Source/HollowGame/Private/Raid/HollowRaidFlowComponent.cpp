@@ -94,7 +94,7 @@ bool UHollowRaidFlowComponent::AcceptLoadout(AController* Player, const FHollowL
 		return false;
 	}
 	TArray<FHollowLoadoutIssue> Issues;
-	const TArray<FHollowItemStack> Accepted = HollowLoadoutRules::ValidateForRaid(Loadout.Slots, &Issues);
+	const TArray<FHollowItemStack> Accepted = HollowLoadoutRules::ValidateForRaid(Loadout.Slots, Loadout.Upgrades, &Issues);
 	UE_CLOG(!Issues.IsEmpty(), LogHollowGame, Warning, TEXT("Raid %s: loadout of %s cut down: %s"), *RaidId.ToString(), *Player->GetName(),
 		*HollowLoadoutRules::Describe(Issues));
 	LoadoutsTaken.Add(Player);

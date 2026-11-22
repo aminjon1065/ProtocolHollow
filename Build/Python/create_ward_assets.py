@@ -55,7 +55,8 @@ WARD = {
     "resonance_drain_per_second": 1.0, "place_trace_distance": 100.0,
     "fade_in_seconds": 0.6, "pulse_seconds": 3.0, "pulse_hz": 2.0,
 }
-ITEM = {"display_name": "Ritual ward", "item_type": "Hollow.Item.Type.Consumable", "base_value": 40, "insurable": False, "max_stack": 3}
+ITEM = {"display_name": "Ritual ward", "item_type": "Hollow.Item.Type.Consumable", "base_value": 40, "insurable": False, "max_stack": 3,
+        "equip_slot": "Hollow.Item.Slot.Gadget"}   # S6-04: the mine's input, one gadget per loadout
 WARDS_PER_USE = 1                          # UHollowGA_OccultWard's item cost (its C++ default)
 # The look (greybox data): the decal's depth, the light over it, the material's colour and brightness.
 STRENGTH_PARAMETER = "Strength"
@@ -366,7 +367,8 @@ def ensure_ability_set(ability_class):
 
 def ensure_item(ability_set):
     item, created = data_asset(ITEM_PATH, unreal.HollowItemDefinition)
-    changed = refresh(item, dict(ITEM, display_name=unreal.Text(ITEM["display_name"]), item_type=make_tag(ITEM["item_type"])))
+    changed = refresh(item, dict(ITEM, display_name=unreal.Text(ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]),
+                                 equip_slot=make_tag(ITEM["equip_slot"])))
     if text_of(item.get_editor_property("ability_set")) != text_of(ability_set):
         item.set_editor_property("ability_set", ability_set)
         changed = True

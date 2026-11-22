@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Attributes/HollowGearSet.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Attributes/HollowMovementSet.h"
 #include "Attributes/HollowResonanceSet.h"
@@ -140,6 +141,8 @@ bool FHollowAttributeReplicationTest::RunTest(const FString& Parameters)
 		{ UHollowToolSet::StaticClass(), { TEXT("ToolFuel"), TEXT("MaxToolFuel"), TEXT("ToolHeat"), TEXT("MaxToolHeat") }, COND_OwnerOnly, {} },
 		// S6-02: enemies move on the server only, so their speed multiplier never leaves it.
 		{ UHollowMovementSet::StaticClass(), {}, COND_None, { TEXT("MoveSpeedMultiplier") } },
+		// S6-04: the gear's multipliers are the owner's (its carry speed is predicted there).
+		{ UHollowGearSet::StaticClass(), { TEXT("FootstepNoiseMultiplier"), TEXT("ToolWorkMultiplier"), TEXT("CarrySpeedMultiplier") }, COND_OwnerOnly, {} },
 	};
 
 	for (const FExpectation& Expectation : Expectations)

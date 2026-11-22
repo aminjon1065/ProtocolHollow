@@ -1,6 +1,7 @@
 #include "Tools/HollowGA_ContinuousTool.h"
 
 #include "AbilitySystemComponent.h"
+#include "Attributes/HollowGearSet.h"
 #include "Attributes/HollowToolSet.h"
 #include "Data/HollowToolDefinition.h"
 #include "Engine/World.h"
@@ -131,7 +132,9 @@ void UHollowGA_ContinuousTool::ApplySample(APawn& Wielder, const FVector& Eyes, 
 	Work.ToolTag = Tool->ToolTag;
 	Work.Instigator = Pawn;
 	Work.DeltaSeconds = DeltaSeconds;
-	Work.Amount = Tool->WorkRate * DeltaSeconds;
+	// The gear's multiplier (S6-04, Plasma Capacitor): more work per sample; fuel and heat stay the tool's.
+	Work.Amount = Tool->WorkRate * DeltaSeconds
+		* UHollowGearSet::GetMultiplier(GetAbilitySystemComponentFromActorInfo(), UHollowGearSet::GetToolWorkMultiplierAttribute());
 	Work.ImpactPoint = Hit.ImpactPoint;
 	Work.ImpactNormal = Hit.ImpactNormal;
 	AActor* HitActor = Hit.GetActor();

@@ -40,7 +40,9 @@ enum class EHollowLoadoutIssue : uint8
 	/** More than one slot holds: cut down to MaxStack. */
 	OverStack,
 	/** After the most slots a raid accepts. */
-	TooManySlots
+	TooManySlots,
+	/** Its equip slot is full: another tool on its input, another gadget, every relic slot used, or a second one-of (S6-04). */
+	SlotTaken
 };
 
 struct HOLLOWECONOMY_API FHollowLoadoutIssue
@@ -63,8 +65,19 @@ namespace HollowLoadoutRules
 	HOLLOWECONOMY_API TArray<FHollowItemStack> Validate(TConstArrayView<FHollowItemStack> Slots, const FHollowItemCatalog& Catalog,
 		const FGameplayTagContainer& RaidTypes, int32 MaxSlots, TArray<FHollowLoadoutIssue>* OutIssues = nullptr);
 
-	/** Validate with UHollowEconomySettings and the slots' item definitions (loaded synchronously: tiny data assets). */
-	HOLLOWECONOMY_API TArray<FHollowItemStack> ValidateForRaid(TConstArrayView<FHollowItemStack> Slots, TArray<FHollowLoadoutIssue>* OutIssues = nullptr);
+	/**
+	 * The same with equip slot limits (S6-04, ADR-0037): a slot whose item the loadout cannot take into its equip slot
+	 * (HollowCraftingRules::CanTakeIntoSlot, against the slots accepted before it) is dropped: the first one wins.
+	 */
+	HOLLOWECONOMY_API TArray<FHollowItemStack> Validate(TConstArrayView<FHollowItemStack> Slots, const FHollowItemCatalog& Catalog,
+		const FGameplayTagContainer& RaidTypes, int32 MaxSlots, const TMap<FGameplayTag, int32>& EquipLimits, TArray<FHollowLoadoutIssue>* OutIssues = nullptr);
+
+	/**
+	 * Validate with UHollowEconomySettings, the slots' item definitions (loaded synchronously: tiny data assets) and the
+	 * equip slot limits the ship's Upgrades give (a Reliquary: a second relic).
+	 */
+	HOLLOWECONOMY_API TArray<FHollowItemStack> ValidateForRaid(TConstArrayView<FHollowItemStack> Slots, TConstArrayView<FPrimaryAssetId> Upgrades,
+		TArray<FHollowLoadoutIssue>* OutIssues = nullptr);
 
 	/**
 	 * A profile's loadout as the stacks a snapshot sends: one per slot, never merged (Validate's result merges the slots

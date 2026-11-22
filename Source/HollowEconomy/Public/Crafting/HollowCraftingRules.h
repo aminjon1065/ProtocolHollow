@@ -59,7 +59,12 @@ enum class EHollowTransactionResult : uint8
 	AlreadyOwned,
 	UnknownClass,
 	/** The player plays this class already. */
-	AlreadySelected
+	AlreadySelected,
+	/**
+	 * Its equip slot is full (S6-04): another tool on the same input, another gadget, every relic slot used; or the
+	 * loadout holds this one-of item already.
+	 */
+	SlotTaken
 };
 
 /** One request of the hub to the local profile (ADR-0031). Its Id makes it idempotent. */
@@ -128,6 +133,7 @@ struct HOLLOWECONOMY_API FHollowUpgradeTerms
 	int32 ExtraInsuredSlots = 0;
 	int32 CoreValuePercent = 0;
 	TArray<FHollowItemStack> RaidItems;
+	TArray<FHollowEquipSlotLimit> ExtraEquipSlots;
 };
 
 /** A player class as the rules see it (UHollowClassDefinition::ToTerms; tests fill it by hand). */
@@ -147,6 +153,8 @@ struct HOLLOWECONOMY_API FHollowUpgradeEffects
 	int32 CoreValuePercent = 0;
 	/** Given to the player's raid inventory every raid, free: used first, never taken from the profile. */
 	TArray<FHollowItemStack> RaidItems;
+	/** Equip slots added to the loadout's limits, by slot (lookups only). */
+	TMap<FGameplayTag, int32> ExtraEquipSlots;
 };
 
 /**
@@ -174,6 +182,8 @@ struct HOLLOWECONOMY_API FHollowEconomyTerms
 	int32 StashSlots = 0;
 	int32 MaxLoadoutSlots = 0;
 	FGameplayTagContainer LoadoutItemTypes;
+	/** How many different items of an equip slot a loadout holds without upgrades, by slot (lookups only; none: no limit). */
+	TMap<FGameplayTag, int32> EquipSlotLimits;
 
 	/** The project's terms for State and Transaction (loads the config, every recipe and the items they name). */
 	static FHollowEconomyTerms Load(const FHollowProfileState& State, const FHollowProfileTransaction* Transaction = nullptr);
@@ -217,6 +227,17 @@ namespace HollowCraftingRules
 
 	/** The effects of the upgrades Owned names (unknown ids are ignored, each upgrade counts once). */
 	HOLLOWECONOMY_API FHollowUpgradeEffects SumEffects(TConstArrayView<FPrimaryAssetId> Owned, const TMap<FPrimaryAssetId, FHollowUpgradeTerms>& Upgrades);
+
+	/** A loadout's equip slot limits with the ship's upgrades (S6-04): the base ones plus every upgrade's extra slots. */
+	HOLLOWECONOMY_API TMap<FGameplayTag, int32> EquipSlotLimits(const TMap<FGameplayTag, int32>& Base, const FHollowUpgradeEffects& Ship);
+
+	/**
+	 * Whether a loadout holding Loadout may take Item (S6-04, ADR-0037): an item without an equip slot always may; one
+	 * with a slot may if the loadout holds it already and it stacks (MaxStack above 1), or if fewer different items of
+	 * its slot than the limit are there. A slot without a limit takes any.
+	 */
+	HOLLOWECONOMY_API bool CanTakeIntoSlot(TConstArrayView<FPrimaryAssetId> Loadout, const FPrimaryAssetId& Item, const FHollowItemCatalog& Catalog,
+		const TMap<FGameplayTag, int32>& Limits);
 
 	/** Credits the corporation pays for one: BaseValue x SellPercent / 100, rounded down. */
 	HOLLOWECONOMY_API int32 SellPrice(const FHollowEconomyTerms& Terms, const FPrimaryAssetId& Item);

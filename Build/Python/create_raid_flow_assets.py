@@ -49,6 +49,13 @@ ITEMS = [
     ("AetherCore/DA_Item_AetherCore", "Aether core", "Hollow.Item.Type.AetherCore", 500, False, 1),
 ]
 CORE_ITEM = "AetherCore/DA_Item_AetherCore"
+# S6-04 (ADR-0037): the equip slot of every raid item made here (a loadout holds one tool a hand, one gadget); the
+# fuel cells, materials and the core take none. Set when they differ (the items above are only created when missing).
+EQUIP_SLOTS = {
+    "Tools/DA_Item_Welder": "Hollow.Item.Slot.Secondary",
+    "Tools/DA_Item_PlasmaCutter": "Hollow.Item.Slot.Primary",
+    "Consumables/DA_Item_PulseMine": "Hollow.Item.Slot.Gadget",
+}
 
 # Extraction zone (data): a 6 x 6 m pad in the extraction room, 3.5 m high, its pivot in the middle of the volume.
 ZONE_HALF = unreal.Vector(300.0, 300.0, 175.0)
@@ -233,6 +240,7 @@ def validate(dead_effect):
         item = load(ITEMS_DIR + "/" + relative)
         check(unreal.SystemLibrary.get_primary_asset_id_from_object(item).export_text() == item_id(relative).export_text(), relative + " primary asset id")
         check(item.get_editor_property("base_value") == value and item.get_editor_property("insurable") == insurable, relative + " economy")
+        check(item.get_editor_property("equip_slot").export_text() == equip_slot_of(relative).export_text(), relative + " equip slot")
     damage = unreal.get_default_object(load(DAMAGE_EFFECT).generated_class())
     check(len(damage.get_editor_property("modifiers")) == 1, "GE_Damage_Generic damages")
     check(unreal.get_default_object(load(EXOFRAME_BP).generated_class()).get_editor_property("death_effect") == dead_effect, "BP_ExoFrame death effect")
@@ -246,8 +254,23 @@ def validate(dead_effect):
     log("validation passed")
 
 
+def equip_slot_of(relative):
+    return make_tag(EQUIP_SLOTS[relative]) if relative in EQUIP_SLOTS else unreal.GameplayTag()
+
+
+def ensure_equip_slots():
+    for relative, _, _, _, _, _ in ITEMS:
+        item = load(ITEMS_DIR + "/" + relative)
+        wanted = equip_slot_of(relative)
+        if item.get_editor_property("equip_slot").export_text() != wanted.export_text():
+            item.set_editor_property("equip_slot", wanted)
+            save(item)
+            log("%s: equip slot %s" % (relative.rsplit("/", 1)[1], EQUIP_SLOTS.get(relative, "none")))
+
+
 def main():
     ensure_items()
+    ensure_equip_slots()
     ensure_damage_effect()
     dead_effect = ensure_dead_effect()
     ensure_death_on_exoframe(dead_effect)

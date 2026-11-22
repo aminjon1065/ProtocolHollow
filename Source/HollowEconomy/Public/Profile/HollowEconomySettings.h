@@ -48,4 +48,11 @@ public:
 	/** Item types a loadout may take into a raid (Hollow.Item.Type.* children); anything else (an Aether core) is dropped. */
 	UPROPERTY(Config, EditAnywhere, Category = "Loadout", meta = (Categories = "Hollow.Item.Type"))
 	FGameplayTagContainer LoadoutItemTypes;
+
+	/**
+	 * How many different items of each equip slot one loadout holds (S6-04, ADR-0037): two tools on one input would both
+	 * fire, two gadgets on G spend both. Ship upgrades add to them (ExtraEquipSlots). A slot not listed has no limit.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Loadout", meta = (TitleProperty = "Slot"))
+	TArray<FHollowEquipSlotLimit> EquipSlotLimits;
 };

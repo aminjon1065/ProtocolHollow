@@ -1,6 +1,7 @@
 #include "Framework/HollowPlayerState.h"
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Attributes/HollowGearSet.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowSurvivalSet.h"
@@ -23,6 +24,7 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 	SurvivalSet = CreateDefaultSubobject<UHollowSurvivalSet>(TEXT("SurvivalSet"));
 	ResonanceSet = CreateDefaultSubobject<UHollowResonanceSet>(TEXT("ResonanceSet"));
 	ToolSet = CreateDefaultSubobject<UHollowToolSet>(TEXT("ToolSet"));
+	GearSet = CreateDefaultSubobject<UHollowGearSet>(TEXT("GearSet"));
 	VoiceTalker = CreateDefaultSubobject<UHollowVoiceTalker>(TEXT("VoiceTalker"));
 	Inventory = CreateDefaultSubobject<UHollowInventoryComponent>(TEXT("Inventory"));
 	ClassComponent = CreateDefaultSubobject<UHollowClassComponent>(TEXT("Class"));

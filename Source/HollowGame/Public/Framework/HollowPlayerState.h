@@ -12,6 +12,7 @@ class UHollowInventoryComponent;
 class UHollowResonanceSet;
 class UHollowSurvivalSet;
 class UHollowToolSet;
+class UHollowGearSet;
 class UHollowVoiceTalker;
 
 /**
@@ -61,6 +62,10 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UHollowToolSet> ToolSet;
+
+	/** What the player's gear changes (S6-04: the relics' multipliers). */
+	UPROPERTY()
+	TObjectPtr<UHollowGearSet> GearSet;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Voice")
 	TObjectPtr<UHollowVoiceTalker> VoiceTalker;

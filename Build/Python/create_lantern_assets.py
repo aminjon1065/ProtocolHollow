@@ -62,7 +62,8 @@ LANTERN = {
     "cone_half_angle_degrees": 25.0, "aura_radius": 600.0,
 }
 # The item (S6-02 clarification 7): a tool, insurable; the shop sells it for more than its value (create_economy_assets.py).
-ITEM = {"display_name": "Aether lantern", "item_type": "Hollow.Item.Type.Tool", "base_value": 300, "insurable": True, "max_stack": 1}
+ITEM = {"display_name": "Aether lantern", "item_type": "Hollow.Item.Type.Tool", "base_value": 300, "insurable": True, "max_stack": 1,
+        "equip_slot": "Hollow.Item.Slot.Primary"}   # S6-04: the cutter's input, one of them per loadout
 # Cosmetics (greybox data): the light cone (no shadows: light budget) and the glow on an exposed enemy.
 LIGHT_CUE = {"update_rate_hz": 30.0, "muzzle_offset": (30.0, 15.0, -15.0), "inner_cone_fraction": 0.6}
 LIGHT = {"intensity": 2000.0}
@@ -237,7 +238,7 @@ def ensure_ability_set(ability_class):
 
 def ensure_item(ability_set):
     item, created = data_asset(ITEM_PATH, unreal.HollowItemDefinition)
-    wanted = dict(ITEM, display_name=unreal.Text(ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]))
+    wanted = dict(ITEM, display_name=unreal.Text(ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]), equip_slot=make_tag(ITEM["equip_slot"]))
     changed = refresh(item, wanted)
     if text_of(item.get_editor_property("ability_set")) != text_of(ability_set):
         item.set_editor_property("ability_set", ability_set)

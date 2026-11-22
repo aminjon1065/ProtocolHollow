@@ -184,21 +184,25 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowUpgradesDataTest, "Hollow.Economy.Upgrad
 bool FHollowUpgradesDataTest::RunTest(const FString& Parameters)
 {
 	// The shipped upgrades (S5-03 clarifications 1-3): the fuel reserve (600: two fuel cells a raid), the insurance rider
-	// (800: one more insured slot), the core contract (1000: +20 % for cores); all valid, all in the economy's terms.
+	// (800: one more insured slot), the core contract (1000: +20 % for cores), the reliquary (1200: a second relic slot,
+	// S6-04); all valid, all in the economy's terms.
 	TMap<FPrimaryAssetId, FHollowUpgradeTerms> Upgrades = UHollowShipUpgradeDefinition::LoadAllById();
 	const FHollowUpgradeTerms* Reserve = Upgrades.Find(FPrimaryAssetId(TEXT("HollowUpgrade"), TEXT("DA_Upgrade_FuelReserve")));
 	const FHollowUpgradeTerms* Rider = Upgrades.Find(FPrimaryAssetId(TEXT("HollowUpgrade"), TEXT("DA_Upgrade_InsuranceSlot")));
 	const FHollowUpgradeTerms* Bonus = Upgrades.Find(FPrimaryAssetId(TEXT("HollowUpgrade"), TEXT("DA_Upgrade_CoreBonus")));
-	if (!TestTrue(TEXT("Three upgrades"), Upgrades.Num() == 3 && Reserve && Rider && Bonus))
+	const FHollowUpgradeTerms* Reliquary = Upgrades.Find(FPrimaryAssetId(TEXT("HollowUpgrade"), TEXT("DA_Upgrade_Reliquary")));
+	if (!TestTrue(TEXT("Four upgrades"), Upgrades.Num() == 4 && Reserve && Rider && Bonus && Reliquary))
 	{
 		return false;
 	}
+	TestTrue(TEXT("Reliquary: 1200, a relic slot"), Reliquary->Price == 1200 && Reliquary->ExtraEquipSlots.Num() == 1
+		&& Reliquary->ExtraEquipSlots[0].Slot == HollowTags::Item_Slot_Relic && Reliquary->ExtraEquipSlots[0].Limit == 1);
 	TestTrue(TEXT("Fuel reserve: 600, two fuel cells"), Reserve->Price == 600 && Reserve->RaidItems.Num() == 1 && Reserve->RaidItems[0].Count == 2
 		&& Reserve->RaidItems[0].Item == FPrimaryAssetId(TEXT("HollowItem"), TEXT("DA_Item_FuelCell")));
 	TestTrue(TEXT("Insurance rider: 800, one slot"), Rider->Price == 800 && Rider->ExtraInsuredSlots == 1);
 	TestTrue(TEXT("Core contract: 1000, +20 %"), Bonus->Price == 1000 && Bonus->CoreValuePercent == 20);
 	const FHollowEconomyTerms Terms = FHollowEconomyTerms::Load(FHollowProfileState());
-	TestEqual(TEXT("The economy's terms know them"), Terms.Upgrades.Num(), 3);
+	TestEqual(TEXT("The economy's terms know them"), Terms.Upgrades.Num(), 4);
 	TestTrue(TEXT("...and the reserve's item"), Terms.Catalog.GetItemType(Reserve->RaidItems[0].Item).MatchesTag(HollowTags::Item_Type_Consumable));
 #if WITH_EDITOR   // Data Validation exists in editor builds only
 	for (const TPair<FPrimaryAssetId, FHollowUpgradeTerms>& Pair : Upgrades)

@@ -1,5 +1,7 @@
 #include "Movement/HollowCharacterMovementComponent.h"
 
+#include "AbilitySystemGlobals.h"
+#include "Attributes/HollowGearSet.h"
 #include "Carry/HollowCarrySettings.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -188,7 +190,10 @@ float UHollowCharacterMovementComponent::GetMaxSpeed() const
 {
 	const float BaseSpeed = Super::GetMaxSpeed();   // walk or crouch speed from the applied tuning
 	const FHollowCarryModeTuning* Carry = GetCarryTuning();
-	const float CarryScale = Carry ? Carry->SpeedScale : 1.f;
+	// While carrying, the gear's multiplier (S6-04, Kinetic Brace) on top of the mode's scale: the server and the owner
+	// read the same replicated attribute, so the speed stays predicted.
+	const float CarryScale = Carry ? Carry->SpeedScale * UHollowGearSet::GetMultiplier(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetCharacterOwner()),
+		UHollowGearSet::GetCarrySpeedMultiplierAttribute()) : 1.f;
 	if (!Tuning || !IsMovingOnGround() || !UpdatedComponent)
 	{
 		return BaseSpeed * CarryScale;

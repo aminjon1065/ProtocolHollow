@@ -133,6 +133,14 @@ namespace HollowTags
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Type_Consumable);
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Type_AetherCore);
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Type_Material);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Type_Relic);
+
+	// Equip slots (S6-04): what one loadout holds at most of a kind (UHollowEconomySettings::EquipSlotLimits)
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Slot);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Slot_Primary);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Slot_Secondary);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Slot_Gadget);
+	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Slot_Relic);
 
 	// Player classes (S6-01, ADR-0034): on a player's ability system while it plays the class
 	HOLLOWCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Class);
