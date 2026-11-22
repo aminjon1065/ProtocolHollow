@@ -15,12 +15,14 @@
 void UHollowSupplyReadoutWidget::BindContext(UHollowVisorContext& InContext)
 {
 	SourcesHandle = InContext.OnSourcesChanged.AddUObject(this, &ThisClass::Rebind);
+	ClassHandle = InContext.OnClassChanged.AddUObject(this, &ThisClass::Refresh);   // the class's telemetry colour (S6-01)
 	Rebind();
 }
 
 void UHollowSupplyReadoutWidget::UnbindContext(UHollowVisorContext& InContext)
 {
 	InContext.OnSourcesChanged.Remove(SourcesHandle);
+	InContext.OnClassChanged.Remove(ClassHandle);
 	if (UHollowInventoryComponent* Old = Inventory.Get())
 	{
 		Old->OnInventoryChanged.Remove(InventoryHandle);
@@ -75,9 +77,8 @@ bool UHollowSupplyReadoutWidget::IsShown() const
 void UHollowSupplyReadoutWidget::Refresh()
 {
 	SetVisibility(IsShown() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	const UHollowVisorStyle* Style = GetContext() ? GetContext()->GetStyle() : nullptr;
 	SupplyText->SetText(GetSupplyText());
-	SupplyText->SetColorAndOpacity(FSlateColor(Style ? Style->TelemetryColor : FLinearColor::White));
+	SupplyText->SetColorAndOpacity(FSlateColor(GetContext() ? GetContext()->GetTelemetryColor() : FLinearColor::White));
 }
 
 FString UHollowSupplyReadoutWidget::Describe() const

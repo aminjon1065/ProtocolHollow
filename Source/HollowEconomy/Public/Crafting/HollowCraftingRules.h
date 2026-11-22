@@ -26,7 +26,9 @@ enum class EHollowTransactionKind : uint8
 	/** Count of loadout slot Slot back into the stash (0: the whole slot, its insurance gone). */
 	Unequip,
 	/** Ship upgrade Upgrade, once and for good (ADR-0032). */
-	BuyUpgrade
+	BuyUpgrade,
+	/** Play class ClassId (ADR-0034): the current loadout is kept for the current class, the new class's comes back. */
+	SelectClass
 };
 
 /** How a profile transaction ended; anything but Applied changed nothing. */
@@ -54,7 +56,10 @@ enum class EHollowTransactionResult : uint8
 	InsuranceLimit,
 	UnknownUpgrade,
 	/** The ship has this upgrade already. */
-	AlreadyOwned
+	AlreadyOwned,
+	UnknownClass,
+	/** The player plays this class already. */
+	AlreadySelected
 };
 
 /** One request of the hub to the local profile (ADR-0031). Its Id makes it idempotent. */
@@ -89,6 +94,10 @@ struct HOLLOWECONOMY_API FHollowProfileTransaction
 	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
 	FPrimaryAssetId Upgrade;
 
+	/** SelectClass. */
+	UPROPERTY(BlueprintReadOnly, Category = "Transaction")
+	FPrimaryAssetId ClassId;
+
 	/** New transactions, each with a new id. */
 	static FHollowProfileTransaction Buy(const FPrimaryAssetId& Item, int32 Count);
 	static FHollowProfileTransaction Sell(const FPrimaryAssetId& Item, int32 Count);
@@ -97,6 +106,7 @@ struct HOLLOWECONOMY_API FHollowProfileTransaction
 	static FHollowProfileTransaction Equip(const FPrimaryAssetId& Item, int32 Count);
 	static FHollowProfileTransaction Unequip(int32 Slot, int32 Count = 0);
 	static FHollowProfileTransaction BuyUpgrade(const FPrimaryAssetId& Upgrade);
+	static FHollowProfileTransaction SelectClass(const FPrimaryAssetId& ClassId);
 
 	FString Describe() const;
 };
@@ -118,6 +128,14 @@ struct HOLLOWECONOMY_API FHollowUpgradeTerms
 	int32 ExtraInsuredSlots = 0;
 	int32 CoreValuePercent = 0;
 	TArray<FHollowItemStack> RaidItems;
+};
+
+/** A player class as the rules see it (UHollowClassDefinition::ToTerms; tests fill it by hand). */
+struct HOLLOWECONOMY_API FHollowClassTerms
+{
+	FPrimaryAssetId Id;
+	/** The loadout a profile gets the first time it picks the class. */
+	TArray<FHollowLoadoutSlot> StartingLoadout;
 };
 
 /** What a ship's upgrades add up to (HollowCraftingRules::SumEffects). */
@@ -144,6 +162,12 @@ struct HOLLOWECONOMY_API FHollowEconomyTerms
 	TMap<FPrimaryAssetId, FHollowRecipeTerms> Recipes;
 	/** By ship upgrade id (lookups only). */
 	TMap<FPrimaryAssetId, FHollowUpgradeTerms> Upgrades;
+
+	/** By player class id (lookups only). */
+	TMap<FPrimaryAssetId, FHollowClassTerms> Classes;
+
+	/** The class of a profile that names none (profiles from before S6-01). */
+	FPrimaryAssetId DefaultClass;
 	int32 SellPercent = 0;
 	int32 InsurancePercent = 0;
 	int32 MaxInsuredSlots = 0;
@@ -181,6 +205,15 @@ namespace HollowCraftingRules
 	/** Count 0 or the whole slot: the slot goes, with its insurance. */
 	HOLLOWECONOMY_API EHollowTransactionResult Unequip(FHollowProfile& Profile, int32 Slot, int32 Count, const FHollowEconomyTerms& Terms);
 	HOLLOWECONOMY_API EHollowTransactionResult BuyUpgrade(FHollowProfile& Profile, const FPrimaryAssetId& Upgrade, const FHollowEconomyTerms& Terms);
+
+	/**
+	 * Play ClassId (ADR-0034): the loadout now is kept for the class played so far, the new class's loadout comes back
+	 * (its starting loadout the first time it is picked). The stash is shared; nothing is lost or bought.
+	 */
+	HOLLOWECONOMY_API EHollowTransactionResult SelectClass(FHollowProfile& Profile, const FPrimaryAssetId& ClassId, const FHollowEconomyTerms& Terms);
+
+	/** The class Profile plays: its own, or the default for a profile that names none. */
+	HOLLOWECONOMY_API FPrimaryAssetId CurrentClass(const FHollowProfile& Profile, const FHollowEconomyTerms& Terms);
 
 	/** The effects of the upgrades Owned names (unknown ids are ignored, each upgrade counts once). */
 	HOLLOWECONOMY_API FHollowUpgradeEffects SumEffects(TConstArrayView<FPrimaryAssetId> Owned, const TMap<FPrimaryAssetId, FHollowUpgradeTerms>& Upgrades);

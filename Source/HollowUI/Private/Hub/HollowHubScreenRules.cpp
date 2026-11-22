@@ -1,6 +1,7 @@
 #include "Hub/HollowHubScreenRules.h"
 
 #include "Algo/Count.h"
+#include "Classes/HollowClassDefinition.h"
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
 #include "Engine/AssetManager.h"
@@ -52,6 +53,10 @@ FHollowHubNames FHollowHubNames::Load(const TConstArrayView<FPrimaryAssetId> Ids
 		else if (const UHollowContractDefinition* Contract = Cast<UHollowContractDefinition>(Asset))
 		{
 			Names.Add(Id, Contract->DisplayName, Contract->Description);
+		}
+		else if (const UHollowClassDefinition* Class = Cast<UHollowClassDefinition>(Asset))
+		{
+			Names.Add(Id, Class->DisplayName, Class->Description);
 		}
 	}
 	return Names;
@@ -142,6 +147,10 @@ namespace HollowHubScreenRules
 			return LOCTEXT("UnknownUpgrade", "Unknown upgrade");
 		case EHollowTransactionResult::AlreadyOwned:
 			return LOCTEXT("AlreadyOwned", "The ship has it already");
+		case EHollowTransactionResult::UnknownClass:
+			return LOCTEXT("UnknownClass", "Unknown class");
+		case EHollowTransactionResult::AlreadySelected:
+			return LOCTEXT("AlreadySelected", "The class you play");
 		}
 		return LOCTEXT("Unknown", "Not possible");
 	}
@@ -352,6 +361,27 @@ namespace HollowHubScreenRules
 		return Rows;
 	}
 
+	TArray<FHollowHubRow> ClassRows(const FHollowProfileState& State, const FHollowEconomyTerms& Terms, const FHollowHubNames& Names)
+	{
+		TArray<FHollowHubRow> Rows;
+		const FPrimaryAssetId Current = HollowCraftingRules::CurrentClass(State.Profile, Terms);
+		for (const FPrimaryAssetId& Id : SortedIds(Terms.Classes))
+		{
+			const bool bPlayed = Id == Current;
+			FHollowHubRow& Row = Rows.AddDefaulted_GetRef();
+			Row.Name = Names.GetName(Id);
+			Row.Detail = Names.GetDescription(Id);
+			Row.bHighlighted = bPlayed;
+			Row.Actions.Add(MakeAction(bPlayed ? LOCTEXT("Playing", "Playing") : LOCTEXT("ChooseClass", "Choose"), FHollowProfileTransaction::SelectClass(Id),
+				State, Terms));
+		}
+		if (Rows.IsEmpty())
+		{
+			Rows.Add(Note(LOCTEXT("NoClasses", "No classes")));
+		}
+		return Rows;
+	}
+
 	TArray<FHollowHubRow> ContractRows(const TConstArrayView<FPrimaryAssetId> Contracts, const FPrimaryAssetId& Selected, const bool bHost,
 		const FHollowHubNames& Names)
 	{
@@ -406,6 +436,7 @@ namespace HollowHubScreenRules
 	{
 		TArray<FPrimaryAssetId> Ids = SortedIds(Terms.Recipes);
 		Ids.Append(SortedIds(Terms.Upgrades));
+		Ids.Append(SortedIds(Terms.Classes));
 		Ids.Append(SortedIds(Terms.ShopPrices));
 		for (const TPair<FPrimaryAssetId, FHollowRecipeTerms>& Recipe : Terms.Recipes)   // collected, not ordered: names are looked up
 		{

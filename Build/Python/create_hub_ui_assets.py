@@ -4,6 +4,7 @@
   /Game/Hollow/UI/Hub/BP_ButtonStyle_Tab|BP_ButtonStyle_Row, W_TabButton, W_RowButton   tab and row buttons
   /Game/Hollow/UI/Hub/W_HubTabList, W_HubRow           the workbench's tab bar, one line of a screen's list
   /Game/Hollow/UI/Hub/W_Workbench, W_Loadout, W_ContractTerminal   the three terminals' screens (Menu layer)
+  W_Loadout's class list (S6-01, ADR-0034), added to a locker from before it
 
 The screens' classes and the shop's bulk count are config (DefaultGame.ini, Hollow UI settings), checked here.
 Widget trees are composed through UHollowWidgetAuthoring (HollowEditor). Creates only what is missing (an existing
@@ -49,6 +50,7 @@ PANEL_PADDING = 8.0
 PANEL_WIDTH = 1200.0
 LIST_HEIGHT = 420.0
 CONTRACT_LIST_HEIGHT = 300.0
+CLASS_LIST_HEIGHT = 120.0   # S6-01: two classes in sight; more scroll
 STASH_WIDTH = 480.0
 LOADOUT_WIDTH = 704.0
 ROW_BUTTON_MIN_WIDTH = 120
@@ -372,6 +374,29 @@ def ensure_loadout():
     set_row_class(blueprint)
 
 
+def ensure_locker_classes():
+    """S6-01 (ADR-0034): the player classes above the locker's columns, added to a W_Loadout from before them."""
+    blueprint = load(HUB_DIR + "/W_Loadout")
+    if author.find_widget(blueprint, "ClassList") is not None:
+        return
+    heading = author.insert_widget(blueprint, unreal.TextBlock, "ClassTitle", "Panel", 1)   # after the screen's title
+    box = author.insert_widget(blueprint, unreal.SizeBox, "ClassBox", "Panel", 2)
+    if heading is None or box is None:
+        raise RuntimeError("Could not add the class list to W_Loadout")
+    text(heading, "CLASS", SECTION_SIZE, tint=HEADER_COLOR)
+    box_slot(heading, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(PANEL_PADDING, 0.0, 0.0, 0.0))
+    box.set_width_override(STASH_WIDTH + LOADOUT_WIDTH + PANEL_PADDING * 4.0)
+    box.set_height_override(CLASS_LIST_HEIGHT)
+    box_slot(box, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
+    scroll = add(blueprint, unreal.ScrollBox, "ClassScroll", "ClassBox")
+    scroll.set_scroll_when_focus_changes(unreal.ScrollWhenFocusChanges.INSTANT_SCROLL)
+    add(blueprint, unreal.VerticalBox, "ClassList", "ClassScroll")
+    if not author.compile(blueprint):
+        raise RuntimeError("W_Loadout does not compile with the class list")
+    save(blueprint)
+    log("W_Loadout: class list added")
+
+
 def ensure_contract_terminal():
     blueprint = new_widget_blueprint(HUB_DIR + "/W_ContractTerminal", unreal.HollowContractTerminalWidget)
     if blueprint is None:
@@ -411,6 +436,7 @@ def validate():
                          (HUB_DIR + "/W_ContractTerminal", unreal.HollowContractTerminalWidget)):
         check(derives(path, parent), path + " derives from " + parent.__name__)
     row_class = load(HUB_DIR + "/W_HubRow").generated_class()
+    check(author.find_widget(load(HUB_DIR + "/W_Loadout"), "ClassList") is not None, "W_Loadout lists the classes (S6-01)")
     row_style = load(HUB_DIR + "/BP_ButtonStyle_Row").generated_class()
     for slot_name in ("FirstAction", "SecondAction", "ThirdAction"):
         button = author.find_widget(load(HUB_DIR + "/W_HubRow"), slot_name)
@@ -443,6 +469,7 @@ def main():
     ensure_row()
     ensure_workbench()
     ensure_loadout()
+    ensure_locker_classes()
     ensure_contract_terminal()
     validate()
     unreal.log(SUCCESS_MARKER)

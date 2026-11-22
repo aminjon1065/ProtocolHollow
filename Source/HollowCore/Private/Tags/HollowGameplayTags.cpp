@@ -117,6 +117,11 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_AetherCore, "Hollow.Item.Type.AetherCore", "Heavy Aether core: sold to the corporation on extraction.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type_Material, "Hollow.Item.Type.Material", "Crafting material (S5-02): bought or salvaged, used on the workbench, never taken into a raid.");
 
+	// Player classes
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Class, "Hollow.Class", "Parent of player classes; a player's ability system carries its class's child.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Class_Engineer, "Hollow.Class.Engineer", "Engineer: cutter, welder and mines; hotter tools, heavier plating.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Class_Occultist, "Hollow.Class.Occultist", "Techno-Occultist: the Aether lantern and wards; slower Resonance.");
+
 	// SetByCaller
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_Damage, "Hollow.Data.Damage", "SetByCaller: damage magnitude.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_ResonanceGain, "Hollow.Data.ResonanceGain", "SetByCaller: Resonance gain magnitude.");

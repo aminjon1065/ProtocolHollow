@@ -36,4 +36,5 @@ private:
 	TWeakObjectPtr<UHollowInventoryComponent> Inventory;
 	FDelegateHandle SourcesHandle;
 	FDelegateHandle InventoryHandle;
+	FDelegateHandle ClassHandle;
 };

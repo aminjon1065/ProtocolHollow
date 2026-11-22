@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Classes/HollowClassDefinition.h"
 #include "CommonButtonBase.h"
 #include "Components/TextBlock.h"
 #include "Crafting/HollowCraftingRecipe.h"
@@ -26,6 +27,7 @@
 #include "Hub/HollowWorkbenchWidget.h"
 #include "ICommonInputModule.h"
 #include "Items/HollowItemDefinition.h"
+#include "Profile/HollowEconomySettings.h"
 #include "Profile/HollowProfileSource.h"
 #include "Profile/HollowProfileTypes.h"
 #include "Raid/HollowRaidLauncher.h"
@@ -46,6 +48,8 @@ namespace HollowHubScreenTests
 	const FPrimaryAssetId Rider(TEXT("HollowUpgrade"), TEXT("Test_Rider"));
 	const FPrimaryAssetId Alpha(TEXT("HollowContract"), TEXT("Test_Alpha"));
 	const FPrimaryAssetId Beta(TEXT("HollowContract"), TEXT("Test_Beta"));
+	const FPrimaryAssetId FirstClass(TEXT("HollowClass"), TEXT("Test_Breacher"));
+	const FPrimaryAssetId SecondClass(TEXT("HollowClass"), TEXT("Test_Seer"));
 	constexpr int32 ScrapValue = 8;
 	constexpr int32 CellValue = 24;
 	constexpr int32 CutterValue = 400;
@@ -70,6 +74,8 @@ namespace HollowHubScreenTests
 	const FPrimaryAssetId RealCellRecipe(UHollowCraftingRecipe::AssetType, TEXT("DA_Recipe_FuelCell"));
 	const FPrimaryAssetId RealReserve(UHollowShipUpgradeDefinition::AssetType, TEXT("DA_Upgrade_FuelReserve"));
 	const FPrimaryAssetId Docks(UHollowContractDefinition::AssetType, TEXT("DA_Contract_Docks"));
+	const FPrimaryAssetId RealEngineer(UHollowClassDefinition::AssetType, TEXT("DA_Class_Engineer"));
+	const FPrimaryAssetId RealOccultist(UHollowClassDefinition::AssetType, TEXT("DA_Class_Occultist"));
 	constexpr int32 StartCredits = 1000;
 	constexpr int32 StartScrap = 6;
 	constexpr int32 LockerCredits = 500;
@@ -169,7 +175,7 @@ namespace HollowHubScreenTests
 		{
 			const FHollowProfileTransaction& Transaction = Action.Transaction;
 			return Action.Command == EHollowHubCommand::Transaction && Transaction.Kind == Kind
-				&& (Transaction.Item == Id || Transaction.Recipe == Id || Transaction.Upgrade == Id);
+				&& (Transaction.Item == Id || Transaction.Recipe == Id || Transaction.Upgrade == Id || Transaction.ClassId == Id);
 		};
 	}
 
@@ -365,6 +371,21 @@ bool FHollowHubScreenRulesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("In a raid: greyed out, \"raid under way\""), Row && !Row->Actions[Action].bAvailable && Row->Actions[Action].Reason.EqualTo(HollowHubScreenRules::ResultText(R::InRaid)));
 	TestTrue(TEXT("...and the status line says so"), HollowHubScreenRules::StatusLine(InRaid, Terms).ToString().Contains(HollowHubScreenRules::ResultText(R::InRaid).ToString()));
 
+	// Classes (S6-01): Choose on each, the one played highlighted and greyed out; an old profile plays the default.
+	FHollowEconomyTerms ClassTerms = MakeTerms();
+	FHollowClassTerms First;
+	First.Id = FirstClass;
+	FHollowClassTerms Second;
+	Second.Id = SecondClass;
+	ClassTerms.Classes.Add(FirstClass, First);
+	ClassTerms.Classes.Add(SecondClass, Second);
+	ClassTerms.DefaultClass = FirstClass;
+	FHollowProfileState Classless = Rich;   // a profile from before classes
+	Rows = HollowHubScreenRules::ClassRows(Classless, ClassTerms, Names);
+	TestTrue(TEXT("Classes: the default one played, the other to choose"), Rows.Num() == 2 && Rows[0].bHighlighted && !Rows[0].Actions[0].bAvailable
+		&& Rows[0].Actions[0].Reason.EqualTo(HollowHubScreenRules::ResultText(R::AlreadySelected)) && Rows[1].Actions[0].bAvailable
+		&& Rows[1].Actions[0].Transaction.ClassId == SecondClass);
+
 	// Contracts: the host chooses (the chosen one greyed out, highlighted), a guest only sees the host's choice.
 	const TArray<FPrimaryAssetId> Contracts = {Beta, Alpha};
 	Rows = HollowHubScreenRules::ContractRows(Contracts, Alpha, /*bHost=*/true, Names);
@@ -464,6 +485,7 @@ bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 	}
 	FMemoryProfile Profile;
 	Profile.State.Profile.Credits = LockerCredits;
+	Profile.State.Profile.ClassId = GetDefault<UHollowEconomySettings>()->DefaultClass;   // the Engineer (S6-01)
 	Profile.State.Profile.Loadout = {Slot(RealCutter, 1)};
 	Profile.State.Profile.Stash = {Stack(RealCell, LockerCells), Stack(RealScrap, LockerScrap)};
 	const FHollowEconomyTerms Terms = FHollowEconomyTerms::Load(Profile.State);
@@ -472,7 +494,8 @@ bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestEqual(TEXT("Two stash rows, one loadout row"), Screen->GetRowWidgets().Num(), 3);
+	const int32 Classes = UHollowClassDefinition::LoadAll().Num();
+	TestEqual(TEXT("Two stash rows, one loadout row, a row per class"), Screen->GetRowWidgets().Num(), 3 + Classes);
 	int32 Action = INDEX_NONE;
 	const UHollowHubRowWidget* ScrapRow = FindRowWidget(*Screen, Is(EHollowTransactionKind::Equip, RealScrap), Action);
 	TestTrue(TEXT("Scrap stays out of raids: greyed out"), ScrapRow && !ScrapRow->GetActionButton(Action)->IsInteractionEnabled());
@@ -505,7 +528,22 @@ bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 	Press(Row, Action);
 	TestTrue(TEXT("Returned: one slot left, the cells in the stash"), Loadout.Num() == 1
 		&& HollowCraftingRules::CountOf(Profile.State.Profile.Stash, RealCell) == LockerCells);
-	TestEqual(TEXT("Rows: two in the stash, one in the loadout again"), Screen->GetRowWidgets().Num(), 3);
+	TestEqual(TEXT("Rows: two in the stash, one in the loadout again, the classes"), Screen->GetRowWidgets().Num(), 3 + Classes);
+
+	// The classes (S6-01, ADR-0034): the one played greyed out; another brings its own loadout, this one is kept.
+	const TArray<FHollowLoadoutSlot> EngineerLoadout = Loadout;
+	Row = FindRowWidget(*Screen, Is(EHollowTransactionKind::SelectClass, RealEngineer), Action);
+	TestTrue(TEXT("The Engineer, played: highlighted, greyed out"), Row && Row->GetRow().bHighlighted && !Row->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("...and no class switch is where the gamepad starts"), Screen->GetDesiredFocusTarget() != (Row ? Row->GetActionButton(Action) : nullptr));
+	Row = FindRowWidget(*Screen, Is(EHollowTransactionKind::SelectClass, RealOccultist), Action);
+	Press(Row, Action);
+	const UHollowClassDefinition* OccultistClass = UHollowClassDefinition::Load(RealOccultist);
+	TestTrue(TEXT("The Occultist with its starting loadout"), OccultistClass && Profile.State.Profile.ClassId == RealOccultist
+		&& Profile.State.Profile.Loadout == OccultistClass->StartingLoadout);
+	TestTrue(TEXT("...the Engineer's loadout kept for it"), Profile.State.Profile.ClassLoadouts.Num() == 1
+		&& Profile.State.Profile.ClassLoadouts[0].ClassId == RealEngineer && Profile.State.Profile.ClassLoadouts[0].Loadout == EngineerLoadout);
+	Row = FindRowWidget(*Screen, Is(EHollowTransactionKind::SelectClass, RealOccultist), Action);
+	TestTrue(TEXT("...shown played"), Row && Row->GetRow().bHighlighted);
 	Screen->DeactivateWidget();
 	return true;
 }

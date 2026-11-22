@@ -1,6 +1,7 @@
 // Development console commands for the visor and menus (headless and multi-process checks). Never shipped.
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Classes/HollowClassDefinition.h"
 #include "CommonActivatableWidget.h"
 #include "CommonButtonBase.h"
 #include "CommonInputSubsystem.h"
@@ -108,6 +109,9 @@ namespace HollowUIDevConsole
 		{
 			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: voice %s"), *Voice->Describe());
 		}
+		const UHollowClassDefinition* Class = Context->GetClass();
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: class %s, telemetry colour #%s"), Class ? *Class->GetPrimaryAssetId().PrimaryAssetName.ToString() : TEXT("none"),
+			*Context->GetTelemetryColor().ToFColor(true).ToHex());   // S6-01: the class's visor colour
 		// Where Slate believes the game window and the cursor are: a click lands only inside that window (S4-06: the
 		// windowed-fullscreen Mac window lost every click).
 		if (const UGameViewportClient* Viewport = World->GetGameViewport())

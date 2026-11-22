@@ -36,5 +36,6 @@ private:
 	FDelegateHandle SourcesHandle;
 	FDelegateHandle InputTypeHandle;
 	FDelegateHandle KeysHandle;
+	FDelegateHandle ClassHandle;
 	FDelegateHandle LampHandle;
 };

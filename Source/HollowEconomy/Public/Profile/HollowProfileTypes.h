@@ -26,6 +26,19 @@ struct HOLLOWECONOMY_API FHollowRaidStats
 	int32 CoresDelivered = 0;
 };
 
+/** A player class's loadout while the player plays another class (ADR-0034). */
+USTRUCT(BlueprintType)
+struct HOLLOWECONOMY_API FHollowClassLoadout
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	FPrimaryAssetId ClassId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FHollowLoadoutSlot> Loadout;
+};
+
 /** One player's meta profile, owned by their machine (ADR-0005): credits, the loadout taken into raids, the stash. */
 USTRUCT(BlueprintType)
 struct HOLLOWECONOMY_API FHollowProfile
@@ -48,6 +61,17 @@ struct HOLLOWECONOMY_API FHollowProfile
 	/** Ship upgrades bought (ADR-0032), each once and for good (UHollowShipUpgradeDefinition ids). */
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	TArray<FPrimaryAssetId> Upgrades;
+
+	/**
+	 * The class the player plays (ADR-0034, a UHollowClassDefinition id): Loadout is this class's. Profiles from before
+	 * S6-01 name none and play the default class with the loadout they have.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	FPrimaryAssetId ClassId;
+
+	/** The loadouts of the other classes played before (a class never played gets its starting loadout when picked). */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FHollowClassLoadout> ClassLoadouts;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	FHollowRaidStats Stats;

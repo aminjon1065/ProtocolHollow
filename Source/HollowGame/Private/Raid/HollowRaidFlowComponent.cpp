@@ -3,6 +3,7 @@
 #include "Assembly/HollowSectorStateComponent.h"
 #include "Carry/HollowCarryableComponent.h"
 #include "Carry/HollowCarryableDefinition.h"
+#include "Classes/HollowClassComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Framework/HollowPlayerController.h"
@@ -13,6 +14,7 @@
 #include "Crafting/HollowShipUpgradeDefinition.h"
 #include "Inventory/HollowInventoryComponent.h"
 #include "Inventory/HollowLoadoutRules.h"
+#include "Profile/HollowEconomySettings.h"
 #include "Raid/HollowExtractionZone.h"
 #include "Raid/HollowRaidRules.h"
 #include "Raid/HollowRaidSettings.h"
@@ -99,8 +101,16 @@ bool UHollowRaidFlowComponent::AcceptLoadout(AController* Player, const FHollowL
 	// The ship's upgrades the player owns give their items on top, free (ADR-0032); unknown ids give nothing.
 	const FHollowUpgradeEffects Ship = HollowCraftingRules::SumEffects(Loadout.Upgrades, UHollowShipUpgradeDefinition::LoadAllById());
 	Inventory->ResetFromLoadout(Accepted, Ship.RaidItems);
-	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s takes %s (the ship adds %s)"), *RaidId.ToString(), *Player->GetName(), *Inventory->Describe(),
-		*HollowLoadoutRules::Describe(Ship.RaidItems));
+	// The class the player plays (ADR-0034), trusted like the loadout; none named: the default, one this host does not
+	// know: the default too (said so).
+	const FPrimaryAssetId& DefaultClass = GetDefault<UHollowEconomySettings>()->DefaultClass;
+	UHollowClassComponent* Class = UHollowClassComponent::Get(Player->PlayerState);
+	if (Class && !Class->SetClass(Loadout.ClassId.IsValid() ? Loadout.ClassId : DefaultClass))
+	{
+		Class->SetClass(DefaultClass);
+	}
+	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s as %s takes %s (the ship adds %s)"), *RaidId.ToString(), *Player->GetName(),
+		Class ? *Class->Describe() : TEXT("no class"), *Inventory->Describe(), *HollowLoadoutRules::Describe(Ship.RaidItems));
 	return true;
 }
 

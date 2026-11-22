@@ -2,6 +2,7 @@
 
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Classes/HollowClassComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Framework/HollowRaidGameMode.h"
@@ -12,6 +13,7 @@
 #include "InputMappingContext.h"
 #include "Profile/HollowProfileSubsystem.h"
 #include "Raid/HollowRaidFlowComponent.h"
+#include "Raid/HollowRaidLauncher.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Util/HollowEnumUtils.h"
 #include "Voice/HollowVoiceComponent.h"
@@ -35,6 +37,49 @@ void AHollowPlayerController::BeginPlay()
 	{
 		Input->AddMappingContext(Config->MappingContext, Config->MappingPriority);   // V / LB, whatever the pawn
 	}
+	if (IsLocalController())
+	{
+		if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))
+		{
+			ProfileHandle = Profile->OnProfileChanged.AddUObject(this, &ThisClass::SyncClassWithProfile);
+		}
+		SyncClassWithProfile();
+	}
+}
+
+void AHollowPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this))
+	{
+		Profile->OnProfileChanged.Remove(ProfileHandle);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void AHollowPlayerController::SyncClassWithProfile()
+{
+	const UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this);
+	if (!Profile || !IsLocalController() || !HollowRaidLauncher::IsInHub(GetWorld()))
+	{
+		return;   // a raid takes the class from the loadout snapshot
+	}
+	const FPrimaryAssetId& Class = Profile->GetProfile().ClassId;
+	if (Class.IsValid() && Class != RequestedClass)
+	{
+		RequestedClass = Class;
+		Server_SelectClass(Class);
+	}
+}
+
+void AHollowPlayerController::Server_SelectClass_Implementation(const FPrimaryAssetId& Class)
+{
+	UHollowClassComponent* ClassComponent = UHollowClassComponent::Get(PlayerState);
+	if (!ClassComponent || !HollowRaidLauncher::IsInHub(GetWorld()))
+	{
+		UE_LOG(LogHollowGame, Warning, TEXT("Class: %s may not change to %s here: only in the hub"), *GetName(), *Class.ToString());
+		return;
+	}
+	ClassComponent->SetClass(Class);   // refuses (and says so) anything that is not a class
 }
 
 void AHollowPlayerController::SetupInputComponent()
@@ -96,6 +141,7 @@ void AHollowPlayerController::Client_RequestLoadout_Implementation(const FGuid& 
 	{
 		Loadout.Slots = Profile->GetLoadoutForRaid(RaidId);
 		Loadout.Upgrades = Profile->GetProfile().Upgrades;   // the ship's free items come on top (ADR-0032)
+		Loadout.ClassId = Profile->GetProfile().ClassId;     // the class played (ADR-0034)
 	}
 	Server_SubmitLoadout(Loadout);
 }

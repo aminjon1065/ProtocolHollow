@@ -26,8 +26,12 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "New profile", meta = (ClampMin = "0"))
 	int32 StartingCredits = 0;
 
-	UPROPERTY(Config, EditAnywhere, Category = "New profile")
-	TArray<FHollowLoadoutSlot> StartingLoadout;
+	/**
+	 * The class a new profile plays (ADR-0034): its loadout is that class's starting loadout. A profile from before
+	 * classes plays it too, with the loadout it has.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "New profile", meta = (AllowedTypes = "HollowClass"))
+	FPrimaryAssetId DefaultClass;
 
 	/** A new profile's stash (ADR-0031): enough materials for a first craft. */
 	UPROPERTY(Config, EditAnywhere, Category = "New profile")

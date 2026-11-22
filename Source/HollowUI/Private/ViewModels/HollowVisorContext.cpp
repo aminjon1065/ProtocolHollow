@@ -2,6 +2,8 @@
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Character/HollowExoFrameCharacter.h"
+#include "Classes/HollowClassComponent.h"
+#include "Classes/HollowClassDefinition.h"
 #include "CommonInputSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
@@ -11,6 +13,7 @@
 #include "Foundation/HollowUISettings.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "HollowUILog.h"
 #include "InputAction.h"
 #include "Resonance/HollowSquadResonanceComponent.h"
@@ -63,6 +66,11 @@ void UHollowVisorContext::Initialize(APlayerController* InPlayer)
 void UHollowVisorContext::Deinitialize()
 {
 	SetCharacter(nullptr);
+	if (UHollowClassComponent* Old = ClassComponent.Get())
+	{
+		Old->OnClassChanged.Remove(ClassHandle);
+	}
+	ClassComponent.Reset();
 	if (Prompt)
 	{
 		Prompt->Deinitialize();
@@ -187,7 +195,48 @@ void UHollowVisorContext::SetCharacter(AHollowExoFrameCharacter* NewCharacter)
 	}
 	UE_LOG(LogHollowUI, Log, TEXT("Visor of %s follows %s (ability system %s)"), *GetNameSafe(Player.Get()), *GetNameSafe(NewCharacter),
 		AbilitySystem.IsValid() ? TEXT("ready") : TEXT("pending"));
+	BindClass();
 	OnSourcesChanged.Broadcast();
+}
+
+void UHollowVisorContext::BindClass()
+{
+	// The ability system lives on the player state (Docs/Architecture/02 sec. 2.2): so does the class.
+	const UHollowAbilitySystemComponent* Abilities = AbilitySystem.Get();
+	UHollowClassComponent* NewClass = Abilities ? UHollowClassComponent::Get(Cast<APlayerState>(Abilities->GetOwnerActor())) : nullptr;
+	if (!NewClass && ClassComponent.IsValid())
+	{
+		return;   // a dead or unpossessed body keeps the colour of the class played
+	}
+	if (ClassComponent.Get() == NewClass)
+	{
+		return;
+	}
+	if (UHollowClassComponent* Old = ClassComponent.Get())
+	{
+		Old->OnClassChanged.Remove(ClassHandle);
+	}
+	ClassComponent = NewClass;
+	if (NewClass)
+	{
+		ClassHandle = NewClass->OnClassChanged.AddWeakLambda(this, [this](const FPrimaryAssetId&) { OnClassChanged.Broadcast(); });
+	}
+	OnClassChanged.Broadcast();
+}
+
+const UHollowClassDefinition* UHollowVisorContext::GetClass() const
+{
+	const UHollowClassComponent* Class = ClassComponent.Get();
+	return Class ? Class->GetDefinition() : nullptr;
+}
+
+FLinearColor UHollowVisorContext::GetTelemetryColor() const
+{
+	if (const UHollowClassDefinition* Class = GetClass())
+	{
+		return Class->VisorColor;
+	}
+	return Style ? Style->TelemetryColor : FLinearColor::White;
 }
 
 void UHollowVisorContext::HandleControlMappingsRebuilt()
@@ -207,6 +256,7 @@ void UHollowVisorContext::HandleAbilitySystemChanged(UHollowAbilitySystemCompone
 	{
 		AbilitySystem = NewAbilitySystem;
 		UE_LOG(LogHollowUI, Log, TEXT("Visor of %s: ability system %s"), *GetNameSafe(Player.Get()), NewAbilitySystem ? TEXT("ready") : TEXT("released"));
+		BindClass();
 		OnSourcesChanged.Broadcast();
 	}
 }

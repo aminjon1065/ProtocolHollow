@@ -28,6 +28,7 @@ void UHollowVoiceIndicatorWidget::BindContext(UHollowVisorContext& InContext)
 		Level = NewVoice->GetLevel();
 	}
 	TalkingHandle = UHollowVoiceTalker::OnTalkingChanged.AddUObject(this, &ThisClass::HandleTalking);
+	ClassHandle = InContext.OnClassChanged.AddUObject(this, &ThisClass::Refresh);   // the class's telemetry colour (S6-01)
 	Refresh();
 }
 
@@ -40,6 +41,7 @@ void UHollowVoiceIndicatorWidget::UnbindContext(UHollowVisorContext& InContext)
 	}
 	Voice.Reset();
 	UHollowVoiceTalker::OnTalkingChanged.Remove(TalkingHandle);
+	InContext.OnClassChanged.Remove(ClassHandle);
 	Talking.Reset();
 }
 
@@ -109,7 +111,7 @@ void UHollowVoiceIndicatorWidget::Refresh()
 	{
 		return;
 	}
-	FLinearColor Colour = Style ? Style->TelemetryColor : FLinearColor::White;
+	FLinearColor Colour = GetContext() ? GetContext()->GetTelemetryColor() : FLinearColor::White;
 	if (Style && Source->GetMode() == EHollowVoiceMode::Muted)
 	{
 		Colour = Style->MutedColor;

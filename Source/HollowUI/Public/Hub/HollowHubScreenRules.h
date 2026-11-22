@@ -48,7 +48,7 @@ struct HOLLOWUI_API FHollowHubNames
 	FText GetDescription(const FPrimaryAssetId& Id) const;
 	void Add(const FPrimaryAssetId& Id, const FText& Name, const FText& Description = FText::GetEmpty());
 
-	/** Loads (synchronously: tiny data assets) the items, recipes, ship upgrades and contracts Ids name. */
+	/** Loads (synchronously: tiny data assets) the items, recipes, ship upgrades, contracts and classes Ids name. */
 	static FHollowHubNames Load(TConstArrayView<FPrimaryAssetId> Ids);
 
 private:
@@ -97,6 +97,9 @@ namespace HollowHubScreenRules
 
 	/** Locker, right: a row per loadout slot, Return 1 (more than one there), Return all, Insure. */
 	HOLLOWUI_API TArray<FHollowHubRow> LoadoutRows(const FHollowProfileState& State, const FHollowEconomyTerms& Terms, const FHollowHubNames& Names);
+
+	/** Locker, top: a row per player class (id order), Choose; the class played is highlighted (ADR-0034). */
+	HOLLOWUI_API TArray<FHollowHubRow> ClassRows(const FHollowProfileState& State, const FHollowEconomyTerms& Terms, const FHollowHubNames& Names);
 
 	/** Contracts (id order): the host gets Select on each, a guest sees the host's choice only. */
 	HOLLOWUI_API TArray<FHollowHubRow> ContractRows(TConstArrayView<FPrimaryAssetId> Contracts, const FPrimaryAssetId& Selected, bool bHost,

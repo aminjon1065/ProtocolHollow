@@ -23,6 +23,10 @@ struct HOLLOWECONOMY_API FHollowLoadoutSnapshot
 	/** The ship upgrades the player owns (ADR-0032): the raid gives their RaidItems on top, free. */
 	UPROPERTY(BlueprintReadOnly, Category = "Loadout")
 	TArray<FPrimaryAssetId> Upgrades;
+
+	/** The class the player plays (ADR-0034): the host gives it to the player state, a class it does not know: the default. */
+	UPROPERTY(BlueprintReadOnly, Category = "Loadout")
+	FPrimaryAssetId ClassId;
 };
 
 /** Why a slot of a loadout was dropped or cut down (log and tests). */

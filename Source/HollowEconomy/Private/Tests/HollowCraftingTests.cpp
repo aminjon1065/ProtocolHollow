@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Classes/HollowClassDefinition.h"
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowCraftingRules.h"
 #include "Crafting/HollowEconomyConfig.h"
@@ -365,7 +366,8 @@ bool FHollowCraftingDataTest::RunTest(const FString& Parameters)
 	const UHollowEconomySettings* Settings = GetDefault<UHollowEconomySettings>();
 	FHollowProfileState State;
 	State.Profile.Credits = Settings->StartingCredits;
-	State.Profile.Loadout = Settings->StartingLoadout;
+	const UHollowClassDefinition* DefaultClass = UHollowClassDefinition::Load(Settings->DefaultClass);
+	State.Profile.Loadout = DefaultClass ? DefaultClass->StartingLoadout : TArray<FHollowLoadoutSlot>();
 	State.Profile.Stash = Settings->StartingStash;
 	const FHollowEconomyTerms Terms = FHollowEconomyTerms::Load(State);
 	const FPrimaryAssetId CellRecipeId(TEXT("HollowRecipe"), TEXT("DA_Recipe_FuelCell"));

@@ -773,8 +773,8 @@ namespace HollowDevConsole
 			const FHollowLoadoutSlot& Slot = Profile.Loadout[Index];
 			Loadout += FString::Printf(TEXT(" [%d] %s x%d%s"), Index, *Slot.Item.PrimaryAssetName.ToString(), Slot.Count, Slot.bInsured ? TEXT(" insured") : TEXT(""));
 		}
-		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: %d credits, loadout:%s | stash%s | escrow %s | raids %d, extractions %d, deaths %d, cores %d"),
-			Profile.Credits, Loadout.IsEmpty() ? TEXT(" -") : *Loadout, *DescribeStacks(Profile.Stash),
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Profile.Dump: %d credits, class %s, loadout:%s | stash%s | escrow %s | raids %d, extractions %d, deaths %d, cores %d"),
+			Profile.Credits, *Profile.ClassId.PrimaryAssetName.ToString(), Loadout.IsEmpty() ? TEXT(" -") : *Loadout, *DescribeStacks(Profile.Stash),
 			Profiles->GetEscrow().IsActive() ? *Profiles->GetEscrow().RaidId.ToString() : TEXT("none"),
 			Profile.Stats.Raids, Profile.Stats.Extractions, Profile.Stats.Deaths, Profile.Stats.CoresDelivered);
 		if (const FHollowRaidReport* Report = Profiles->GetPendingReport())

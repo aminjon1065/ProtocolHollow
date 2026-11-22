@@ -6,6 +6,7 @@
 #include "HollowPlayerState.generated.h"
 
 class UHollowAbilitySystemComponent;
+class UHollowClassComponent;
 class UHollowHealthSet;
 class UHollowInventoryComponent;
 class UHollowResonanceSet;
@@ -34,6 +35,12 @@ public:
 	/** The raid inventory (ADR-0030): the accepted loadout; its items grant the tools and consumables on this ability system. */
 	UHollowInventoryComponent* GetInventory() const { return Inventory; }
 
+	/** The class this player plays (S6-01, ADR-0034), replicated to everyone. */
+	UHollowClassComponent* GetClassComponent() const { return ClassComponent; }
+
+	/** Seamless travel: the new player state plays the same class (the raid's loadout snapshot confirms it). */
+	virtual void CopyProperties(APlayerState* PlayerState) override;
+
 protected:
 	/** The voice backend knows a player by its unique net id: the talker registers once it is known (server or client). */
 	virtual void OnSetUniqueId() override;
@@ -60,4 +67,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Inventory")
 	TObjectPtr<UHollowInventoryComponent> Inventory;
+
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Class")
+	TObjectPtr<UHollowClassComponent> ClassComponent;
 };

@@ -1,6 +1,7 @@
 #include "Visor/HollowLampIndicatorWidget.h"
 
 #include "Character/HollowExoFrameCharacter.h"
+#include "Classes/HollowClassDefinition.h"
 #include "Components/TextBlock.h"
 #include "Foundation/HollowUISettings.h"
 #include "InputAction.h"
@@ -14,6 +15,7 @@ void UHollowLampIndicatorWidget::BindContext(UHollowVisorContext& InContext)
 	SourcesHandle = InContext.OnSourcesChanged.AddUObject(this, &ThisClass::Rebind);
 	InputTypeHandle = InContext.OnInputTypeChanged.AddWeakLambda(this, [this](ECommonInputType) { Refresh(); });
 	KeysHandle = InContext.OnKeysChanged.AddUObject(this, &ThisClass::Refresh);
+	ClassHandle = InContext.OnClassChanged.AddUObject(this, &ThisClass::Refresh);   // a lit lamp in the class's colour (S6-01)
 	Rebind();
 }
 
@@ -22,6 +24,7 @@ void UHollowLampIndicatorWidget::UnbindContext(UHollowVisorContext& InContext)
 	InContext.OnSourcesChanged.Remove(SourcesHandle);
 	InContext.OnInputTypeChanged.Remove(InputTypeHandle);
 	InContext.OnKeysChanged.Remove(KeysHandle);
+	InContext.OnClassChanged.Remove(ClassHandle);
 	if (AHollowExoFrameCharacter* Old = Character.Get())
 	{
 		Old->OnHelmetLampChanged.Remove(LampHandle);
@@ -75,7 +78,9 @@ void UHollowLampIndicatorWidget::Refresh()
 	}
 	const UHollowVisorStyle* Style = GetContext() ? GetContext()->GetStyle() : nullptr;
 	LampText->SetText(GetLampText());
-	LampText->SetColorAndOpacity(FSlateColor(Style ? (Body->IsHelmetLampOn() ? Style->LampOnColor : Style->LampOffColor) : FLinearColor::White));
+	const UHollowClassDefinition* Class = GetContext() ? GetContext()->GetClass() : nullptr;
+	const FLinearColor OnColor = Class ? Class->VisorColor : Style ? Style->LampOnColor : FLinearColor::White;
+	LampText->SetColorAndOpacity(FSlateColor(Body->IsHelmetLampOn() ? OnColor : Style ? Style->LampOffColor : FLinearColor::White));
 }
 
 FString UHollowLampIndicatorWidget::Describe() const

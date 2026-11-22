@@ -4,6 +4,7 @@
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowEconomyConfig.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
+#include "Classes/HollowClassDefinition.h"
 #include "HollowEconomyLog.h"
 #include "Profile/HollowEconomySettings.h"
 #include "Profile/HollowProfileTypes.h"
@@ -84,12 +85,21 @@ FHollowProfileTransaction FHollowProfileTransaction::BuyUpgrade(const FPrimaryAs
 	return Transaction;
 }
 
+FHollowProfileTransaction FHollowProfileTransaction::SelectClass(const FPrimaryAssetId& ClassId)
+{
+	FHollowProfileTransaction Transaction = HollowCraftingPrivate::Make(EHollowTransactionKind::SelectClass);
+	Transaction.ClassId = ClassId;
+	return Transaction;
+}
+
 FString FHollowProfileTransaction::Describe() const
 {
 	switch (Kind)
 	{
 	case EHollowTransactionKind::BuyUpgrade:
 		return FString::Printf(TEXT("BuyUpgrade %s"), *Upgrade.PrimaryAssetName.ToString());
+	case EHollowTransactionKind::SelectClass:
+		return FString::Printf(TEXT("SelectClass %s"), *ClassId.PrimaryAssetName.ToString());
 	case EHollowTransactionKind::Craft:
 		return FString::Printf(TEXT("Craft %s x%d"), *Recipe.PrimaryAssetName.ToString(), Count);
 	case EHollowTransactionKind::Insure:
@@ -142,6 +152,16 @@ FHollowEconomyTerms FHollowEconomyTerms::Load(const FHollowProfileState& State, 
 		}
 		const FPrimaryAssetId Id = Upgrade.Id;
 		Terms.Upgrades.Add(Id, MoveTemp(Upgrade));
+	}
+	Terms.DefaultClass = Settings->DefaultClass;
+	for (FHollowClassTerms& Class : UHollowClassDefinition::LoadAll())
+	{
+		for (const FHollowLoadoutSlot& Slot : Class.StartingLoadout)
+		{
+			Items.AddUnique(Slot.Item);
+		}
+		const FPrimaryAssetId Id = Class.Id;
+		Terms.Classes.Add(Id, MoveTemp(Class));
 	}
 	for (const FHollowItemStack& Stack : State.Profile.Stash)
 	{
@@ -199,6 +219,9 @@ namespace HollowCraftingRules
 			break;
 		case EHollowTransactionKind::BuyUpgrade:
 			Result = BuyUpgrade(Profile, Transaction.Upgrade, Terms);
+			break;
+		case EHollowTransactionKind::SelectClass:
+			Result = SelectClass(Profile, Transaction.ClassId, Terms);
 			break;
 		}
 		if (Result == EHollowTransactionResult::Applied)
@@ -428,6 +451,42 @@ namespace HollowCraftingRules
 		}
 		Profile.Credits -= Found->Price;
 		Profile.Upgrades.Add(Upgrade);
+		return EHollowTransactionResult::Applied;
+	}
+
+	FPrimaryAssetId CurrentClass(const FHollowProfile& Profile, const FHollowEconomyTerms& Terms)
+	{
+		return Profile.ClassId.IsValid() ? Profile.ClassId : Terms.DefaultClass;
+	}
+
+	EHollowTransactionResult SelectClass(FHollowProfile& Profile, const FPrimaryAssetId& ClassId, const FHollowEconomyTerms& Terms)
+	{
+		const FHollowClassTerms* NewClass = Terms.Classes.Find(ClassId);
+		if (!NewClass)
+		{
+			return EHollowTransactionResult::UnknownClass;
+		}
+		const FPrimaryAssetId Current = CurrentClass(Profile, Terms);
+		if (ClassId == Current)
+		{
+			return EHollowTransactionResult::AlreadySelected;
+		}
+		if (!Current.IsValid())
+		{
+			return EHollowTransactionResult::BadRequest;   // no class to keep the loadout for (no default class set)
+		}
+		// The new class's own loadout, or its starting loadout the first time; the current one is kept for its class.
+		const int32 Stored = Profile.ClassLoadouts.IndexOfByPredicate([&ClassId](const FHollowClassLoadout& Each) { return Each.ClassId == ClassId; });
+		TArray<FHollowLoadoutSlot> Next = Stored != INDEX_NONE ? MoveTemp(Profile.ClassLoadouts[Stored].Loadout) : NewClass->StartingLoadout;
+		if (Stored != INDEX_NONE)
+		{
+			Profile.ClassLoadouts.RemoveAt(Stored);
+		}
+		FHollowClassLoadout& Kept = Profile.ClassLoadouts.AddDefaulted_GetRef();
+		Kept.ClassId = Current;
+		Kept.Loadout = MoveTemp(Profile.Loadout);
+		Profile.Loadout = MoveTemp(Next);
+		Profile.ClassId = ClassId;
 		return EHollowTransactionResult::Applied;
 	}
 

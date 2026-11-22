@@ -9,6 +9,8 @@
 #include "Attributes/HollowToolSet.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Classes/HollowClassComponent.h"
+#include "Classes/HollowClassDefinition.h"
 #include "CommonButtonBase.h"
 #include "Data/HollowToolDefinition.h"
 #include "Doors/HollowDoor.h"
@@ -279,6 +281,38 @@ bool FHollowUIVisorContextTest::RunTest(const FString& Parameters)
 	AHollowExoFrameCharacter* Second = HollowGameTests::SpawnExoFrame(*this, Rig.Character->GetWorld(), FTransform(FVector::LeftVector * DoorDistance * 4.f));
 	Rig.Controller->Possess(Second);
 	TestTrue(TEXT("A new pawn is followed"), Context->GetCharacter() == Second && Context->GetAbilitySystem() == Rig.AbilitySystem);
+	Context->Deinitialize();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowUIVisorClassColourTest, "Hollow.UI.Visor.ClassColour",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowUIVisorClassColourTest::RunTest(const FString& Parameters)
+{
+	// S6-01 (ADR-0034): the visor's telemetry takes the colour of the class the player plays, and follows a switch.
+	using namespace HollowUITests;
+	FPlayerRig Rig;
+	const UHollowClassDefinition* Engineer = UHollowClassDefinition::Load(FPrimaryAssetId(UHollowClassDefinition::AssetType, TEXT("DA_Class_Engineer")));
+	const UHollowClassDefinition* Occultist = UHollowClassDefinition::Load(FPrimaryAssetId(UHollowClassDefinition::AssetType, TEXT("DA_Class_Occultist")));
+	if (!TestNotNull(TEXT("DA_Class_Engineer"), Engineer) || !TestNotNull(TEXT("DA_Class_Occultist"), Occultist) || !BuildPlayer(*this, Rig))
+	{
+		return false;
+	}
+	UHollowClassComponent* Class = UHollowClassComponent::Get(Rig.Controller->PlayerState);
+	UHollowVisorContext* Context = NewObject<UHollowVisorContext>(GetTransientPackage());
+	Context->Initialize(Rig.Controller);
+	int32 Changes = 0;
+	Context->OnClassChanged.AddLambda([&Changes] { ++Changes; });
+	const UHollowVisorStyle* Style = Context->GetStyle();
+	TestTrue(TEXT("No class yet: the style's telemetry colour"), Class && !Context->GetClass() && Style && Context->GetTelemetryColor().Equals(Style->TelemetryColor));
+	if (Class)
+	{
+		Class->SetClass(Engineer->GetPrimaryAssetId());
+		TestTrue(TEXT("The Engineer's colour"), Changes == 1 && Context->GetClass() == Engineer && Context->GetTelemetryColor().Equals(Engineer->VisorColor));
+		Class->SetClass(Occultist->GetPrimaryAssetId());
+		TestTrue(TEXT("...then the Occultist's"), Changes == 2 && Context->GetTelemetryColor().Equals(Occultist->VisorColor));
+	}
 	Context->Deinitialize();
 	return true;
 }

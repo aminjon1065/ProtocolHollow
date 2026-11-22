@@ -4,6 +4,7 @@
 #include "Misc/CoreMisc.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Classes/HollowClassDefinition.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
 #include "HollowEconomyLog.h"
 #include "Inventory/HollowLoadoutRules.h"
@@ -197,8 +198,16 @@ void UHollowProfileSubsystem::Load()
 		? Cast<UHollowProfileSaveGame>(UGameplayStatics::LoadGameFromSlot(Settings->SaveSlotName, Settings->SaveUserIndex)) : nullptr;
 	if (Save && Save->Version == UHollowProfileSaveGame::CurrentVersion)
 	{
-		UE_LOG(LogHollowEconomy, Log, TEXT("Profile loaded from %s: %d credits, %d loadout slots"), *Settings->SaveSlotName,
-			Save->State.Profile.Credits, Save->State.Profile.Loadout.Num());
+		FHollowProfile& Profile = Save->State.Profile;
+		if (!Profile.ClassId.IsValid() && Settings->DefaultClass.IsValid())
+		{
+			// A profile from before classes (ADR-0034): it plays the default class with the loadout it has, no new kit.
+			Profile.ClassId = Settings->DefaultClass;
+			UE_LOG(LogHollowEconomy, Log, TEXT("Profile: no class yet, plays %s with its loadout"), *Profile.ClassId.ToString());
+			Persist();
+		}
+		UE_LOG(LogHollowEconomy, Log, TEXT("Profile loaded from %s: %d credits, %d loadout slots, class %s"), *Settings->SaveSlotName,
+			Profile.Credits, Profile.Loadout.Num(), *Profile.ClassId.ToString());
 		return;
 	}
 	UE_CLOG(Save, LogHollowEconomy, Warning, TEXT("Profile %s has version %d (expected %d): starting a new one"), *Settings->SaveSlotName,
@@ -212,11 +221,16 @@ void UHollowProfileSubsystem::MakeNewProfile()
 {
 	const UHollowEconomySettings* Settings = GetDefault<UHollowEconomySettings>();
 	Save->State = FHollowProfileState();
-	Save->State.Profile.Credits = Settings->StartingCredits;
-	Save->State.Profile.Loadout = Settings->StartingLoadout;
-	Save->State.Profile.Stash = Settings->StartingStash;
-	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: new profile with %d credits, %d loadout slots and %d stash stacks"), Settings->StartingCredits,
-		Settings->StartingLoadout.Num(), Settings->StartingStash.Num());
+	FHollowProfile& Profile = Save->State.Profile;
+	Profile.Credits = Settings->StartingCredits;
+	Profile.Stash = Settings->StartingStash;
+	// The default class (ADR-0034) with its starting loadout.
+	Profile.ClassId = Settings->DefaultClass;
+	const UHollowClassDefinition* Class = UHollowClassDefinition::Load(Settings->DefaultClass);
+	UE_CLOG(!Class, LogHollowEconomy, Warning, TEXT("Profile: no default class (Hollow Economy settings: DefaultClass): a new profile starts with an empty loadout"));
+	Profile.Loadout = Class ? Class->StartingLoadout : TArray<FHollowLoadoutSlot>();
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: new profile with %d credits, class %s, %d loadout slots and %d stash stacks"), Settings->StartingCredits,
+		*Profile.ClassId.ToString(), Profile.Loadout.Num(), Profile.Stash.Num());
 }
 
 void UHollowProfileSubsystem::Persist() const

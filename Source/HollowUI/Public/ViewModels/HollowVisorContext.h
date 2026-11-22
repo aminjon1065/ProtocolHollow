@@ -11,6 +11,8 @@ class AHollowExoFrameCharacter;
 class APawn;
 class APlayerController;
 class UHollowAbilitySystemComponent;
+class UHollowClassComponent;
+class UHollowClassDefinition;
 class UHollowPromptModel;
 class UHollowSquadResonanceComponent;
 class UHollowToolTargetModel;
@@ -63,6 +65,12 @@ public:
 	const UHollowVisorStyle* GetStyle() const { return Style; }
 	void SetStyle(const UHollowVisorStyle* InStyle) { Style = InStyle; }
 
+	/** The class the player plays (S6-01, ADR-0034), null until its player state and class arrive. */
+	const UHollowClassDefinition* GetClass() const;
+
+	/** The colour of the visor's telemetry lines: the class's while the player plays one, else the style's. */
+	FLinearColor GetTelemetryColor() const;
+
 	/** The label of the key Action is mapped to on the current device ("F", "D-Up"); empty without a local player. */
 	FText GetKeyLabel(const UInputAction* Action) const;
 
@@ -71,6 +79,9 @@ public:
 	FOnHollowInputTypeChanged OnInputTypeChanged;
 	/** The player's key mappings were rebuilt (a mapping context came or went; Enhanced Input applies them a frame late). */
 	FOnHollowVisorKeysChanged OnKeysChanged;
+
+	/** The player's class came or changed (the telemetry colour follows). */
+	FOnHollowVisorKeysChanged OnClassChanged;
 
 	virtual UWorld* GetWorld() const override;
 
@@ -89,6 +100,9 @@ private:
 	void HandleAbilitySystemChanged(UHollowAbilitySystemComponent* NewAbilitySystem);
 	void HandleGameStateSet(AGameStateBase* GameState);
 
+	/** Follows the class of the ability system's player state (it comes with the ability system on clients). */
+	void BindClass();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UHollowPromptModel> Prompt;
 
@@ -104,4 +118,6 @@ private:
 	FDelegateHandle AbilitySystemHandle;
 	FDelegateHandle InputTypeHandle;
 	FDelegateHandle GameStateHandle;
+	TWeakObjectPtr<UHollowClassComponent> ClassComponent;
+	FDelegateHandle ClassHandle;
 };

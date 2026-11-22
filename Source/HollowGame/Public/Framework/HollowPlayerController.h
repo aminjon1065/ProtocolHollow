@@ -53,13 +53,28 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_SelectContract(const FPrimaryAssetId& Contract);
 
+	/**
+	 * This player plays Class now (S6-01, ADR-0034): its profile changed class at the hub's locker. Accepted in the
+	 * hub only (a raid takes the class from the loadout snapshot); anything else is refused softly.
+	 */
+	UFUNCTION(Server, Reliable)
+	void Server_SelectClass(const FPrimaryAssetId& Class);
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 
 private:
 	void HandlePushToTalkPressed();
 	void HandlePushToTalkReleased();
+
+	/** In the hub, on this machine: the server hears the profile's class whenever it differs from the last one sent. */
+	void SyncClassWithProfile();
+
+	/** The class last sent to the server (none yet on a new map). */
+	FPrimaryAssetId RequestedClass;
+	FDelegateHandle ProfileHandle;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Voice")
 	TObjectPtr<UHollowVoiceComponent> Voice;

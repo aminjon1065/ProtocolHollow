@@ -13,10 +13,14 @@ bool HollowRaidLauncher::IsHubMap(const FString& Package)
 	return !Hub.IsEmpty() && Package == Hub;
 }
 
+bool HollowRaidLauncher::IsInHub(const UWorld* World)
+{
+	return World && IsHubMap(UWorld::RemovePIEPrefix(World->GetOutermost()->GetName()));
+}
+
 bool HollowRaidLauncher::CanStartRaid(const UWorld* World)
 {
-	return World && World->GetNetMode() != NM_Client && !World->IsInSeamlessTravel()
-		&& IsHubMap(UWorld::RemovePIEPrefix(World->GetOutermost()->GetName()));
+	return World && World->GetNetMode() != NM_Client && !World->IsInSeamlessTravel() && IsInHub(World);
 }
 
 bool HollowRaidLauncher::Travel(UWorld* World, const TOptional<int32> Seed)

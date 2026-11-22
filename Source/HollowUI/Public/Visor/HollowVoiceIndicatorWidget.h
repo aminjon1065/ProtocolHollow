@@ -50,6 +50,7 @@ private:
 	FDelegateHandle ActivityHandle;
 	FDelegateHandle ModeHandle;
 	FDelegateHandle TalkingHandle;
+	FDelegateHandle ClassHandle;
 	bool bTransmitting = false;
 	uint8 Level = 0;
 };

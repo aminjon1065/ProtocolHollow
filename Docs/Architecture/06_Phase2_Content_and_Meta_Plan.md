@@ -72,6 +72,14 @@
 
 **Must = 7.0 д.** Cut-line: сократить стартовый набор реликвий с 4 до 2, если затянется настройка конуса Эфирного фонаря.
 
+**Статус Sprint 6:**
+- **S6-01 — сделано** (2026-11-22, [ADR-0034](../ADR/ADR-0034-player-classes.md)):
+  - `UHollowClassDefinition` (primary asset `HollowClass`): `DA_Class_Engineer` (по умолчанию) и `DA_Class_Occultist`;
+  - у каждого класса свой лоадаут — транзакция профиля `SelectClass`, стартовый набор при первом выборе;
+  - `ClassId` реплицируется на `AHollowPlayerState` (`UHollowClassComponent`); сервер выдаёт эффект атрибутов, набор способностей и тег `Hollow.Class.*`;
+  - класс меняется в шкафчике хаба (блок CLASS), в рейд приходит в снимке лоадаута; визор красит телеметрию цветом класса;
+  - тесты `Hollow.Economy.Class.*`, `Hollow.Game.Class.SwitchAndReplicate`, `Hollow.UI.Visor.ClassColour`, кооп-смоук `playthrough-mac.sh classes`.
+
 ---
 
 ## Sprint 7 · Недели 5–6 · «Второй биом: Собор Реактора (`HollowSector_Cathedral`)»

@@ -5,6 +5,7 @@
 #include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowSurvivalSet.h"
 #include "Attributes/HollowToolSet.h"
+#include "Classes/HollowClassComponent.h"
 #include "Inventory/HollowInventoryComponent.h"
 #include "Session/HollowNetworkSettings.h"
 #include "Voice/HollowVoiceTalker.h"
@@ -24,6 +25,7 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 	ToolSet = CreateDefaultSubobject<UHollowToolSet>(TEXT("ToolSet"));
 	VoiceTalker = CreateDefaultSubobject<UHollowVoiceTalker>(TEXT("VoiceTalker"));
 	Inventory = CreateDefaultSubobject<UHollowInventoryComponent>(TEXT("Inventory"));
+	ClassComponent = CreateDefaultSubobject<UHollowClassComponent>(TEXT("Class"));
 
 	// The engine default for player states is far too low for an ability system owner.
 	const float ConfiguredFrequency = GetDefault<UHollowNetworkSettings>()->PlayerStateNetUpdateFrequency;
@@ -36,6 +38,16 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 UAbilitySystemComponent* AHollowPlayerState::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
+}
+
+void AHollowPlayerState::CopyProperties(APlayerState* PlayerState)
+{
+	Super::CopyProperties(PlayerState);
+	const AHollowPlayerState* NewState = Cast<AHollowPlayerState>(PlayerState);
+	if (NewState && ClassComponent->GetClassId().IsValid())
+	{
+		NewState->GetClassComponent()->SetClass(ClassComponent->GetClassId());
+	}
 }
 
 void AHollowPlayerState::OnSetUniqueId()

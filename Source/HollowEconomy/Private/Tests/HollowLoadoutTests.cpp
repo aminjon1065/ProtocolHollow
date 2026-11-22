@@ -7,6 +7,7 @@
 #include "Abilities/HollowGameplayAbility.h"
 #include "Abilities/HollowItemCostSource.h"
 #include "AbilitySystemComponent.h"
+#include "Classes/HollowClassDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/World.h"
 #include "Extraction/HollowExtractionResolver.h"
@@ -289,9 +290,14 @@ bool FHollowLoadoutSyncDataTest::RunTest(const FString& Parameters)
 	// something in a raid (its ability set loads and grants an ability).
 	using namespace HollowLoadoutTests;
 	const UHollowEconomySettings* Settings = GetDefault<UHollowEconomySettings>();
-	TestTrue(TEXT("Loadout limits are set"), Settings->MaxLoadoutSlots >= Settings->StartingLoadout.Num() && Settings->LoadoutItemTypes.HasTagExact(HollowTags::Item_Type_Tool)
+	const UHollowClassDefinition* DefaultClass = UHollowClassDefinition::Load(Settings->DefaultClass);   // a new profile's loadout (ADR-0034)
+	if (!TestNotNull(TEXT("The default class"), DefaultClass))
+	{
+		return false;
+	}
+	TestTrue(TEXT("Loadout limits are set"), Settings->MaxLoadoutSlots >= DefaultClass->StartingLoadout.Num() && Settings->LoadoutItemTypes.HasTagExact(HollowTags::Item_Type_Tool)
 		&& Settings->LoadoutItemTypes.HasTagExact(HollowTags::Item_Type_Consumable) && !Settings->LoadoutItemTypes.HasTag(HollowTags::Item_Type_AetherCore));
-	const TArray<FHollowItemStack> Starting = HollowLoadoutRules::ToStacks(Settings->StartingLoadout);
+	const TArray<FHollowItemStack> Starting = HollowLoadoutRules::ToStacks(DefaultClass->StartingLoadout);
 	TArray<FHollowLoadoutIssue> Issues;
 	const TArray<FHollowItemStack> Accepted = HollowLoadoutRules::ValidateForRaid(Starting, &Issues);
 	TestTrue(FString::Printf(TEXT("The starting loadout goes in as it is (%s)"), *HollowLoadoutRules::Describe(Issues)), Issues.IsEmpty() && Accepted == Starting);

@@ -17,6 +17,9 @@ namespace HollowRaidLauncher
 	/** Whether Package (a long package name) is the hub map (UHollowNetworkSettings::HubMap). */
 	HOLLOWGAME_API bool IsHubMap(const FString& Package);
 
+	/** Whether World is the hub map (any machine). */
+	HOLLOWGAME_API bool IsInHub(const UWorld* World);
+
 	/** Whether this machine may send the squad into a raid now: it hosts (solo or co-op) and stands in the hub. */
 	HOLLOWGAME_API bool CanStartRaid(const UWorld* World);
 
