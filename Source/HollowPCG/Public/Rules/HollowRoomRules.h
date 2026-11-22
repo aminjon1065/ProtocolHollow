@@ -12,13 +12,14 @@ UENUM()
 enum class EHollowRoomIssue : uint8
 {
 	EmptyFootprint,
-	MultiStorey,
+	TooManyStoreys,
 	NoLevel,
 	NoConnectors,
 	ConnectorOutsideFootprint,
 	ConnectorFacesInside,
 	DuplicateConnector,
 	ConnectorWithoutKinds,
+	ConnectorAboveFloor,
 	SocketWithoutType,
 	SocketOutsideFootprint,
 	RoomTypeCount

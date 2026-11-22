@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Data/HollowBiomeDefinition.h"
 #include "Data/HollowLevelMetrics.h"
 #include "Data/HollowRoomDefinition.h"
 #include "Engine/AssetManager.h"
@@ -19,6 +20,7 @@ namespace HollowRoomTests
 	// Test data only: the real metrics live in DefaultGame.ini (HollowLevelMetrics).
 	constexpr int32 CellSize = 400;
 	constexpr int32 CellHeight = 400;
+	constexpr int32 MaxRoomStoreys = 2;
 	const TCHAR* const FakeLevelPath = TEXT("/Game/Tests/LV_Fake.LV_Fake");
 
 	/** Sector content checked by DocksRooms: the S1-07 greybox kit inside its Game Feature plugin (ADR-0012). */
@@ -26,12 +28,18 @@ namespace HollowRoomTests
 	/** Pre-plugin location (S1-07); must stay empty. */
 	const TCHAR* const LegacySectorsRoot = TEXT("/Game/Hollow/Sectors");
 	constexpr int32 DocksMinRooms = 8;
+	/** Sector II, the Reactor Cathedral (S7-01, ADR-0038): 8 rooms, four of them two-storey halls. */
+	const TCHAR* const CathedralRoot = TEXT("/HollowSector_Cathedral");
+	constexpr int32 CathedralRooms = 8;
+	constexpr int32 CathedralTallHalls = 4;
+	constexpr int32 TallHallStoreys = 2;
 
 	UHollowLevelMetrics* MakeMetrics()
 	{
 		UHollowLevelMetrics* Metrics = NewObject<UHollowLevelMetrics>(GetTransientPackage());
 		Metrics->CellSize = CellSize;
 		Metrics->CellHeight = CellHeight;
+		Metrics->MaxRoomStoreys = MaxRoomStoreys;
 		Metrics->WallThickness = 20;
 		Metrics->SlabThickness = 20;
 		Metrics->DoorWidth = 300;
@@ -65,6 +73,86 @@ namespace HollowRoomTests
 		Room->RoomTags.AddTag(HollowTags::Room_Type_Storage);
 		return Room;
 	}
+
+	/** What one sector's room kit must hold. */
+	struct FSectorKitExpectation
+	{
+		const TCHAR* Root = nullptr;
+		/** At least this many rooms (or exactly, with bExactRooms). */
+		int32 Rooms = 0;
+		bool bExactRooms = false;
+		/** Rooms with Footprint.Z == TallHallStoreys; INDEX_NONE: not checked. */
+		int32 TallHalls = INDEX_NONE;
+	};
+
+	/**
+	 * The rooms of one sector plugin: every one passes the room rules, its level lies inside the plugin, it is a
+	 * registered HollowRoom primary asset; one spawn, one extraction, at least one core vault (the generator's quotas).
+	 */
+	void CheckSectorKit(FAutomationTestBase& Test, const FSectorKitExpectation& Expect)
+	{
+		IAssetRegistry& Registry = IAssetRegistry::GetChecked();
+		Registry.ScanPathsSynchronous({FString(Expect.Root)}, /*bForceRescan=*/false);
+
+		FARFilter Filter;
+		Filter.PackagePaths.Add(FName(Expect.Root));
+		Filter.bRecursivePaths = true;
+		Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
+		TArray<FAssetData> Assets;
+		Registry.GetAssets(Filter, Assets);
+		Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.PackageName.LexicalLess(B.PackageName); });
+
+		if (Expect.bExactRooms)
+		{
+			Test.TestEqual(FString::Printf(TEXT("%s: rooms"), Expect.Root), Assets.Num(), Expect.Rooms);
+		}
+		else
+		{
+			Test.TestTrue(FString::Printf(TEXT("%s: at least %d rooms (found %d)"), Expect.Root, Expect.Rooms, Assets.Num()), Assets.Num() >= Expect.Rooms);
+		}
+
+		const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
+		const bool bAssetManagerReady = UAssetManager::IsInitialized();
+		int32 SpawnRooms = 0;
+		int32 ExtractionRooms = 0;
+		int32 CoreVaults = 0;
+		int32 TallHalls = 0;
+		for (const FAssetData& Asset : Assets)
+		{
+			const UHollowRoomDefinition* Room = Cast<UHollowRoomDefinition>(Asset.GetAsset());
+			if (!Test.TestNotNull(*FString::Printf(TEXT("%s loads"), *Asset.AssetName.ToString()), Room))
+			{
+				continue;
+			}
+			for (const FHollowRoomIssue& Issue : HollowRoomRules::ValidateRoom(*Room, *Metrics))
+			{
+				Test.AddError(FString::Printf(TEXT("%s: %s"), *Room->GetName(), *HollowRoomRules::Describe(Issue).ToString()));
+			}
+			Test.TestTrue(*FString::Printf(TEXT("%s: room level exists inside the plugin"), *Room->GetName()),
+				!Room->RoomLevel.IsNull() && FPackageName::DoesPackageExist(Room->RoomLevel.GetLongPackageName())
+				&& Room->RoomLevel.GetLongPackageName().StartsWith(FString(Expect.Root) + TEXT("/")));
+			if (bAssetManagerReady)
+			{
+				Test.TestTrue(*FString::Printf(TEXT("%s is a registered HollowRoom primary asset"), *Room->GetName()),
+					UAssetManager::Get().GetPrimaryAssetPath(Room->GetPrimaryAssetId()).IsValid());
+			}
+
+			SpawnRooms += Room->RoomTags.HasTagExact(HollowTags::Room_Type_Spawn) ? 1 : 0;
+			ExtractionRooms += Room->RoomTags.HasTagExact(HollowTags::Room_Type_Extraction) ? 1 : 0;
+			CoreVaults += Room->RoomTags.HasTagExact(HollowTags::Room_Type_CoreVault) ? 1 : 0;
+			TallHalls += Room->Footprint.Z == TallHallStoreys ? 1 : 0;
+		}
+		Test.TestTrue(TEXT("Asset manager is initialized"), bAssetManagerReady);
+
+		// Quotas the sector generator (S2-01) relies on.
+		Test.TestEqual(FString::Printf(TEXT("%s: exactly one spawn room"), Expect.Root), SpawnRooms, 1);
+		Test.TestEqual(FString::Printf(TEXT("%s: exactly one extraction room"), Expect.Root), ExtractionRooms, 1);
+		Test.TestTrue(FString::Printf(TEXT("%s: at least one core vault"), Expect.Root), CoreVaults >= 1);
+		if (Expect.TallHalls != INDEX_NONE)
+		{
+			Test.TestEqual(FString::Printf(TEXT("%s: two-storey halls"), Expect.Root), TallHalls, Expect.TallHalls);
+		}
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowRoomRulesTest, "Hollow.PCG.RoomRules",
@@ -96,7 +184,15 @@ bool FHollowRoomRulesTest::RunTest(const FString& Parameters)
 	};
 
 	ExpectOnly(TEXT("Zero-size footprint"), [](UHollowRoomDefinition& R) { R.Footprint = FIntVector(0, 1, 1); }, EHollowRoomIssue::EmptyFootprint);
-	ExpectOnly(TEXT("Two storeys"), [](UHollowRoomDefinition& R) { R.Footprint.Z = 2; }, EHollowRoomIssue::MultiStorey);
+	TestTrue(TEXT("A two-storey hall is valid"), [&Metrics]()
+	{
+		UHollowRoomDefinition* Hall = MakeValidRoom();
+		Hall->Footprint.Z = MaxRoomStoreys;
+		return HollowRoomRules::ValidateRoom(*Hall, *Metrics).IsEmpty();
+	}());
+	ExpectOnly(TEXT("Taller than MaxRoomStoreys"), [](UHollowRoomDefinition& R) { R.Footprint.Z = MaxRoomStoreys + 1; }, EHollowRoomIssue::TooManyStoreys);
+	ExpectOnly(TEXT("An opening up in a tall hall"), [](UHollowRoomDefinition& R) { R.Footprint.Z = MaxRoomStoreys; R.Connectors[0].Cell.Z = 1; },
+		EHollowRoomIssue::ConnectorAboveFloor, 0);
 	ExpectOnly(TEXT("No level"), [](UHollowRoomDefinition& R) { R.RoomLevel.Reset(); }, EHollowRoomIssue::NoLevel);
 	ExpectOnly(TEXT("No connectors"), [](UHollowRoomDefinition& R) { R.Connectors.Reset(); }, EHollowRoomIssue::NoConnectors);
 	ExpectOnly(TEXT("Connector cell outside"), [](UHollowRoomDefinition& R) { R.Connectors[0].Cell = FIntVector(2, 0, 0); },
@@ -158,6 +254,7 @@ bool FHollowLevelMetricsTest::RunTest(const FString& Parameters)
 	};
 
 	ExpectOnly(TEXT("Missing value"), [](UHollowLevelMetrics& M) { M.CellSize = 0; }, EHollowMetricsIssue::NonPositiveValue);
+	ExpectOnly(TEXT("No storey allowed"), [](UHollowLevelMetrics& M) { M.MaxRoomStoreys = 0; }, EHollowMetricsIssue::NonPositiveValue);
 	ExpectOnly(TEXT("Door plus jambs wider than a cell"), [](UHollowLevelMetrics& M) { M.DoorWidth = M.CellSize - M.WallThickness; },
 		EHollowMetricsIssue::DoorDoesNotFitCell);
 	ExpectOnly(TEXT("Door as tall as the storey"), [](UHollowLevelMetrics& M) { M.DoorHeight = M.CellHeight; },
@@ -178,58 +275,39 @@ bool FHollowDocksRoomsTest::RunTest(const FString& Parameters)
 {
 	using namespace HollowRoomTests;
 
-	IAssetRegistry& Registry = IAssetRegistry::GetChecked();
-	Registry.ScanPathsSynchronous({FString(DocksRoot)}, /*bForceRescan=*/false);
-
-	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(DocksRoot));
-	Filter.bRecursivePaths = true;
-	Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
-	TArray<FAssetData> Assets;
-	Registry.GetAssets(Filter, Assets);
-	Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.PackageName.LexicalLess(B.PackageName); });
-
-	TestTrue(FString::Printf(TEXT("At least %d Docks rooms (found %d)"), DocksMinRooms, Assets.Num()), Assets.Num() >= DocksMinRooms);
-
 	TArray<FAssetData> Legacy;
-	Registry.GetAssetsByPath(FName(LegacySectorsRoot), Legacy, /*bRecursive=*/true);
+	IAssetRegistry::GetChecked().GetAssetsByPath(FName(LegacySectorsRoot), Legacy, /*bRecursive=*/true);
 	TestEqual(TEXT("No sector content left under /Game/Hollow/Sectors"), Legacy.Num(), 0);
 
-	const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
-	const bool bAssetManagerReady = UAssetManager::IsInitialized();
-	int32 SpawnRooms = 0;
-	int32 ExtractionRooms = 0;
-	int32 CoreVaults = 0;
-	for (const FAssetData& Asset : Assets)
-	{
-		const UHollowRoomDefinition* Room = Cast<UHollowRoomDefinition>(Asset.GetAsset());
-		if (!TestNotNull(*FString::Printf(TEXT("%s loads"), *Asset.AssetName.ToString()), Room))
-		{
-			continue;
-		}
-		for (const FHollowRoomIssue& Issue : HollowRoomRules::ValidateRoom(*Room, *Metrics))
-		{
-			AddError(FString::Printf(TEXT("%s: %s"), *Room->GetName(), *HollowRoomRules::Describe(Issue).ToString()));
-		}
-		TestTrue(*FString::Printf(TEXT("%s: room level exists inside the plugin"), *Room->GetName()),
-			!Room->RoomLevel.IsNull() && FPackageName::DoesPackageExist(Room->RoomLevel.GetLongPackageName())
-			&& Room->RoomLevel.GetLongPackageName().StartsWith(FString(DocksRoot) + TEXT("/")));
-		if (bAssetManagerReady)
-		{
-			TestTrue(*FString::Printf(TEXT("%s is a registered HollowRoom primary asset"), *Room->GetName()),
-				UAssetManager::Get().GetPrimaryAssetPath(Room->GetPrimaryAssetId()).IsValid());
-		}
+	FSectorKitExpectation Expect;
+	Expect.Root = DocksRoot;
+	Expect.Rooms = DocksMinRooms;
+	CheckSectorKit(*this, Expect);
+	return true;
+}
 
-		SpawnRooms += Room->RoomTags.HasTagExact(HollowTags::Room_Type_Spawn) ? 1 : 0;
-		ExtractionRooms += Room->RoomTags.HasTagExact(HollowTags::Room_Type_Extraction) ? 1 : 0;
-		CoreVaults += Room->RoomTags.HasTagExact(HollowTags::Room_Type_CoreVault) ? 1 : 0;
-	}
-	TestTrue(TEXT("Asset manager is initialized"), bAssetManagerReady);
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCathedralRoomsTest, "Hollow.PCG.CathedralRooms",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-	// Quotas the sector generator (S2-01) relies on.
-	TestEqual(TEXT("Exactly one spawn room"), SpawnRooms, 1);
-	TestEqual(TEXT("Exactly one extraction room"), ExtractionRooms, 1);
-	TestTrue(TEXT("At least one core vault"), CoreVaults >= 1);
+bool FHollowCathedralRoomsTest::RunTest(const FString& Parameters)
+{
+	// S7-01 (ADR-0038): the Reactor Cathedral is a second content-only sector plugin. Its 8 rooms pass the same rules
+	// as the Docks (connectors 300 x 350 on the floor), four of them are two-storey halls; its biome lives beside them.
+	using namespace HollowRoomTests;
+	FSectorKitExpectation Expect;
+	Expect.Root = CathedralRoot;
+	Expect.Rooms = CathedralRooms;
+	Expect.bExactRooms = true;
+	Expect.TallHalls = CathedralTallHalls;
+	CheckSectorKit(*this, Expect);
+
+	FARFilter Filter;
+	Filter.PackagePaths.Add(FName(CathedralRoot));
+	Filter.bRecursivePaths = true;
+	Filter.ClassPaths.Add(UHollowBiomeDefinition::StaticClass()->GetClassPathName());
+	TArray<FAssetData> Biomes;
+	IAssetRegistry::GetChecked().GetAssets(Filter, Biomes);
+	TestEqual(TEXT("One biome in the Cathedral plugin"), Biomes.Num(), 1);
 	return true;
 }
 

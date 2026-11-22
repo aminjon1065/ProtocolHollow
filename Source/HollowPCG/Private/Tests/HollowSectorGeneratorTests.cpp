@@ -5,6 +5,7 @@
 #include "Algo/Reverse.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Assembly/HollowSectorManifest.h"
 #include "Data/HollowBiomeDefinition.h"
 #include "Data/HollowRoomDefinition.h"
 #include "Generation/HollowGridMath.h"
@@ -19,8 +20,13 @@ namespace HollowGenTests
 {
 	using namespace HollowGridMath;
 
-	/** Seeds swept by the property tests. */
+	/** Seeds swept by the property tests on the synthetic pool. */
 	constexpr int32 SweepSeeds = 200;
+	/** Seeds swept on each real sector's pool (S7-01: every seed of 1000 must generate). */
+	constexpr int32 PoolSeeds = 1000;
+	/** Replicated manifest budget (CLAUDE.md sec. 5, ADR-0003). */
+	constexpr int32 MaxManifestBytes = 2048;
+	constexpr int32 PoolBuildId = 1;
 	constexpr int32 FirstSeed = 1;
 	/** SeedParity: share of distinct layouts expected among SweepSeeds / 2 seeds. */
 	constexpr int32 UniquePercentMin = 90;
@@ -39,6 +45,9 @@ namespace HollowGenTests
 	constexpr uint8 Any = Door | Bulkhead | Open;
 
 	const TCHAR* const DocksData = TEXT("/HollowSector_Docks/Data");
+	const TCHAR* const DocksPlugin = TEXT("HollowSector_Docks");
+	const TCHAR* const CathedralData = TEXT("/HollowSector_Cathedral/Data");
+	const TCHAR* const CathedralPlugin = TEXT("HollowSector_Cathedral");
 
 	FHollowRoomTemplate Room(const TCHAR* Id, const EHollowRoomRole Role, const FIntPoint Footprint,
 		std::initializer_list<FHollowTemplateConnector> Connectors)
@@ -309,10 +318,10 @@ namespace HollowGenTests
 
 	/** Runs the sweep; calls Check for every successful layout; fails the test for every seed that does not generate. */
 	template <typename TCheck>
-	void Sweep(FAutomationTestBase& Test, const FHollowSectorGenInput& Base, TCheck&& Check, int32* OutTotalAttempts = nullptr)
+	void Sweep(FAutomationTestBase& Test, const FHollowSectorGenInput& Base, TCheck&& Check, int32* OutTotalAttempts = nullptr, const int32 Seeds = SweepSeeds)
 	{
 		int32 TotalAttempts = 0;
-		for (int32 Seed = FirstSeed; Seed < FirstSeed + SweepSeeds; ++Seed)
+		for (int32 Seed = FirstSeed; Seed < FirstSeed + Seeds; ++Seed)
 		{
 			FHollowSectorGenInput Input = Base;
 			Input.Seed = Seed;
@@ -335,6 +344,164 @@ namespace HollowGenTests
 		{
 			*OutTotalAttempts = TotalAttempts;
 		}
+	}
+
+	/**
+	 * A real sector's pool (its plugin's rooms and biome) on PoolSeeds seeds: every seed generates; rooms never overlap,
+	 * connections match the kit, the sector stays in its limits; one spawn, one extraction, the vaults off the critical
+	 * route, every room reachable; the biome's loops; no room behind bulkheads; the manifest rebuilds the same layout
+	 * and stays under its budget.
+	 */
+	bool CheckRealPool(FAutomationTestBase& Test, const TCHAR* DataPath, const TCHAR* Plugin)
+	{
+		IAssetRegistry& Registry = IAssetRegistry::GetChecked();
+		Registry.ScanPathsSynchronous({FString(DataPath)}, /*bForceRescan=*/false);
+		FARFilter Filter;
+		Filter.PackagePaths.Add(FName(DataPath));
+		Filter.bRecursivePaths = true;
+		Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
+		Filter.ClassPaths.Add(UHollowBiomeDefinition::StaticClass()->GetClassPathName());
+		TArray<FAssetData> Assets;
+		Registry.GetAssets(Filter, Assets);
+
+		UHollowBiomeDefinition* Biome = nullptr;
+		TArray<UHollowRoomDefinition*> Rooms;
+		for (const FAssetData& Asset : Assets)
+		{
+			UObject* Object = Asset.GetAsset();
+			Biome = Biome ? Biome : Cast<UHollowBiomeDefinition>(Object);
+			if (UHollowRoomDefinition* RoomDefinition = Cast<UHollowRoomDefinition>(Object))
+			{
+				Rooms.Add(RoomDefinition);
+			}
+		}
+		if (!Test.TestNotNull(FString::Printf(TEXT("%s: a biome in the sector plugin"), Plugin), Biome))
+		{
+			return false;
+		}
+
+		const FHollowSectorGenRules& Rules = Biome->GenRules;
+		FHollowSectorGenInput Base;
+		Base.Rules = Rules;
+		Base.Templates = HollowSectorTemplates::MakeTemplates(TArray<const UHollowRoomDefinition*>(Rooms), Rules);
+		Test.TestEqual(FString::Printf(TEXT("%s: every room has a role under its rules"), Plugin), Base.Templates.Num(), Rooms.Num());
+		const TArray<FString> Errors = FHollowSectorGenerator::ValidateInput(Base);
+		for (const FString& Error : Errors)
+		{
+			Test.AddError(Error);
+		}
+		if (!Errors.IsEmpty())
+		{
+			return false;
+		}
+
+		int32 Generated = 0;
+		int32 TotalAttempts = 0;
+		int32 TotalRooms = 0;
+		int32 TotalLoops = 0;
+		int32 MaxBytes = 0;
+		const double Start = FPlatformTime::Seconds();
+		Sweep(Test, Base, [&](const int32 Seed, const FHollowSectorLayout& Layout)
+		{
+			++Generated;
+			TotalRooms += Layout.Rooms.Num();
+			auto Fail = [&Test, Plugin, Seed](const FString& Why) { Test.AddError(FString::Printf(TEXT("%s seed %d: %s"), Plugin, Seed, *Why)); };
+
+			// Geometry: disjoint rooms, connections the kit allows, inside the sector's limits.
+			if (!CellsDisjoint(Layout))
+			{
+				Fail(TEXT("rooms overlap"));
+			}
+			FString Why;
+			if (!ConnectionsConsistent(Layout, Base.Templates, Why))
+			{
+				Fail(Why);
+			}
+			int32 MaxX = 0;
+			int32 MaxY = 0;
+			for (const FHollowPlacedRoom& R : Layout.Rooms)
+			{
+				MaxX = FMath::Max(MaxX, R.Cell.X + R.Size.X);
+				MaxY = FMath::Max(MaxY, R.Cell.Y + R.Size.Y);
+			}
+			if (MaxX > Rules.MaxExtentCells || MaxY > Rules.MaxExtentCells || Layout.Rooms.Num() > Rules.MaxRooms)
+			{
+				Fail(TEXT("the sector exceeds its limits"));
+			}
+
+			// Route: one spawn, one extraction, the vaults as detours, every room reachable.
+			int32 Spawns = 0, Extractions = 0, Vaults = 0;
+			const int32 Spawn = FindRole(Layout, EHollowRoomRole::Spawn, Spawns);
+			const int32 Extraction = FindRole(Layout, EHollowRoomRole::Extraction, Extractions);
+			const int32 Vault = FindRole(Layout, EHollowRoomRole::CoreVault, Vaults);
+			if (Spawns != 1 || Extractions != 1 || Vaults != Rules.CoreVaultCount)
+			{
+				Fail(FString::Printf(TEXT("%d spawn, %d extraction, %d core vault rooms"), Spawns, Extractions, Vaults));
+				return;
+			}
+			if (Distance(Layout, Spawn, Extraction) < Rules.CriticalPathMin + 1)
+			{
+				Fail(TEXT("the route is shorter than the minimum"));
+			}
+			for (int32 Index = 0; Index < Layout.Rooms.Num(); ++Index)
+			{
+				if (Distance(Layout, Spawn, Index) == INDEX_NONE)
+				{
+					Fail(FString::Printf(TEXT("room %d is unreachable"), Index));
+				}
+			}
+			if (Distance(Layout, Spawn, Extraction, Vault) == INDEX_NONE || Layout.Rooms[Vault].bCriticalPath)
+			{
+				Fail(TEXT("the core vault lies on the critical path"));
+			}
+
+			// Loops and bulkheads (S3-01: a shut bulkhead may close a loop, never cut a room off).
+			TArray<FIntPoint> Pairs;
+			for (const FHollowPlacedConnection& C : Layout.Connections)
+			{
+				Pairs.AddUnique(FIntPoint(FMath::Min(C.RoomA, C.RoomB), FMath::Max(C.RoomA, C.RoomB)));
+			}
+			const int32 Loops = Pairs.Num() - Layout.Rooms.Num() + 1;
+			TotalLoops += Loops;
+			if (Loops < Rules.MinLoops)
+			{
+				Fail(FString::Printf(TEXT("%d loops"), Loops));
+			}
+			const int32 CutOff = CutOffByBulkheads(Layout);
+			if (CutOff > 0 || CountBulkheads(Layout) < Rules.MinBulkheadConnections)
+			{
+				Fail(FString::Printf(TEXT("%d room(s) behind bulkheads, %d bulkheads"), CutOff, CountBulkheads(Layout)));
+			}
+
+			// The manifest the server replicates: the same layout back, under its budget.
+			TArray<UHollowRoomDefinition*> Definitions;
+			for (const FString& Id : Layout.TemplateIds)
+			{
+				UHollowRoomDefinition* const* Found = Rooms.FindByPredicate([&Id](const UHollowRoomDefinition* R) { return R->GetPrimaryAssetId().ToString() == Id; });
+				Definitions.Add(Found ? *Found : nullptr);
+			}
+			FHollowSectorManifest Manifest;
+			FHollowSectorLayout Rebuilt;
+			FString Error;
+			if (!HollowSectorManifest::Build(Layout, Definitions, Biome, FName(Plugin), PoolBuildId, Manifest, Error)
+				|| !HollowSectorManifest::Reconstruct(Manifest, Rebuilt, Error))
+			{
+				Fail(Error);
+				return;
+			}
+			if (FHollowSectorGenerator::ComputeLayoutHash(Rebuilt) != Manifest.LayoutHash)
+			{
+				Fail(TEXT("the rebuilt layout hashes differently"));
+			}
+			MaxBytes = FMath::Max(MaxBytes, HollowSectorManifest::EstimateNetBytes(Manifest));
+		}, &TotalAttempts, PoolSeeds);
+
+		Test.TestEqual(FString::Printf(TEXT("%s: every seed generates"), Plugin), Generated, PoolSeeds);
+		Test.TestTrue(FString::Printf(TEXT("%s: manifests under %d bytes (largest %d)"), Plugin, MaxManifestBytes, MaxBytes), MaxBytes < MaxManifestBytes);
+		const double Seeds = PoolSeeds;
+		Test.AddInfo(FString::Printf(TEXT("%s: %d/%d seeds, avg %.1f rooms, %.2f loops, %.2f attempts, %.2f ms per sector, manifest <= %d bytes"), Plugin,
+			Generated, PoolSeeds, TotalRooms / Seeds, TotalLoops / Seeds, TotalAttempts / Seeds, (FPlatformTime::Seconds() - Start) * 1000.0 / Seeds, MaxBytes));
+		return true;
 	}
 }
 
@@ -658,63 +825,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowGenDocksPoolTest, "Hollow.PCG.Generator.
 bool FHollowGenDocksPoolTest::RunTest(const FString& Parameters)
 {
 	using namespace HollowGenTests;
+	return CheckRealPool(*this, DocksData, DocksPlugin);
+}
 
-	IAssetRegistry& Registry = IAssetRegistry::GetChecked();
-	Registry.ScanPathsSynchronous({FString(DocksData)}, /*bForceRescan=*/false);
-	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(DocksData));
-	Filter.bRecursivePaths = true;
-	Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
-	Filter.ClassPaths.Add(UHollowBiomeDefinition::StaticClass()->GetClassPathName());
-	TArray<FAssetData> Assets;
-	Registry.GetAssets(Filter, Assets);
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowGenCathedralPoolTest, "Hollow.PCG.Generator.CathedralPool",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-	const UHollowBiomeDefinition* Biome = nullptr;
-	TArray<const UHollowRoomDefinition*> Rooms;
-	for (const FAssetData& Asset : Assets)
-	{
-		const UObject* Object = Asset.GetAsset();
-		Biome = Biome ? Biome : Cast<UHollowBiomeDefinition>(Object);
-		if (const UHollowRoomDefinition* RoomDefinition = Cast<UHollowRoomDefinition>(Object))
-		{
-			Rooms.Add(RoomDefinition);
-		}
-	}
-	if (!TestNotNull(TEXT("DA_Biome_Docks exists in the sector plugin"), Biome))
-	{
-		return false;
-	}
-
-	FHollowSectorGenInput Base;
-	Base.Rules = Biome->GenRules;
-	Base.Templates = HollowSectorTemplates::MakeTemplates(Rooms, Biome->GenRules);
-	TestEqual(TEXT("Every Docks room has a role under the Docks rules"), Base.Templates.Num(), Rooms.Num());
-	const TArray<FString> Errors = FHollowSectorGenerator::ValidateInput(Base);
-	for (const FString& Error : Errors)
-	{
-		AddError(Error);
-	}
-	if (!Errors.IsEmpty())
-	{
-		return false;
-	}
-
-	int32 TotalAttempts = 0;
-	int32 TotalRooms = 0;
-	const double Start = FPlatformTime::Seconds();
-	Sweep(*this, Base, [this, &TotalRooms, &Base](const int32 Seed, const FHollowSectorLayout& Layout)
-	{
-		TotalRooms += Layout.Rooms.Num();
-		// The real kit lets almost any link be a bulkhead: none may cut a room off (S3-01).
-		const int32 CutOff = CutOffByBulkheads(Layout);
-		if (CutOff > 0 || CountBulkheads(Layout) < Base.Rules.MinBulkheadConnections)
-		{
-			AddError(FString::Printf(TEXT("Docks seed %d: %d room(s) behind bulkheads, %d bulkheads"), Seed, CutOff, CountBulkheads(Layout)));
-		}
-	}, &TotalAttempts);
-	AddInfo(FString::Printf(TEXT("Docks: %d seeds, avg %.1f rooms, %.2f attempts, %.2f ms per sector"), SweepSeeds,
-		double(TotalRooms) / SweepSeeds, double(TotalAttempts) / SweepSeeds, (FPlatformTime::Seconds() - Start) * 1000.0 / SweepSeeds));
-	return true;
+bool FHollowGenCathedralPoolTest::RunTest(const FString& Parameters)
+{
+	// S7-01 (ADR-0038): the Reactor Cathedral's own kit and rules generate on every seed of 1000.
+	using namespace HollowGenTests;
+	return CheckRealPool(*this, CathedralData, CathedralPlugin);
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

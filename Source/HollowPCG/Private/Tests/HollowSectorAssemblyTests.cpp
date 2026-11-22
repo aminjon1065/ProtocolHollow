@@ -20,6 +20,10 @@
 namespace HollowAssemblyTests
 {
 	const TCHAR* const DocksData = TEXT("/HollowSector_Docks/Data");
+	const TCHAR* const DocksPlugin = TEXT("HollowSector_Docks");
+	/** Sector II (S7-01, ADR-0038). */
+	const TCHAR* const CathedralData = TEXT("/HollowSector_Cathedral/Data");
+	const TCHAR* const CathedralPlugin = TEXT("HollowSector_Cathedral");
 	constexpr int32 RoundTripSeeds = 50;
 	constexpr int32 FirstSeed = 1;
 	constexpr int32 AssemblySeed = 42;
@@ -37,44 +41,52 @@ namespace HollowAssemblyTests
 	/** Clearance above the floor, so the sweep starts free and only the opening can stop it. */
 	constexpr double FloorClearance = 10.0;
 
-	struct FDocks
+	/** One sector plugin's rooms and biome. */
+	struct FSector
 	{
+		const TCHAR* Plugin = nullptr;
 		UHollowBiomeDefinition* Biome = nullptr;
 		TArray<UHollowRoomDefinition*> Rooms;
 	};
 
-	FDocks LoadDocks()
+	FSector LoadSector(const TCHAR* DataPath, const TCHAR* Plugin)
 	{
 		IAssetRegistry& Registry = IAssetRegistry::GetChecked();
-		Registry.ScanPathsSynchronous({FString(DocksData)}, /*bForceRescan=*/false);
+		Registry.ScanPathsSynchronous({FString(DataPath)}, /*bForceRescan=*/false);
 		FARFilter Filter;
-		Filter.PackagePaths.Add(FName(DocksData));
+		Filter.PackagePaths.Add(FName(DataPath));
 		Filter.bRecursivePaths = true;
 		Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
 		Filter.ClassPaths.Add(UHollowBiomeDefinition::StaticClass()->GetClassPathName());
 		TArray<FAssetData> Assets;
 		Registry.GetAssets(Filter, Assets);
 
-		FDocks Docks;
+		FSector Sector;
+		Sector.Plugin = Plugin;
 		for (const FAssetData& Asset : Assets)
 		{
 			UObject* Object = Asset.GetAsset();
-			Docks.Biome = Docks.Biome ? Docks.Biome : Cast<UHollowBiomeDefinition>(Object);
+			Sector.Biome = Sector.Biome ? Sector.Biome : Cast<UHollowBiomeDefinition>(Object);
 			if (UHollowRoomDefinition* Room = Cast<UHollowRoomDefinition>(Object))
 			{
-				Docks.Rooms.Add(Room);
+				Sector.Rooms.Add(Room);
 			}
 		}
-		return Docks;
+		return Sector;
 	}
 
-	/** Generates a Docks sector and its manifest, as the raid authority does. */
-	bool MakeSector(const FDocks& Docks, const int32 Seed, FHollowSectorLayout& OutLayout, FHollowSectorManifest& OutManifest, FString& OutError)
+	FSector LoadDocks()
+	{
+		return LoadSector(DocksData, DocksPlugin);
+	}
+
+	/** Generates a sector and its manifest, as the raid authority does. */
+	bool MakeSector(const FSector& Sector, const int32 Seed, FHollowSectorLayout& OutLayout, FHollowSectorManifest& OutManifest, FString& OutError)
 	{
 		FHollowSectorGenInput Input;
 		Input.Seed = Seed;
-		Input.Rules = Docks.Biome->GenRules;
-		Input.Templates = HollowSectorTemplates::MakeTemplates(TArray<const UHollowRoomDefinition*>(Docks.Rooms), Docks.Biome->GenRules);
+		Input.Rules = Sector.Biome->GenRules;
+		Input.Templates = HollowSectorTemplates::MakeTemplates(TArray<const UHollowRoomDefinition*>(Sector.Rooms), Sector.Biome->GenRules);
 		if (FHollowSectorGenerator::Generate(Input, OutLayout) != EHollowGenResult::Success)
 		{
 			OutError = FString::Printf(TEXT("seed %d did not generate"), Seed);
@@ -83,10 +95,10 @@ namespace HollowAssemblyTests
 		TArray<UHollowRoomDefinition*> Definitions;
 		for (const FString& Id : OutLayout.TemplateIds)
 		{
-			UHollowRoomDefinition* const* Room = Docks.Rooms.FindByPredicate([&Id](const UHollowRoomDefinition* R) { return R->GetPrimaryAssetId().ToString() == Id; });
+			UHollowRoomDefinition* const* Room = Sector.Rooms.FindByPredicate([&Id](const UHollowRoomDefinition* R) { return R->GetPrimaryAssetId().ToString() == Id; });
 			Definitions.Add(Room ? *Room : nullptr);
 		}
-		return HollowSectorManifest::Build(OutLayout, Definitions, Docks.Biome, FName(TEXT("HollowSector_Docks")), BuildId, OutManifest, OutError);
+		return HollowSectorManifest::Build(OutLayout, Definitions, Sector.Biome, FName(Sector.Plugin), BuildId, OutManifest, OutError);
 	}
 
 	/** Same sector: rooms (by template id), connections and sealed connectors. Template order may differ. */
@@ -109,6 +121,101 @@ namespace HollowAssemblyTests
 		}
 		return true;
 	}
+
+	/**
+	 * One sector of the plugin assembled from its manifest in a game world: every room a visible level instance, the
+	 * local hash equal to the server's, every unused connector plugged against a pawn; teardown removes it all.
+	 */
+	bool RunAssemblyTest(FAutomationTestBase& Test, const TCHAR* DataPath, const TCHAR* Plugin)
+	{
+		const FSector Sector = LoadSector(DataPath, Plugin);
+		FHollowSectorLayout Layout;
+		FHollowSectorManifest Manifest;
+		FString Error;
+		if (!Test.TestNotNull(FString::Printf(TEXT("%s biome"), Plugin), Sector.Biome) || !Test.TestTrue(TEXT("Sector generates"), MakeSector(Sector, AssemblySeed, Layout, Manifest, Error)))
+		{
+			return false;
+		}
+
+		struct FState
+		{
+			FTestWorldWrapper World;
+			int32 AssembledBuild = 0;
+			uint32 AssembledHash = 0;
+			int32 Broadcasts = 0;
+			double Deadline = 0.0;
+		};
+		const TSharedRef<FState> State = MakeShared<FState>();
+		if (!State->World.CreateTestWorld(EWorldType::Game))
+		{
+			State->World.ForwardErrorMessages(&Test);
+			return false;
+		}
+		// A raid assembles in a world that has begun play (static components then refuse new meshes): the same here.
+		State->World.GetTestWorld()->SetBegunPlay(true);
+		UHollowSectorAssemblySubsystem* Assembly = State->World.GetTestWorld()->GetSubsystem<UHollowSectorAssemblySubsystem>();
+		if (!Test.TestNotNull(TEXT("Game worlds get the assembly subsystem"), Assembly))
+		{
+			return false;
+		}
+		Assembly->OnAssembled.AddLambda([State](const int32 Build, const uint32 Hash)
+		{
+			State->AssembledBuild = Build;
+			State->AssembledHash = Hash;
+			++State->Broadcasts;
+		});
+		State->Deadline = FPlatformTime::Seconds() + AssemblyTimeoutSeconds;
+		Assembly->Assemble(Manifest);
+
+		const int32 Rooms = Manifest.Rooms.Num();
+		const int32 Sealed = Layout.Sealed.Num();
+		const uint32 Hash = Manifest.LayoutHash;
+		const TArray<FHollowSealedConnector> SealedConnectors = Layout.Sealed;
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([&Test, State, Assembly, Rooms, Sealed, Hash, SealedConnectors]()
+		{
+			if (!Assembly->IsAssembled())
+			{
+				if (FPlatformTime::Seconds() > State->Deadline)
+				{
+					Test.AddError(TEXT("The sector did not assemble in time"));
+					return true;
+				}
+				State->World.GetTestWorld()->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+				State->World.TickTestWorld();
+				return false;
+			}
+
+			Test.TestEqual(TEXT("OnAssembled fired once"), State->Broadcasts, 1);
+			Test.TestEqual(TEXT("For our build"), State->AssembledBuild, BuildId);
+			Test.TestTrue(TEXT("Local hash equals the server's"), State->AssembledHash == Hash && Assembly->GetLocalHash() == Hash);
+			Test.TestEqual(TEXT("Every room is a visible level instance"), Assembly->NumVisibleRooms(), Rooms);
+			Test.TestEqual(TEXT("Every unused connector is plugged"), Assembly->NumPlugs(), Sealed);
+
+			// A plug closes its opening for players: a pawn capsule walking out through it is stopped.
+			const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
+			for (const FHollowSealedConnector& Connector : SealedConnectors)
+			{
+				const FTransform Opening = HollowSectorManifest::OpeningTransform(Connector.Cell, Connector.Side, *Metrics, UHollowSectorAssemblySubsystem::GetSectorOrigin());
+				const FIntPoint Step = HollowGridMath::Offset(Connector.Side);
+				const FVector Out(Step.X, Step.Y, 0.0);
+				const FVector Centre = Opening.GetLocation() + FVector(0.0, 0.0, PawnHalfHeight + FloorClearance);
+				FCollisionResponseParams Responses;
+				Responses.CollisionResponse.SetAllChannels(ECR_Block);
+				FHitResult Hit;
+				const bool bBlocked = State->World.GetTestWorld()->SweepSingleByChannel(Hit, Centre - Out * SweepReach, Centre + Out * SweepReach, FQuat::Identity,
+					ECC_Pawn, FCollisionShape::MakeCapsule(PawnRadius, PawnHalfHeight), FCollisionQueryParams(SCENE_QUERY_STAT(HollowPlugTest)), Responses);
+				Test.TestTrue(FString::Printf(TEXT("Room %d connector %d (%s %s): the plug stops a pawn (hit %s)"), Connector.Room, Connector.Connector,
+					*Connector.Cell.ToString(), *UEnum::GetValueAsString(Connector.Side), *GetNameSafe(Hit.GetActor())), bBlocked && !Hit.bStartPenetrating);
+			}
+
+			Assembly->Teardown();
+			Test.TestEqual(TEXT("Teardown unloads the rooms"), Assembly->NumRoomInstances(), 0);
+			Test.TestEqual(TEXT("Teardown removes the plugs"), Assembly->NumPlugs(), 0);
+			Test.TestFalse(TEXT("Nothing assembled after teardown"), Assembly->IsAssembled());
+			return true;
+		}));
+		return true;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowManifestRoundTripTest, "Hollow.PCG.Sector.ManifestRoundTrip",
@@ -117,7 +224,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowManifestRoundTripTest, "Hollow.PCG.Secto
 bool FHollowManifestRoundTripTest::RunTest(const FString& Parameters)
 {
 	using namespace HollowAssemblyTests;
-	const FDocks Docks = LoadDocks();
+	const FSector Docks = LoadDocks();
 	if (!TestNotNull(TEXT("Docks biome"), Docks.Biome))
 	{
 		return false;
@@ -167,7 +274,7 @@ bool FHollowSectorTransformsTest::RunTest(const FString& Parameters)
 {
 	using namespace HollowAssemblyTests;
 	using namespace HollowGridMath;
-	const FDocks Docks = LoadDocks();
+	const FSector Docks = LoadDocks();
 	FHollowSectorLayout Layout;
 	FHollowSectorManifest Manifest;
 	FString Error;
@@ -229,93 +336,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSectorAssemblyTest, "Hollow.PCG.Sector.A
 bool FHollowSectorAssemblyTest::RunTest(const FString& Parameters)
 {
 	using namespace HollowAssemblyTests;
-	const FDocks Docks = LoadDocks();
-	FHollowSectorLayout Layout;
-	FHollowSectorManifest Manifest;
-	FString Error;
-	if (!TestNotNull(TEXT("Docks biome"), Docks.Biome) || !TestTrue(TEXT("Sector generates"), MakeSector(Docks, AssemblySeed, Layout, Manifest, Error)))
-	{
-		return false;
-	}
+	return RunAssemblyTest(*this, DocksData, DocksPlugin);
+}
 
-	struct FState
-	{
-		FTestWorldWrapper World;
-		int32 AssembledBuild = 0;
-		uint32 AssembledHash = 0;
-		int32 Broadcasts = 0;
-		double Deadline = 0.0;
-	};
-	const TSharedRef<FState> State = MakeShared<FState>();
-	if (!State->World.CreateTestWorld(EWorldType::Game))
-	{
-		State->World.ForwardErrorMessages(this);
-		return false;
-	}
-	// A raid assembles in a world that has begun play (static components then refuse new meshes): the same here.
-	State->World.GetTestWorld()->SetBegunPlay(true);
-	UHollowSectorAssemblySubsystem* Assembly = State->World.GetTestWorld()->GetSubsystem<UHollowSectorAssemblySubsystem>();
-	if (!TestNotNull(TEXT("Game worlds get the assembly subsystem"), Assembly))
-	{
-		return false;
-	}
-	Assembly->OnAssembled.AddLambda([State](const int32 Build, const uint32 Hash)
-	{
-		State->AssembledBuild = Build;
-		State->AssembledHash = Hash;
-		++State->Broadcasts;
-	});
-	State->Deadline = FPlatformTime::Seconds() + AssemblyTimeoutSeconds;
-	Assembly->Assemble(Manifest);
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCathedralAssemblyTest, "Hollow.PCG.Sector.CathedralAssembly",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-	const int32 Rooms = Manifest.Rooms.Num();
-	const int32 Sealed = Layout.Sealed.Num();
-	const uint32 Hash = Manifest.LayoutHash;
-	const TArray<FHollowSealedConnector> SealedConnectors = Layout.Sealed;
-	ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State, Assembly, Rooms, Sealed, Hash, SealedConnectors]()
-	{
-		if (!Assembly->IsAssembled())
-		{
-			if (FPlatformTime::Seconds() > State->Deadline)
-			{
-				AddError(TEXT("The sector did not assemble in time"));
-				return true;
-			}
-			State->World.GetTestWorld()->FlushLevelStreaming(EFlushLevelStreamingType::Full);
-			State->World.TickTestWorld();
-			return false;
-		}
-
-		TestEqual(TEXT("OnAssembled fired once"), State->Broadcasts, 1);
-		TestEqual(TEXT("For our build"), State->AssembledBuild, BuildId);
-		TestTrue(TEXT("Local hash equals the server's"), State->AssembledHash == Hash && Assembly->GetLocalHash() == Hash);
-		TestEqual(TEXT("Every room is a visible level instance"), Assembly->NumVisibleRooms(), Rooms);
-		TestEqual(TEXT("Every unused connector is plugged"), Assembly->NumPlugs(), Sealed);
-
-		// A plug closes its opening for players: a pawn capsule walking out through it is stopped.
-		const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
-		for (const FHollowSealedConnector& Connector : SealedConnectors)
-		{
-			const FTransform Opening = HollowSectorManifest::OpeningTransform(Connector.Cell, Connector.Side, *Metrics, UHollowSectorAssemblySubsystem::GetSectorOrigin());
-			const FIntPoint Step = HollowGridMath::Offset(Connector.Side);
-			const FVector Out(Step.X, Step.Y, 0.0);
-			const FVector Centre = Opening.GetLocation() + FVector(0.0, 0.0, PawnHalfHeight + FloorClearance);
-			FCollisionResponseParams Responses;
-			Responses.CollisionResponse.SetAllChannels(ECR_Block);
-			FHitResult Hit;
-			const bool bBlocked = State->World.GetTestWorld()->SweepSingleByChannel(Hit, Centre - Out * SweepReach, Centre + Out * SweepReach, FQuat::Identity,
-				ECC_Pawn, FCollisionShape::MakeCapsule(PawnRadius, PawnHalfHeight), FCollisionQueryParams(SCENE_QUERY_STAT(HollowPlugTest)), Responses);
-			TestTrue(FString::Printf(TEXT("Room %d connector %d (%s %s): the plug stops a pawn (hit %s)"), Connector.Room, Connector.Connector,
-				*Connector.Cell.ToString(), *UEnum::GetValueAsString(Connector.Side), *GetNameSafe(Hit.GetActor())), bBlocked && !Hit.bStartPenetrating);
-		}
-
-		Assembly->Teardown();
-		TestEqual(TEXT("Teardown unloads the rooms"), Assembly->NumRoomInstances(), 0);
-		TestEqual(TEXT("Teardown removes the plugs"), Assembly->NumPlugs(), 0);
-		TestFalse(TEXT("Nothing assembled after teardown"), Assembly->IsAssembled());
-		return true;
-	}));
-	return true;
+bool FHollowCathedralAssemblyTest::RunTest(const FString& Parameters)
+{
+	// S7-01 (ADR-0038): a Cathedral sector assembles from its manifest like the Docks, two-storey halls included.
+	using namespace HollowAssemblyTests;
+	return RunAssemblyTest(*this, CathedralData, CathedralPlugin);
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

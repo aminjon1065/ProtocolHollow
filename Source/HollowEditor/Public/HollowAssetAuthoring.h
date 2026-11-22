@@ -21,7 +21,8 @@ public:
 
 	/**
 	 * A component of Class added to a placed actor of the open level (saved with it), or the actor's existing one of that
-	 * name: e.g. the reverb and filter mutators of an Audio Gameplay Volume, which editor Python cannot add itself.
+	 * name: e.g. the reverb and filter mutators of an Audio Gameplay Volume, which editor Python cannot add itself. A scene
+	 * component attaches to the actor's root, or becomes the root of an actor without one (the Cathedral's decor).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Assets")
 	static UActorComponent* AddInstanceComponent(AActor* Actor, TSubclassOf<UActorComponent> Class, FName Name);

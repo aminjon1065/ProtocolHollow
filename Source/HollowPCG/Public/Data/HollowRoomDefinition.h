@@ -30,7 +30,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
 	TSoftObjectPtr<UWorld> RoomLevel;
 
-	/** Size in grid cells (UHollowLevelMetrics). The vertical slice uses one storey: Z = 1. */
+	/** Size in grid cells (UHollowLevelMetrics). Z: storeys of one tall volume, up to MaxRoomStoreys; connectors stay at Z = 0. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
 	FIntVector Footprint = FIntVector(1, 1, 1);
 

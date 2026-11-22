@@ -1,6 +1,6 @@
 # Метрики уровня и стандарт модульного кита (S1-07)
 
-> Источник чисел — `UHollowLevelMetrics` (`Config/DefaultGame.ini`, Project Settings → Game → Hollow Level Metrics). Этот документ объясняет их и описывает правила для автора комнат. Генератор (S2-01), валидатор `HollowRoomRules` и сборщик greybox `Build/Python/create_docks_greybox.py` читают одни и те же значения. Если меняешь число, меняй его в ini; согласованность проверяет тест `Hollow.PCG.LevelMetrics`.
+> Источник чисел — `UHollowLevelMetrics` (`Config/DefaultGame.ini`, Project Settings → Game → Hollow Level Metrics). Этот документ объясняет их и описывает правила для автора комнат. Генератор (S2-01), валидатор `HollowRoomRules` и сборщики greybox `Build/Python/create_docks_greybox.py` и `create_cathedral_greybox.py` читают одни и те же значения. Если меняешь число, меняй его в ini; согласованность проверяет тест `Hollow.PCG.LevelMetrics`.
 
 ## 1. Числа
 
@@ -8,6 +8,7 @@
 |---|---|---|
 | `CellSize` | **400 uu** | клетка грида по X и Y; footprint комнаты — целое число клеток |
 | `CellHeight` | **400 uu** | чистая высота этажа: от верха пола до низа потолка |
+| `MaxRoomStoreys` | **2** | самая высокая комната в этажах (`Footprint.Z`): двухсветный зал — один объём высотой 800, проёмы только на полу (S7-01, [ADR-0038](../ADR/ADR-0038-cathedral-sector-two-storey-rooms.md)) |
 | `WallThickness` | **20 uu** | стены стоят **внутри** footprint, внешней гранью по его границе |
 | `SlabThickness` | **20 uu** | плиты пола и потолка: пол под Z = 0, потолок над Z = `CellHeight` |
 | `DoorWidth × DoorHeight` | **300 × 350 uu** | единственный стандартный проём коннектора (решение S1-07, п. 2) |
@@ -37,7 +38,10 @@
 
 - Стороны: **North = +X, East = +Y, South = −X, West = −Y** (`EHollowRoomSide`).
 - Ячейка `(x, y, 0)` занимает `[x·400, (x+1)·400] × [y·400, (y+1)·400]`.
-- В вертикальном срезе **один этаж**: `Footprint.Z = 1`, у коннекторов `Cell.Z = 0`. `FIntVector` оставлен на будущее, чтобы лестницы и шахты не потребовали миграции данных.
+- Сектор — **один этаж пола**. Комната бывает выше: `Footprint.Z` от 1 до `MaxRoomStoreys` (2).
+  - **Двухсветный зал** (`Footprint.Z = 2`) — один высокий объём: потолок на `2 × CellHeight` = 800, верхний ярус (карниз, ланцеты) недоступен.
+  - У всех коннекторов `Cell.Z = 0`: проёмы 300 × 350 стоят на полу, как в одноэтажной комнате. Правила `TooManyStoreys` и `ConnectorAboveFloor`.
+  - Генератор, манифест и сборка работают на плоской сетке X×Y; высота — только данные комнаты (топология ИИ, радиус ламп, акустика).
 - Поворот комнаты генератор делает шагом 90° (`Yaw90` в манифесте, ADR-0003). В комнате ничего не должно зависеть от абсолютной ориентации.
 
 ## 3. Коннектор
@@ -55,14 +59,16 @@
 - Сокеты живут **только в DA** (решение S1-07, п. 6). Маркеров в уровне нет, спавн по ним появится в S2-02.
 - Держи сокеты не ближе 100 uu к стенам и не ставь их перед проёмами: ядро и враги не должны перекрывать проход.
 
-## 5. Именование и папки (content-only GFP `HollowSector_Docks`, ADR-0012)
+## 5. Именование и папки (content-only GFP `HollowSector_<Name>`, ADR-0012)
 
 | Что | Путь | Имя |
 |---|---|---|
 | уровень-оболочка | `/HollowSector_Docks/Rooms/` | `LV_Docks_<Room>` |
 | описание комнаты | `/HollowSector_Docks/Data/` | `DA_Room_Docks_<Room>` (primary asset type `HollowRoom`; каталог добавляет `GameFeatureData` плагина) |
 
-На диске: `Plugins/GameFeatures/HollowSector_Docks/Content/`. В Content Browser плагин виден при включённом Show Plugin Content.
+Сектор II — так же: `/HollowSector_Cathedral/Rooms/LV_Cathedral_<Room>`, `/HollowSector_Cathedral/Data/DA_Room_Cathedral_<Room>`, биом `DA_Biome_Cathedral`.
+
+На диске: `Plugins/GameFeatures/HollowSector_<Name>/Content/`. В Content Browser плагин виден при включённом Show Plugin Content.
 
 Тип комнаты — ровно один тег `Hollow.Room.Type.{Spawn, Extraction, CoreVault, Hangar, Corridor, Junction, Storage}` в `RoomTags`.
 
@@ -81,15 +87,34 @@
 
 Т-развилка, угол, прямой коридор и четырёхсторонний ангар дают генератору детали для петель (`MinLoops`, ADR-0003).
 
+## 6a. Greybox-кит «Собор Реактора» (8 модулей, S7-01, [ADR-0038](../ADR/ADR-0038-cathedral-sector-two-storey-rooms.md))
+
+| Комната | Тип | Клетки (X×Y) | Высота | Коннекторы | Сокеты |
+|---|---|---|---|---|---|
+| `Narthex` | Spawn | 2×2 | 400 | (1,0) N · Door | 4 × PlayerSpawn |
+| `Extraction_Belfry` | Extraction | 3×2 | **800** | (0,0) S · Door/Open | Extraction, VentNode |
+| `ReactorCrypt` | CoreVault | 2×2 | 400 | (0,0) S, (1,1) N · Door/Bulkhead | CoreSpawn, 2 × Loot, VentNode |
+| `Nave` | Hangar | 4×3 | **800** | (0,1) S, (1,0) W, (1,2) E, (3,0) W · все виды | 3 × Loot, 2 × EnemySpawn, VentNode |
+| `Crossing` | Junction | 3×3 | **800** | по центру каждой стороны · все виды | 2 × Loot, EnemySpawn, VentNode |
+| `Cloister_Straight` | Corridor | 1×2 | 400 | (0,0) W, (0,1) E · все виды | VentNode |
+| `Cloister_Corner` | Corridor | 1×1 | 400 | S, E · все виды | — |
+| `Chapel` | Storage | 2×2 | **800** | (0,0) W, (1,1) E · Door/Bulkhead | 3 × Loot, EnemySpawn, VentNode |
+
+Готический декор — два `InstancedStaticMesh` актёра `Decor`:
+- **с коллизией:** колонны 80 × 80 (базы 100 × 100 × 30) во внутренних узлах сетки, пилястры 60 × 20 на границах клеток, колонки у проёмов высоких залов;
+- **без коллизии и навигации:** нервюры и замки сводов, капители, карниз второго света на 400, ланцеты верхнего яруса, стрельчатые арки над проёмами.
+
+Между базами колонн и от базы до стены — не меньше `MinCorridorWidth`. Ниже 300 uu в одноэтажных комнатах и ниже 350 в высоких — только то, что с коллизией и стоит вне проёмов. Свободный пол в апсиде `Nave` и в середине `Chapel` — место под алтарь (S7-02).
+
 ## 7. Чек-лист автора комнаты
 
-1. Footprint — целые клетки, один этаж.
+1. Footprint — целые клетки; по высоте — до `MaxRoomStoreys`, все проёмы на полу.
 2. Каждый проём — 300 × 350 по центру внешнего ребра клетки, и под каждым есть запись в `Connectors`. Других дыр в периметре нет.
 3. Стены внутри footprint, внешней гранью по границе; ничего не выступает за footprint (иначе генератор получит пересечения).
 4. В уровне только статика, свет и звук. Двери, лут, враги, PlayerStart и триггеры не ставятся. Свет — в бюджете типа комнаты (§9).
 5. Ровно один `Hollow.Room.Type.*`, сокеты внутри footprint, у каждого есть тип.
-6. Сохрани DA — Data Validation (`IsDataValid` → `HollowRoomRules`) покажет нарушения. Перед коммитом прогони `run-tests-mac.sh --strict` (`Hollow.PCG.DocksRooms`).
-7. Сверку «проём в геометрии ↔ коннектор в DA» делает `Hollow.PCG.DocksOpenings` (ADR-0027): через каждый проём проходят капсулы игрока и Пилигрима.
+6. Сохрани DA — Data Validation (`IsDataValid` → `HollowRoomRules`) покажет нарушения. Перед коммитом прогони `run-tests-mac.sh --strict` (`Hollow.PCG.DocksRooms`, `Hollow.PCG.CathedralRooms`).
+7. Сверку «проём в геометрии ↔ коннектор в DA» делают `Hollow.PCG.DocksOpenings` и `Hollow.PCG.CathedralOpenings` (ADR-0027): через каждый проём проходят капсулы игрока и Пилигрима. У Собора тест ещё ставит капсулу на каждый сокет: колонна или декор на сокете — ошибка.
 8. Оформляешь уровень руками — сначала **Art Locked** в DA комнаты ([ArtPassGuide.md](ArtPassGuide.md)).
 
 ## 8. Ручная проверка

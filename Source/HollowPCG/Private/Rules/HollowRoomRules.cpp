@@ -48,9 +48,9 @@ TArray<FHollowRoomIssue> HollowRoomRules::ValidateRoom(const UHollowRoomDefiniti
 	{
 		Add(EHollowRoomIssue::EmptyFootprint);
 	}
-	else if (Footprint.Z != 1)
+	else if (Footprint.Z > Metrics.MaxRoomStoreys)
 	{
-		Add(EHollowRoomIssue::MultiStorey);   // vertical slice: one storey (LevelMetrics.md)
+		Add(EHollowRoomIssue::TooManyStoreys);   // a tall hall, never stacked floors (LevelMetrics.md, ADR-0038)
 	}
 	if (Room.RoomLevel.IsNull())
 	{
@@ -78,6 +78,10 @@ TArray<FHollowRoomIssue> HollowRoomRules::ValidateRoom(const UHollowRoomDefiniti
 		if (Connector.AllowedKinds == 0)
 		{
 			Add(EHollowRoomIssue::ConnectorWithoutKinds, Index);
+		}
+		if (Connector.Cell.Z != 0)
+		{
+			Add(EHollowRoomIssue::ConnectorAboveFloor, Index);   // the sector is one floor: openings stand on it
 		}
 		for (int32 Earlier = 0; Earlier < Index; ++Earlier)
 		{
@@ -119,7 +123,7 @@ TArray<FHollowRoomIssue> HollowRoomRules::ValidateRoom(const UHollowRoomDefiniti
 TArray<EHollowMetricsIssue> HollowRoomRules::ValidateMetrics(const UHollowLevelMetrics& M)
 {
 	TArray<EHollowMetricsIssue> Issues;
-	const int32 Values[] = {M.CellSize, M.CellHeight, M.WallThickness, M.SlabThickness, M.DoorWidth, M.DoorHeight,
+	const int32 Values[] = {M.CellSize, M.CellHeight, M.MaxRoomStoreys, M.WallThickness, M.SlabThickness, M.DoorWidth, M.DoorHeight,
 		M.MinCorridorWidth, M.VentSize, M.LargestAgentRadius, M.LargestAgentHeight};
 	for (const int32 Value : Values)
 	{
@@ -161,13 +165,14 @@ FText HollowRoomRules::Describe(const FHollowRoomIssue& Issue)
 	switch (Issue.Code)
 	{
 	case EHollowRoomIssue::EmptyFootprint:            What = LOCTEXT("EmptyFootprint", "Footprint must be at least one cell on every axis."); break;
-	case EHollowRoomIssue::MultiStorey:               What = LOCTEXT("MultiStorey", "Footprint.Z must be 1: the vertical slice has one storey."); break;
+	case EHollowRoomIssue::TooManyStoreys:            What = LOCTEXT("TooManyStoreys", "Footprint.Z is above MaxRoomStoreys (Hollow Level Metrics)."); break;
 	case EHollowRoomIssue::NoLevel:                   What = LOCTEXT("NoLevel", "RoomLevel is not set."); break;
 	case EHollowRoomIssue::NoConnectors:              What = LOCTEXT("NoConnectors", "A room needs at least one connector."); break;
 	case EHollowRoomIssue::ConnectorOutsideFootprint: What = LOCTEXT("ConnectorOutside", "Connector cell is outside the footprint."); break;
 	case EHollowRoomIssue::ConnectorFacesInside:      What = LOCTEXT("ConnectorInside", "Connector does not lie on the outer boundary (its side faces another cell of the room)."); break;
 	case EHollowRoomIssue::DuplicateConnector:        What = LOCTEXT("DuplicateConnector", "Two connectors share the same cell and side."); break;
 	case EHollowRoomIssue::ConnectorWithoutKinds:     What = LOCTEXT("ConnectorWithoutKinds", "Connector allows no kind (Door, Bulkhead or Open)."); break;
+	case EHollowRoomIssue::ConnectorAboveFloor:       What = LOCTEXT("ConnectorAboveFloor", "Connector cell must be on the floor (Cell.Z = 0): a tall hall has its openings below."); break;
 	case EHollowRoomIssue::SocketWithoutType:         What = LOCTEXT("SocketWithoutType", "Socket type must be a Hollow.Socket.* tag."); break;
 	case EHollowRoomIssue::SocketOutsideFootprint:    What = LOCTEXT("SocketOutside", "Socket lies outside the room footprint."); break;
 	case EHollowRoomIssue::RoomTypeCount:             What = LOCTEXT("RoomTypeCount", "RoomTags must contain exactly one Hollow.Room.Type.* tag."); break;

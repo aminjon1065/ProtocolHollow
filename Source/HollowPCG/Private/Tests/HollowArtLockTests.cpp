@@ -23,6 +23,9 @@ namespace HollowArtLockTests
 {
 	const TCHAR* const DocksData = TEXT("/HollowSector_Docks/Data");
 	constexpr int32 DocksRooms = 8;
+	/** Sector II (S7-01, ADR-0038). */
+	const TCHAR* const CathedralData = TEXT("/HollowSector_Cathedral/Data");
+	constexpr int32 CathedralRooms = 8;
 	/** Rooms are streamed side by side this far apart (test data: far more than any room's footprint). */
 	constexpr double RoomSpacing = 20000.0;
 	constexpr double StreamTimeoutSeconds = 60.0;
@@ -36,12 +39,12 @@ namespace HollowArtLockTests
 	const TCHAR* const CubeMesh = TEXT("/Engine/BasicShapes/Cube.Cube");
 	constexpr double CubeSize = 100.0;
 
-	TArray<UHollowRoomDefinition*> DocksRoomDefinitions()
+	TArray<UHollowRoomDefinition*> RoomDefinitions(const TCHAR* DataPath)
 	{
 		IAssetRegistry& Registry = IAssetRegistry::GetChecked();
-		Registry.ScanPathsSynchronous({FString(DocksData)}, /*bForceRescan=*/false);
+		Registry.ScanPathsSynchronous({FString(DataPath)}, /*bForceRescan=*/false);
 		FARFilter Filter;
-		Filter.PackagePaths.Add(FName(DocksData));
+		Filter.PackagePaths.Add(FName(DataPath));
 		Filter.bRecursivePaths = true;
 		Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
 		TArray<FAssetData> Assets;
@@ -65,6 +68,143 @@ namespace HollowArtLockTests
 		Info.bLightFunction = bLightFunction;
 		return Info;
 	}
+
+	/**
+	 * ADR-0027: whatever stands in a room level (greybox or art), every connector's opening lets a player and the
+	 * largest agent (the Iron Pilgrim, UHollowLevelMetrics) walk through: each room of the sector is streamed as a
+	 * level instance and both capsules are swept out through each opening with the pawns' own collision. A cube set
+	 * into an opening must stop the sweep (the check sees what it should). With bCheckSockets every socket must stand
+	 * on clear floor too.
+	 */
+	bool RunOpeningsTest(FAutomationTestBase& Test, const TCHAR* DataPath, const int32 ExpectedRooms, const bool bCheckSockets)
+	{
+		const TArray<UHollowRoomDefinition*> Rooms = RoomDefinitions(DataPath);
+		if (!Test.TestEqual(FString::Printf(TEXT("%s: rooms"), DataPath), Rooms.Num(), ExpectedRooms))
+		{
+			return false;
+		}
+		struct FState
+		{
+			FTestWorldWrapper World;
+			TArray<TPair<UHollowRoomDefinition*, FVector>> Placed;
+			TArray<ULevelStreamingDynamic*> Levels;
+			double Deadline = 0.0;
+		};
+		const TSharedRef<FState> State = MakeShared<FState>();
+		if (!State->World.CreateTestWorld(EWorldType::Game))
+		{
+			State->World.ForwardErrorMessages(&Test);
+			return false;
+		}
+		UWorld* World = State->World.GetTestWorld();
+		for (int32 Index = 0; Index < Rooms.Num(); ++Index)
+		{
+			const FVector Origin(Index * RoomSpacing, 0.0, 0.0);
+			bool bLoaded = false;
+			ULevelStreamingDynamic* Level = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(World, Rooms[Index]->RoomLevel, FTransform(Origin), bLoaded,
+				FString::Printf(TEXT("OpeningsTest_%d"), Index));
+			if (Test.TestTrue(FString::Printf(TEXT("%s streams"), *Rooms[Index]->GetName()), bLoaded && Level))
+			{
+				State->Levels.Add(Level);
+				State->Placed.Emplace(Rooms[Index], Origin);
+			}
+		}
+		State->Deadline = FPlatformTime::Seconds() + StreamTimeoutSeconds;
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([&Test, State, bCheckSockets]()
+		{
+			UWorld* TestWorld = State->World.GetTestWorld();
+			if (State->Levels.ContainsByPredicate([](const ULevelStreamingDynamic* Level) { return !Level->IsLevelVisible(); }))
+			{
+				if (FPlatformTime::Seconds() > State->Deadline)
+				{
+					Test.AddError(TEXT("The room levels did not stream in time"));
+					return true;
+				}
+				TestWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+				State->World.TickTestWorld();
+				return false;
+			}
+
+			const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
+			struct FCapsule
+			{
+				const TCHAR* Who;
+				float Radius;
+				float HalfHeight;
+			};
+			const FCapsule Capsules[] = {{TEXT("player"), PawnRadius, PawnHalfHeight},
+				{TEXT("largest agent"), static_cast<float>(Metrics->LargestAgentRadius), 0.5f * static_cast<float>(Metrics->LargestAgentHeight)}};
+			// A capsule swept out of the room through an opening, with the pawns' own collision; returns what stops it.
+			const auto Sweep = [TestWorld, Metrics](const FTransform& Opening, const FVector& Out, const FCapsule& Capsule, FHitResult& Hit)
+			{
+				const FVector Centre = Opening.GetLocation() + FVector(0.0, 0.0, Capsule.HalfHeight + FloorClearance);
+				const double Reach = Metrics->WallThickness + Capsule.Radius + SweepMargin;
+				return TestWorld->SweepSingleByChannel(Hit, Centre - Out * Reach, Centre + Out * (Capsule.Radius + SweepMargin), FQuat::Identity, ECC_Pawn,
+					FCollisionShape::MakeCapsule(Capsule.Radius, Capsule.HalfHeight), FCollisionQueryParams(SCENE_QUERY_STAT(HollowOpeningsTest)));
+			};
+			int32 Swept = 0;
+			TOptional<TPair<FTransform, FVector>> First;
+			for (const TPair<UHollowRoomDefinition*, FVector>& Room : State->Placed)
+			{
+				for (const FHollowRoomConnector& Connector : Room.Key->Connectors)
+				{
+					const FIntPoint Cell(Connector.Cell.X, Connector.Cell.Y);
+					const FTransform Opening = HollowSectorManifest::OpeningTransform(Cell, Connector.Side, *Metrics, Room.Value);
+					const FIntPoint Step = HollowGridMath::Offset(Connector.Side);
+					const FVector Out(Step.X, Step.Y, 0.0);
+					First = First.IsSet() ? First : TOptional<TPair<FTransform, FVector>>(TPair<FTransform, FVector>(Opening, Out));
+					for (const FCapsule& Capsule : Capsules)
+					{
+						FHitResult Hit;
+						Test.TestFalse(FString::Printf(TEXT("%s, opening at %s %s: a %s walks through (blocked by %s)"), *Room.Key->GetName(), *Cell.ToString(),
+							*HollowEnumToString(Connector.Side), Capsule.Who, *GetNameSafe(Hit.GetActor())), Sweep(Opening, Out, Capsule, Hit));
+						++Swept;
+					}
+				}
+			}
+			Test.AddInfo(FString::Printf(TEXT("%d sweeps through the openings of %d rooms"), Swept, State->Placed.Num()));
+			Test.TestTrue(TEXT("Every opening swept"), Swept > 0);
+
+			// Sockets stand on clear floor: a pawn-sized capsule at each one touches nothing (piers, decor, walls).
+			if (bCheckSockets)
+			{
+				int32 Checked = 0;
+				for (const TPair<UHollowRoomDefinition*, FVector>& Room : State->Placed)
+				{
+					for (const FHollowRoomSocket& Socket : Room.Key->Sockets)
+					{
+						const FVector At = Room.Value + Socket.Transform.GetLocation() + FVector(0.0, 0.0, PawnHalfHeight + FloorClearance);
+						Test.TestFalse(FString::Printf(TEXT("%s: socket %s at %s is clear"), *Room.Key->GetName(), *Socket.SocketType.ToString(),
+							*Socket.Transform.GetLocation().ToCompactString()), TestWorld->OverlapAnyTestByChannel(At, FQuat::Identity, ECC_Pawn,
+							FCollisionShape::MakeCapsule(PawnRadius, PawnHalfHeight), FCollisionQueryParams(SCENE_QUERY_STAT(HollowSocketClearTest))));
+						++Checked;
+					}
+				}
+				Test.AddInfo(FString::Printf(TEXT("%d sockets clear"), Checked));
+			}
+
+			// Self-check: a cube set into an opening (as art could be) stops the sweep.
+			UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, CubeMesh);
+			if (First.IsSet() && Test.TestNotNull(TEXT("Engine cube"), Cube))
+			{
+				const FVector Middle = First->Key.GetLocation() + FVector(0.0, 0.0, Capsules[0].HalfHeight + FloorClearance);
+				AStaticMeshActor* Blocker = TestWorld->SpawnActor<AStaticMeshActor>(Middle, FRotator::ZeroRotator);
+				Blocker->GetStaticMeshComponent()->SetStaticMesh(Cube);
+				Blocker->GetStaticMeshComponent()->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+				Blocker->SetActorScale3D(FVector(Metrics->DoorWidth / CubeSize, Metrics->DoorWidth / CubeSize, 1.0));   // whichever way the wall runs
+				FHitResult Hit;
+				Test.TestTrue(TEXT("A mesh in the opening stops the sweep"), Sweep(First->Key, First->Value, Capsules[0], Hit) && Hit.GetActor() == Blocker);
+				Blocker->Destroy();
+			}
+			for (ULevelStreamingDynamic* Level : State->Levels)
+			{
+				Level->SetIsRequestingUnloadAndRemoval(true);
+			}
+			TestWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+			return true;
+		}));
+		return true;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowArtLockTest, "Hollow.PCG.DocksArtLock",
@@ -79,7 +219,7 @@ bool FHollowArtLockTest::RunTest(const FString& Parameters)
 	const FProperty* Flag = FindFProperty<FProperty>(UHollowRoomDefinition::StaticClass(), TEXT("bArtLocked"));
 	TestTrue(TEXT("The lock is editor-only data"), Flag && Flag->HasAnyPropertyFlags(CPF_EditorOnly));
 
-	const TArray<UHollowRoomDefinition*> Rooms = DocksRoomDefinitions();
+	const TArray<UHollowRoomDefinition*> Rooms = RoomDefinitions(DocksData);
 	TestEqual(TEXT("Docks rooms"), Rooms.Num(), DocksRooms);
 #if WITH_EDITORONLY_DATA
 	for (UHollowRoomDefinition* Room : Rooms)
@@ -103,119 +243,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowDocksOpeningsTest, "Hollow.PCG.DocksOpen
 
 bool FHollowDocksOpeningsTest::RunTest(const FString& Parameters)
 {
-	// ADR-0027: whatever stands in a room level (greybox or art), every connector's opening lets a player and the
-	// largest agent (the Iron Pilgrim, UHollowLevelMetrics) walk through: each Docks room is streamed as a level
-	// instance and both capsules are swept out through each opening with the pawns' own collision. A cube set into an
-	// opening must stop the sweep (the check sees what it should).
-	using namespace HollowArtLockTests;
-	const TArray<UHollowRoomDefinition*> Rooms = DocksRoomDefinitions();
-	if (!TestEqual(TEXT("Docks rooms"), Rooms.Num(), DocksRooms))
-	{
-		return false;
-	}
-	struct FState
-	{
-		FTestWorldWrapper World;
-		TArray<TPair<UHollowRoomDefinition*, FVector>> Placed;
-		TArray<ULevelStreamingDynamic*> Levels;
-		double Deadline = 0.0;
-	};
-	const TSharedRef<FState> State = MakeShared<FState>();
-	if (!State->World.CreateTestWorld(EWorldType::Game))
-	{
-		State->World.ForwardErrorMessages(this);
-		return false;
-	}
-	UWorld* World = State->World.GetTestWorld();
-	for (int32 Index = 0; Index < Rooms.Num(); ++Index)
-	{
-		const FVector Origin(Index * RoomSpacing, 0.0, 0.0);
-		bool bLoaded = false;
-		ULevelStreamingDynamic* Level = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(World, Rooms[Index]->RoomLevel, FTransform(Origin), bLoaded,
-			FString::Printf(TEXT("OpeningsTest_%d"), Index));
-		if (TestTrue(FString::Printf(TEXT("%s streams"), *Rooms[Index]->GetName()), bLoaded && Level))
-		{
-			State->Levels.Add(Level);
-			State->Placed.Emplace(Rooms[Index], Origin);
-		}
-	}
-	State->Deadline = FPlatformTime::Seconds() + StreamTimeoutSeconds;
-	ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, State]()
-	{
-		UWorld* TestWorld = State->World.GetTestWorld();
-		if (State->Levels.ContainsByPredicate([](const ULevelStreamingDynamic* Level) { return !Level->IsLevelVisible(); }))
-		{
-			if (FPlatformTime::Seconds() > State->Deadline)
-			{
-				AddError(TEXT("The room levels did not stream in time"));
-				return true;
-			}
-			TestWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
-			State->World.TickTestWorld();
-			return false;
-		}
+	// Docks levels may be finished by hand (art-locked): only their openings are held to the kit.
+	return HollowArtLockTests::RunOpeningsTest(*this, HollowArtLockTests::DocksData, HollowArtLockTests::DocksRooms, /*bCheckSockets=*/false);
+}
 
-		const UHollowLevelMetrics* Metrics = GetDefault<UHollowLevelMetrics>();
-		struct FCapsule
-		{
-			const TCHAR* Who;
-			float Radius;
-			float HalfHeight;
-		};
-		const FCapsule Capsules[] = {{TEXT("player"), PawnRadius, PawnHalfHeight},
-			{TEXT("largest agent"), static_cast<float>(Metrics->LargestAgentRadius), 0.5f * static_cast<float>(Metrics->LargestAgentHeight)}};
-		// A capsule swept out of the room through an opening, with the pawns' own collision; returns what stops it.
-		const auto Sweep = [TestWorld, Metrics](const FTransform& Opening, const FVector& Out, const FCapsule& Capsule, FHitResult& Hit)
-		{
-			const FVector Centre = Opening.GetLocation() + FVector(0.0, 0.0, Capsule.HalfHeight + FloorClearance);
-			const double Reach = Metrics->WallThickness + Capsule.Radius + SweepMargin;
-			return TestWorld->SweepSingleByChannel(Hit, Centre - Out * Reach, Centre + Out * (Capsule.Radius + SweepMargin), FQuat::Identity, ECC_Pawn,
-				FCollisionShape::MakeCapsule(Capsule.Radius, Capsule.HalfHeight), FCollisionQueryParams(SCENE_QUERY_STAT(HollowOpeningsTest)));
-		};
-		int32 Swept = 0;
-		TOptional<TPair<FTransform, FVector>> First;
-		for (const TPair<UHollowRoomDefinition*, FVector>& Room : State->Placed)
-		{
-			for (const FHollowRoomConnector& Connector : Room.Key->Connectors)
-			{
-				const FIntPoint Cell(Connector.Cell.X, Connector.Cell.Y);
-				const FTransform Opening = HollowSectorManifest::OpeningTransform(Cell, Connector.Side, *Metrics, Room.Value);
-				const FIntPoint Step = HollowGridMath::Offset(Connector.Side);
-				const FVector Out(Step.X, Step.Y, 0.0);
-				First = First.IsSet() ? First : TOptional<TPair<FTransform, FVector>>(TPair<FTransform, FVector>(Opening, Out));
-				for (const FCapsule& Capsule : Capsules)
-				{
-					FHitResult Hit;
-					TestFalse(FString::Printf(TEXT("%s, opening at %s %s: a %s walks through (blocked by %s)"), *Room.Key->GetName(), *Cell.ToString(),
-						*HollowEnumToString(Connector.Side), Capsule.Who, *GetNameSafe(Hit.GetActor())), Sweep(Opening, Out, Capsule, Hit));
-					++Swept;
-				}
-			}
-		}
-		AddInfo(FString::Printf(TEXT("%d sweeps through the openings of %d rooms"), Swept, State->Placed.Num()));
-		TestTrue(TEXT("Every opening swept"), Swept > 0);
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCathedralOpeningsTest, "Hollow.PCG.CathedralOpenings",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-		// Self-check: a cube set into an opening (as art could be) stops the sweep.
-		UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, CubeMesh);
-		if (First.IsSet() && TestNotNull(TEXT("Engine cube"), Cube))
-		{
-			const FVector Middle = First->Key.GetLocation() + FVector(0.0, 0.0, Capsules[0].HalfHeight + FloorClearance);
-			AStaticMeshActor* Blocker = TestWorld->SpawnActor<AStaticMeshActor>(Middle, FRotator::ZeroRotator);
-			Blocker->GetStaticMeshComponent()->SetStaticMesh(Cube);
-			Blocker->GetStaticMeshComponent()->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
-			Blocker->SetActorScale3D(FVector(Metrics->DoorWidth / CubeSize, Metrics->DoorWidth / CubeSize, 1.0));   // whichever way the wall runs
-			FHitResult Hit;
-			TestTrue(TEXT("A mesh in the opening stops the sweep"), Sweep(First->Key, First->Value, Capsules[0], Hit) && Hit.GetActor() == Blocker);
-			Blocker->Destroy();
-		}
-		for (ULevelStreamingDynamic* Level : State->Levels)
-		{
-			Level->SetIsRequestingUnloadAndRemoval(true);
-		}
-		TestWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
-		return true;
-	}));
-	return true;
+bool FHollowCathedralOpeningsTest::RunTest(const FString& Parameters)
+{
+	// S7-01 (ADR-0038): piers, vaults and arches of the Cathedral kit leave every opening and every socket free.
+	return HollowArtLockTests::RunOpeningsTest(*this, HollowArtLockTests::CathedralData, HollowArtLockTests::CathedralRooms, /*bCheckSockets=*/true);
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

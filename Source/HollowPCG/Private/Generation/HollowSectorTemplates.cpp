@@ -38,7 +38,7 @@ TOptional<FHollowRoomTemplate> HollowSectorTemplates::MakeTemplate(const UHollow
 	FHollowRoomTemplate Template;
 	Template.Id = Room.GetPrimaryAssetId().ToString();
 	Template.Role = Role.GetValue();
-	Template.Footprint = FIntPoint(Room.Footprint.X, Room.Footprint.Y);   // one storey in the vertical slice (LevelMetrics.md)
+	Template.Footprint = FIntPoint(Room.Footprint.X, Room.Footprint.Y);   // the sector is one floor: tall halls only rise (ADR-0038)
 	for (const FHollowRoomConnector& Connector : Room.Connectors)
 	{
 		FHollowTemplateConnector& Plain = Template.Connectors.AddDefaulted_GetRef();

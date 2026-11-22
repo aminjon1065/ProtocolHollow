@@ -45,9 +45,16 @@ UActorComponent* UHollowAssetAuthoring::AddInstanceComponent(AActor* Actor, cons
 	Actor->Modify();
 	UActorComponent* Component = NewObject<UActorComponent>(Actor, Class, Name, RF_Transactional);
 	Actor->AddInstanceComponent(Component);
-	if (USceneComponent* Scene = Cast<USceneComponent>(Component); Scene && Actor->GetRootComponent())
+	if (USceneComponent* Scene = Cast<USceneComponent>(Component))
 	{
-		Scene->SetupAttachment(Actor->GetRootComponent());
+		if (Actor->GetRootComponent())
+		{
+			Scene->SetupAttachment(Actor->GetRootComponent());
+		}
+		else
+		{
+			Actor->SetRootComponent(Scene);   // an empty placed actor: its first scene component carries it (S7-01 decor)
+		}
 	}
 	Component->OnComponentCreated();
 	Component->RegisterComponent();

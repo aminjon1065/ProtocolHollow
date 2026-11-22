@@ -43,6 +43,11 @@
 #          the cutter holds the primary input), buys the Reliquary, equips the brace, insures the ring; in the raid both
 #          dump the gear, the client carries the core faster than the host does, then dies: the insured ring comes home,
 #          the brace is lost.
+#   cathedral  S7-01 Reactor Cathedral (ADR-0038): host + 1 headless client behind --net, the host's raid sector
+#          overridden to HollowSector_Cathedral (dev: the contract picks it from S7-04 on). Both machines dump the sector
+#          (same layout hash, the plugin Active), the host its generated map and the Standard and Heavy paths to the
+#          extraction; the AI lives for 20 s (both dump it); the host walks 4 rooms with real input taking pictures
+#          with the lighting show flag off (no lights before S7-03), then carries the core out and both extract.
 #   screens  S5-04 hub screens (ADR-0033), one rendered process: the workbench (craft with A, RB to the shop, D-pad and A
 #          to buy, E / Q to the upgrades and back, Esc), the locker (take with the keyboard and A, insure, B), the
 #          contracts screen (A on Launch); a screenshot of each; the raid, then the hub again.
@@ -55,7 +60,7 @@
 #          profiles show what was spent.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -64,7 +69,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics ]] || { sed -n '2,59p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral ]] || { sed -n '2,67p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -87,8 +92,8 @@ case "$NET" in
 	bad) NET_ARGS=(-PktEmulationProfile=Bad) ;;
 	*) echo "Unknown --net: $NET (0, 150 or bad)" >&2; exit 2 ;;
 esac
-if [[ ("$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics) && "$NET" == none ]]; then
-	NET_ARGS=(-PktLag=150)   # the carry, loadout, hub, classes, lantern, ward and relics smokes always run behind a slow network
+if [[ ("$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral) && "$NET" == none ]]; then
+	NET_ARGS=(-PktLag=150)   # the carry, loadout, hub, classes, lantern, ward, relics and cathedral smokes always run behind a slow network
 fi
 GAME="$APP/Contents/MacOS/ProtocolHollow"
 [[ -x "$GAME" ]] || { echo "No packaged game at $APP (Build/Scripts/package-mac.sh)" >&2; exit 2; }
@@ -115,6 +120,7 @@ DOWN=Gamepad_DPad_Down
 PRESS=Gamepad_FaceButton_Bottom
 
 H=()   # host commands
+HOST_ARGS=()   # extra arguments of the host
 C=()   # commands of every client
 C1=()  # commands of client 1 only
 h() { H+=("$1"); }
@@ -379,6 +385,30 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 60 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 61 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	cathedral)
+		HOST_ARGS=("-ini:Game:[/Script/HollowGame.HollowSectorSettings]:RaidSector=HollowSector_Cathedral")   # the client learns it from the manifest
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"
+		h "Hollow.Dev.RunInRaid 2 Hollow.Sector.Info"; C+=("Hollow.Dev.RunInRaid 2.5 Hollow.Sector.Info")
+		h "Hollow.Dev.RunInRaid 2.2 Hollow.Sector.Status HollowSector_Cathedral"; C+=("Hollow.Dev.RunInRaid 2.7 Hollow.Sector.Status HollowSector_Cathedral")
+		h "Hollow.Dev.RunInRaid 2.4 Hollow.Sector.Status HollowSector_Docks"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Nav.Path Standard"; h "Hollow.Dev.RunInRaid 3.5 Hollow.Nav.Path Heavy"
+		h "Hollow.Dev.RunInRaid 4 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 4.5 Hollow.AI.Dump")
+		h "Hollow.Dev.RunInRaid 22 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 22.5 Hollow.AI.Dump")   # 20 s on: the AI in the halls
+		h "Hollow.Dev.RunInRaid 24 Hollow.AI.Kill"
+		# The host walks 4 rooms with real input (piers, plinths, openings) and takes pictures on the way; no lights
+		# before S7-03, so the lighting show flag goes off (a console variable: viewmode does not reach the viewport, H-5).
+		h "Hollow.Dev.RunInRaid 24.5 Hollow.Dev.OpenDoors"; h "Hollow.Dev.RunInRaid 25 ShowFlag.Lighting 0"
+		h "Hollow.Dev.RunInRaid 25.5 Hollow.Dev.WalkRoute 4"
+		h "Hollow.Dev.RunInRaid 27 Hollow.UI.Shot Cathedral_Walk1"; h "Hollow.Dev.RunInRaid 28.5 Hollow.UI.Shot Cathedral_Walk2"
+		h "Hollow.Dev.RunInRaid 30 Hollow.UI.Shot Cathedral_Walk3"; h "Hollow.Dev.RunInRaid 34 Hollow.UI.Shot Cathedral_Walk4"   # 4 rooms take ~6 s
+		h "Hollow.Dev.RunInRaid 46 Hollow.Dev.GoToNearestCore"; h "Hollow.Dev.RunInRaid 46.5 Hollow.UI.Shot Cathedral_Crypt"
+		h "Hollow.Dev.RunInRaid 47 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 49 Hollow.Dev.GoToExtraction All"; h "Hollow.Dev.RunInRaid 50 Hollow.UI.Shot Cathedral_Belfry"
+		h "Hollow.Dev.RunInRaid 90 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 91 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
 	screens)
 		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
 		h "Hollow.Dev.RunAfter 16 Hollow.Dev.GoToTerminal Workbench"
@@ -482,10 +512,10 @@ if [[ "$MODE" == solo || "$MODE" == economy || "$MODE" == screens ]]; then
 	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" "$END" 400 || echo "the $MODE playthrough did not finish"
 else
-	launch Host "${VIEW[@]}" -ExecCmds="$(join "${H[@]}")"
+	launch Host "${VIEW[@]}" ${HOST_ARGS[@]+"${HOST_ARGS[@]}"} -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" 'listening on port' 240 || { echo "the host never listened"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
@@ -510,7 +540,7 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down" "$log" | grep -v "Command Line\|commandline" | strip | awk 'NR <= 160'
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: " "$log" | grep -v "Command Line\|commandline" | strip | awk 'NR <= 160'
 done
 if [[ "$MODE" == lantern ]]; then
 	# Every player's Resonance in the host's four dumps (by name and pawn: local processes share a name): the carrier

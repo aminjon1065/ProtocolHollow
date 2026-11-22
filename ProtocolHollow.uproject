@@ -41,6 +41,7 @@
 		{ "Name": "DataValidation",           "Enabled": true },
 		{ "Name": "AndroidFileServer",        "Enabled": false },
 		{ "Name": "PythonScriptPlugin",       "Enabled": true, "TargetAllowList": [ "Editor" ] },
-		{ "Name": "HollowSector_Docks",       "Enabled": true }
+		{ "Name": "HollowSector_Docks",       "Enabled": true },
+		{ "Name": "HollowSector_Cathedral",   "Enabled": true }
 	]
 }

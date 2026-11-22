@@ -114,6 +114,13 @@
 
 **Must = 7.5 д.** Cut-line: электрические дуги откладываются в патч, если Алтарь Очистки потребует больше времени на баланс.
 
+- **S7-01 — сделано** (2026-11-22, [ADR-0038](../ADR/ADR-0038-cathedral-sector-two-storey-rooms.md)):
+  - content-only плагин `HollowSector_Cathedral` (ADR-0012): 8 готических комнат, из них 4 двухсветных зала (`Footprint.Z = 2`, потолок 800, проёмы 300 × 350 на полу; `MaxRoomStoreys`, правила `TooManyStoreys` и `ConnectorAboveFloor`);
+  - декор из двух `InstancedStaticMesh` на комнату: колонны, пилястры, нервюрные своды, карниз второго света, ланцеты, стрельчатые арки;
+  - `DA_Biome_Cathedral`: правила генератора; правила сборки зеркалят Доки (двери, переборки, лут, ядро, враги, эвакуация);
+  - генератор: 1000/1000 seed'ов Собора и Доков без перекрытий, с путём, петлями и манифестом ≤ 2 КБ;
+  - тесты `Hollow.PCG.{CathedralRooms, CathedralOpenings, Generator.CathedralPool, Sector.CathedralAssembly}`, кооп-смоук `playthrough-mac.sh cathedral` (dev-переопределение сектора до S7-04).
+
 ---
 
 ## Стратегический порядок работы для соло-разработчика

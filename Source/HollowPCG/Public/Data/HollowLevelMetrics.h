@@ -26,6 +26,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Grid", meta = (ClampMin = "1", Units = "Centimeters"))
 	int32 CellHeight = 0;
 
+	/**
+	 * Tallest room in storeys (Footprint.Z). A taller room is one tall volume (a two-storey hall: clear height
+	 * Footprint.Z * CellHeight, S7-01, ADR-0038), not stacked floors: every connector stays on the floor (Cell.Z = 0).
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Grid", meta = (ClampMin = "1"))
+	int32 MaxRoomStoreys = 0;
+
 	/** Wall thickness. Walls sit inside the room footprint, flush with its boundary. */
 	UPROPERTY(Config, EditAnywhere, Category = "Grid", meta = (ClampMin = "1", Units = "Centimeters"))
 	int32 WallThickness = 0;

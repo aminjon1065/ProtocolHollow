@@ -12,6 +12,9 @@ namespace HollowSectorTests
 {
 	const TCHAR* const DocksPlugin = TEXT("HollowSector_Docks");
 	constexpr int32 DocksMinRooms = 8;
+	/** Sector II (S7-01, ADR-0038). */
+	const TCHAR* const CathedralPlugin = TEXT("HollowSector_Cathedral");
+	constexpr int32 CathedralRooms = 8;
 	/** Test data: a content-only plugin transitions within a few frames; this only catches a hang. */
 	constexpr double TransitionTimeoutSeconds = 30.0;
 
@@ -36,6 +39,67 @@ namespace HollowSectorTests
 
 		bool TimedOut() const { return FPlatformTime::Seconds() > Deadline; }
 	};
+
+	/**
+	 * ADR-0012 for one sector plugin, as latent commands: Registered at start (its rooms and biome already known), Active
+	 * on request (the rooms load from the plugin), back to Registered on release (still known).
+	 */
+	void QueueSectorLifecycle(FAutomationTestBase& Test, UHollowSectorFeatureSubsystem* Sectors, const TCHAR* Plugin, const int32 MinRooms)
+	{
+		const TSharedRef<FTransition> Transition = MakeShared<FTransition>();
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([&Test, Sectors, Plugin, MinRooms, Transition]()
+		{
+			Test.TestFalse(FString::Printf(TEXT("%s starts Registered, not Active (BuiltInInitialFeatureState)"), Plugin), Sectors->IsSectorActive(Plugin));
+			Test.TestTrue(FString::Printf(TEXT("%s registered: the asset manager already knows its rooms"), Plugin),
+				UHollowSectorFeatureSubsystem::GetSectorRooms(Plugin).Num() >= MinRooms);
+			Test.TestTrue(FString::Printf(TEXT("%s registered: its biome is known"), Plugin), UHollowSectorFeatureSubsystem::GetSectorBiome(Plugin).IsValid());
+			Sectors->ActivateSector(Plugin, Transition->Start(Transition));
+			return true;
+		}));
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([&Test, Sectors, Plugin, MinRooms, Transition]()
+		{
+			if (!Transition->bDone)
+			{
+				if (Transition->TimedOut())
+				{
+					Test.AddError(FString::Printf(TEXT("%s: activation did not complete"), Plugin));
+					return true;
+				}
+				return false;
+			}
+
+			Test.TestTrue(FString::Printf(TEXT("%s: activation succeeded"), Plugin), Transition->bSucceeded);
+			Test.TestTrue(FString::Printf(TEXT("%s is Active"), Plugin), Sectors->IsSectorActive(Plugin));
+
+			const TArray<FPrimaryAssetId> Rooms = UHollowSectorFeatureSubsystem::GetSectorRooms(Plugin);
+			Test.TestTrue(FString::Printf(TEXT("%s: at least %d rooms (found %d)"), Plugin, MinRooms, Rooms.Num()), Rooms.Num() >= MinRooms);
+			for (const FPrimaryAssetId& Id : Rooms)
+			{
+				const UObject* Room = UAssetManager::Get().GetPrimaryAssetPath(Id).TryLoad();
+				Test.TestNotNull(*FString::Printf(TEXT("%s loads from the plugin"), *Id.ToString()), Cast<UHollowRoomDefinition>(Room));
+			}
+
+			Sectors->DeactivateSector(Plugin, Transition->Start(Transition));
+			return true;
+		}));
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([&Test, Sectors, Plugin, MinRooms, Transition]()
+		{
+			if (!Transition->bDone)
+			{
+				if (Transition->TimedOut())
+				{
+					Test.AddError(FString::Printf(TEXT("%s: deactivation did not complete"), Plugin));
+					return true;
+				}
+				return false;
+			}
+
+			Test.TestTrue(FString::Printf(TEXT("%s: deactivation succeeded"), Plugin), Transition->bSucceeded);
+			Test.TestFalse(FString::Printf(TEXT("%s is no longer Active"), Plugin), Sectors->IsSectorActive(Plugin));
+			Test.TestTrue(FString::Printf(TEXT("%s back to Registered: rooms stay known"), Plugin), UHollowSectorFeatureSubsystem::GetSectorRooms(Plugin).Num() >= MinRooms);
+			return true;
+		}));
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSectorActivationTest, "Hollow.Game.Sector.Activation",
@@ -43,6 +107,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSectorActivationTest, "Hollow.Game.Secto
 
 bool FHollowSectorActivationTest::RunTest(const FString& Parameters)
 {
+	// Both sectors follow the same lifecycle; the Cathedral (S7-01) is a second plugin beside the Docks.
 	using namespace HollowSectorTests;
 
 	UHollowSectorFeatureSubsystem* Sectors = UHollowSectorFeatureSubsystem::Get();
@@ -50,60 +115,9 @@ bool FHollowSectorActivationTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	if (!TestFalse(TEXT("Docks starts Registered, not Active (BuiltInInitialFeatureState)"), Sectors->IsSectorActive(DocksPlugin)))
-	{
-		return false;
-	}
-	TestTrue(TEXT("Registered: the asset manager already knows the Docks rooms"),
-		UHollowSectorFeatureSubsystem::GetSectorRooms(DocksPlugin).Num() >= DocksMinRooms);
-
-	const TSharedRef<FTransition> Transition = MakeShared<FTransition>();
-	Sectors->ActivateSector(DocksPlugin, Transition->Start(Transition));
-
-	ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, Sectors, Transition]()
-	{
-		if (!Transition->bDone)
-		{
-			if (Transition->TimedOut())
-			{
-				AddError(TEXT("Activation did not complete"));
-				return true;
-			}
-			return false;
-		}
-
-		TestTrue(TEXT("Activation succeeded"), Transition->bSucceeded);
-		TestTrue(TEXT("Docks is Active"), Sectors->IsSectorActive(DocksPlugin));
-
-		const TArray<FPrimaryAssetId> Rooms = UHollowSectorFeatureSubsystem::GetSectorRooms(DocksPlugin);
-		TestTrue(FString::Printf(TEXT("At least %d rooms (found %d)"), DocksMinRooms, Rooms.Num()), Rooms.Num() >= DocksMinRooms);
-		for (const FPrimaryAssetId& Id : Rooms)
-		{
-			const UObject* Room = UAssetManager::Get().GetPrimaryAssetPath(Id).TryLoad();
-			TestNotNull(*FString::Printf(TEXT("%s loads from the plugin"), *Id.ToString()), Cast<UHollowRoomDefinition>(Room));
-		}
-
-		Sectors->DeactivateSector(DocksPlugin, Transition->Start(Transition));
-		return true;
-	}));
-
-	ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([this, Sectors, Transition]()
-	{
-		if (!Transition->bDone)
-		{
-			if (Transition->TimedOut())
-			{
-				AddError(TEXT("Deactivation did not complete"));
-				return true;
-			}
-			return false;
-		}
-
-		TestTrue(TEXT("Deactivation succeeded"), Transition->bSucceeded);
-		TestFalse(TEXT("Docks is no longer Active"), Sectors->IsSectorActive(DocksPlugin));
-		TestTrue(TEXT("Back to Registered: rooms stay known"), UHollowSectorFeatureSubsystem::GetSectorRooms(DocksPlugin).Num() >= DocksMinRooms);
-		return true;
-	}));
+	QueueSectorLifecycle(*this, Sectors, DocksPlugin, DocksMinRooms);
+	QueueSectorLifecycle(*this, Sectors, CathedralPlugin, CathedralRooms);
+	TestEqual(TEXT("The Cathedral has exactly its 8 rooms"), UHollowSectorFeatureSubsystem::GetSectorRooms(CathedralPlugin).Num(), CathedralRooms);
 	return true;
 }
 
