@@ -88,6 +88,9 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Core_Hum, "Hollow.Sound.Core.Hum", "Aether core hum (loop).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_HelmetLamp_Toggle, "Hollow.Sound.HelmetLamp.Toggle", "Helmet lamp click (players only; the AI does not hear it).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Ward_Hum, "Hollow.Sound.Ward.Hum", "Ritual ward hum (loop while it burns; players only, the AI does not hear it).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Arc_Telegraph, "Hollow.Sound.Arc.Telegraph", "An electric arc's warning crackle (S7-03; players only, the AI does not hear it).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Arc_Discharge, "Hollow.Sound.Arc.Discharge", "An electric arc striking (S7-03; players only).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Altar_Purified, "Hollow.Sound.Altar.Purified", "The Purification Altar's ritual done: the core purified (S7-03; players only).");
 
 	// Input
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Move, "Hollow.Input.Move", "Move input.");

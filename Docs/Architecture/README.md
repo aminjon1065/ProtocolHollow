@@ -195,3 +195,9 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
   - **Дуги** `AHollowArcHazard` + `HollowArcRules`: цикл от питания, 25 электрического урона, рубильник — `AHollowSwitch` S1-06.
   - **Генератор:** `RequiredSocketTypes` (новая неудача `MissingSocket`).
   - **Контент** `create_cathedral_mechanics.py`, колокол `MS_Altar_Bell`; смоук `playthrough-mac.sh altar`.
+- **S7-03 «Облик и звук Собора»** ([ADR-0040](../ADR/ADR-0040-cathedral-light-materials-acoustics.md)):
+  - **Палитра без текстур:** 9 инстансов `M_Hollow_Surface` / `M_Hollow_Emissive` — тёмный холодный камень, позолота, витражи фиолетовый/золотой, циановые каналы реактора, мерцающие от `MPC_Resonance`.
+  - **Свет в бюджете `DA_LightBudget`:** залы — теневые панели второго света с объёмной тенью, аварийная лампа `M_LF_Emergency` в каждой комнате; риг — компоненты одного актёра `CathedralLook`.
+  - **Акустика:** `RE_Cathedral` 4,5 с, `RE_Crypt` 2,4 с, `RE_Cloister` 1,4 с на Audio Gameplay Volumes 8 комнат; тон комнат — гул реактора.
+  - **MetaSounds без WAV:** `MS_Reactor_Hum`, `MS_Arc_Crackle`, `MS_Arc_Discharge`, `MS_Core_Purified`; дуга и алтарь звучат от реплицированного состояния, без RPC.
+  - **Контент** `create_cathedral_look.py` (34-й); тесты `Hollow.Game.{Light.CathedralBudgets, Audio.CathedralAcoustics, Cathedral.Look}`; смоук `cathedral` — кадры со светом, `perf-capture-mac.sh --sector Cathedral`.

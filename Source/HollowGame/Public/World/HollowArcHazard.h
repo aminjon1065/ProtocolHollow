@@ -99,6 +99,8 @@ private:
 	TObjectPtr<AHollowSwitch> Breaker;
 
 	EHollowArcPhase ShownPhase = EHollowArcPhase::Off;
+	/** The phase was shown once: from then on a new phase is heard (a late joiner does not hear the past). */
+	bool bPresented = false;
 	bool bCrackleLit = false;
 	float GlowIntensity = 0.f;
 	/** Server: the cycle that already struck (one strike a cycle). */

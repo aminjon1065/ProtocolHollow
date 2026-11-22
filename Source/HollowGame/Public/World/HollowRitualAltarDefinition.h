@@ -43,6 +43,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ritual", meta = (ClampMin = "0"))
 	float HeatBurst = 0.f;
 
+	/** Sound when the ritual is done (DA_SoundBank, players only; S7-03). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ritual", meta = (Categories = "Hollow.Sound"))
+	FGameplayTag PurifiedSound;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	FText PlacePrompt;
 

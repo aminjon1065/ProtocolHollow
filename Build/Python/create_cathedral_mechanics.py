@@ -52,8 +52,9 @@ PURIFIED_NAME = "Purified Aether core"
 CORE_TYPE = "Hollow.Item.Type.AetherCore"
 
 # Material instances: parent, scalars, vectors (linear colours).
+# S7-03 (ADR-0040): kept in step with this spec; the altar's stone is the Cathedral's (create_cathedral_look.py palette).
 INSTANCES = {
-    STONE_MI: (SURFACE, {"Metallic": 0.1, "Roughness": 0.85, "PanelSize": 50.0, "GrimeAmount": 0.6}, {"BaseColor": (0.09, 0.08, 0.075)}),
+    STONE_MI: (SURFACE, {"Metallic": 0.05, "Roughness": 0.85, "PanelSize": 25.0, "GrimeAmount": 0.5}, {"BaseColor": (0.12, 0.12, 0.14)}),
     EMITTER_MI: (SURFACE, {"Metallic": 0.9, "Roughness": 0.4, "PanelSize": 25.0}, {"BaseColor": (0.35, 0.18, 0.08)}),
     BEAM_MI: (EMISSIVE, {"Strength": 25.0}, {"Color": (0.55, 0.8, 1.0)}),
     PURIFIED_MI: (EMISSIVE, {"Strength": 6.0}, {"Color": (0.85, 0.5, 1.0)}),
@@ -70,6 +71,7 @@ def piece(x, y, z, sx, sy, sz, yaw=0.0):
 # reredos behind, four candle pillars; the core (70 high) rests on the bowl.
 ALTAR = {
     "ritual_seconds": 20.0, "pulse_seconds": 2.0, "noise_tag": "Hollow.Noise.Ritual", "heat_burst": 40.0,
+    "purified_sound": "Hollow.Sound.Altar.Purified",   # S7-03
     "place_prompt": "Lay the core on the altar",
     "ritual_glow": 0.35, "flash_seconds": 0.4, "spent_glow": 0.6,
 }
@@ -88,6 +90,7 @@ ALTAR_LIGHT = {"relative_location": unreal.Vector(-10.0, 0.0, 230.0), "intensity
 # The arc (its frame: X along the passage, Y across, origin on the floor between the cloister's shafts, which stand
 # 160 uu either side). Emitters on the shafts, three arcs across, a 140 uu deep zone wall to wall, 3 m high.
 ARC = {"telegraph_seconds": 1.5, "discharge_seconds": 1.0, "idle_seconds": 3.5, "damage": 25.0, "crackle_hz": 12.0, "telegraph_glow": 0.4}
+ARC_SOUNDS = {"telegraph_sound": "Hollow.Sound.Arc.Telegraph", "discharge_sound": "Hollow.Sound.Arc.Discharge"}   # S7-03
 ARC_ZONE = unreal.Vector(70.0, 180.0, 150.0)
 ARC_HEIGHTS = (60.0, 150.0, 240.0)
 ARC_EMITTERS = [piece(0.0, side * 155.0, z, 40.0, 10.0, 30.0) for side in (-1.0, 1.0) for z in ARC_HEIGHTS]
@@ -160,6 +163,12 @@ def make_tag(name):
     return tag
 
 
+def tag_set(tag):
+    """An empty tag exports without a name (its TagName is None)."""
+    text = tag.export_text()
+    return 'TagName="' in text and 'TagName="None"' not in text and 'TagName=""' not in text
+
+
 def same(a, b):
     return a.export_text() == b.export_text() if hasattr(a, "export_text") else a == b
 
@@ -180,17 +189,25 @@ def check(condition, message):
 
 def ensure_instances():
     for path, (parent_path, scalars, vectors) in sorted(INSTANCES.items()):
-        if assets.does_asset_exist(path):
-            continue
-        instance = create(path, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
-        mel.set_material_instance_parent(instance, load(parent_path))
+        created = not assets.does_asset_exist(path)
+        instance = create(path, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew()) if created else load(path)
+        changed = created
+        if instance.get_editor_property("parent") != load(parent_path):
+            mel.set_material_instance_parent(instance, load(parent_path))
+            changed = True
         for name, value in scalars.items():
-            mel.set_material_instance_scalar_parameter_value(instance, name, value)
+            if abs(mel.get_material_instance_scalar_parameter_value(instance, name) - value) > 1e-4:
+                mel.set_material_instance_scalar_parameter_value(instance, name, value)
+                changed = True
         for name, rgb in vectors.items():
-            mel.set_material_instance_vector_parameter_value(instance, name, unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
-        mel.update_material_instance(instance)
-        save(instance)
-        log("created " + path.rsplit("/", 1)[1])
+            current = mel.get_material_instance_vector_parameter_value(instance, name)
+            if any(abs(a - b) > 1e-4 for a, b in zip((current.r, current.g, current.b), rgb)):
+                mel.set_material_instance_vector_parameter_value(instance, name, unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+                changed = True
+        if changed:
+            mel.update_material_instance(instance)
+            save(instance)
+            log(path.rsplit("/", 1)[1] + " ready")
 
 
 def ensure_purified_item():
@@ -252,6 +269,10 @@ def ensure_altar():
         definition.set_editor_property("pieces", ALTAR_PIECES)
         save(definition)
         log("created DA_RitualAltar")
+    if not tag_set(definition.get_editor_property("purified_sound")):   # S7-03 added it: filled once, then the editor's
+        definition.set_editor_property("purified_sound", make_tag(ALTAR["purified_sound"]))
+        save(definition)
+        log("DA_RitualAltar: the purified sound")
     altar_bp, created = blueprint(ALTAR_BP, unreal.HollowRitualAltar)
     if created:
         altar = unreal.get_default_object(altar_bp.generated_class())
@@ -295,6 +316,11 @@ def ensure_arc(electric_class, breaker_bp):
         definition.set_editor_property("beams", ARC_BEAMS)
         save(definition)
         log("created DA_ArcHazard")
+    if not tag_set(definition.get_editor_property("telegraph_sound")):   # S7-03 added them: filled once, then the editor's
+        for key, tag in ARC_SOUNDS.items():
+            definition.set_editor_property(key, make_tag(tag))
+        save(definition)
+        log("DA_ArcHazard: the warning and strike sounds")
     arc_bp, created = blueprint(ARC_BP, unreal.HollowArcHazard)
     if created:
         arc = unreal.get_default_object(arc_bp.generated_class())
@@ -350,6 +376,7 @@ def validate(electric_class):
     check(altar_data.get_editor_property("ritual_seconds") > 0.0 and 0.0 < altar_data.get_editor_property("pulse_seconds") <= altar_data.get_editor_property("ritual_seconds")
           and same(altar_data.get_editor_property("noise_tag"), make_tag(ALTAR["noise_tag"])), "the ritual's times and noise")
     check(len(altar_data.get_editor_property("pieces")) > 0, "the altar's pieces")
+    check(tag_set(altar_data.get_editor_property("purified_sound")), "the altar's purified sound")
     altar = unreal.get_default_object(load(ALTAR_BP).generated_class())
     check(altar.get_editor_property("definition") == altar_data and altar.get_editor_property("pieces").get_editor_property("static_mesh") is not None,
           "BP_RitualAltar")
@@ -357,6 +384,7 @@ def validate(electric_class):
     arc_data = load(ARC_DATA)
     check(min(arc_data.get_editor_property(k) for k in ("telegraph_seconds", "discharge_seconds", "idle_seconds")) > 0.0
           and arc_data.get_editor_property("damage") > 0.0, "the arc's cycle and damage")
+    check(all(tag_set(arc_data.get_editor_property(key)) for key in ARC_SOUNDS), "the arc's sounds")
     check(arc_data.get_editor_property("damage_effect") == electric_class
           and arc_data.get_editor_property("breaker_class") == load(BREAKER_BP).generated_class(), "the arc's effect and breaker")
     breaker = unreal.get_default_object(load(BREAKER_BP).generated_class())

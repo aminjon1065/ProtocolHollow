@@ -3,6 +3,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Audio/HollowAudioSubsystem.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Audio/HollowSoundBank.h"
 #include "Carry/HollowAetherCore.h"
@@ -10,7 +13,12 @@
 #include "Carry/HollowCarryableComponent.h"
 #include "Carry/HollowCarryableDefinition.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Level.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Sound/SoundWave.h"
+#include "Tests/HollowDocksTestRooms.h"
 #include "Data/HollowBiomeDefinition.h"
 #include "Damage/HollowDamageExecution.h"
 #include "Damage/HollowDamageSettings.h"
@@ -50,6 +58,17 @@ namespace HollowCathedralTests
 	const TCHAR* const CoreDefinition = TEXT("/Game/Hollow/Items/AetherCore/DA_Carryable_AetherCore.DA_Carryable_AetherCore");
 	const TCHAR* const NoiseConfig = TEXT("/Game/Hollow/Core/DA_NoiseConfig.DA_NoiseConfig");
 	const FPrimaryAssetId PurifiedId(TEXT("HollowItem"), TEXT("DA_Item_PurifiedCore"));
+	// The Cathedral's look (S7-03, create_cathedral_look.py).
+	const TCHAR* const LookRoot = TEXT("/HollowSector_Cathedral/Look");
+	const TCHAR* const SurfaceMaster = TEXT("/Game/Hollow/World/Materials/M_Hollow_Surface.M_Hollow_Surface");
+	const TCHAR* const EmissiveMaster = TEXT("/Game/Hollow/World/Materials/M_Hollow_Emissive.M_Hollow_Emissive");
+	const TCHAR* const ReactorGlow = TEXT("/HollowSector_Cathedral/Look/MI_Reactor_Glow.MI_Reactor_Glow");
+	const TCHAR* const GridMaterial = TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial");
+	const FName FollowResonance(TEXT("FollowResonance"));
+	const FName GlassViolet(TEXT("GlassViolet"));
+	const FName GlassGold(TEXT("GlassGold"));
+	const FName ReactorChannels(TEXT("ReactorGlow"));
+	const TCHAR* const ProjectRoots[] = {TEXT("/Game"), TEXT("/HollowSector_Docks"), TEXT("/HollowSector_Cathedral")};
 
 	// S7-02 (ADR-0039): the task's numbers.
 	constexpr float RitualSeconds = 20.f;
@@ -295,6 +314,9 @@ bool FHollowAltarRitualTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Done: the core is purified and free"), Rig.Carryable->GetLootItem() == PurifiedId && !Rig.Carryable->IsHeld()
 		&& Rig.Core->CanInteract(Rig.Character));
 	TestTrue(TEXT("The altar is spent: one ritual a raid"), Altar->GetAltarState().Phase == EHollowAltarPhase::Spent);
+	const UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(World);
+	TestTrue(TEXT("Its end is heard once (S7-03)"), Audio && Audio->GetPlayCount(HollowTags::Sound_Altar_Purified) == 1);
+	TestTrue(TEXT("...and every toll was a bell"), Audio && Audio->GetPlayCount(HollowTags::Noise_Ritual) == Tolls);
 	Rig.Core->Interact(Rig.Character);
 	TestFalse(TEXT("...a purified core is not taken again"), Altar->CanInteract(Rig.Character));
 	return true;
@@ -358,6 +380,12 @@ bool FHollowArcHazardTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Its breaker, on: powered, warning first"), Breaker && Breaker->IsOn() && Arc->IsPowered()
 		&& Arc->GetMoment().Phase == EHollowArcPhase::Telegraph);
 	const float Full = Health(Rig.AbilitySystem);
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(World);
+	if (!TestNotNull(TEXT("Audio subsystem"), Audio))
+	{
+		return false;
+	}
+	Audio->ResetCounts();
 
 	Advance(Rig, ArcTelegraph - static_cast<float>(Margin));
 	TestEqual(TEXT("The warning hurts nobody"), Health(Rig.AbilitySystem), Full);
@@ -369,6 +397,9 @@ bool FHollowArcHazardTest::RunTest(const FString& Parameters)
 	Advance(Rig, ArcIdle + ArcTelegraph);
 	TestNearlyEqual(TEXT("The next cycle strikes again"), Health(Rig.AbilitySystem), Full - 2.f * ArcDamage, Tolerance);
 	TestEqual(TEXT("Two strikes"), Arc->GetStrikes(), 2);
+	// S7-03: every fresh strike crackles first, then cracks (the spawn's own first warning is not news).
+	TestEqual(TEXT("A strike sound for each strike"), Audio->GetPlayCount(HollowTags::Sound_Arc_Discharge), 2);
+	TestEqual(TEXT("...and a warning before the second"), Audio->GetPlayCount(HollowTags::Sound_Arc_Telegraph), 1);
 
 	Breaker->Interact(Outside);
 	TestTrue(TEXT("Breaker off: no power, nothing"), !Breaker->IsOn() && !Arc->IsPowered() && Arc->GetMoment().Phase == EHollowArcPhase::Off);
@@ -457,6 +488,88 @@ bool FHollowCathedralDataTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("One altar, the farthest from Spawn"), AltarRule && AltarRule->MaxPerSector == AltarPerSector && AltarRule->Pick == EHollowSocketPick::FarthestFromSpawn);
 		TestTrue(TEXT("Up to two arcs"), ArcRule && ArcRule->MaxPerSector == ArcsPerSector);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCathedralLookTest, "Hollow.Game.Cathedral.Look",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowCathedralLookTest::RunTest(const FString& Parameters)
+{
+	// S7-03 (ADR-0040): the Cathedral wears its palette, nothing heavy: every material of its look is an instance of the
+	// project's node-only masters; no greybox grid is left on a room; the halls' upper lancets have glass (violet and
+	// gold), the crypt and the crossing a cyan reactor glow that follows MPC_Resonance; the project has no wave files.
+	using namespace HollowCathedralTests;
+	const UMaterial* Surface = LoadObject<UMaterial>(nullptr, SurfaceMaster);
+	const UMaterial* Emissive = LoadObject<UMaterial>(nullptr, EmissiveMaster);
+	const UMaterialInterface* Grid = LoadObject<UMaterialInterface>(nullptr, GridMaterial);
+	if (!TestNotNull(TEXT("M_Hollow_Surface"), Surface) || !TestNotNull(TEXT("M_Hollow_Emissive"), Emissive) || !TestNotNull(TEXT("WorldGridMaterial"), Grid))
+	{
+		return false;
+	}
+	IAssetRegistry& Registry = IAssetRegistry::GetChecked();
+	FARFilter Palette;
+	Palette.PackagePaths.Add(FName(LookRoot));
+	Palette.ClassPaths.Add(UMaterialInstanceConstant::StaticClass()->GetClassPathName());
+	TArray<FAssetData> Instances;
+	Registry.GetAssets(Palette, Instances);
+	TestTrue(TEXT("A palette of instances"), Instances.Num() > 0);
+	for (const FAssetData& Asset : Instances)
+	{
+		const UMaterialInstanceConstant* Instance = Cast<UMaterialInstanceConstant>(Asset.GetAsset());
+		const UMaterial* Base = Instance ? Instance->GetMaterial() : nullptr;
+		TestTrue(FString::Printf(TEXT("%s: an instance of M_Hollow_Surface or M_Hollow_Emissive"), *Asset.AssetName.ToString()), Base == Surface || Base == Emissive);
+	}
+	float Follows = 0.f;
+	const UMaterialInstanceConstant* Reactor = LoadObject<UMaterialInstanceConstant>(nullptr, ReactorGlow);
+	TestTrue(TEXT("The reactor glow follows MPC_Resonance"), Reactor && Reactor->GetScalarParameterValue(FollowResonance, Follows) && Follows > 0.f);
+
+	for (const UHollowRoomDefinition* Room : HollowDocksTestRooms::SectorRoomDefinitions(HollowDocksTestRooms::CathedralRoot))
+	{
+		const UWorld* Level = Room->RoomLevel.LoadSynchronous();
+		if (!TestNotNull(*FString::Printf(TEXT("%s level"), *Room->GetName()), Level) || !Level->PersistentLevel)
+		{
+			continue;
+		}
+		int32 GridLeft = 0;
+		TMap<FName, int32> Decor;
+		for (const AActor* Actor : Level->PersistentLevel->Actors)
+		{
+			TInlineComponentArray<UStaticMeshComponent*> Meshes(Actor);
+			for (const UStaticMeshComponent* Mesh : Meshes)
+			{
+				for (int32 Slot = 0; Slot < Mesh->GetNumMaterials(); ++Slot)
+				{
+					GridLeft += Mesh->GetMaterial(Slot) == Grid ? 1 : 0;
+				}
+				if (const UInstancedStaticMeshComponent* Instanced = Cast<UInstancedStaticMeshComponent>(Mesh))
+				{
+					Decor.Add(Instanced->GetFName(), Instanced->GetInstanceCount());
+				}
+			}
+		}
+		TestEqual(FString::Printf(TEXT("%s: no greybox grid left"), *Room->GetName()), GridLeft, 0);
+		if (Room->Footprint.Z > 1)
+		{
+			TestTrue(FString::Printf(TEXT("%s: glass in the upper lancets, violet and gold"), *Room->GetName()),
+				Decor.FindRef(GlassViolet) > 0 && Decor.FindRef(GlassGold) > 0);
+		}
+		if (Room->RoomTags.HasTagExact(HollowTags::Room_Type_CoreVault) || Room->RoomTags.HasTagExact(HollowTags::Room_Type_Junction))
+		{
+			TestTrue(FString::Printf(TEXT("%s: the reactor glows in the floor"), *Room->GetName()), Decor.FindRef(ReactorChannels) > 0);
+		}
+	}
+
+	FARFilter Waves;
+	for (const TCHAR* Root : ProjectRoots)
+	{
+		Waves.PackagePaths.Add(FName(Root));
+	}
+	Waves.bRecursivePaths = true;
+	Waves.ClassPaths.Add(USoundWave::StaticClass()->GetClassPathName());
+	TArray<FAssetData> WaveAssets;
+	Registry.GetAssets(Waves, WaveAssets);
+	TestEqual(TEXT("No wave files: every sound is a procedural MetaSound"), WaveAssets.Num(), 0);
 	return true;
 }
 

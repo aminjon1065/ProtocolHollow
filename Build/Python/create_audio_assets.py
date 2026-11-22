@@ -16,6 +16,7 @@ Run after create_lighting_assets.py:  Build/Scripts/run-editor-python.sh Build/P
 """
 import hashlib
 import json
+import os
 import re
 import traceback
 
@@ -145,6 +146,46 @@ def altar_bell():
     g.node("strike", NOISE, {"Type": WHITE}).node("strike_bp", SVF, {"Cutoff Frequency": 1800.0, "Resonance": 3.0}).link("strike", "Audio", "strike_bp", "In")
     g.burst("clang", "strike_bp", BAND_PASS, 0.001, 0.08)
     return g.mix("mix", [("low_ring", "Out", 0.6), ("high_ring", "Out", 0.4), ("clang", "Out", 0.3)]).out("mix").finish_on("low_ring_env").spec
+
+
+def reactor_hum():
+    """S7-03: the Reactor Cathedral's room tone - the reactor under the floor: a sub and its octave throbbing slowly, a
+    breath of steam on top. Every node weighs ~10 KB in the asset (LFS, ADR-0040): no more than it needs."""
+    g = Graph(one_shot=False)
+    g.node("sub", SINE, {"Frequency": 36.0}).node("octave", SINE, {"Frequency": 72.4}).node("steam", NOISE, {"Type": PINK})
+    g.mix("core", [("sub", "Audio", 0.45), ("octave", "Audio", 0.2), ("steam", "Audio", 0.03)])
+    g.node("throb", LFO, {"Frequency": 0.2, "Min Value": 0.55, "Max Value": 1.0})
+    g.node("throbbing", SCALE).link("core", "Out", "throbbing", "PrimaryOperand").link("throb", "Out", "throbbing", "AdditionalOperands")
+    return g.out("throbbing").spec
+
+
+def arc_crackle():
+    """S7-03: an arc's warning, as long as it (1.5 s): sparks snapping faster than counted and a mains buzz building up
+    to the strike."""
+    g = Graph(one_shot=True)
+    g.node("ticks", REPEAT, {"Period": 0.06, "Num Repeats": 24}).link("@play", "On Play", "ticks", "Start")
+    g.node("spark", NOISE, {"Type": WHITE}).node("spark_bp", SVF, {"Cutoff Frequency": 3500.0, "Resonance": 5.0}).link("spark", "Audio", "spark_bp", "In")
+    g.burst("snap", "spark_bp", BAND_PASS, 0.001, 0.03, trigger=("ticks", "RepeatOut"))
+    g.node("buzz", SQUARE, {"Frequency": 120.0}).burst("build", "buzz", "Audio", 1.4, 0.1)
+    return g.mix("mix", [("snap", "Out", 0.5), ("build", "Out", 0.15)]).out("mix").finish_on("build_env").spec
+
+
+def arc_discharge():
+    """S7-03: an arc striking - a bright crack over a thump in the chest, the hiss of ionised air dying away."""
+    g = Graph(one_shot=True)
+    g.node("zap", SAW, {"Frequency": 2200.0}).node("sub", SINE, {"Frequency": 60.0})
+    g.mix("body_mix", [("zap", "Audio", 0.4), ("sub", "Audio", 0.6)]).burst("body", "body_mix", "Out", 0.001, 0.25)
+    g.node("air", NOISE, {"Type": WHITE}).burst("hiss", "air", "Audio", 0.002, 0.8)
+    return g.mix("mix", [("body", "Out", 0.7), ("hiss", "Out", 0.3)]).out("mix").finish_on("hiss_env").spec
+
+
+def core_purified():
+    """S7-03: the ritual done - a bright major chord (root, third, the fifth an octave up on a triangle) swelling and
+    fading."""
+    g = Graph(one_shot=True)
+    g.node("root", SINE, {"Frequency": 294.0}).node("third", SINE, {"Frequency": 370.0}).node("shine", TRIANGLE, {"Frequency": 880.0})
+    g.mix("chord", [("root", "Audio", 0.35), ("third", "Audio", 0.3), ("shine", "Audio", 0.2)]).burst("swell", "chord", "Out", 0.4, 2.0)
+    return g.out("swell").finish_on("swell_env").spec
 
 
 def door_servo():
@@ -304,6 +345,7 @@ METASOUNDS = {
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
     "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
     "MS_HelmetLamp_Click": helmet_lamp_click, "MS_Ward_Hum": ward_hum, "MS_Altar_Bell": altar_bell,
+    "MS_Reactor_Hum": reactor_hum, "MS_Arc_Crackle": arc_crackle, "MS_Arc_Discharge": arc_discharge, "MS_Core_Purified": core_purified,
     "MS_Footstep_Light": footstep_light, "MS_Footstep_Heavy": footstep_heavy, "MS_Footstep_Stalker": footstep_stalker,
     "MS_Pilgrim_Windup": pilgrim_windup, "MS_Stalker_Shriek": stalker_shriek, "MS_Stalker_Vent": stalker_vent,
     "MS_Room_Tone": room_tone, "MS_Room_Tone_Vault": room_tone_vault,
@@ -336,6 +378,10 @@ ENTRIES = [
     ("Hollow.Sound.Core.Hum", "MS_Core_Hum", None, 900.0, 0.5, 0.0, None),
     ("Hollow.Sound.HelmetLamp.Toggle", "MS_HelmetLamp_Click", None, 600.0, 0.4, 0.06, None),   # S4-08: within a room
     ("Hollow.Sound.Ward.Hum", "MS_Ward_Hum", None, 1200.0, 0.5, 0.0, None),   # S6-03: players only
+    # S7-03: the Reactor Cathedral, players only (create_cathedral_look.py plays MS_Reactor_Hum as its rooms' tone).
+    ("Hollow.Sound.Arc.Telegraph", "MS_Arc_Crackle", None, 1500.0, 0.7, 0.05, None),
+    ("Hollow.Sound.Arc.Discharge", "MS_Arc_Discharge", "SCON_Impacts", 2500.0, 0.9, 0.08, None),
+    ("Hollow.Sound.Altar.Purified", "MS_Core_Purified", None, 2000.0, 0.8, 0.0, None),
 ]
 
 # ---------------------------------------------------------------- room acoustics (data)
@@ -347,6 +393,14 @@ REVERBS = {
                   "reflections_gain": 0.15, "reflections_delay": 0.02, "late_gain": 1.2, "late_delay": 0.025, "air_absorption_gain_hf": 0.994},
     "RE_Corridor": {"density": 0.7, "diffusion": 0.8, "gain": 0.3, "gain_hf": 0.85, "decay_time": 0.9, "decay_hf_ratio": 0.8,
                     "reflections_gain": 0.4, "reflections_delay": 0.008, "late_gain": 1.0, "late_delay": 0.012, "air_absorption_gain_hf": 0.994},
+    # S7-03: the Reactor Cathedral (its rooms take them in create_cathedral_look.py): the stone halls ring for 4.5 s, highs
+    # dying first; the crypt is low and close; the cloisters are short arcades.
+    "RE_Cathedral": {"density": 1.0, "diffusion": 1.0, "gain": 0.35, "gain_hf": 0.6, "decay_time": 4.5, "decay_hf_ratio": 0.55,
+                     "reflections_gain": 0.12, "reflections_delay": 0.04, "late_gain": 1.5, "late_delay": 0.06, "air_absorption_gain_hf": 0.99},
+    "RE_Crypt": {"density": 1.0, "diffusion": 0.85, "gain": 0.35, "gain_hf": 0.5, "decay_time": 2.4, "decay_hf_ratio": 0.45,
+                 "reflections_gain": 0.3, "reflections_delay": 0.015, "late_gain": 1.3, "late_delay": 0.03, "air_absorption_gain_hf": 0.99},
+    "RE_Cloister": {"density": 0.8, "diffusion": 0.85, "gain": 0.3, "gain_hf": 0.75, "decay_time": 1.4, "decay_hf_ratio": 0.7,
+                    "reflections_gain": 0.3, "reflections_delay": 0.012, "late_gain": 1.1, "late_delay": 0.02, "air_absorption_gain_hf": 0.994},
 }
 ROOM_ACOUSTICS = {"CoreVault": ("RE_Vault", "MS_Room_Tone_Vault", 0.5), "Hangar": ("RE_Hangar", "MS_Room_Tone", 0.45),
                   "Storage": ("RE_Hangar", "MS_Room_Tone", 0.4), "Spawn": ("RE_Hangar", "MS_Room_Tone", 0.4),
@@ -457,6 +511,13 @@ def ensure_metasound(name, spec, sound_class):
             return existing, False
         if not assets.delete_asset(path):   # the spec changed: rebuild (the bank refers to it by path)
             raise RuntimeError("Could not replace " + path)
+        # The force delete runs its garbage collection while the MetaSound registry still holds the asset, so it keeps
+        # the package file; build_to_asset would load it back and refuse the name. Collected now, the file goes too.
+        del existing
+        unreal.SystemLibrary.collect_garbage()
+        package_file = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir()) + path[len("/Game/"):] + ".uasset"
+        if os.path.exists(package_file):
+            os.remove(package_file)
     builder = build_graph(name, spec)
     built = metasound_editor.build_to_asset(builder, AUTHOR, name, MS_DIR)
     asset = built[0] if isinstance(built, tuple) else built

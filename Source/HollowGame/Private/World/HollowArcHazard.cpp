@@ -2,6 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Audio/HollowAudioSubsystem.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -201,6 +202,15 @@ void AHollowArcHazard::ApplyPhase()
 		break;
 	}
 	UE_CLOG(bChanged, LogHollowGame, Verbose, TEXT("%s: %s"), *GetName(), *HollowEnumToString(Moment.Phase));
+	// A fresh warning or strike is heard on every machine (from the replicated cycle, no RPC; S7-03).
+	const FGameplayTag Sound = Moment.Phase == EHollowArcPhase::Telegraph ? Definition->TelegraphSound
+		: Moment.Phase == EHollowArcPhase::Discharge ? Definition->DischargeSound : FGameplayTag();
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	if (bChanged && bPresented && Sound.IsValid() && Audio)
+	{
+		Audio->Play(Sound, Glow->GetComponentLocation());
+	}
+	bPresented = true;
 
 	if (HasAuthority() && Moment.Phase == EHollowArcPhase::Discharge)
 	{

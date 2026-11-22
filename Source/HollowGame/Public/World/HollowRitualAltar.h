@@ -114,6 +114,8 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_AltarState)
 	FHollowAltarNetState AltarState;
 
+	/** The phase this machine shows (the purified sound plays only on a ritual it saw end). */
+	EHollowAltarPhase ShownPhase = EHollowAltarPhase::Idle;
 	/** Server: who laid the core (the tolls are theirs while they live). */
 	TWeakObjectPtr<APawn> Starter;
 	int32 Tolls = 0;

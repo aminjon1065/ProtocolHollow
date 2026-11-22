@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "Templates/SubclassOf.h"
 #include "World/HollowArcRules.h"
 
@@ -62,6 +63,13 @@ public:
 	/** How fast the warning light crackles (on, off) while the telegraph lasts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look", meta = (ClampMin = "1", Units = "Hertz"))
 	float CrackleHz = 0.f;
+
+	/** Sounds of a warning and of a strike (DA_SoundBank, players only; S7-03). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look", meta = (Categories = "Hollow.Sound"))
+	FGameplayTag TelegraphSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look", meta = (Categories = "Hollow.Sound"))
+	FGameplayTag DischargeSound;
 
 	/** The light during the warning, as a fraction of its own intensity (a strike is full). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look", meta = (ClampMin = "0", ClampMax = "1"))

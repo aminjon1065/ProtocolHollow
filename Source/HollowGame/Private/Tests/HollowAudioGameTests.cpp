@@ -49,6 +49,13 @@ namespace HollowAudioGameTests
 	const TCHAR* const BulkheadClass = TEXT("/Game/Hollow/World/Kit/Bulkheads/BP_Bulkhead_Twin.BP_Bulkhead_Twin_C");
 	const TCHAR* const VaultReverb = TEXT("/Game/Hollow/Audio/Reverb/RE_Vault.RE_Vault");
 	const TCHAR* const CorridorReverb = TEXT("/Game/Hollow/Audio/Reverb/RE_Corridor.RE_Corridor");
+	// The Reactor Cathedral (S7-03, create_audio_assets.py, create_cathedral_look.py).
+	const TCHAR* const CathedralReverb = TEXT("/Game/Hollow/Audio/Reverb/RE_Cathedral.RE_Cathedral");
+	const TCHAR* const CryptReverb = TEXT("/Game/Hollow/Audio/Reverb/RE_Crypt.RE_Crypt");
+	const TCHAR* const CloisterReverb = TEXT("/Game/Hollow/Audio/Reverb/RE_Cloister.RE_Cloister");
+	const TCHAR* const ReactorHum = TEXT("/Game/Hollow/Audio/MetaSounds/MS_Reactor_Hum.MS_Reactor_Hum");
+	constexpr float CathedralDecaySeconds = 4.5f;   // the task's number
+	constexpr float DecayTolerance = 0.05f;
 	const TCHAR* const MetaSoundSourceClass = TEXT("/Script/MetasoundEngine.MetaSoundSource");
 	const TCHAR* const ToolDefinitions[] = {
 		TEXT("/Game/Hollow/Tools/Welder/DA_Tool_Welder.DA_Tool_Welder"),
@@ -72,7 +79,7 @@ namespace HollowAudioGameTests
 	{
 		return {HollowTags::Sound_Door_Servo, HollowTags::Sound_Footstep_Heavy, HollowTags::Sound_Footstep_Stalker, HollowTags::Sound_Enemy_PilgrimWindup,
 			HollowTags::Sound_Enemy_StalkerShriek, HollowTags::Sound_Stalker_Vent, HollowTags::Sound_Mine_Arm, HollowTags::Sound_Mine_Blast, HollowTags::Sound_Core_Hum,
-			HollowTags::Sound_Ward_Hum};
+			HollowTags::Sound_Ward_Hum, HollowTags::Sound_Arc_Telegraph, HollowTags::Sound_Arc_Discharge, HollowTags::Sound_Altar_Purified};
 	}
 
 	/** Sounds that run until stopped (tools while used, the core's hum); every other one ends by itself. */
@@ -96,6 +103,58 @@ namespace HollowAudioGameTests
 			return Delta;
 		}
 	};
+
+	/**
+	 * A room level's acoustics (ADR-0022): one Audio Gameplay Volume exactly over the room, with a reverb preset and walls
+	 * that muffle what comes from outside, and a looping room tone filling it through SC_Hollow_World. Returns the
+	 * volume's reverb preset and the tone's sound (null when they are missing).
+	 */
+	TPair<const UReverbEffect*, const USoundBase*> CheckRoomAcoustics(FAutomationTestBase& Test, const UHollowRoomDefinition& Room, const USoundClass* SoundClass,
+		const UHollowLevelMetrics* Metrics)
+	{
+		const FString Name = Room.GetName();
+		const UWorld* Level = Room.RoomLevel.LoadSynchronous();
+		if (!Test.TestNotNull(*FString::Printf(TEXT("%s level"), *Name), Level) || !Level->PersistentLevel)
+		{
+			return {};
+		}
+		TArray<const AAudioGameplayVolume*> Volumes;
+		TArray<const AAmbientSound*> Tones;
+		for (const AActor* Actor : Level->PersistentLevel->Actors)
+		{
+			if (const AAudioGameplayVolume* Volume = Cast<AAudioGameplayVolume>(Actor))
+			{
+				Volumes.Add(Volume);
+			}
+			else if (const AAmbientSound* Tone = Cast<AAmbientSound>(Actor))
+			{
+				Tones.Add(Tone);
+			}
+		}
+		if (!Test.TestEqual(*FString::Printf(TEXT("%s: one acoustics volume"), *Name), Volumes.Num(), 1) || !Test.TestEqual(*FString::Printf(TEXT("%s: one room tone"), *Name), Tones.Num(), 1))
+		{
+			return {};
+		}
+		// The level is loaded, not playing: its transforms are the root components' relative ones (room-local).
+		const AAudioGameplayVolume* Volume = Volumes[0];
+		const FVector Size(Room.Footprint.X * Metrics->CellSize, Room.Footprint.Y * Metrics->CellSize, Room.Footprint.Z * Metrics->CellHeight);
+		const USceneComponent* Root = Volume->GetRootComponent();
+		const FBox Brush = Volume->Brush ? Volume->Brush->Bounds.GetBox() : FBox(ForceInit);
+		const FBox Covered(Root->GetRelativeLocation() + Brush.Min * Root->GetRelativeScale3D(), Root->GetRelativeLocation() + Brush.Max * Root->GetRelativeScale3D());
+		Test.TestTrue(FString::Printf(TEXT("%s: the volume covers the room exactly (%s)"), *Name, *Covered.ToString()),
+			Covered.Min.Equals(FVector::ZeroVector, BoundsTolerance) && Covered.Max.Equals(Size, BoundsTolerance)
+			&& Brush.Max.Equals(FVector(BrushHalfSize), BoundsTolerance));
+		const UReverbVolumeComponent* Reverb = Volume->FindComponentByClass<UReverbVolumeComponent>();
+		const UFilterVolumeComponent* Walls = Volume->FindComponentByClass<UFilterVolumeComponent>();
+		Test.TestTrue(FString::Printf(TEXT("%s: a reverb preset"), *Name), Reverb && Reverb->GetReverbSettings().bApplyReverb && Reverb->GetReverbSettings().ReverbEffect);
+		Test.TestTrue(FString::Printf(TEXT("%s: what comes from outside is muffled"), *Name), Walls && Walls->GetExteriorLPF() < MAX_FILTER_FREQUENCY);
+		const UAudioComponent* Tone = Tones[0]->GetAudioComponent();
+		const USoundBase* Sound = Tone ? Tone->Sound.Get() : nullptr;
+		Test.TestTrue(FString::Printf(TEXT("%s: a looping room tone through SC_Hollow_World"), *Name), Sound && !Sound->IsOneShot() && Sound->SoundClassObject == SoundClass);
+		Test.TestTrue(FString::Printf(TEXT("%s: ...filling the room"), *Name), Tone && Tone->bOverrideAttenuation
+			&& Tone->AttenuationOverrides.AttenuationShape == EAttenuationShape::Box && Tone->AttenuationOverrides.AttenuationShapeExtents.Equals(Size * 0.5, BoundsTolerance));
+		return TPair<const UReverbEffect*, const USoundBase*>(Reverb ? Reverb->GetReverbSettings().ReverbEffect.Get() : nullptr, Sound);
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowAudioConsistencyTest, "Hollow.Game.Audio.Consistency",
@@ -359,51 +418,44 @@ bool FHollowAudioRoomAcousticsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The vault rings longer than a corridor"), Vault->DecayTime > Corridor->DecayTime);
 	for (const UHollowRoomDefinition* Room : Rooms)
 	{
-		const FString Name = Room->GetName();
-		const UWorld* Level = Room->RoomLevel.LoadSynchronous();
-		if (!TestNotNull(*FString::Printf(TEXT("%s level"), *Name), Level) || !Level->PersistentLevel)
+		const TPair<const UReverbEffect*, const USoundBase*> Acoustics = CheckRoomAcoustics(*this, *Room, SoundClass, Metrics);
+		if (Room->GetName() == HeroRoom)
 		{
-			continue;
+			TestTrue(TEXT("The hero vault rings as a vault"), Acoustics.Key == Vault);
 		}
-		TArray<const AAudioGameplayVolume*> Volumes;
-		TArray<const AAmbientSound*> Tones;
-		for (const AActor* Actor : Level->PersistentLevel->Actors)
-		{
-			if (const AAudioGameplayVolume* Volume = Cast<AAudioGameplayVolume>(Actor))
-			{
-				Volumes.Add(Volume);
-			}
-			else if (const AAmbientSound* Tone = Cast<AAmbientSound>(Actor))
-			{
-				Tones.Add(Tone);
-			}
-		}
-		if (!TestEqual(*FString::Printf(TEXT("%s: one acoustics volume"), *Name), Volumes.Num(), 1) || !TestEqual(*FString::Printf(TEXT("%s: one room tone"), *Name), Tones.Num(), 1))
-		{
-			continue;
-		}
-		// The level is loaded, not playing: its transforms are the root components' relative ones (room-local).
-		const AAudioGameplayVolume* Volume = Volumes[0];
-		const FVector Size(Room->Footprint.X * Metrics->CellSize, Room->Footprint.Y * Metrics->CellSize, Room->Footprint.Z * Metrics->CellHeight);
-		const USceneComponent* Root = Volume->GetRootComponent();
-		const FBox Brush = Volume->Brush ? Volume->Brush->Bounds.GetBox() : FBox(ForceInit);
-		const FBox Covered(Root->GetRelativeLocation() + Brush.Min * Root->GetRelativeScale3D(), Root->GetRelativeLocation() + Brush.Max * Root->GetRelativeScale3D());
-		TestTrue(FString::Printf(TEXT("%s: the volume covers the room exactly (%s)"), *Name, *Covered.ToString()),
-			Covered.Min.Equals(FVector::ZeroVector, BoundsTolerance) && Covered.Max.Equals(Size, BoundsTolerance)
-			&& Brush.Max.Equals(FVector(BrushHalfSize), BoundsTolerance));
-		const UReverbVolumeComponent* Reverb = Volume->FindComponentByClass<UReverbVolumeComponent>();
-		const UFilterVolumeComponent* Walls = Volume->FindComponentByClass<UFilterVolumeComponent>();
-		TestTrue(FString::Printf(TEXT("%s: a reverb preset"), *Name), Reverb && Reverb->GetReverbSettings().bApplyReverb && Reverb->GetReverbSettings().ReverbEffect);
-		TestTrue(FString::Printf(TEXT("%s: what comes from outside is muffled"), *Name), Walls && Walls->GetExteriorLPF() < MAX_FILTER_FREQUENCY);
-		if (Name == HeroRoom)
-		{
-			TestTrue(TEXT("The hero vault rings as a vault"), Reverb && Reverb->GetReverbSettings().ReverbEffect == Vault);
-		}
-		const UAudioComponent* Tone = Tones[0]->GetAudioComponent();
-		const USoundBase* Sound = Tone ? Tone->Sound.Get() : nullptr;
-		TestTrue(FString::Printf(TEXT("%s: a looping room tone through SC_Hollow_World"), *Name), Sound && !Sound->IsOneShot() && Sound->SoundClassObject == SoundClass);
-		TestTrue(FString::Printf(TEXT("%s: ...filling the room"), *Name), Tone && Tone->bOverrideAttenuation
-			&& Tone->AttenuationOverrides.AttenuationShape == EAttenuationShape::Box && Tone->AttenuationOverrides.AttenuationShapeExtents.Equals(Size * 0.5, BoundsTolerance));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowAudioCathedralAcousticsTest, "Hollow.Game.Audio.CathedralAcoustics",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowAudioCathedralAcousticsTest::RunTest(const FString& Parameters)
+{
+	// S7-03 (ADR-0040): every Cathedral room is dressed like the Docks' (a volume over the room, two storeys high in the
+	// halls, walls muffling the outside, a room tone filling it); the two-storey halls ring RE_Cathedral for 4.5 s, the
+	// crypt RE_Crypt, the rest RE_Cloister; the room tone is the reactor's hum, loudest in its crypt.
+	using namespace HollowAudioGameTests;
+	using namespace HollowDocksTestRooms;
+	const USoundClass* SoundClass = LoadObject<USoundClass>(nullptr, WorldSoundClass);
+	const UReverbEffect* Halls = LoadObject<UReverbEffect>(nullptr, CathedralReverb);
+	const UReverbEffect* Crypt = LoadObject<UReverbEffect>(nullptr, CryptReverb);
+	const UReverbEffect* Cloister = LoadObject<UReverbEffect>(nullptr, CloisterReverb);
+	const USoundBase* Hum = LoadObject<USoundBase>(nullptr, ReactorHum);
+	const TArray<const UHollowRoomDefinition*> Rooms = SectorRoomDefinitions(CathedralRoot);
+	if (!TestNotNull(TEXT("SC_Hollow_World"), SoundClass) || !TestNotNull(TEXT("RE_Cathedral"), Halls) || !TestNotNull(TEXT("RE_Crypt"), Crypt)
+		|| !TestNotNull(TEXT("RE_Cloister"), Cloister) || !TestNotNull(TEXT("MS_Reactor_Hum"), Hum) || !TestEqual(TEXT("Cathedral rooms"), Rooms.Num(), CathedralRooms))
+	{
+		return false;
+	}
+	TestNearlyEqual(TEXT("The halls ring 4.5 s"), Halls->DecayTime, CathedralDecaySeconds, DecayTolerance);
+	TestTrue(TEXT("...longer than the crypt, the crypt longer than the cloisters"), Halls->DecayTime > Crypt->DecayTime && Crypt->DecayTime > Cloister->DecayTime);
+	for (const UHollowRoomDefinition* Room : Rooms)
+	{
+		const TPair<const UReverbEffect*, const USoundBase*> Acoustics = CheckRoomAcoustics(*this, *Room, SoundClass, GetDefault<UHollowLevelMetrics>());
+		const UReverbEffect* Expected = Room->Footprint.Z > 1 ? Halls : Room->RoomTags.HasTagExact(HollowTags::Room_Type_CoreVault) ? Crypt : Cloister;
+		TestTrue(FString::Printf(TEXT("%s rings %s"), *Room->GetName(), *GetNameSafe(Expected)), Acoustics.Key == Expected);
+		TestTrue(FString::Printf(TEXT("%s: the reactor's hum"), *Room->GetName()), Acoustics.Value == Hum);
 	}
 	return true;
 }

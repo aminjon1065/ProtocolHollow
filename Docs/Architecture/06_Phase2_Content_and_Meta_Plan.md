@@ -131,6 +131,12 @@
   - **Генератор:** `RequiredSocketTypes` — алтарь и дуга в каждом из 1000 seed'ов Собора.
   - **Звук:** колокол `MS_Altar_Bell`; остальные звуки — S7-03.
   - **Тесты** `Hollow.PCG.Generator.RequiredSockets`, `Hollow.Game.{Carry.Held, Altar.Ritual, Arc.Rules, Arc.Hazard, Cathedral.Data}`; кооп-смоук `playthrough-mac.sh altar`.
+- **S7-03 — сделано** (2026-11-22, [ADR-0040](../ADR/ADR-0040-cathedral-light-materials-acoustics.md)):
+  - **Палитра:** 9 инстансов мастер-материалов, без текстур — камень, позолота, витражи фиолетовый/золотой, циановые каналы реактора (`FollowResonance`); `MI_Altar_Stone` в камне Собора.
+  - **Свет:** риги 8 комнат в бюджете `DA_LightBudget` без его изменения; залы — теневые панели второго света, одна с объёмной тенью; аварийная лампа `M_LF_Emergency` (мерцание от `MPC_Resonance`) в каждой комнате.
+  - **Акустика:** Audio Gameplay Volumes по 8 комнатам — `RE_Cathedral` 4,5 с (залы), `RE_Crypt` 2,4 с, `RE_Cloister` 1,4 с; тон — `MS_Reactor_Hum`.
+  - **Звуки механик:** треск телеграфа и удар разряда дуги, аккорд очистки ядра — по тегам из данных, у каждой машины от реплицированного состояния; колокол — с S7-02.
+  - **Контент** `create_cathedral_look.py` (34-й, последний); тесты `Hollow.Game.{Light.CathedralBudgets, Audio.CathedralAcoustics, Cathedral.Look}` и звуки в `Arc.Hazard` / `Altar.Ritual`.
 
 ---
 

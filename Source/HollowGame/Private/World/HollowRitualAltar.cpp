@@ -204,6 +204,13 @@ void AHollowRitualAltar::ApplyState()
 	FTimerManager& Timers = GetWorldTimerManager();
 	Timers.ClearTimer(TollTimer);
 	Timers.ClearTimer(FlashTimer);
+	const bool bJustPurified = ShownPhase == EHollowAltarPhase::Ritual && AltarState.Phase == EHollowAltarPhase::Spent;
+	ShownPhase = AltarState.Phase;
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	if (bJustPurified && Audio && Definition->PurifiedSound.IsValid())
+	{
+		Audio->Play(Definition->PurifiedSound, GetSeatTransform().GetLocation());   // S7-03: heard where it was seen
+	}
 	switch (AltarState.Phase)
 	{
 	case EHollowAltarPhase::Idle:

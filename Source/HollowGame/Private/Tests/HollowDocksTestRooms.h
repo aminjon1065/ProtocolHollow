@@ -1,6 +1,7 @@
 #pragma once
 
-// The Docks room definitions under test (create_docks_greybox.py), shared by the lighting and audio tests.
+// The sector room definitions under test (create_docks_greybox.py, create_cathedral_greybox.py), shared by the lighting
+// and audio tests.
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -14,14 +15,17 @@ namespace HollowDocksTestRooms
 	const TCHAR* const DocksRoot = TEXT("/HollowSector_Docks");
 	const TCHAR* const HeroRoom = TEXT("DA_Room_Docks_CoreVault");
 	constexpr int32 DocksRooms = 8;
+	/** Sector II (S7-01, ADR-0038). */
+	const TCHAR* const CathedralRoot = TEXT("/HollowSector_Cathedral");
+	constexpr int32 CathedralRooms = 8;
 
-	/** Every Docks room definition, by package name. */
-	inline TArray<const UHollowRoomDefinition*> DocksRoomDefinitions()
+	/** Every room definition of a sector plugin, by package name. */
+	inline TArray<const UHollowRoomDefinition*> SectorRoomDefinitions(const TCHAR* Root)
 	{
 		IAssetRegistry& Registry = IAssetRegistry::GetChecked();
-		Registry.ScanPathsSynchronous({FString(DocksRoot)}, /*bForceRescan=*/false);
+		Registry.ScanPathsSynchronous({FString(Root)}, /*bForceRescan=*/false);
 		FARFilter Filter;
-		Filter.PackagePaths.Add(FName(DocksRoot));
+		Filter.PackagePaths.Add(FName(Root));
 		Filter.bRecursivePaths = true;
 		Filter.ClassPaths.Add(UHollowRoomDefinition::StaticClass()->GetClassPathName());
 		TArray<FAssetData> Assets;
@@ -36,6 +40,11 @@ namespace HollowDocksTestRooms
 			}
 		}
 		return Rooms;
+	}
+
+	inline TArray<const UHollowRoomDefinition*> DocksRoomDefinitions()
+	{
+		return SectorRoomDefinitions(DocksRoot);
 	}
 }
 

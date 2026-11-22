@@ -54,6 +54,21 @@ namespace HollowLightingTests
 #endif
 		return bIntensity && bOffset;
 	}
+
+	/** A room level within its type's budget, with its emergency light (M_LF_Emergency, unshadowed), every light movable. */
+	void CheckRoomLights(FAutomationTestBase& Test, const UHollowRoomDefinition& Room, const ULevel& Level, const UMaterialInterface* Emergency)
+	{
+		const TArray<FString> Problems = HollowLightBudget::CheckRoomLevel(Room, Level);
+		Test.TestTrue(FString::Printf(TEXT("%s within budget%s%s"), *Room.GetName(), Problems.IsEmpty() ? TEXT("") : TEXT(": "), *FString::Join(Problems, TEXT("; "))),
+			Problems.IsEmpty());
+		const TArray<const ULightComponent*> Lights = LightsOf(Level);
+		Test.TestTrue(FString::Printf(TEXT("%s has an emergency light"), *Room.GetName()), Lights.ContainsByPredicate([Emergency](const ULightComponent* Light)
+		{
+			return Light->LightFunctionMaterial == Emergency && !Light->CastShadows;
+		}));
+		Test.TestTrue(FString::Printf(TEXT("%s: every light movable (no baked light, ADR-0008)"), *Room.GetName()),
+			!Lights.ContainsByPredicate([](const ULightComponent* Light) { return Light->Mobility != EComponentMobility::Movable; }));
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLightRoomBudgetsTest, "Hollow.Game.Light.RoomBudgets",
@@ -81,22 +96,46 @@ bool FHollowLightRoomBudgetsTest::RunTest(const FString& Parameters)
 		{
 			continue;
 		}
-		const TArray<FString> Problems = HollowLightBudget::CheckRoomLevel(*Room, *Level->PersistentLevel);
-		TestTrue(FString::Printf(TEXT("%s within budget%s%s"), *Room->GetName(), Problems.IsEmpty() ? TEXT("") : TEXT(": "), *FString::Join(Problems, TEXT("; "))),
-			Problems.IsEmpty());
-		const TArray<const ULightComponent*> Lights = LightsOf(*Level->PersistentLevel);
-		TestTrue(FString::Printf(TEXT("%s has an emergency light"), *Room->GetName()), Lights.ContainsByPredicate([Emergency](const ULightComponent* Light)
-		{
-			return Light->LightFunctionMaterial == Emergency && !Light->CastShadows;
-		}));
-		TestTrue(FString::Printf(TEXT("%s: every light movable (no baked light, ADR-0008)"), *Room->GetName()),
-			!Lights.ContainsByPredicate([](const ULightComponent* Light) { return Light->Mobility != EComponentMobility::Movable; }));
+		CheckRoomLights(*this, *Room, *Level->PersistentLevel, Emergency);
 		if (Room->GetName() == HeroRoom)
 		{
 			// The scripted rig: two shadowed panels, one failing; lit by hand (art-locked, ADR-0027): at least the failing one.
 			const TArray<FString> Rig = HollowLightBudget::CheckHeroRig(HollowLightBudget::CollectLevel(*Level->PersistentLevel), Room->IsArtLocked());
 			TestTrue(FString::Printf(TEXT("Hero room rig%s%s%s"), Room->IsArtLocked() ? TEXT(" (art-locked)") : TEXT(""), Rig.IsEmpty() ? TEXT("") : TEXT(": "),
 				*FString::Join(Rig, TEXT("; "))), Rig.IsEmpty());
+		}
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLightCathedralBudgetsTest, "Hollow.Game.Light.CathedralBudgets",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowLightCathedralBudgetsTest::RunTest(const FString& Parameters)
+{
+	// S7-03 (ADR-0040): every Cathedral room level within its type's budget, with its emergency light flickering from
+	// MPC_Resonance, every light movable; the two-storey halls are lit through their clerestory: a shadowed light that
+	// casts a volumetric shadow (the shafts in the fog).
+	using namespace HollowLightingTests;
+	const UMaterialInterface* Emergency = LoadObject<UMaterialInterface>(nullptr, EmergencyFunction);
+	const TArray<const UHollowRoomDefinition*> Rooms = SectorRoomDefinitions(CathedralRoot);
+	if (!TestNotNull(TEXT("M_LF_Emergency"), Emergency) || !TestEqual(TEXT("Cathedral rooms"), Rooms.Num(), CathedralRooms))
+	{
+		return false;
+	}
+	for (const UHollowRoomDefinition* Room : Rooms)
+	{
+		const UWorld* Level = Room->RoomLevel.LoadSynchronous();
+		if (!TestNotNull(*FString::Printf(TEXT("%s level"), *Room->GetName()), Level) || !Level->PersistentLevel)
+		{
+			continue;
+		}
+		CheckRoomLights(*this, *Room, *Level->PersistentLevel, Emergency);
+		if (Room->Footprint.Z > 1 && !Room->RoomTags.HasTagExact(HollowTags::Room_Type_Junction))   // the crossing is a pass-through: no shadows
+		{
+			const TArray<const ULightComponent*> Lights = LightsOf(*Level->PersistentLevel);
+			TestTrue(FString::Printf(TEXT("%s: lit through its clerestory, shafts in the fog"), *Room->GetName()),
+				Lights.ContainsByPredicate([](const ULightComponent* Light) { return Light->CastShadows && Light->bCastVolumetricShadow; }));
 		}
 	}
 	return true;

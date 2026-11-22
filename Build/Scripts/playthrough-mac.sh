@@ -46,8 +46,9 @@
 #   cathedral  S7-01 Reactor Cathedral (ADR-0038): host + 1 headless client behind --net, the host's raid sector
 #          overridden to HollowSector_Cathedral (dev: the contract picks it from S7-04 on). Both machines dump the sector
 #          (same layout hash, the plugin Active), the host its generated map and the Standard and Heavy paths to the
-#          extraction; the AI lives for 20 s (both dump it); the host walks 4 rooms with real input taking pictures
-#          with the lighting show flag off (no lights before S7-03), then carries the core out and both extract.
+#          extraction; the AI lives for 20 s (both dump it); both dump the rooms' light against DA_LightBudget and the
+#          sounds heard (S7-03: rigs, reactor hum, reverbs); the host walks 4 rooms with real input taking lit pictures,
+#          then carries the core out and both extract.
 #   altar  S7-02 Cathedral mechanics (ADR-0039): host + 1 headless client behind --net, raid sector overridden to the
 #          Cathedral. The client carries the core to the Purification Altar and lays it there (Interact on a carry
 #          receiver); both dump the altar through the 20 s ritual, the AI and the heat (the bell draws them); the core
@@ -107,7 +108,8 @@ NET_SUFFIX=""
 [[ "$NET" != none ]] && NET_SUFFIX="-$NET"
 OUT="$HOLLOW_PROJECT_ROOT/Saved/Playthrough/$(date +%Y%m%d-%H%M%S)-$MODE$NET_SUFFIX"
 mkdir -p "$OUT"
-COMMON=(-nosplash -unattended -HollowPreset=Low
+# -forcelogflush: every log line reaches the file at once, so an engine check's text survives the crash (KnownIssues H-7).
+COMMON=(-nosplash -unattended -HollowPreset=Low -forcelogflush
 	"-ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null" "-ini:Engine:[OnlineSubsystemSteam]:bEnabled=false")
 VIEW=(-RenderOffScreen -windowed -ResX=1280 -ResY=720)
 HEADLESS=(-nullrhi -nosound)
@@ -402,15 +404,16 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 4 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 4.5 Hollow.AI.Dump")
 		h "Hollow.Dev.RunInRaid 22 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 22.5 Hollow.AI.Dump")   # 20 s on: the AI in the halls
 		h "Hollow.Dev.RunInRaid 24 Hollow.AI.Kill"
-		# The host walks 4 rooms with real input (piers, plinths, openings) and takes pictures on the way; no lights
-		# before S7-03, so the lighting show flag goes off (a console variable: viewmode does not reach the viewport, H-5).
-		h "Hollow.Dev.RunInRaid 24.5 Hollow.Dev.OpenDoors"; h "Hollow.Dev.RunInRaid 25 ShowFlag.Lighting 0"
+		h "Hollow.Dev.RunInRaid 5 Hollow.Light.Dump"; C+=("Hollow.Dev.RunInRaid 5.5 Hollow.Light.Dump")   # S7-03: every rig within budget
+		# The host walks 4 rooms with real input (piers, plinths, openings) and takes lit pictures on the way (S7-03).
+		h "Hollow.Dev.RunInRaid 24.5 Hollow.Dev.OpenDoors"
 		h "Hollow.Dev.RunInRaid 25.5 Hollow.Dev.WalkRoute 4"
 		h "Hollow.Dev.RunInRaid 27 Hollow.UI.Shot Cathedral_Walk1"; h "Hollow.Dev.RunInRaid 28.5 Hollow.UI.Shot Cathedral_Walk2"
 		h "Hollow.Dev.RunInRaid 30 Hollow.UI.Shot Cathedral_Walk3"; h "Hollow.Dev.RunInRaid 34 Hollow.UI.Shot Cathedral_Walk4"   # 4 rooms take ~6 s
 		h "Hollow.Dev.RunInRaid 46 Hollow.Dev.GoToNearestCore"; h "Hollow.Dev.RunInRaid 46.5 Hollow.UI.Shot Cathedral_Crypt"
 		h "Hollow.Dev.RunInRaid 47 Hollow.Interact"
 		h "Hollow.Dev.RunInRaid 49 Hollow.Dev.GoToExtraction All"; h "Hollow.Dev.RunInRaid 50 Hollow.UI.Shot Cathedral_Belfry"
+		h "Hollow.Dev.RunInRaid 52 Hollow.Audio.Dump"; C+=("Hollow.Dev.RunInRaid 52.5 Hollow.Audio.Dump")   # the room tones and the sounds heard
 		h "Hollow.Dev.RunInRaid 90 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 91 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
@@ -430,6 +433,7 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 9.2 Hollow.AI.Heat"; h "Hollow.Dev.RunInRaid 9.4 Hollow.AI.Dump"
 		h "Hollow.Dev.RunInRaid 18 Hollow.Altar.Dump"; h "Hollow.Dev.RunInRaid 18.2 Hollow.AI.Dump"; h "Hollow.Dev.RunInRaid 18.4 Hollow.AI.Heat"
 		h "Hollow.Dev.RunInRaid 30 Hollow.Altar.Dump"; C+=("Hollow.Dev.RunInRaid 30.5 Hollow.Altar.Dump")   # done: purified
+		h "Hollow.Dev.RunInRaid 30.2 Hollow.Audio.Dump"; C+=("Hollow.Dev.RunInRaid 30.7 Hollow.Audio.Dump")   # S7-03: purified heard once, a bell a toll
 		h "Hollow.Dev.RunInRaid 31 Hollow.AI.Kill"
 		# 2. The client in an arc, vulnerable: struck; the host cuts its breaker: no more strikes.
 		h "Hollow.Dev.RunInRaid 32 Hollow.Dev.GoToArc Others"; h "Hollow.Dev.RunInRaid 32.5 Hollow.Dev.Invulnerable All Off"

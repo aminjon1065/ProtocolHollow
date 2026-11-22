@@ -12,6 +12,7 @@
 #   --exec        console commands for the host before the capture (trying a setting), separated by ';'
 #   --audio-stress N  every bank sound N times at the host from 1 s into the capture to its end (first plays included)
 #   --app PATH    run a packaged build (ProtocolHollow.app, BuildCookRun -platform=Mac) instead of the editor binary
+#   --sector NAME raid sector plugin HollowSector_NAME instead of the configured one (S7-03: Cathedral; the host's -ini)
 set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
@@ -25,6 +26,7 @@ EXTRA=""
 STRESS=0
 APP=""
 BUILD=1
+SECTOR=
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--preset) PRESET="$2"; shift 2 ;;
@@ -37,6 +39,7 @@ while [[ $# -gt 0 ]]; do
 		--audio-stress) STRESS="$2"; shift 2 ;;
 		--app) APP="$2"; BUILD=0; shift 2 ;;
 		--no-build) BUILD=0; shift ;;
+		--sector) SECTOR="$2"; shift 2 ;;
 		*) echo "Unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
@@ -89,15 +92,17 @@ fi
 [[ "$PROFILE" == 1 ]] && r "$(awk -v w="$WARMUP" -v s="$SECONDS_TO_CAPTURE" 'BEGIN { print 9 + w + s / 2 }')" "ProfileGPU"
 r 8 "Hollow.Graphics.Dump"
 r 9 "Hollow.Dev.LookAround $TOTAL 2"
-r 9 "Hollow.Perf.Capture E9-$PRESET $SECONDS_TO_CAPTURE $WARMUP"
+r 9 "Hollow.Perf.Capture E9-$PRESET${SECTOR:+-$SECTOR} $SECONDS_TO_CAPTURE $WARMUP"
 W="Hollow.Dev.RunInRaid 8 Hollow.Tool.Hold Hollow.Input.SecondaryUse $TOTAL"
 
+SECTORARGS=()
+[[ -n "$SECTOR" ]] && SECTORARGS=("-ini:Game:[/Script/HollowGame.HollowSectorSettings]:RaidSector=HollowSector_$SECTOR")   # the clients learn it from the manifest
 TRACEARGS=()
 [[ "$TRACE" == 1 ]] && TRACEARGS=(-trace=default,gpu,frame,net,physics,audio "-tracefile=$OUT/host.utrace" -statnamedevents)
 for s in PerfHost PerfClient1 PerfClient2 PerfClient3; do rm -f "$SAVES/$s.sav"; done
 PIDS=()
 trap 'kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true' EXIT   # never leave a game running: it would load the next capture
-launch "$OUT/host.log" "${COMMON[@]}" -RenderOffScreen -windowed -ResX=1920 -ResY=1080 "$(slot PerfHost)" ${TRACEARGS[@]+"${TRACEARGS[@]}"} -ExecCmds="$H"
+launch "$OUT/host.log" "${COMMON[@]}" -RenderOffScreen -windowed -ResX=1920 -ResY=1080 "$(slot PerfHost)" ${SECTORARGS[@]+"${SECTORARGS[@]}"} ${TRACEARGS[@]+"${TRACEARGS[@]}"} -ExecCmds="$H"
 wait_for "$OUT/host.log" 'listening on port' 240 || { echo "host never listened"; kill "${PIDS[@]}"; exit 1; }
 for i in 1 2 3; do
 	CMDS="$HEADLESS_FPS,open 127.0.0.1"
