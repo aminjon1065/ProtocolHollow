@@ -14,6 +14,7 @@ class UAISenseConfig_Sight;
 class UHollowEnemyDefinition;
 class UStateTreeAIComponent;
 struct FAbilityEndedData;
+struct FOnAttributeChangeData;
 
 DECLARE_DELEGATE_OneParam(FOnHollowActivityFinished, bool /*bSuccess*/);
 
@@ -62,6 +63,13 @@ public:
 
 	/** Hollow.State.Stunned on its pawn (a pulse mine): it stands still and strikes at nothing. */
 	bool IsStunned() const;
+	/** Hollow.State.Exposed on its pawn: it stands in an Aether lantern's light (S6-02). */
+	bool IsExposed() const;
+	/**
+	 * Its pawn's MoveSpeedMultiplier (S6-02, slowed by effects; 1 without a movement set): every move goes at the speed
+	 * its activity asks for times this, and a change applies to the move under way.
+	 */
+	float GetMoveSpeedMultiplier() const;
 	/** How far it hears now (the definition's, unless a child scales it). */
 	float GetHearingRange() const;
 	/** Living, player-controlled pawn other than its own: what it may hunt and what it hears. */
@@ -84,6 +92,8 @@ protected:
 	virtual void OnActivityEnded(EHollowAIActivity Ended) {}
 	/** The pawn was just stunned (abilities already cancelled, movement stopped). */
 	virtual void OnStunned() {}
+	/** The pawn just came into an Aether lantern's light (S6-02; the slow is its movement set's). */
+	virtual void OnExposed() {}
 	/** Whether a new sight or sound makes the brain pick again at once (the Pilgrim: always; the stalker only while it roams). */
 	virtual bool ShouldReconsiderOnPerception() const { return true; }
 	/** Hearing range from now on (perception is reconfigured; noises already heard stay). */
@@ -122,6 +132,10 @@ private:
 	void HandlePerception(AActor* Actor, FAIStimulus Stimulus);
 
 	void HandleStunChanged(const FGameplayTag Tag, int32 Count);
+	void HandleExposedChanged(const FGameplayTag Tag, int32 Count);
+	void HandleMoveSpeedChanged(const FOnAttributeChangeData& Change);
+	/** MaxWalkSpeed = the speed the current activity asked for x MoveSpeedMultiplier. */
+	void ApplyMoveSpeed();
 	/** A heard stimulus from another room counts only within the noise's inter-room range (DA_NoiseConfig). */
 	bool IsAudibleFromItsRoom(const FAIStimulus& Stimulus) const;
 	void ConfigureSenses(const UHollowEnemyDefinition& Definition);
@@ -160,4 +174,8 @@ private:
 
 	FDelegateHandle AbilityEndedHandle;
 	FDelegateHandle StunHandle;
+	FDelegateHandle ExposedHandle;
+	FDelegateHandle MoveSpeedHandle;
+	/** Speed the current activity moves at, before MoveSpeedMultiplier (the definition's patrol speed at first). */
+	float ActivitySpeed = 0.f;
 };

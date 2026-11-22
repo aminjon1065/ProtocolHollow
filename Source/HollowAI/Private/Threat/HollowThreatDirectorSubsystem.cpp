@@ -164,6 +164,15 @@ void UHollowThreatDirectorSubsystem::ReportStunned(const AActor* Enemy)
 	}
 }
 
+void UHollowThreatDirectorSubsystem::ReportRepelled(const AActor* Enemy)
+{
+	if (Enemy && Enemy == Stalker.Get() && Mode != EHollowThreatMode::Retreat)
+	{
+		UE_LOG(LogHollowAI, Log, TEXT("Director: %s flees the Aether light"), *GetNameSafe(Enemy));
+		SetMode(EHollowThreatMode::Retreat);
+	}
+}
+
 void UHollowThreatDirectorSubsystem::SetMode(const EHollowThreatMode NewMode)
 {
 	UWorld* World = GetWorld();

@@ -25,7 +25,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHollowThreatModeChanged, AHollowEnemyCha
  * Director-lite (ADR-0019), server only: the aggression leash of the sector's one stalker. Spawns it a while after
  * the sector is up, at the vent farthest from the living players, then cycles Stalk -> Hunt -> Retreat -> Stalk:
  * a hunt starts after StalkSeconds or as soon as the hottest room nobody is in is hot enough, ends with a strike, a
- * stun or HuntSeconds; the retreat lasts RetreatSeconds. Timers only (UHollowThreatConfig::Director).
+ * stun or HuntSeconds; the retreat lasts RetreatSeconds. An Aether lantern's light (S6-02) sends it away from any mode. Timers only (UHollowThreatConfig::Director).
  */
 UCLASS()
 class HOLLOWAI_API UHollowThreatDirectorSubsystem : public UWorldSubsystem
@@ -46,6 +46,8 @@ public:
 	void Register(AHollowEnemyCharacter* Enemy);
 	void ReportStrike(const AActor* Enemy);
 	void ReportStunned(const AActor* Enemy);
+	/** The stalker came into an Aether lantern's light (S6-02): it retreats, an ambush broken; a retreat under way is not prolonged. */
+	void ReportRepelled(const AActor* Enemy);
 	void SetMode(EHollowThreatMode NewMode);
 
 	FString Describe() const;

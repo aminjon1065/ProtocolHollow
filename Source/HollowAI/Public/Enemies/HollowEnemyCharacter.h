@@ -10,11 +10,13 @@ class UHollowEnemyDefinition;
 class UHollowEnemyMontageComponent;
 class UHollowFootstepAudioComponent;
 class UHollowHealthSet;
+class UHollowMovementSet;
 
 /**
  * Enemy pawn (Docs/Architecture/02 sec. 2.7, ADR-0017): its own ability system in Minimal replication (tags and cues
- * reach clients, effects stay on the server) with a health set, everything else from UHollowEnemyDefinition. Driven
- * only on the server by AHollowAIController; clients see replicated movement and the replicated dead flag.
+ * reach clients, effects stay on the server) with a health set and a movement set (the speed multiplier effects slow,
+ * S6-02), everything else from UHollowEnemyDefinition. Driven only on the server by AHollowAIController; clients see
+ * replicated movement and the replicated dead flag.
  * The Iron Pilgrim is BP_IronPilgrim: this class plus data.
  */
 UCLASS()
@@ -51,6 +53,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UHollowHealthSet> HealthSet;
+
+	UPROPERTY()
+	TObjectPtr<UHollowMovementSet> MovementSet;
 
 	/** Its footsteps for players (every machine), UHollowEnemyDefinition::FootstepSound. No AI hears enemies. */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Enemy")

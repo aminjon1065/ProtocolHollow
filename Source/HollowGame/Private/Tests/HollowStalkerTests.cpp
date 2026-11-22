@@ -42,6 +42,7 @@ namespace HollowStalkerTests
 	const TCHAR* const MineClass = TEXT("/Game/Hollow/Gadgets/PulseMine/BP_PulseMine.BP_PulseMine_C");
 	const TCHAR* const MineAbilityClass = TEXT("/Game/Hollow/Gadgets/PulseMine/GA_PulseMine.GA_PulseMine_C");
 	const TCHAR* const MineItemPath = TEXT("/Game/Hollow/Items/Consumables/DA_Item_PulseMine.DA_Item_PulseMine");
+	const TCHAR* const ExposeEffect = TEXT("/Game/Hollow/GAS/Effects/GE_Occult_Expose.GE_Occult_Expose_C");   // create_lantern_assets.py
 
 	// The scene's floor (X 0..2000, Y -2300..500) as sector rooms (test data): West of the wall line and East of it;
 	// for the ambush, East split into South-East and North-East.
@@ -847,6 +848,82 @@ bool FHollowStalkerHearsVoiceTest::RunTest(const FString& Parameters)
 	Advance(Scene.TestWorld, HearSeconds, [Brain] { return Brain->HasStimulus(); });
 	TestTrue(TEXT("The stalker hears the shout"), Brain->HasStimulus());
 	TestTrue(TEXT("...where the player is"), FVector::Dist2D(Brain->GetStimulusLocation(), Player->GetActorLocation()) < StimulusTolerance);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowAetherLanternStalkerTest, "Hollow.GAS.AetherLantern.Stalker",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowAetherLanternStalkerTest::RunTest(const FString& Parameters)
+{
+	// ADR-0035, S6-02: lying in wait, the stalker caught in an Aether lantern's light (GE_Occult_Expose, as every lantern
+	// sample applies it) breaks its ambush - the director sends it into the vents at once - and loses its kinetic
+	// immunity while the light lasts. A light during the retreat does not prolong it; called back while the light still
+	// lingers on it, it flees again.
+	using namespace HollowStalkerTests;
+	FEnemyScene Scene;
+	const TSubclassOf<UGameplayEffect> Kinetic = LoadClass<UGameplayEffect>(nullptr, KineticEffect);
+	const TSubclassOf<UGameplayEffect> Expose = LoadClass<UGameplayEffect>(nullptr, ExposeEffect);
+	if (!TestNotNull(TEXT("GE_Damage_Kinetic"), Kinetic.Get()) || !TestNotNull(TEXT("GE_Occult_Expose"), Expose.Get()) || !Scene.Create(*this, EWall::None))
+	{
+		return false;
+	}
+	UHollowThreatConfig* Config = MakeConfig();
+	Config->Director.HuntSeconds = 60.f;   // the hunt only ends by the light; the retreat stays short
+	StartThreat(Scene.World, Config, ThreeRooms());
+	AHollowExoFrameCharacter* Player = nullptr;
+	UHollowAbilitySystemComponent* PlayerAbilities = Scene.SpawnPlayer(*this, RoomA, Player);
+	AHollowEnemyCharacter* Stalker = Scene.SpawnEnemy(*this, StalkerClass, FVector(1500.0, -1800.0, 120.0));
+	AHollowStalkerController* Brain = BrainOf(Stalker);
+	if (!PlayerAbilities || !TestNotNull(TEXT("Stalker brain"), Brain))
+	{
+		return false;
+	}
+	Aim(Player, 0.0);
+	UHollowActivityHeatmapSubsystem* Heatmap = UHollowActivityHeatmapSubsystem::Get(Scene.World);
+	Heatmap->AddRoomHeat(West, 50.f);
+	Heatmap->AddRoomHeat(SouthEast, 10.f);
+	Heatmap->AddRoomHeat(NorthEast, 30.f);   // the hottest room nobody is in
+	Heatmap->AddPortalHeat(1, 5.f);
+	UHollowThreatDirectorSubsystem* Director = UHollowThreatDirectorSubsystem::Get(Scene.World);
+	Director->Register(Stalker);
+	Director->SetMode(EHollowThreatMode::Hunt);
+	auto Waiting = [Brain, Stalker] { return Brain->GetActivity() == EHollowAIActivity::Ambush && Stalker->GetVelocity().Size2D() < 1.0; };
+	Advance(Scene.TestWorld, StepSeconds * 2.f, Waiting);
+	if (!TestTrue(TEXT("It lies in wait"), Waiting()))
+	{
+		return false;
+	}
+
+	TArray<EHollowThreatMode> Modes;
+	Director->OnModeChanged.AddLambda([&Modes](AHollowEnemyCharacter*, const EHollowThreatMode Mode) { Modes.Add(Mode); });
+	UAbilitySystemComponent* StalkerAbilities = Stalker->GetAbilitySystemComponent();
+	auto Apply = [PlayerAbilities, StalkerAbilities](const TSubclassOf<UGameplayEffect>& Effect, const float Damage)
+	{
+		const FGameplayEffectSpecHandle Spec = PlayerAbilities->MakeOutgoingSpec(Effect, 1.f, PlayerAbilities->MakeEffectContext());
+		Spec.Data->SetSetByCallerMagnitude(HollowTags::Data_Damage, Damage);
+		PlayerAbilities->ApplyGameplayEffectSpecToTarget(*Spec.Data, StalkerAbilities);
+	};
+	constexpr float Damage = 50.f;
+	constexpr float NoDamage = 0.f;
+	Apply(Expose, NoDamage);
+	TestTrue(TEXT("In the light: the ambush broken, it retreats at once"), Director->GetMode() == EHollowThreatMode::Retreat && Modes.Num() == 1);
+	TestFalse(TEXT("...without its kinetic immunity"), StalkerAbilities->HasMatchingGameplayTag(HollowTags::State_Invulnerable_Kinetic));
+	const float Before = Health(StalkerAbilities);
+	Apply(Kinetic, Damage);
+	TestTrue(TEXT("...so a kinetic hit hurts it"), Health(StalkerAbilities) < Before);
+
+	Advance(Scene.TestWorld, Config->Director.RetreatSeconds * 0.5f);
+	Director->ReportRepelled(Stalker);
+	TestEqual(TEXT("A light during the retreat does not prolong it"), Modes.Num(), 1);
+	Advance(Scene.TestWorld, Config->Director.RetreatSeconds, [&Modes] { return Modes.Num() >= 3; });
+	TestTrue(TEXT("Called back while the light lingers on it: it flees again"), Modes.Num() == 3 && Modes[1] == EHollowThreatMode::Stalk
+		&& Modes[2] == EHollowThreatMode::Retreat);
+	float ExposeSeconds = 0.f;
+	Expose.GetDefaultObject()->DurationMagnitude.GetStaticMagnitudeIfPossible(1.f, ExposeSeconds);
+	Advance(Scene.TestWorld, ExposeSeconds, [StalkerAbilities] { return !StalkerAbilities->HasMatchingGameplayTag(HollowTags::State_Exposed); });
+	Advance(Scene.TestWorld, StepSeconds * 0.01f);
+	TestTrue(TEXT("The light gone: immune again"), StalkerAbilities->HasMatchingGameplayTag(HollowTags::State_Invulnerable_Kinetic));
 	return true;
 }
 

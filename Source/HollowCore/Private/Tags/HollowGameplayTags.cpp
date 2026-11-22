@@ -8,6 +8,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool, "Hollow.Ability.Tool", "Parent of all signature tool abilities.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_PlasmaCutter, "Hollow.Ability.Tool.PlasmaCutter", "Engineer plasma cutter: cuts locks, seams and welds.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_Welder, "Hollow.Ability.Tool.Welder", "Engineer welder: seals doors.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_AetherLantern, "Hollow.Ability.Tool.AetherLantern", "Techno-Occultist Aether lantern (S6-02): exposes enemies in its cone, dampens the Resonance of the squad around.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Tool_Refuel, "Hollow.Ability.Tool.Refuel", "Burns a fuel cell into the tool tank (S5-01): blocked like the tools while carrying or dead.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Interact, "Hollow.Ability.Interact", "Generic interaction ability.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Carry_Heavy, "Hollow.Ability.Carry.Heavy", "Pick up / carry a heavy Aether core.");
@@ -47,6 +48,8 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Tool_Active, "Hollow.State.Tool.Active", "A continuous tool is running (owned while active; predicted locally).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Invulnerable, "Hollow.State.Invulnerable", "Takes no damage of any type (exact tag only; dev: Hollow.Dev.Invulnerable).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Invulnerable_Kinetic, "Hollow.State.Invulnerable.Kinetic", "Immune to kinetic damage (Echo-Stalker).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Exposed, "Hollow.State.Exposed", "In the Aether lantern's light (GE_Occult_Expose): slowed, weaker armour, no kinetic immunity; the Echo-Stalker flees.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_AntiResonance, "Hollow.State.AntiResonance", "Within an Aether lantern's aura (GE_AntiResonance): Resonance builds slower.");
 
 	// Damage types
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Kinetic, "Hollow.Damage.Kinetic", "Kinetic damage.");
@@ -62,6 +65,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Footstep, "Hollow.Noise.Footstep", "Footsteps.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Tool_Cutter, "Hollow.Noise.Tool.Cutter", "Plasma cutter in use.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Tool_Welder, "Hollow.Noise.Tool.Welder", "Welder in use.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Tool_Lantern, "Hollow.Noise.Tool.Lantern", "Aether lantern in use: a quiet hum.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Impact_Heavy, "Hollow.Noise.Impact.Heavy", "Heavy physical impact.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Structural_Breach, "Hollow.Noise.Structural.Breach", "Door or bulkhead breached.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Core_Drop, "Hollow.Noise.Core.Drop", "Heavy Aether core dropped.");
@@ -130,5 +134,7 @@ namespace HollowTags
 
 	// GameplayCues
 	HOLLOW_DEFINE_GAMEPLAY_TAG(GameplayCue_Tool_Beam, "GameplayCue.Hollow.Tool.Beam", "Looping tool beam (cutter/welder) cosmetics.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(GameplayCue_Tool_Lantern, "GameplayCue.Hollow.Tool.Lantern", "Aether lantern light cone cosmetics (while it runs).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(GameplayCue_Status_Exposed, "GameplayCue.Hollow.Status.Exposed", "Glow on an enemy in the Aether lantern's light (GE_Occult_Expose).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(GameplayCue_Enemy_Windup, "GameplayCue.Hollow.Enemy.Windup", "Enemy attack wind-up telegraph (while the blow is coming).");
 }

@@ -20,7 +20,13 @@ UHollowGA_ContinuousTool::UHollowGA_ContinuousTool(const FObjectInitializer& Obj
 {
 	ActivationPolicy = EHollowAbilityActivationPolicy::WhileInputActive;
 	ActivationBlockedTags.AddTag(HollowTags::State_Tool_Overheated);
+	ActivationBlockedTags.AddTag(HollowTags::State_Tool_Active);   // one at a time: two tools on one input, the first one granted wins
 	ActivationOwnedTags.AddTag(HollowTags::State_Tool_Active);   // local and immediate under prediction: the visor listens for it
+}
+
+FGameplayTag UHollowGA_ContinuousTool::GetCueTag() const
+{
+	return HollowTags::GameplayCue_Tool_Beam;
 }
 
 bool UHollowGA_ContinuousTool::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -48,7 +54,7 @@ void UHollowGA_ContinuousTool::ActivateAbility(const FGameplayAbilitySpecHandle 
 	Cue.SourceObject = ToolDefinition;
 	Cue.Instigator = GetAvatarActorFromActorInfo();
 	Cue.EffectCauser = GetAvatarActorFromActorInfo();
-	K2_AddGameplayCueWithParams(HollowTags::GameplayCue_Tool_Beam, Cue, /*bRemoveOnAbilityEnd=*/true);
+	K2_AddGameplayCueWithParams(GetCueTag(), Cue, /*bRemoveOnAbilityEnd=*/true);
 
 	if (HasAuthority(&ActivationInfo))
 	{
@@ -98,7 +104,24 @@ void UHollowGA_ContinuousTool::SampleTool()
 	FVector Eyes;
 	FRotator View;
 	Pawn->GetActorEyesViewPoint(Eyes, View);
-	const FVector Direction = View.Vector();
+	ApplySample(*Pawn, Eyes, View.Vector(), Delta);
+
+	// The torch is loud whether or not it works on something; the noise is the wielder's (the impact point may lie in a
+	// doorway's nav cut, on either side). Its rule limits the rate.
+	if (UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(World); Noise && Tool->NoiseTag.IsValid())
+	{
+		Noise->ReportNoise(FHollowNoiseEvent(Tool->NoiseTag, Pawn->GetActorLocation(), Pawn));
+	}
+
+	HeatUp();
+}
+
+void UHollowGA_ContinuousTool::ApplySample(APawn& Wielder, const FVector& Eyes, const FVector& Direction, const float DeltaSeconds)
+{
+	UWorld* World = GetWorld();
+	APawn* Pawn = &Wielder;
+	const UHollowToolDefinition* Tool = ToolDefinition;
+	const double Now = World->GetTimeSeconds();
 	const FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowToolSample), /*bTraceComplex=*/false, Pawn);
 	FHitResult Hit;
 	World->SweepSingleByChannel(Hit, Eyes, Eyes + Direction * Tool->Range, FQuat::Identity, Tool->TraceChannel,
@@ -107,8 +130,8 @@ void UHollowGA_ContinuousTool::SampleTool()
 	FHollowToolWork Work;
 	Work.ToolTag = Tool->ToolTag;
 	Work.Instigator = Pawn;
-	Work.DeltaSeconds = Delta;
-	Work.Amount = Tool->WorkRate * Delta;
+	Work.DeltaSeconds = DeltaSeconds;
+	Work.Amount = Tool->WorkRate * DeltaSeconds;
 	Work.ImpactPoint = Hit.ImpactPoint;
 	Work.ImpactNormal = Hit.ImpactNormal;
 	AActor* HitActor = Hit.GetActor();
@@ -148,15 +171,6 @@ void UHollowGA_ContinuousTool::SampleTool()
 		CurrentTarget.Reset();
 		break;
 	}
-
-	// The torch is loud whether or not it works on something; the noise is the wielder's (the impact point may lie in a
-	// doorway's nav cut, on either side). Its rule limits the rate.
-	if (UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(World); Noise && Tool->NoiseTag.IsValid())
-	{
-		Noise->ReportNoise(FHollowNoiseEvent(Tool->NoiseTag, Pawn->GetActorLocation(), Pawn));
-	}
-
-	HeatUp();
 }
 
 void UHollowGA_ContinuousTool::HeatUp()

@@ -79,6 +79,12 @@
   - `ClassId` реплицируется на `AHollowPlayerState` (`UHollowClassComponent`); сервер выдаёт эффект атрибутов, набор способностей и тег `Hollow.Class.*`;
   - класс меняется в шкафчике хаба (блок CLASS), в рейд приходит в снимке лоадаута; визор красит телеметрию цветом класса;
   - тесты `Hollow.Economy.Class.*`, `Hollow.Game.Class.SwitchAndReplicate`, `Hollow.UI.Visor.ClassColour`, кооп-смоук `playthrough-mac.sh classes`.
+- **S6-02 — сделано** (2026-11-22, [ADR-0035](../ADR/ADR-0035-aether-lantern.md)):
+  - `DA_Tool_AetherLantern` + `UHollowGA_AetherLantern` на базе `UHollowGA_ContinuousTool`: конус 25° × 9 м, топливо, перегрев, тихий гул;
+  - `GE_Occult_Expose` на врагах в свете: скорость ×0,6 (атрибут `MoveSpeedMultiplier` врагов), броня ×0,5, без кинетического иммунитета; Хищник в свете уходит в вентиляцию;
+  - аура `GE_AntiResonance` (6 м) на живых игроках рядом: прирост Резонанса ×0,5, в том числе у носильщика ядра;
+  - фонарь в стартовом наборе оккультиста (застрахован) и в магазине (450 кр); один непрерывный инструмент за раз;
+  - тесты `Hollow.GAS.AetherLantern.{Effects, Beam, Stalker, Data}`, кооп-смоук `playthrough-mac.sh lantern`.
 
 ---
 

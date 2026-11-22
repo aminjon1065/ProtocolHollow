@@ -113,6 +113,17 @@ def cutter():
     return g.mix("mix", [("roar_lp", "Out", 0.35), ("wobbled", "Out", 0.5)]).out("mix").spec
 
 
+def lantern():
+    """S6-02: the Aether lantern's hum - two close sines beating, a breath of band-passed air, a slow pulse."""
+    g = Graph(one_shot=False)
+    g.node("tone", SINE, {"Frequency": 196.0}).node("beat", SINE, {"Frequency": 198.5})
+    g.node("air", NOISE, {"Type": PINK}).node("air_bp", SVF, {"Cutoff Frequency": 2600.0, "Resonance": 4.0}).link("air", "Audio", "air_bp", "In")
+    g.mix("chord", [("tone", "Audio", 0.18), ("beat", "Audio", 0.18), ("air_bp", BAND_PASS, 0.12)])
+    g.node("pulse", LFO, {"Frequency": 0.8, "Min Value": 0.6, "Max Value": 1.0})
+    g.node("pulsing", SCALE).link("chord", "Out", "pulsing", "PrimaryOperand").link("pulse", "Out", "pulsing", "AdditionalOperands")
+    return g.out("pulsing").spec
+
+
 def door_servo():
     g = Graph(one_shot=True)
     g.node("whine_lfo", LFO, {"Frequency": 4.0, "Min Value": 118.0, "Max Value": 142.0})
@@ -266,7 +277,7 @@ def room_tone_vault():
 
 
 METASOUNDS = {
-    "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter,
+    "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter, "MS_Tool_Lantern": lantern,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
     "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
     "MS_HelmetLamp_Click": helmet_lamp_click,
@@ -285,6 +296,7 @@ CONCURRENCY = {"SCON_Footsteps": 8, "SCON_Impacts": 6, "SCON_Tools": 4}   # voic
 ENTRIES = [
     ("Hollow.Noise.Tool.Welder", "MS_Tool_Welder", "SCON_Tools", 0.0, 0.8, 0.0, None),
     ("Hollow.Noise.Tool.Cutter", "MS_Tool_Cutter", "SCON_Tools", 0.0, 0.8, 0.0, None),
+    ("Hollow.Noise.Tool.Lantern", "MS_Tool_Lantern", "SCON_Tools", 0.0, 0.5, 0.0, None),   # S6-02
     ("Hollow.Noise.Footstep", "MS_Footstep_Light", "SCON_Footsteps", 0.0, 0.7, 0.08, None),
     ("Hollow.Noise.Core.Drop", "MS_Core_Drop", "SCON_Impacts", 0.0, 1.0, 0.05, None),
     ("Hollow.Noise.Impact.Heavy", "MS_Impact_Metal", "SCON_Impacts", 0.0, 1.0, 0.1, None),

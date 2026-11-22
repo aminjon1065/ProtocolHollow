@@ -27,6 +27,8 @@ STALE_TOOL_FIELDS = (b"NoiseEveryNSamples", b"NoiseLoudness", b"NoiseRange")
 RULES = [
     ("Hollow.Noise.Tool.Welder", 1.0, 1500.0, 0.5),
     ("Hollow.Noise.Tool.Cutter", 1.2, 2000.0, 0.5),
+    # S6-02 (ADR-0035): the Aether lantern only hums, heard about 8 m off (its own tool definition: create_lantern_assets.py).
+    ("Hollow.Noise.Tool.Lantern", 0.3, 800.0, 0.5),
     ("Hollow.Noise.Footstep", 0.25, 0.0, 0.0),
     ("Hollow.Noise.Core.Drop", 0.8, 2500.0, 0.0),
     ("Hollow.Noise.Impact.Heavy", 1.0, 3000.0, 0.0),

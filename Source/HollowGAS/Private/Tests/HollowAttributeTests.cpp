@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Attributes/HollowHealthSet.h"
+#include "Attributes/HollowMovementSet.h"
 #include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowSurvivalSet.h"
 #include "Attributes/HollowToolSet.h"
@@ -137,6 +138,8 @@ bool FHollowAttributeReplicationTest::RunTest(const FString& Parameters)
 		{ UHollowResonanceSet::StaticClass(), { TEXT("Resonance"), TEXT("MaxResonance"), TEXT("ResonanceGainMultiplier") }, COND_None, {} },
 		{ UHollowSurvivalSet::StaticClass(), { TEXT("Stamina"), TEXT("MaxStamina"), TEXT("Oxygen"), TEXT("MaxOxygen"), TEXT("Thermal"), TEXT("MaxThermal") }, COND_OwnerOnly, {} },
 		{ UHollowToolSet::StaticClass(), { TEXT("ToolFuel"), TEXT("MaxToolFuel"), TEXT("ToolHeat"), TEXT("MaxToolHeat") }, COND_OwnerOnly, {} },
+		// S6-02: enemies move on the server only, so their speed multiplier never leaves it.
+		{ UHollowMovementSet::StaticClass(), {}, COND_None, { TEXT("MoveSpeedMultiplier") } },
 	};
 
 	for (const FExpectation& Expectation : Expectations)

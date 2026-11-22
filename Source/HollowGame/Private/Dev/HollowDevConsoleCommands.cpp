@@ -527,6 +527,37 @@ namespace HollowDevConsole
 		GoToNearest(Who, World, Class, Command);
 	}
 
+	/** Any machine: the local player looks at the nearest living enemy out of the vents (the Aether lantern, S6-02). */
+	void FaceNearestEnemy(UWorld* World)
+	{
+		const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+		APlayerController* Player = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+		const APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+		const AHollowEnemyCharacter* Nearest = nullptr;
+		if (Pawn)
+		{
+			for (TActorIterator<AHollowEnemyCharacter> It(World); It; ++It)
+			{
+				if (!It->IsDead() && !It->IsInVent() && (!Nearest
+					|| FVector::DistSquared(It->GetActorLocation(), Pawn->GetActorLocation()) < FVector::DistSquared(Nearest->GetActorLocation(), Pawn->GetActorLocation())))
+				{
+					Nearest = *It;
+				}
+			}
+		}
+		if (!Nearest)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.FaceNearestEnemy: no local pawn or no living enemy."));
+			return;
+		}
+		FVector Eyes;
+		FRotator Unused;
+		Pawn->GetActorEyesViewPoint(Eyes, Unused);
+		Player->SetControlRotation((Nearest->GetActorLocation() - Eyes).Rotation());
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Dev.FaceNearestEnemy: %s faces %s, %.0f cm away"), *Pawn->GetName(), *Nearest->GetName(),
+			FVector::Dist(Eyes, Nearest->GetActorLocation()));
+	}
+
 	/** Usage: Hollow.Dev.GoToExtraction [All] */
 	void GoToExtraction(const TArray<FString>& Args, UWorld* World)
 	{
@@ -716,11 +747,12 @@ namespace HollowDevConsole
 			const UAbilitySystemComponent* AbilitySystem = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Player);
 			if (AbilitySystem && AbilitySystem->HasAttributeSetForAttribute(UHollowResonanceSet::GetResonanceAttribute()))
 			{
-				UE_LOG(LogHollowGame, Display, TEXT("Hollow.Resonance.Dump: player %s %.1f / %.1f, gain x%.2f, dead %d"), *Player->GetPlayerName(),
+				UE_LOG(LogHollowGame, Display, TEXT("Hollow.Resonance.Dump: player %s (%s) %.1f / %.1f, gain x%.2f, dead %d, lantern aura %d"), *Player->GetPlayerName(),
+					*GetNameSafe(Player->GetPawn()),
 					AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetResonanceAttribute()),
 					AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetMaxResonanceAttribute()),
 					AbilitySystem->GetNumericAttribute(UHollowResonanceSet::GetResonanceGainMultiplierAttribute()),
-					AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Dead));
+					AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Dead), AbilitySystem->HasMatchingGameplayTag(HollowTags::State_AntiResonance));
 			}
 		}
 		if (const UHollowResonancePresentationSubsystem* Presentation = UHollowResonancePresentationSubsystem::Get(World))
@@ -976,10 +1008,10 @@ namespace HollowDevConsole
 			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Tool.Info: no local ExoFrame."));
 			return;
 		}
-		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Tool.Info: fuel %.1f/%.1f, heat %.1f/%.1f, overheated %d"),
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Tool.Info: fuel %.1f/%.1f, heat %.1f/%.1f, overheated %d, running %d"),
 			AbilitySystem->GetNumericAttribute(UHollowToolSet::GetToolFuelAttribute()), AbilitySystem->GetNumericAttribute(UHollowToolSet::GetMaxToolFuelAttribute()),
 			AbilitySystem->GetNumericAttribute(UHollowToolSet::GetToolHeatAttribute()), AbilitySystem->GetNumericAttribute(UHollowToolSet::GetMaxToolHeatAttribute()),
-			AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Tool_Overheated));
+			AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Tool_Overheated), AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Tool_Active));
 	}
 
 	FAutoConsoleCommandWithWorld InteractCommand(
@@ -1056,6 +1088,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.GoToNearestEnemy"),
 		TEXT("Host: puts the local pawn (every player's with All, the remote players' with Others) right in front of the nearest enemy (the director's stalker with Stalker), facing it. Usage: Hollow.Dev.GoToNearestEnemy [All|Others] [Stalker]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestEnemy));
+
+	FAutoConsoleCommandWithWorld FaceNearestEnemyCommand(
+		TEXT("Hollow.Dev.FaceNearestEnemy"),
+		TEXT("Any machine: the local player looks at the nearest living enemy (to light it with the Aether lantern)."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&FaceNearestEnemy));
 
 	FAutoConsoleCommandWithWorldAndArgs GoToExtractionCommand(
 		TEXT("Hollow.Dev.GoToExtraction"),

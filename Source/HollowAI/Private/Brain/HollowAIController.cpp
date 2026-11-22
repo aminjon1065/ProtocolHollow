@@ -3,6 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Abilities/HollowGA_EnemyAttack.h"
+#include "Attributes/HollowMovementSet.h"
 #include "Brain/HollowPathFollowingComponent.h"
 #include "Components/StateTreeAIComponent.h"
 #include "Enemies/HollowEnemyCharacter.h"
@@ -70,6 +71,7 @@ void AHollowAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 	Home = InPawn->GetActorLocation();
+	ActivitySpeed = Definition->PatrolSpeed;
 	DefaultNavigationFilterClass = Definition->NavigationFilter;
 	ConfigureSenses(*Definition);
 	Perception->OnTargetPerceptionUpdated.AddUniqueDynamic(this, &ThisClass::HandlePerception);
@@ -78,6 +80,9 @@ void AHollowAIController::OnPossess(APawn* InPawn)
 		BoundAbilitySystem = AbilitySystem;
 		AbilityEndedHandle = AbilitySystem->OnAbilityEnded.AddUObject(this, &ThisClass::HandleAbilityEnded);
 		StunHandle = AbilitySystem->RegisterGameplayTagEvent(HollowTags::State_Stunned, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleStunChanged);
+		ExposedHandle = AbilitySystem->RegisterGameplayTagEvent(HollowTags::State_Exposed, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleExposedChanged);
+		MoveSpeedHandle = AbilitySystem->GetGameplayAttributeValueChangeDelegate(UHollowMovementSet::GetMoveSpeedMultiplierAttribute())
+			.AddUObject(this, &ThisClass::HandleMoveSpeedChanged);
 	}
 	UE_LOG(LogHollowAI, Log, TEXT("%s: brain %s starts at %s"), *GetNameSafe(InPawn), *GetNameSafe(Definition->StateTree), *Home.ToCompactString());
 	Brain->SetStateTree(Definition->StateTree);
@@ -91,6 +96,8 @@ void AHollowAIController::OnUnPossess()
 	{
 		AbilitySystem->OnAbilityEnded.Remove(AbilityEndedHandle);
 		AbilitySystem->UnregisterGameplayTagEvent(StunHandle, HollowTags::State_Stunned, EGameplayTagEventType::NewOrRemoved);
+		AbilitySystem->UnregisterGameplayTagEvent(ExposedHandle, HollowTags::State_Exposed, EGameplayTagEventType::NewOrRemoved);
+		AbilitySystem->GetGameplayAttributeValueChangeDelegate(UHollowMovementSet::GetMoveSpeedMultiplierAttribute()).Remove(MoveSpeedHandle);
 	}
 	BoundAbilitySystem.Reset();
 	Perception->OnTargetPerceptionUpdated.RemoveDynamic(this, &ThisClass::HandlePerception);
@@ -178,6 +185,47 @@ void AHollowAIController::HandleStunChanged(const FGameplayTag Tag, const int32 
 		{
 			FinishActivityAfter(true, UE_KINDA_SMALL_NUMBER);
 		}
+	}
+}
+
+bool AHollowAIController::IsExposed() const
+{
+	const UAbilitySystemComponent* AbilitySystem = BoundAbilitySystem.Get();
+	return AbilitySystem && AbilitySystem->HasMatchingGameplayTag(HollowTags::State_Exposed);
+}
+
+float AHollowAIController::GetMoveSpeedMultiplier() const
+{
+	constexpr float Unchanged = 1.f;   // no movement set: nothing slows it
+	const UAbilitySystemComponent* AbilitySystem = BoundAbilitySystem.Get();
+	const FGameplayAttribute Multiplier = UHollowMovementSet::GetMoveSpeedMultiplierAttribute();
+	return AbilitySystem && AbilitySystem->HasAttributeSetForAttribute(Multiplier) ? AbilitySystem->GetNumericAttribute(Multiplier) : Unchanged;
+}
+
+void AHollowAIController::HandleExposedChanged(const FGameplayTag Tag, const int32 Count)
+{
+	if (Count > 0)
+	{
+		UE_LOG(LogHollowAI, Log, TEXT("%s: in the Aether light"), *GetNameSafe(GetPawn()));
+		OnExposed();
+	}
+	else
+	{
+		UE_LOG(LogHollowAI, Log, TEXT("%s: out of the Aether light"), *GetNameSafe(GetPawn()));
+	}
+}
+
+void AHollowAIController::HandleMoveSpeedChanged(const FOnAttributeChangeData& Change)
+{
+	UE_LOG(LogHollowAI, Log, TEXT("%s: speed x%.2f (was x%.2f)"), *GetNameSafe(GetPawn()), Change.NewValue, Change.OldValue);
+	ApplyMoveSpeed();
+}
+
+void AHollowAIController::ApplyMoveSpeed()
+{
+	if (const ACharacter* Body = Cast<ACharacter>(GetPawn()))
+	{
+		Body->GetCharacterMovement()->MaxWalkSpeed = ActivitySpeed * GetMoveSpeedMultiplier();
 	}
 }
 
@@ -487,10 +535,8 @@ void AHollowAIController::FinishInvestigation(const bool bSuccess)
 bool AHollowAIController::MoveForActivity(const FVector& Goal, AActor* GoalActor, const float AcceptanceRadius, const float Speed)
 {
 	const UHollowEnemyDefinition* Definition = GetDefinition();
-	if (const ACharacter* Body = Cast<ACharacter>(GetPawn()))
-	{
-		Body->GetCharacterMovement()->MaxWalkSpeed = Speed;
-	}
+	ActivitySpeed = Speed;
+	ApplyMoveSpeed();
 	ActivityMove = FAIRequestID::InvalidRequest;   // a request this one aborts is no longer ours
 	FAIMoveRequest Request;
 	if (GoalActor)
@@ -760,7 +806,9 @@ FString AHollowAIController::Describe() const
 #else
 	const FString States = TEXT("n/a");   // the StateTree component lists its states only with the gameplay debugger (not in Shipping)
 #endif
-	return FString::Printf(TEXT("%s at %s, activity %s, states [%s], target %s, stimulus %s, obstacle %s"), *GetNameSafe(Self),
+	const ACharacter* Body = Cast<ACharacter>(Self);
+	return FString::Printf(TEXT("%s at %s, activity %s, states [%s], target %s, stimulus %s, obstacle %s, speed %.0f x%.2f%s"), *GetNameSafe(Self),
 		Self ? *Self->GetActorLocation().ToCompactString() : TEXT("-"), *HollowEnumToString(Activity), *States,
-		*GetNameSafe(Current), HasStimulus() ? *StimulusLocation.ToCompactString() : TEXT("none"), *GetNameSafe(Obstacle.Get()));
+		*GetNameSafe(Current), HasStimulus() ? *StimulusLocation.ToCompactString() : TEXT("none"), *GetNameSafe(Obstacle.Get()),
+		Body ? Body->GetCharacterMovement()->MaxWalkSpeed : 0.f, GetMoveSpeedMultiplier(), IsExposed() ? TEXT(", exposed") : TEXT(""));
 }

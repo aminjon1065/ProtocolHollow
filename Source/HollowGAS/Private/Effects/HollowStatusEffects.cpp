@@ -1,6 +1,7 @@
 #include "Effects/HollowStatusEffects.h"
 
 #include "GameplayEffectComponents/BlockAbilityTagsGameplayEffectComponent.h"
+#include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 #include "Tags/HollowGameplayTags.h"
 
@@ -57,4 +58,9 @@ UHollowStalkerTraitsEffect::UHollowStalkerTraitsEffect(const FObjectInitializer&
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;
 	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("KineticImmunity")), HollowTags::State_Invulnerable_Kinetic));
+
+	// In the Aether lantern's light (S6-02) the traits are inhibited: no immunity until the light has gone.
+	UTargetTagRequirementsGameplayEffectComponent* Light = CreateDefaultSubobject<UTargetTagRequirementsGameplayEffectComponent>(TEXT("NotInTheLight"));
+	Light->OngoingTagRequirements.IgnoreTags.AddTag(HollowTags::State_Exposed);
+	GEComponents.Add(Light);
 }

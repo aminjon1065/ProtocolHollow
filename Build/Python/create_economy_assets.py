@@ -28,10 +28,11 @@ INI = "Config/DefaultGame.ini"
 INI_LINE = "EconomyConfig=/Game/Hollow/Economy/DA_EconomyConfig.DA_EconomyConfig"
 
 # S5-02 clarifications (data). Item names are DA_Item_* (their folders under ITEMS_DIR below).
-ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_FuelCell": "Consumables",
+ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_AetherLantern": "Tools", "DA_Item_FuelCell": "Consumables",
              "DA_Item_PulseMine": "Consumables", "DA_Item_Scrap": "Materials", "DA_Item_AetherShard": "Materials"}
 # Clarification 4: tools and materials at their BaseValue; consumables only from the workbench.
-OFFERS = [("DA_Item_Welder", 300), ("DA_Item_PlasmaCutter", 400), ("DA_Item_Scrap", 8), ("DA_Item_AetherShard", 20)]
+# S6-02 clarification 7: the Aether lantern (create_lantern_assets.py, value 300) is sold above its value, a class tool.
+OFFERS = [("DA_Item_Welder", 300), ("DA_Item_PlasmaCutter", 400), ("DA_Item_AetherLantern", 450), ("DA_Item_Scrap", 8), ("DA_Item_AetherShard", 20)]
 CONFIG = {
     "sell_percent": 50,          # clarification 4: half the value back, rounded down
     "insurance_percent": 30,     # clarification 1: 30 % of the slot's value, rounded up, single-use

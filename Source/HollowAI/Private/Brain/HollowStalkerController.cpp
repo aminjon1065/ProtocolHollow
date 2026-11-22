@@ -80,6 +80,19 @@ void AHollowStalkerController::HandleModeChanged(AHollowEnemyCharacter* Stalker,
 	if (Stalker && Stalker == GetPawn())
 	{
 		Reconsider();
+		if (Mode != EHollowThreatMode::Retreat && IsExposed())
+		{
+			GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::FleeTheLight);   // called back into the light: not inside the director's change
+		}
+	}
+}
+
+void AHollowStalkerController::FleeTheLight()
+{
+	UHollowThreatDirectorSubsystem* Director = UHollowThreatDirectorSubsystem::Get(this);
+	if (Director && IsExposed())
+	{
+		Director->ReportRepelled(GetPawn());
 	}
 }
 
@@ -99,6 +112,11 @@ void AHollowStalkerController::HandleSquadResonance(const FHollowSquadResonanceN
 		HearingTier = State.Tier;
 		SetHearingRange(Range);
 	}
+}
+
+void AHollowStalkerController::OnExposed()
+{
+	FleeTheLight();
 }
 
 void AHollowStalkerController::OnStunned()

@@ -47,7 +47,10 @@ public:
 	explicit UHollowToolRefuelCooldownEffect(const FObjectInitializer& ObjectInitializer);
 };
 
-/** What the Echo-Stalker is (GE_Stalker_Traits, from its ability set): immune to kinetic damage for good. */
+/**
+ * What the Echo-Stalker is (GE_Stalker_Traits, from its ability set): immune to kinetic damage, except while it stands
+ * in the Aether lantern's light (Hollow.State.Exposed inhibits the effect, S6-02).
+ */
 UCLASS(Abstract)
 class HOLLOWGAS_API UHollowStalkerTraitsEffect : public UGameplayEffect
 {

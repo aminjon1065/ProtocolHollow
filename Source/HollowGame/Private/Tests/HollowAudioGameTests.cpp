@@ -53,6 +53,7 @@ namespace HollowAudioGameTests
 	const TCHAR* const ToolDefinitions[] = {
 		TEXT("/Game/Hollow/Tools/Welder/DA_Tool_Welder.DA_Tool_Welder"),
 		TEXT("/Game/Hollow/Tools/PlasmaCutter/DA_Tool_PlasmaCutter.DA_Tool_PlasmaCutter"),
+		TEXT("/Game/Hollow/Tools/AetherLantern/DA_Tool_AetherLantern.DA_Tool_AetherLantern"),   // S6-02: its hum
 	};
 	constexpr float RangeTolerance = 1.f;
 	/** A spawned volume's default cube brush is 200 uu across. */
@@ -76,7 +77,7 @@ namespace HollowAudioGameTests
 	/** Sounds that run until stopped (tools while used, the core's hum); every other one ends by itself. */
 	TArray<FGameplayTag> Loops()
 	{
-		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Sound_Core_Hum};
+		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Noise_Tool_Lantern, HollowTags::Sound_Core_Hum};
 	}
 
 	/** Plays of Tag since the call before (counts per tag, UHollowAudioSubsystem). */

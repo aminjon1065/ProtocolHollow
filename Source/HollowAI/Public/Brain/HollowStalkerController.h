@@ -16,7 +16,8 @@ class UHollowSquadResonanceComponent;
  * Brain body of the Echo-Stalker (ADR-0019): the enemy controller plus its own activities, on the director's leash.
  * Track shadows the squad from a neighbouring room, Ambush waits in the hottest room nobody is in and strikes whoever
  * comes close, Retreat slips into the nearest vent and stays hidden at the far end until the director calls it back.
- * Spots are found by the focus query (EQS: the focus room, out of every lamp, near its hottest portal).
+ * Spots are found by the focus query (EQS: the focus room, out of every lamp, near its hottest portal). In an Aether
+ * lantern's light it flees (S6-02): the director sends it into the vents, and back again while the light lingers.
  */
 UCLASS()
 class HOLLOWAI_API AHollowStalkerController : public AHollowAIController
@@ -43,6 +44,7 @@ protected:
 	virtual void HandleAbilityEnded(const FAbilityEndedData& Data) override;
 	virtual void OnActivityEnded(EHollowAIActivity Ended) override;
 	virtual void OnStunned() override;
+	virtual void OnExposed() override;
 	virtual bool ShouldReconsiderOnPerception() const override;
 
 private:
@@ -69,6 +71,8 @@ private:
 	void FinishVentTrip();
 	void LeaveVent();
 	void HandleModeChanged(AHollowEnemyCharacter* Stalker, EHollowThreatMode Mode);
+	/** Still in the light: the director sends it away (again). */
+	void FleeTheLight();
 	/** Hearing range = definition x HearingResonanceCurve(squad Resonance). */
 	void HandleSquadResonance(const FHollowSquadResonanceNetState& State);
 

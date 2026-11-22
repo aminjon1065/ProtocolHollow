@@ -2,6 +2,7 @@
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Attributes/HollowHealthSet.h"
+#include "Attributes/HollowMovementSet.h"
 #include "Audio/HollowAudioSubsystem.h"
 #include "Audio/HollowFootstepAudioComponent.h"
 #include "Audio/HollowSoundBank.h"
@@ -25,6 +26,7 @@ AHollowEnemyCharacter::AHollowEnemyCharacter(const FObjectInitializer& ObjectIni
 	AbilitySystem->SetIsReplicated(true);
 	AbilitySystem->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 	HealthSet = CreateDefaultSubobject<UHollowHealthSet>(TEXT("HealthSet"));   // found by the ability system as its subobject
+	MovementSet = CreateDefaultSubobject<UHollowMovementSet>(TEXT("MovementSet"));
 	FootstepAudio = CreateDefaultSubobject<UHollowFootstepAudioComponent>(TEXT("FootstepAudio"));
 	Montages = CreateDefaultSubobject<UHollowEnemyMontageComponent>(TEXT("Montages"));
 
