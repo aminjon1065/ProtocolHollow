@@ -8,7 +8,22 @@
 #include "HollowCarryableDefinition.generated.h"
 
 class UGameplayEffect;
+class UMaterialInterface;
 class UPhysicalMaterial;
+
+/** How the object looks while it counts as LootItem (S7-02: a purified Aether core glows another colour). */
+USTRUCT(BlueprintType)
+struct FHollowCarryableLook
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction", meta = (AllowedTypes = "HollowItem"))
+	FPrimaryAssetId LootItem;
+
+	/** Material of the visual's first slot. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction")
+	TSoftObjectPtr<UMaterialInterface> Material;
+};
 
 /** Where a carried object's frame sits on a carrier component (its visual keeps its own offset in that frame). */
 USTRUCT(BlueprintType)
@@ -52,6 +67,15 @@ public:
 	/** The item this object counts as when the squad extracts with it (an Aether core is sold to the corporation). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction", meta = (AllowedTypes = "HollowItem"))
 	FPrimaryAssetId LootItem;
+
+	/** Looks for the items it can come to count as instead (UHollowCarryableComponent::SetLootItemOverride). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction")
+	TArray<FHollowCarryableLook> Looks;
+
+	const FHollowCarryableLook* FindLook(const FPrimaryAssetId& Item) const
+	{
+		return Looks.FindByPredicate([&Item](const FHollowCarryableLook& Look) { return Look.LootItem == Item; });
+	}
 
 	/**
 	 * Where the object's body rides while carried, in the carrier's capsule space. This is the server truth (zone

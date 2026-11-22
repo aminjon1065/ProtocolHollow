@@ -38,6 +38,9 @@ RULES = [
     ("Hollow.Noise.Voice.Whisper", 0.15, 400.0, 0.5),
     ("Hollow.Noise.Voice.Speech", 0.5, 1500.0, 0.5),
     ("Hollow.Noise.Voice.Shout", 1.5, 4000.0, 0.5),
+    # S7-02 (ADR-0039): the Purification Altar's bell, every 2 s for 20 s: louder than a shout, heard 60 m off (36 m
+    # through walls), as loud as it gets on purpose.
+    ("Hollow.Noise.Ritual", 2.5, 6000.0, 1.0),
 ]
 # Footsteps (data): checked twice a second; crouch-walking (180) stays under the minimum; walking (400) is the reference.
 FOOTSTEPS = {"footstep_interval": 0.5, "footstep_min_speed": 200.0, "footstep_reference_speed": 400.0,

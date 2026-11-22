@@ -23,6 +23,7 @@
 #include "Input/HollowInputConfig.h"
 #include "InputActionValue.h"
 #include "Interaction/HollowInteractionComponent.h"
+#include "Interfaces/HollowCarryReceiver.h"
 #include "Movement/HollowCharacterMovementComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -417,7 +418,9 @@ void AHollowExoFrameCharacter::HandleInteract()
 
 void AHollowExoFrameCharacter::RequestInteract()
 {
-	if (!CarrierComponent->HandleInteractInput(InteractionComponent->GetFocusedActor()))
+	AActor* Focus = InteractionComponent->GetFocusedActor();
+	// A carry receiver in focus (the Purification Altar, S7-02) takes the load: interact there instead of dropping it.
+	if (Cast<IHollowCarryReceiver>(Focus) || !CarrierComponent->HandleInteractInput(Focus))
 	{
 		InteractionComponent->RequestInteract();
 	}

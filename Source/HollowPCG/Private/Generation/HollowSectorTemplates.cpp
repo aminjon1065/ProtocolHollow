@@ -46,6 +46,10 @@ TOptional<FHollowRoomTemplate> HollowSectorTemplates::MakeTemplate(const UHollow
 		Plain.Side = Connector.Side;
 		Plain.Kinds = Connector.AllowedKinds;
 	}
+	for (const FHollowRoomSocket& Socket : Room.Sockets)
+	{
+		Template.SocketTypes.AddTag(Socket.SocketType);
+	}
 	return Template;
 }
 

@@ -494,6 +494,20 @@ namespace HollowGenTests
 				Fail(TEXT("the rebuilt layout hashes differently"));
 			}
 			MaxBytes = FMath::Max(MaxBytes, HollowSectorManifest::EstimateNetBytes(Manifest));
+
+			// The biome's mechanics are in every sector (S7-02: the Cathedral's altar and arcs).
+			for (const FGameplayTag& Required : Rules.RequiredSocketTypes)
+			{
+				const bool bPlaced = Layout.Rooms.ContainsByPredicate([&Layout, &Base, &Required](const FHollowPlacedRoom& Room)
+				{
+					const FHollowRoomTemplate* Template = FindTemplate(Base.Templates, Layout.TemplateIds[Room.Template]);
+					return Template && Template->SocketTypes.HasTagExact(Required);
+				});
+				if (!bPlaced)
+				{
+					Fail(FString::Printf(TEXT("no room with %s"), *Required.ToString()));
+				}
+			}
 		}, &TotalAttempts, PoolSeeds);
 
 		Test.TestEqual(FString::Printf(TEXT("%s: every seed generates"), Plugin), Generated, PoolSeeds);
@@ -816,6 +830,61 @@ bool FHollowGenGoldenTest::RunTest(const FString& Parameters)
 	{
 		AddInfo(Line);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowGenRequiredSocketsTest, "Hollow.PCG.Generator.RequiredSockets",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowGenRequiredSocketsTest::RunTest(const FString& Parameters)
+{
+	// S7-02 (ADR-0039): a socket type the rules require is in a placed room of every layout. On the synthetic pool only
+	// the hangar carries loot: required, every layout made has a hangar, attempts without one are retried (MissingSocket),
+	// the seed still decides; a socket no template has is an input error. (Some synthetic seeds run out of attempts:
+	// the pool's loops are tight; the real pools' every seed is Hollow.PCG.Generator.{Docks,Cathedral}Pool.)
+	using namespace HollowGenTests;
+	FHollowSectorGenInput Base = SyntheticInput(FirstSeed);
+	FHollowRoomTemplate* Hangar = Base.Templates.FindByPredicate([](const FHollowRoomTemplate& T) { return T.Id == TEXT("Room:Hangar"); });
+	if (!TestNotNull(TEXT("The hangar template"), Hangar))
+	{
+		return false;
+	}
+	Hangar->SocketTypes.AddTag(HollowTags::Socket_Loot);
+	Base.Rules.RequiredSocketTypes.AddTag(HollowTags::Socket_Loot);
+	TestTrue(TEXT("Input with the socket in the pool is valid"), FHollowSectorGenerator::ValidateInput(Base).IsEmpty());
+
+	int32 Generated = 0;
+	int32 MissingSocketFailures = 0;
+	for (int32 Seed = FirstSeed; Seed < FirstSeed + SweepSeeds; ++Seed)
+	{
+		FHollowSectorGenInput Input = Base;
+		Input.Seed = Seed;
+		FHollowSectorLayout Layout;
+		FHollowSectorGenReport Report;
+		const bool bMade = FHollowSectorGenerator::Generate(Input, Layout, &Report) == EHollowGenResult::Success;
+		MissingSocketFailures += Report.AttemptFailures.FilterByPredicate([](const EHollowGenFailure F) { return F == EHollowGenFailure::MissingSocket; }).Num();
+		if (!bMade)
+		{
+			continue;
+		}
+		++Generated;
+		if (!Layout.Rooms.ContainsByPredicate([&Layout](const FHollowPlacedRoom& Room) { return Layout.TemplateIds[Room.Template] == TEXT("Room:Hangar"); }))
+		{
+			AddError(FString::Printf(TEXT("Seed %d: no room with the required socket"), Seed));
+		}
+		FHollowSectorLayout Second;
+		if (FHollowSectorGenerator::Generate(Input, Second) != EHollowGenResult::Success || Second.LayoutHash != Layout.LayoutHash)
+		{
+			AddError(FString::Printf(TEXT("Seed %d: not the same layout twice"), Seed));
+		}
+	}
+	AddInfo(FString::Printf(TEXT("%d/%d seeds made, %d attempt(s) retried for the socket"), Generated, SweepSeeds, MissingSocketFailures));
+	TestTrue(TEXT("Layouts are made"), Generated > 0);
+	TestTrue(TEXT("Attempts without the socket are retried"), MissingSocketFailures > 0);
+
+	FHollowSectorGenInput Missing = SyntheticInput(FirstSeed);
+	Missing.Rules.RequiredSocketTypes.AddTag(HollowTags::Socket_Altar);
+	TestFalse(TEXT("A socket no template has: invalid input"), FHollowSectorGenerator::ValidateInput(Missing).IsEmpty());
 	return true;
 }
 

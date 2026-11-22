@@ -804,6 +804,23 @@ namespace HollowSectorGenPrivate
 		TArray<int32> CriticalInterior;
 	};
 
+	/** Every socket type the rules require is in a placed room (Templates: the pool in generation order). */
+	bool HasRequiredSockets(const FHollowSectorLayout& Layout, const TArray<FHollowRoomTemplate>& Templates, const FHollowSectorGenRules& Rules)
+	{
+		for (const FGameplayTag& Required : Rules.RequiredSocketTypes)
+		{
+			const bool bPlaced = Layout.Rooms.ContainsByPredicate([&Templates, &Required](const FHollowPlacedRoom& Room)
+			{
+				return Templates.IsValidIndex(Room.Template) && Templates[Room.Template].SocketTypes.HasTagExact(Required);
+			});
+			if (!bPlaced)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** Final acceptance of an attempt; independent of how it was built. */
 	bool Accept(const FHollowSectorStats& Stats, const FHollowSectorGenRules& Rules)
 	{
@@ -905,6 +922,13 @@ TArray<FString> FHollowSectorGenerator::ValidateInput(const FHollowSectorGenInpu
 	{
 		Errors.Add(TEXT("The pool needs a Branch template."));
 	}
+	for (const FGameplayTag& Required : Input.Rules.RequiredSocketTypes)
+	{
+		if (!Input.Templates.ContainsByPredicate([&Required](const FHollowRoomTemplate& Template) { return Template.SocketTypes.HasTagExact(Required); }))
+		{
+			Errors.Add(FString::Printf(TEXT("No template has the required socket %s."), *Required.ToString()));
+		}
+	}
 	return Errors;
 }
 
@@ -936,7 +960,11 @@ EHollowGenResult FHollowSectorGenerator::Generate(const FHollowSectorGenInput& I
 		{
 			FHollowSectorLayout Layout;
 			AttemptRun.Export(Layout);
-			if (HollowSectorGenPrivate::Accept(HollowSectorGraph::Analyze(Layout), Input.Rules))
+			if (!HollowSectorGenPrivate::HasRequiredSockets(Layout, Templates, Input.Rules))
+			{
+				Failure = EHollowGenFailure::MissingSocket;
+			}
+			else if (HollowSectorGenPrivate::Accept(HollowSectorGraph::Analyze(Layout), Input.Rules))
 			{
 				Layout.Seed = Input.Seed;
 				Layout.Attempts = Attempt + 1;
@@ -944,7 +972,10 @@ EHollowGenResult FHollowSectorGenerator::Generate(const FHollowSectorGenInput& I
 				OutLayout = MoveTemp(Layout);
 				return EHollowGenResult::Success;
 			}
-			Failure = EHollowGenFailure::Validation;
+			else
+			{
+				Failure = EHollowGenFailure::Validation;
+			}
 		}
 		Report.AttemptFailures.Add(Failure);
 		UE_LOG(LogHollowPCG, Verbose, TEXT("Sector seed %d attempt %d failed: %s"), Input.Seed, Attempt, *HollowEnumToString(Failure));

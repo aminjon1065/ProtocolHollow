@@ -57,6 +57,8 @@ class HOLLOWPHYSICS_API UHollowCarryableComponent : public UActorComponent
 public:
 	/** Old and new replicated state, on every machine (the server right after a change, clients on replication). */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHollowCarryStateChanged, const FHollowCarryNetState& /*Old*/, const FHollowCarryNetState& /*New*/);
+	/** The item it counts as changed (every machine; S7-02). */
+	DECLARE_MULTICAST_DELEGATE(FOnHollowLootItemChanged);
 
 	explicit UHollowCarryableComponent(const FObjectInitializer& ObjectInitializer);
 
@@ -69,7 +71,7 @@ public:
 	UPrimitiveComponent* GetVisual() const { return Visual.Get(); }
 	EHollowCarryPresentation GetPresentation() const;
 
-	/** Whether Carrier could lift this alone now: free, and the carrier holds nothing (local focus and server check). */
+	/** Whether Carrier could lift this alone now: free, not held by a fixture, the carrier holds nothing (local focus and server check). */
 	bool CanBeginSolo(const APawn* Carrier) const;
 
 	/** Server: Carrier lifts this alone. Its UHollowCarrierComponent learns it through the state change. */
@@ -97,6 +99,22 @@ public:
 	 */
 	bool Release(const FVector& Velocity, bool bForce = false);
 
+	/**
+	 * Server: sets this down at Where (a fixture's seat: the Purification Altar's bowl, S7-02), carried or not; every
+	 * carrier lets go. It simulates from rest until it sleeps, as after a drop, without the thud the AI hears.
+	 */
+	bool PlaceAt(const FTransform& Where, const AActor* PlacedBy);
+
+	/** Held by a fixture (S7-02): nobody can lift or join it. Replicated, so no machine offers it. */
+	bool IsHeld() const { return bHeld; }
+	/** Server. */
+	void SetHeld(bool bInHeld);
+
+	/** The item this object counts as at extraction now: the override if set, else the definition's LootItem. */
+	FPrimaryAssetId GetLootItem() const;
+	/** Server: it counts as Item from now on (S7-02: the altar purifies a core); an invalid id restores the definition's. */
+	void SetLootItemOverride(const FPrimaryAssetId& Item);
+
 	/** Server: the dropped body fell asleep: final pose now, rest and dormancy after DormancyDelaySeconds. */
 	void HandleBodySleep();
 
@@ -107,6 +125,7 @@ public:
 	void HandleCarrierEndPlay(const APawn* Carrier);
 
 	FOnHollowCarryStateChanged OnCarryStateChanged;
+	FOnHollowLootItemChanged OnLootItemChanged;
 
 protected:
 	virtual void BeginPlay() override;
@@ -119,6 +138,17 @@ protected:
 private:
 	UFUNCTION()
 	void OnRep_CarryState(const FHollowCarryNetState& OldState);
+
+	UFUNCTION()
+	void OnRep_Held();
+
+	UFUNCTION()
+	void OnRep_LootItemOverride();
+
+	/** Server: the body leaves its carriers (if any) at Location (and Rotation) and simulates from Velocity until it sleeps. */
+	void LetGo(const FVector& Location, const FQuat* Rotation, const FVector& Velocity);
+	/** Server: send a changed fixture property now (the object is dormant between changes). */
+	void ReplicateNow();
 
 	UFUNCTION()
 	void HandleBodySleepEvent(UPrimitiveComponent* SleepingComponent, FName BoneName);
@@ -166,6 +196,12 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_CarryState)
 	FHollowCarryNetState CarryState;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Held)
+	bool bHeld = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_LootItemOverride)
+	FPrimaryAssetId LootItemOverride;
 
 	TWeakObjectPtr<UPrimitiveComponent> Body;
 	TWeakObjectPtr<UPrimitiveComponent> Visual;

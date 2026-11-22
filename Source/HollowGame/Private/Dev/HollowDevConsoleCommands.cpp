@@ -70,7 +70,10 @@
 #include "Sector/HollowSectorSettings.h"
 #include "TimerManager.h"
 #include "Util/HollowEnumUtils.h"
+#include "World/HollowArcHazard.h"
+#include "World/HollowRitualAltar.h"
 #include "World/HollowSectorMarker.h"
+#include "World/HollowSwitch.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -99,7 +102,7 @@ namespace HollowDevConsole
 		UE_LOG(LogHollowGame, Log, TEXT("Hollow.Interact: %s at %s, eyes %s looking %s, requests %s"), *Character->GetName(),
 			*Character->GetActorLocation().ToCompactString(), *EyeLocation.ToCompactString(), *EyeRotation.ToCompactString(),
 			*GetNameSafe(Character->GetInteractionComponent()->GetFocusedActor()));
-		Character->RequestInteract();   // the input's path: drops a carried core first
+		Character->RequestInteract();   // the input's path: a carried core goes to a focused carry receiver, else it is dropped
 	}
 
 	/** Runs a console command later; the timer lives on the game instance, so it survives map travel. */
@@ -384,19 +387,28 @@ namespace HollowDevConsole
 	 * opening; a core), facing it, Offset uu sideways along it. If the capsule does not fit there, or a wall stands
 	 * between the target and the spot (a core in a corner), the same spot turned round the target, front first.
 	 */
+	void PlaceInFrontOf(APlayerController& Player, const double Offset, const AActor* Nearest, const TCHAR* Command);
+
 	void PlaceAtNearest(APlayerController& Player, const double Offset, const TSubclassOf<AActor> Class, const TCHAR* Command)
 	{
-		ACharacter* Character = Cast<ACharacter>(Player.GetPawn());
-		UWorld* World = Player.GetWorld();
+		const ACharacter* Character = Cast<ACharacter>(Player.GetPawn());
 		const AActor* Nearest = nullptr;
-		for (TActorIterator<AActor> It(World, Class); It && Character; ++It)
+		for (TActorIterator<AActor> It(Player.GetWorld(), Class); It && Character; ++It)
 		{
 			if (!Nearest || FVector::DistSquared(It->GetActorLocation(), Character->GetActorLocation()) < FVector::DistSquared(Nearest->GetActorLocation(), Character->GetActorLocation()))
 			{
 				Nearest = *It;
 			}
 		}
-		if (!Nearest)
+		PlaceInFrontOf(Player, Offset, Nearest, Command);
+	}
+
+	/** PlaceAtNearest's placement in front of one actor (S7-02: an arc's own breaker). */
+	void PlaceInFrontOf(APlayerController& Player, const double Offset, const AActor* Nearest, const TCHAR* Command)
+	{
+		ACharacter* Character = Cast<ACharacter>(Player.GetPawn());
+		UWorld* World = Player.GetWorld();
+		if (!Nearest || !Character)
 		{
 			UE_LOG(LogHollowGame, Warning, TEXT("%s: no pawn or no target for %s."), Command, *Player.GetName());
 			return;
@@ -562,6 +574,90 @@ namespace HollowDevConsole
 	void GoToExtraction(const TArray<FString>& Args, UWorld* World)
 	{
 		GoToNearest(Args, World, AHollowExtractionZone::StaticClass(), TEXT("Hollow.Dev.GoToExtraction"));
+	}
+
+	/** Usage: Hollow.Dev.GoToAltar [All|Others] (S7-02: in front of the nearest Purification Altar, facing it). */
+	void GoToAltar(const TArray<FString>& Args, UWorld* World)
+	{
+		GoToNearest(Args, World, AHollowRitualAltar::StaticClass(), TEXT("Hollow.Dev.GoToAltar"));
+	}
+
+	/**
+	 * Host (S7-02): puts the local pawn (every player's with All, the remote players' with Others) into the middle of the
+	 * sector's first electric arc (by name, so every call means the same arc), looking along the passage; with Breaker,
+	 * in front of that arc's own breaker. Usage: Hollow.Dev.GoToArc [Breaker] [All|Others]
+	 */
+	void GoToArc(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* const Command = TEXT("Hollow.Dev.GoToArc");
+		TArray<FString> Who = Args;
+		const bool bBreaker = Who.RemoveAll([](const FString& Arg) { return Arg.Equals(TEXT("Breaker"), ESearchCase::IgnoreCase); }) > 0;
+		if (!World || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("%s runs on the host."), Command);
+			return;
+		}
+		const AHollowArcHazard* First = nullptr;
+		for (TActorIterator<AHollowArcHazard> Arc(World); Arc; ++Arc)
+		{
+			First = !First || Arc->GetName() < First->GetName() ? *Arc : First;
+		}
+		if (!First)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("%s: no arc in this sector."), Command);
+			return;
+		}
+		const bool bAll = Who.Num() > 0 && Who[0].Equals(TEXT("All"), ESearchCase::IgnoreCase);
+		const bool bOthers = Who.Num() > 0 && Who[0].Equals(TEXT("Others"), ESearchCase::IgnoreCase);
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* Player = It->Get();
+			ACharacter* Character = Player ? Cast<ACharacter>(Player->GetPawn()) : nullptr;
+			if (!Character || !(bAll || Player->IsLocalController() != bOthers))
+			{
+				continue;
+			}
+			if (bBreaker)
+			{
+				// Before the breaker's face (it hangs on the wall: its front is the passage side), on the arc's floor.
+				const AActor* Breaker = First->GetBreaker();
+				if (!Breaker)
+				{
+					UE_LOG(LogHollowGame, Warning, TEXT("%s: %s has no breaker."), Command, *First->GetName());
+					return;
+				}
+				FVector Stand = Breaker->GetActorLocation() + Breaker->GetActorForwardVector() * (GetDefault<UHollowInteractionSettings>()->InteractionRange * 0.5f);
+				Stand.Z = First->GetActorLocation().Z + Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+				Character->SetActorLocation(Stand, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
+				FVector Eyes;
+				FRotator Unused;
+				Character->GetActorEyesViewPoint(Eyes, Unused);
+				const FRotator Facing = (Breaker->GetActorLocation() - Eyes).Rotation();
+				if (Player->IsLocalController())
+				{
+					Player->SetControlRotation(Facing);
+				}
+				else
+				{
+					Player->ClientSetRotation(Facing);
+				}
+				UE_LOG(LogHollowGame, Log, TEXT("%s: %s at %s"), Command, *Player->GetName(), *Breaker->GetName());
+				continue;
+			}
+			// The arc stands on the floor in the middle of its zone.
+			const FVector Middle = First->GetActorLocation() + FVector(0.0, 0.0, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+			Character->SetActorLocation(Middle, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
+			const FRotator Along = First->GetActorForwardVector().Rotation();
+			if (Player->IsLocalController())
+			{
+				Player->SetControlRotation(Along);
+			}
+			else
+			{
+				Player->ClientSetRotation(Along);
+			}
+			UE_LOG(LogHollowGame, Log, TEXT("%s: %s inside %s"), Command, *Player->GetName(), *First->GetName());
+		}
 	}
 
 	/**
@@ -1103,6 +1199,16 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.FaceNearestEnemy"),
 		TEXT("Any machine: the local player looks at the nearest living enemy (to light it with the Aether lantern)."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&FaceNearestEnemy));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToAltarCommand(
+		TEXT("Hollow.Dev.GoToAltar"),
+		TEXT("Host: puts the local pawn (every player's with All, the remote players' with Others) in front of the nearest Purification Altar, facing it. Usage: Hollow.Dev.GoToAltar [All|Others]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToAltar));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToArcCommand(
+		TEXT("Hollow.Dev.GoToArc"),
+		TEXT("Host: puts the local pawn (every player's with All, the remote players' with Others) into the sector's first electric arc (by name), or with Breaker in front of its breaker. Usage: Hollow.Dev.GoToArc [Breaker] [All|Others]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToArc));
 
 	FAutoConsoleCommandWithWorldAndArgs GoToExtractionCommand(
 		TEXT("Hollow.Dev.GoToExtraction"),

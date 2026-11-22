@@ -134,6 +134,19 @@ def ward_hum():
     return g.out("breathing").spec
 
 
+def altar_bell():
+    """S7-02: the Purification Altar's bell - a struck cast bell: inharmonic partials (hum, prime, minor third, fifth,
+    nominal, a high one) ringing out over seconds, the low ones longest, and the clang of the clapper on top."""
+    g = Graph(one_shot=True)
+    g.node("hum", SINE, {"Frequency": 98.0}).node("prime", SINE, {"Frequency": 196.0}).node("tierce", SINE, {"Frequency": 235.2})
+    g.mix("low", [("hum", "Audio", 0.35), ("prime", "Audio", 0.4), ("tierce", "Audio", 0.25)]).burst("low_ring", "low", "Out", 0.002, 3.6)
+    g.node("quint", SINE, {"Frequency": 294.0}).node("nominal", SINE, {"Frequency": 392.0}).node("upper", SINE, {"Frequency": 518.0})
+    g.mix("high", [("quint", "Audio", 0.25), ("nominal", "Audio", 0.35), ("upper", "Audio", 0.15)]).burst("high_ring", "high", "Out", 0.002, 1.6)
+    g.node("strike", NOISE, {"Type": WHITE}).node("strike_bp", SVF, {"Cutoff Frequency": 1800.0, "Resonance": 3.0}).link("strike", "Audio", "strike_bp", "In")
+    g.burst("clang", "strike_bp", BAND_PASS, 0.001, 0.08)
+    return g.mix("mix", [("low_ring", "Out", 0.6), ("high_ring", "Out", 0.4), ("clang", "Out", 0.3)]).out("mix").finish_on("low_ring_env").spec
+
+
 def door_servo():
     g = Graph(one_shot=True)
     g.node("whine_lfo", LFO, {"Frequency": 4.0, "Min Value": 118.0, "Max Value": 142.0})
@@ -290,7 +303,7 @@ METASOUNDS = {
     "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter, "MS_Tool_Lantern": lantern,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
     "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
-    "MS_HelmetLamp_Click": helmet_lamp_click, "MS_Ward_Hum": ward_hum,
+    "MS_HelmetLamp_Click": helmet_lamp_click, "MS_Ward_Hum": ward_hum, "MS_Altar_Bell": altar_bell,
     "MS_Footstep_Light": footstep_light, "MS_Footstep_Heavy": footstep_heavy, "MS_Footstep_Stalker": footstep_stalker,
     "MS_Pilgrim_Windup": pilgrim_windup, "MS_Stalker_Shriek": stalker_shriek, "MS_Stalker_Vent": stalker_vent,
     "MS_Room_Tone": room_tone, "MS_Room_Tone_Vault": room_tone_vault,
@@ -311,6 +324,7 @@ ENTRIES = [
     ("Hollow.Noise.Core.Drop", "MS_Core_Drop", "SCON_Impacts", 0.0, 1.0, 0.05, None),
     ("Hollow.Noise.Impact.Heavy", "MS_Impact_Metal", "SCON_Impacts", 0.0, 1.0, 0.1, None),
     ("Hollow.Noise.Structural.Breach", "MS_Breach_Crash", "SCON_Impacts", 0.0, 1.0, 0.05, None),
+    ("Hollow.Noise.Ritual", "MS_Altar_Bell", "SCON_Impacts", 0.0, 1.0, 0.0, None),   # S7-02: as far as the AI hears it
     ("Hollow.Sound.Door.Servo", "MS_Door_Servo", None, 1500.0, 0.6, 0.04, None),
     ("Hollow.Sound.Footstep.Heavy", "MS_Footstep_Heavy", "SCON_Footsteps", 2500.0, 1.0, 0.06, None),
     ("Hollow.Sound.Footstep.Stalker", "MS_Footstep_Stalker", "SCON_Footsteps", 1000.0, 0.6, 0.1, None),

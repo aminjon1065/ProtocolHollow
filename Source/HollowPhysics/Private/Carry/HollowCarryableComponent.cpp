@@ -117,7 +117,7 @@ EHollowCarryPresentation UHollowCarryableComponent::GetPresentation() const
 bool UHollowCarryableComponent::CanBeginSolo(const APawn* Carrier) const
 {
 	const UHollowCarrierComponent* CarrierComponent = IsValid(Carrier) ? Carrier->FindComponentByClass<UHollowCarrierComponent>() : nullptr;
-	return Definition && Body.IsValid() && Visual.IsValid() && !CarryState.IsCarried() && CarrierComponent && !CarrierComponent->IsCarrying();
+	return Definition && Body.IsValid() && Visual.IsValid() && !CarryState.IsCarried() && !bHeld && CarrierComponent && !CarrierComponent->IsCarrying();
 }
 
 void UHollowCarryableComponent::BeginPlay()
@@ -156,6 +156,8 @@ void UHollowCarryableComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(UHollowCarryableComponent, CarryState, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UHollowCarryableComponent, bHeld, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UHollowCarryableComponent, LootItemOverride, Params);
 }
 
 bool UHollowCarryableComponent::BeginSolo(APawn* Carrier)
@@ -185,7 +187,7 @@ bool UHollowCarryableComponent::CanJoin(const APawn* Pawn) const
 {
 	const UHollowCarrierComponent* CarrierComponent = IsValid(Pawn) ? Pawn->FindComponentByClass<UHollowCarrierComponent>() : nullptr;
 	const APawn* Primary = CarryState.Primary.Get();
-	return Definition && Definition->CoopEffect && Body.IsValid() && Visual.IsValid() && CarryState.Mode == EHollowCarryMode::Solo
+	return Definition && Definition->CoopEffect && Body.IsValid() && Visual.IsValid() && CarryState.Mode == EHollowCarryMode::Solo && !bHeld
 		&& IsValid(Primary) && Pawn != Primary && CarrierComponent && !CarrierComponent->IsCarrying()
 		&& !HollowCarryTether::IsBroken(Primary->GetActorLocation(), Pawn->GetActorLocation(), Definition->Coop);
 }
@@ -249,20 +251,7 @@ bool UHollowCarryableComponent::Release(const FVector& Velocity, const bool bFor
 	const FVector Location = DropLocation ? DropLocation.GetValue() : GetCarrierCentre(*Carrier);
 	const FString CarrierName = GetNameSafe(Carrier);
 	APawn* DroppedBy = Carrier;   // the carry state below forgets the carrier
-	Owner->SetNetDormancy(DORM_Awake);
-	Owner->SetNetUpdateFrequency(Definition->AwakeNetUpdateFrequency);
-
-	FHollowCarryNetState NewState;
-	NewState.TransitionSerial = static_cast<uint8>(CarryState.TransitionSerial + 1);
-	SetCarryState(NewState);   // detaches the body where the carrier held it
-	Body->SetWorldLocation(Location, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
-
-	Body->SetSimulatePhysics(true);
-	Body->SetPhysicsLinearVelocity(Velocity);
-	Owner->SetReplicateMovement(true);   // Predictive Interpolation while awake (Docs/Architecture/03 sec. 3.0 rule 7)
-	Owner->ForceNetUpdate();
-	bAwake = true;
-	Owner->GetWorldTimerManager().SetTimer(MaxAwakeTimer, this, &ThisClass::ForceSleep, Definition->MaxAwakeSeconds, /*bLoop=*/false);
+	LetGo(Location, nullptr, Velocity);
 	UE_LOG(LogHollowPhysics, Log, TEXT("%s: dropped by %s at %s, velocity %s (serial %d)"), *GetNameSafe(Owner), *CarrierName,
 		*Owner->GetActorLocation().ToCompactString(), *Velocity.ToCompactString(), CarryState.TransitionSerial);
 	// A heavy core hitting the deck (ADR-0018): the carrier made the noise.
@@ -271,6 +260,96 @@ bool UHollowCarryableComponent::Release(const FVector& Velocity, const bool bFor
 		Noise->ReportNoise(FHollowNoiseEvent(HollowTags::Noise_Core_Drop, Location, DroppedBy));
 	}
 	return true;
+}
+
+void UHollowCarryableComponent::LetGo(const FVector& Location, const FQuat* Rotation, const FVector& Velocity)
+{
+	AActor* Owner = GetOwner();
+	ClearTimers();
+	Owner->SetNetDormancy(DORM_Awake);
+	Owner->SetNetUpdateFrequency(Definition->AwakeNetUpdateFrequency);
+	if (CarryState.IsCarried())
+	{
+		FHollowCarryNetState NewState;
+		NewState.TransitionSerial = static_cast<uint8>(CarryState.TransitionSerial + 1);
+		SetCarryState(NewState);   // detaches the body where the carrier held it
+	}
+	if (Rotation)
+	{
+		Body->SetWorldLocationAndRotation(Location, *Rotation, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
+	}
+	else
+	{
+		Body->SetWorldLocation(Location, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
+	}
+	Body->SetSimulatePhysics(true);
+	Body->SetPhysicsLinearVelocity(Velocity);
+	Owner->SetReplicateMovement(true);   // Predictive Interpolation while awake (Docs/Architecture/03 sec. 3.0 rule 7)
+	Owner->ForceNetUpdate();
+	bAwake = true;
+	Owner->GetWorldTimerManager().SetTimer(MaxAwakeTimer, this, &ThisClass::ForceSleep, Definition->MaxAwakeSeconds, /*bLoop=*/false);
+}
+
+bool UHollowCarryableComponent::PlaceAt(const FTransform& Where, const AActor* PlacedBy)
+{
+	AActor* Owner = GetOwner();
+	if (!Owner->HasAuthority() || !Definition || !Body.IsValid())
+	{
+		return false;
+	}
+	const FQuat Rotation = Where.GetRotation();
+	LetGo(Where.GetLocation(), &Rotation, FVector::ZeroVector);
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: placed at %s by %s (serial %d)"), *GetNameSafe(Owner), *Where.GetLocation().ToCompactString(),
+		*GetNameSafe(PlacedBy), CarryState.TransitionSerial);
+	return true;
+}
+
+void UHollowCarryableComponent::SetHeld(const bool bInHeld)
+{
+	if (!GetOwner()->HasAuthority() || bHeld == bInHeld)
+	{
+		return;
+	}
+	bHeld = bInHeld;
+	MARK_PROPERTY_DIRTY_FROM_NAME(UHollowCarryableComponent, bHeld, this);
+	ReplicateNow();
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: %s"), *GetNameSafe(GetOwner()), bHeld ? TEXT("held by a fixture") : TEXT("free to lift again"));
+}
+
+FPrimaryAssetId UHollowCarryableComponent::GetLootItem() const
+{
+	return LootItemOverride.IsValid() ? LootItemOverride : (Definition ? Definition->LootItem : FPrimaryAssetId());
+}
+
+void UHollowCarryableComponent::SetLootItemOverride(const FPrimaryAssetId& Item)
+{
+	if (!GetOwner()->HasAuthority() || LootItemOverride == Item)
+	{
+		return;
+	}
+	LootItemOverride = Item;
+	MARK_PROPERTY_DIRTY_FROM_NAME(UHollowCarryableComponent, LootItemOverride, this);
+	ReplicateNow();
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: counts as %s"), *GetNameSafe(GetOwner()), *GetLootItem().ToString());
+	OnLootItemChanged.Broadcast();
+}
+
+void UHollowCarryableComponent::ReplicateNow()
+{
+	AActor* Owner = GetOwner();
+	Owner->FlushNetDormancy();   // dormant between changes (ADR-0002): this update goes out, then it sleeps again
+	Owner->ForceNetUpdate();
+}
+
+void UHollowCarryableComponent::OnRep_Held()
+{
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: %s (replicated)"), *GetNameSafe(GetOwner()), bHeld ? TEXT("held by a fixture") : TEXT("free to lift again"));
+}
+
+void UHollowCarryableComponent::OnRep_LootItemOverride()
+{
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: counts as %s (replicated)"), *GetNameSafe(GetOwner()), *GetLootItem().ToString());
+	OnLootItemChanged.Broadcast();
 }
 
 TOptional<FVector> UHollowCarryableComponent::FindDropLocation(const APawn& Carrier) const

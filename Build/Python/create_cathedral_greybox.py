@@ -60,6 +60,8 @@ BIOME_RULES = {
     "max_extent_cells": 24,          # the NavMeshBoundsVolume of L_Raid_Dev covers the Docks' extent: never more
     "max_attempts": 32,
     "max_placements_per_attempt": 3000,
+    # S7-02 (ADR-0039): every Cathedral sector has an altar and an arc (a layout without either is a failed attempt).
+    "required_socket_types": ["Hollow.Socket.Altar", "Hollow.Socket.ArcHazard"],
 }
 
 CUBE_MESH = "/Engine/BasicShapes/Cube.Cube"
@@ -127,7 +129,8 @@ ROOMS = [
     Room("Nave", "Hangar", (4, 3), 2,
          [Connector(0, 1, S, ANY), Connector(1, 0, W, ANY), Connector(1, 2, E, ANY), Connector(3, 0, W, ANY)],
          [Socket("Loot", 0.3, 0.3, 0.0), Socket("Loot", 0.3, 2.7, 0.0), Socket("Loot", 3.7, 2.7, 0.0),
-          Socket("EnemySpawn", 2.5, 0.5, 180.0), Socket("EnemySpawn", 2.5, 2.5, 0.0), Socket("VentNode", 3.8, 2.5, 0.0)],
+          Socket("EnemySpawn", 2.5, 0.5, 180.0), Socket("EnemySpawn", 2.5, 2.5, 0.0), Socket("VentNode", 3.8, 2.5, 0.0),
+          Socket("Altar", 3.5, 1.5, 180.0)],   # S7-02: the apse, the altar facing down the nave
          [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (3, 2)], None),
     # Crossing: two-storey square under the tower, four piers round the middle bay, an exit on every side.
     Room("Crossing", "Junction", (3, 3), 2,
@@ -137,12 +140,14 @@ ROOMS = [
          [(1, 1), (2, 1), (1, 2), (2, 2)], None),
     # Cloister walks: one-storey arcades.
     Room("Cloister_Straight", "Corridor", (1, 2), 1, [Connector(0, 0, W, ANY), Connector(0, 1, E, ANY)],
-         [Socket("VentNode", 0.5, 1.0, 0.0)], [], None),   # between the openings' approaches and the arcade shafts
+         [Socket("VentNode", 0.5, 1.0, 0.0),   # between the openings' approaches and the arcade shafts
+          Socket("ArcHazard", 0.5, 1.0, 90.0)], [], None),   # S7-02: across the walk on the shafts' line, looking along it
     Room("Cloister_Corner", "Corridor", (1, 1), 1, [Connector(0, 0, S, ANY), Connector(0, 0, E, ANY)], [], [], None),
     # Side chapel: two-storey, its middle stays free (an altar's place, S7-02).
     Room("Chapel", "Storage", (2, 2), 2, [Connector(0, 0, W, DOOR | BULKHEAD), Connector(1, 1, E, DOOR | BULKHEAD)],
          [Socket("Loot", 0.3, 1.7, 0.0), Socket("Loot", 1.7, 0.3, 0.0), Socket("Loot", 0.3, 1.1, 0.0),
-          Socket("EnemySpawn", 1.0, 0.4, 90.0), Socket("VentNode", 1.8, 0.5, 0.0)], [], None),
+          Socket("EnemySpawn", 1.0, 0.4, 90.0), Socket("VentNode", 1.8, 0.5, 0.0),
+          Socket("Altar", 1.0, 1.0, 0.0)], [], None),   # S7-02: the middle of the chapel
 ]
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
@@ -363,6 +368,19 @@ def ensure_biome():
             rules.set_editor_property(key, value)
     biome.set_editor_property("gen_rules", rules)
     save(biome)
+    return True
+
+
+def ensure_required_sockets():
+    """The required socket types follow BIOME_RULES while the biome has none (S7-02 added them; edits stay)."""
+    biome = load(BIOME_PATH)
+    rules = biome.get_editor_property("gen_rules")
+    if rules.get_editor_property("required_socket_types").export_text() not in ("", "()", "(GameplayTags=)"):
+        return False
+    rules.set_editor_property("required_socket_types", make_tags(*BIOME_RULES["required_socket_types"]))
+    biome.set_editor_property("gen_rules", rules)
+    save(biome)
+    log("DA_Biome_Cathedral requires " + ", ".join(BIOME_RULES["required_socket_types"]))
     return True
 
 
@@ -709,6 +727,10 @@ def validate(metrics):
     check(rules.get_editor_property("max_extent_cells") <= docks.get_editor_property("gen_rules").get_editor_property("max_extent_cells"),
           "the Cathedral fits the raid map's nav bounds (the Docks' extent)")
     check(biome.get_editor_property("sealed_plug").get_editor_property("mesh") is not None, "DA_Biome_Cathedral sealed plug")
+    required = rules.get_editor_property("required_socket_types").export_text()
+    check(all('"%s"' % tag in required for tag in BIOME_RULES["required_socket_types"]), "DA_Biome_Cathedral requires its mechanics' sockets")
+    for tag in BIOME_RULES["required_socket_types"]:
+        check(any(("Hollow.Socket." + s.type) == tag for room in ROOMS for s in room.sockets), "a room carries " + tag)
     for name, key in (("socket_actors", socket_rule_key), ("connection_actors", connection_rule_key)):
         own = [key(r) for r in biome.get_editor_property(name)]
         check([key(r) for r in docks.get_editor_property(name)] == own[:len(docks.get_editor_property(name))],
@@ -735,6 +757,7 @@ def main():
     ensure_feature_data()
     if ensure_biome():
         log("created " + BIOME_PATH)
+    ensure_required_sockets()
     ensure_assembly()
     builder = Builder(metrics)
     built_levels = sum(1 for room in ROOMS if ensure_level(builder, room))

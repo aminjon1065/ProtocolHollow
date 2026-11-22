@@ -33,6 +33,9 @@ public:
 	/** Fired locally when the focus changes (prompt UI arrives in S2-06). */
 	FOnHollowFocusChanged OnFocusChanged;
 
+	/** Server-side facts for a request to interact with Target: line of sight, distance, rate, state (also for tests). */
+	FHollowInteractionCheck MeasureRequest(AActor* Target) const;
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -40,9 +43,6 @@ private:
 	void UpdateFocus();
 	AActor* ProbeFocus() const;
 	void SetFocus(AActor* NewFocus);
-
-	/** Server-side facts for a request: line of sight, distance, rate, state. */
-	FHollowInteractionCheck MeasureRequest(AActor* Target) const;
 
 	UFUNCTION(Server, Reliable)
 	void Server_Interact(AActor* Target);

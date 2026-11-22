@@ -7,7 +7,9 @@
 #include "Collision/HollowCollisionChannels.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/StreamableManager.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayTagAssetInterface.h"
 #include "Tags/HollowGameplayTags.h"
@@ -92,4 +94,33 @@ void AHollowAetherCore::BeginPlay()
 	{
 		Audio->PlayAttached(HollowTags::Sound_Core_Hum, Visual);   // ends with the core
 	}
+	DefaultMaterial = Visual->GetMaterial(0);
+	Carryable->OnLootItemChanged.AddUObject(this, &ThisClass::ApplyLook);
+	ApplyLook();   // replicated before BeginPlay (a purified core seen by a late joiner)
+}
+
+void AHollowAetherCore::ApplyLook()
+{
+	const UHollowCarryableDefinition* Definition = Carryable->GetDefinition();
+	const FHollowCarryableLook* Look = Definition ? Definition->FindLook(Carryable->GetLootItem()) : nullptr;
+	if (!Look || Look->Material.IsNull())
+	{
+		Visual->SetMaterial(0, DefaultMaterial);
+		return;
+	}
+	if (UMaterialInterface* Loaded = Look->Material.Get())
+	{
+		Visual->SetMaterial(0, Loaded);   // already in memory: no frame without it
+		return;
+	}
+	// A small material instance, still loaded without a hitch (CLAUDE.md sec. 2: soft references for assets).
+	const TSoftObjectPtr<UMaterialInterface> Material = Look->Material;
+	const FPrimaryAssetId Item = Carryable->GetLootItem();
+	UAssetManager::GetStreamableManager().RequestAsyncLoad(Material.ToSoftObjectPath(), FStreamableDelegate::CreateWeakLambda(this, [this, Material, Item]()
+	{
+		if (Carryable->GetLootItem() == Item)   // still the same item when it arrives
+		{
+			Visual->SetMaterial(0, Material.Get());
+		}
+	}));
 }

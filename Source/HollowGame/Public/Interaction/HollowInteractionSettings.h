@@ -35,4 +35,11 @@ public:
 	/** States of the interacting character that forbid interaction (e.g. Hollow.State.Dead). */
 	UPROPERTY(Config, EditAnywhere, Category = "Server", meta = (Categories = "Hollow.State"))
 	FGameplayTagContainer BlockingTags;
+
+	/**
+	 * Blocking states that still let a player hand their load to a carry receiver (S7-02: carrying a core to the
+	 * Purification Altar, IHollowCarryReceiver).
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Server", meta = (Categories = "Hollow.State"))
+	FGameplayTagContainer CarryReceiverAllowedTags;
 };

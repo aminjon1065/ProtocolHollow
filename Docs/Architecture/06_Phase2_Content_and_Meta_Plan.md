@@ -120,6 +120,17 @@
   - `DA_Biome_Cathedral`: правила генератора; правила сборки зеркалят Доки (двери, переборки, лут, ядро, враги, эвакуация);
   - генератор: 1000/1000 seed'ов Собора и Доков без перекрытий, с путём, петлями и манифестом ≤ 2 КБ;
   - тесты `Hollow.PCG.{CathedralRooms, CathedralOpenings, Generator.CathedralPool, Sector.CathedralAssembly}`, кооп-смоук `playthrough-mac.sh cathedral` (dev-переопределение сектора до S7-04).
+- **S7-02 — сделано** (2026-11-22, [ADR-0039](../ADR/ADR-0039-cathedral-altar-arcs.md)):
+  - **Алтарь Очистки** (`AHollowRitualAltar`, приёмник ноши `IHollowCarryReceiver`):
+    - носильщик кладёт ядро на чашу, ядро удержано;
+    - 20 с колокола каждые 2 с (`Hollow.Noise.Ritual`, слышно на 60 м) и +40 тепла сразу;
+    - ядро становится `DA_Item_PurifiedCore` — 1250 кр при эвакуации; один ритуал за рейд.
+  - **Электрические дуги** (`AHollowArcHazard`) поперёк галереи:
+    - телеграф 1,5 с → разряд 1 с (25 `Hollow.Damage.Electric`, мимо брони) → покой 3,5 с;
+    - рубильник `AHollowSwitch` из S1-06 гасит дугу, включение начинает цикл с телеграфа.
+  - **Генератор:** `RequiredSocketTypes` — алтарь и дуга в каждом из 1000 seed'ов Собора.
+  - **Звук:** колокол `MS_Altar_Bell`; остальные звуки — S7-03.
+  - **Тесты** `Hollow.PCG.Generator.RequiredSockets`, `Hollow.Game.{Carry.Held, Altar.Ritual, Arc.Rules, Arc.Hazard, Cathedral.Data}`; кооп-смоук `playthrough-mac.sh altar`.
 
 ---
 

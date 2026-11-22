@@ -60,6 +60,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Occult, "Hollow.Damage.Occult", "Occult (Aether) damage.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Thermal, "Hollow.Damage.Thermal", "Thermal damage (fire, cryo).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Structural, "Hollow.Damage.Structural", "Structural damage to doors, bulkheads and barricades.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Electric, "Hollow.Damage.Electric", "Electric damage (the Reactor Cathedral's arcs, S7-02).");
 
 	// Noise
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Voice, "Hollow.Noise.Voice", "Proximity voice chat loudness (parent of the tiers; players hear voices through VOIP).");
@@ -73,6 +74,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Impact_Heavy, "Hollow.Noise.Impact.Heavy", "Heavy physical impact.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Structural_Breach, "Hollow.Noise.Structural.Breach", "Door or bulkhead breached.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Core_Drop, "Hollow.Noise.Core.Drop", "Heavy Aether core dropped.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise_Ritual, "Hollow.Noise.Ritual", "The Purification Altar's ritual: a bell toll, loud on purpose (S7-02).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Noise, "Hollow.Noise", "Parent of noises the AI hears (DA_NoiseConfig) and players hear (DA_SoundBank).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound, "Hollow.Sound", "Parent of sounds no AI hears (or heard as a linked noise): DA_SoundBank.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Door_Servo, "Hollow.Sound.Door.Servo", "A door opening or closing.");
@@ -118,6 +120,8 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_EnemySpawn, "Hollow.Socket.EnemySpawn", "Enemy spawn point.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_VentNode, "Hollow.Socket.VentNode", "Echo-Stalker vent graph node.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_Extraction, "Hollow.Socket.Extraction", "Extraction zone.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_Altar, "Hollow.Socket.Altar", "Purification Altar (Reactor Cathedral, S7-02).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Socket_ArcHazard, "Hollow.Socket.ArcHazard", "Electric arc across a passage, with its breaker (Reactor Cathedral, S7-02).");
 
 	// Item types
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Item_Type, "Hollow.Item.Type", "Parent of item types; every item definition carries exactly one child.");

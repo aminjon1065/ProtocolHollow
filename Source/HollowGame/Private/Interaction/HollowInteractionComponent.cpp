@@ -1,5 +1,7 @@
 #include "Interaction/HollowInteractionComponent.h"
 
+#include "Carry/HollowCarrierComponent.h"
+#include "Carry/HollowCarryableComponent.h"
 #include "Collision/HollowCollisionChannels.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
@@ -8,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HollowGameLog.h"
 #include "Interaction/HollowInteractionSettings.h"
+#include "Interfaces/HollowCarryReceiver.h"
 #include "TimerManager.h"
 #include "Util/HollowEnumUtils.h"
 
@@ -30,6 +33,39 @@ namespace HollowInteractionPrivate
 		}
 		Pawn->GetActorEyesViewPoint(OutLocation, OutRotation);
 		return true;
+	}
+
+	/** The owner and what it carries (a core in front of the eyes must not hide the altar it is taken to, S7-02). */
+	FCollisionQueryParams QueryParams(const AActor* Owner, const FName Stat)
+	{
+		FCollisionQueryParams Params(Stat, /*bTraceComplex=*/false, Owner);
+		const UHollowCarrierComponent* Carrier = Owner ? Owner->FindComponentByClass<UHollowCarrierComponent>() : nullptr;
+		if (const UHollowCarryableComponent* Carried = Carrier ? Carrier->GetCarried() : nullptr)
+		{
+			Params.AddIgnoredActor(Carried->GetOwner());
+		}
+		return Params;
+	}
+
+	/**
+	 * Whether the interacting character's state forbids interaction (UHollowInteractionSettings::BlockingTags); toward a
+	 * carry receiver the CarryReceiverAllowedTags do not count (carrying a core to the Purification Altar, S7-02).
+	 */
+	bool IsBlocked(const AActor* Owner, const bool bForReceiver)
+	{
+		const IGameplayTagAssetInterface* OwnerTags = Cast<IGameplayTagAssetInterface>(Owner);
+		if (!OwnerTags)
+		{
+			return false;
+		}
+		const UHollowInteractionSettings* Settings = GetDefault<UHollowInteractionSettings>();
+		if (!bForReceiver)
+		{
+			return OwnerTags->HasAnyMatchingGameplayTags(Settings->BlockingTags);
+		}
+		FGameplayTagContainer Blocking = Settings->BlockingTags;
+		Blocking.RemoveTags(Settings->CarryReceiverAllowedTags);
+		return OwnerTags->HasAnyMatchingGameplayTags(Blocking);
 	}
 }
 
@@ -97,15 +133,16 @@ AActor* UHollowInteractionComponent::ProbeFocus() const
 		return nullptr;
 	}
 
-	// The same states the server refuses (dead, carrying a core with both hands...) show no focus and no prompt.
+	// The same states the server refuses (dead, carrying a core with both hands...) show no focus and no prompt; carrying
+	// still focuses a carry receiver (the Purification Altar, S7-02).
 	const UHollowInteractionSettings* Settings = GetDefault<UHollowInteractionSettings>();
-	const IGameplayTagAssetInterface* OwnerTags = Cast<IGameplayTagAssetInterface>(Owner);
-	if (OwnerTags && OwnerTags->HasAnyMatchingGameplayTags(Settings->BlockingTags))
+	const bool bBlocked = HollowInteractionPrivate::IsBlocked(Owner, /*bForReceiver=*/false);
+	if (bBlocked && HollowInteractionPrivate::IsBlocked(Owner, /*bForReceiver=*/true))
 	{
 		return nullptr;
 	}
 	const FVector End = EyeLocation + EyeRotation.Vector() * Settings->InteractionRange;
-	const FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowInteractionFocus), /*bTraceComplex=*/false, Owner);
+	const FCollisionQueryParams Params = HollowInteractionPrivate::QueryParams(Owner, SCENE_QUERY_STAT_NAME_ONLY(HollowInteractionFocus));
 
 	FHitResult Hit;
 	AActor* Focus = nullptr;
@@ -114,7 +151,8 @@ AActor* UHollowInteractionComponent::ProbeFocus() const
 	{
 		AActor* HitActor = Hit.GetActor();
 		const IHollowInteractable* Interactable = Cast<IHollowInteractable>(HitActor);
-		Focus = (Interactable && Interactable->CanInteract(Owner)) ? HitActor : nullptr;
+		const bool bAllowed = !bBlocked || Cast<IHollowCarryReceiver>(HitActor) != nullptr;
+		Focus = (bAllowed && Interactable && Interactable->CanInteract(Owner)) ? HitActor : nullptr;
 	}
 
 #if ENABLE_DRAW_DEBUG
@@ -158,16 +196,14 @@ FHollowInteractionCheck UHollowInteractionComponent::MeasureRequest(AActor* Targ
 
 	const IHollowInteractable* Interactable = Cast<IHollowInteractable>(Target);
 	Check.bTargetInteractable = Interactable != nullptr;
-	if (const IGameplayTagAssetInterface* OwnerTags = Cast<IGameplayTagAssetInterface>(Owner))
-	{
-		Check.bInteractorBlocked = OwnerTags->HasAnyMatchingGameplayTags(GetDefault<UHollowInteractionSettings>()->BlockingTags);
-	}
+	Check.bInteractorBlocked = HollowInteractionPrivate::IsBlocked(Owner, /*bForReceiver=*/Cast<IHollowCarryReceiver>(Target) != nullptr);
 	if (LastInteractionTime.IsSet())
 	{
 		Check.SecondsSinceLastInteraction = World->GetTimeSeconds() - LastInteractionTime.GetValue();
 	}
 
-	// Line of sight from the eyes to the target's collision bounds: the first blocking hit must be the target itself.
+	// Line of sight from the eyes to the centre of the target's collision bounds: nothing else may block it. The first
+	// hit is the target itself, or nothing at all (S7-02: an open shape like the altar, whose centre is in the air).
 	FVector EyeLocation;
 	FRotator EyeRotation;
 	if (HollowInteractionPrivate::GetEyes(Owner, EyeLocation, EyeRotation))
@@ -175,12 +211,13 @@ FHollowInteractionCheck UHollowInteractionComponent::MeasureRequest(AActor* Targ
 		FVector Origin;
 		FVector Extent;
 		Target->GetActorBounds(/*bOnlyCollidingComponents=*/true, Origin, Extent);
-		const FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowInteractionValidate), /*bTraceComplex=*/false, Owner);
+		const FCollisionQueryParams Params = HollowInteractionPrivate::QueryParams(Owner, SCENE_QUERY_STAT_NAME_ONLY(HollowInteractionValidate));
 		FHitResult Hit;
-		if (World->LineTraceSingleByChannel(Hit, EyeLocation, Origin, HollowCollision::Interaction, Params) && Hit.GetActor() == Target)
+		const bool bBlocked = World->LineTraceSingleByChannel(Hit, EyeLocation, Origin, HollowCollision::Interaction, Params);
+		if (!bBlocked || Hit.GetActor() == Target)
 		{
 			Check.bHasLineOfSight = true;
-			Check.Distance = Hit.Distance;
+			Check.Distance = bBlocked ? Hit.Distance : FVector::Dist(EyeLocation, Origin);
 		}
 	}
 

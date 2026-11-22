@@ -37,7 +37,9 @@ enum class EHollowGenFailure : uint8
 	Loops,
 	OptionalBranch,
 	BulkheadQuota,
-	Validation
+	Validation,
+	/** A socket type the biome requires is in none of the placed rooms (S7-02: the Cathedral's altar and arcs). */
+	MissingSocket
 };
 
 /**
@@ -98,6 +100,13 @@ struct HOLLOWPCG_API FHollowSectorGenRules
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shape", meta = (ClampMin = "0"))
 	int32 MinBulkheadConnections = 0;
 
+	/**
+	 * Socket types at least one placed room must carry (S7-02, ADR-0039): a biome mechanic that has to be in every
+	 * sector (the Cathedral's altar and arcs). A layout without one is a failed attempt, so the seed still decides.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shape", meta = (Categories = "Hollow.Socket"))
+	FGameplayTagContainer RequiredSocketTypes;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (ClampMin = "2"))
 	int32 MaxRooms = 0;
 
@@ -130,6 +139,8 @@ struct FHollowRoomTemplate
 	EHollowRoomRole Role = EHollowRoomRole::Path;
 	FIntPoint Footprint = FIntPoint(1, 1);
 	TArray<FHollowTemplateConnector> Connectors;
+	/** Socket types of the room (for FHollowSectorGenRules::RequiredSocketTypes). */
+	FGameplayTagContainer SocketTypes;
 };
 
 struct FHollowPlacedRoom

@@ -7,6 +7,7 @@
 
 class UBoxComponent;
 class UHollowCarryableComponent;
+class UMaterialInterface;
 class UStaticMeshComponent;
 
 /**
@@ -37,7 +38,7 @@ public:
 	virtual void OnRep_ReplicateMovement() override;
 
 protected:
-	/** Every machine: the core hums (Hollow.Sound.Core.Hum), wherever it is carried. */
+	/** Every machine: the core hums (Hollow.Sound.Core.Hum), wherever it is carried; it looks like the item it counts as. */
 	virtual void BeginPlay() override;
 
 private:
@@ -49,4 +50,11 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Carry")
 	TObjectPtr<UHollowCarryableComponent> Carryable;
+
+	/** Every machine: the visual's material for the item it counts as now (a definition look, else its own). */
+	void ApplyLook();
+
+	/** The visual's own material (the plain core). */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> DefaultMaterial;
 };

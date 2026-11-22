@@ -2,7 +2,6 @@
 
 #include "Assembly/HollowSectorStateComponent.h"
 #include "Carry/HollowCarryableComponent.h"
-#include "Carry/HollowCarryableDefinition.h"
 #include "Classes/HollowClassComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -275,19 +274,20 @@ void UHollowRaidFlowComponent::Depart()
 	Loot.Reset();
 	for (const UHollowCarryableComponent* Carryable : Carryables)
 	{
-		const UHollowCarryableDefinition* Definition = Carryable->GetDefinition();
-		if (!Definition || !Definition->LootItem.IsValid())
+		// What it counts as now: a purified core sells as one (S7-02).
+		const FPrimaryAssetId Item = Carryable->GetLootItem();
+		if (!Item.IsValid())
 		{
 			continue;
 		}
-		if (FHollowItemStack* Stack = Loot.FindByPredicate([Definition](const FHollowItemStack& S) { return S.Item == Definition->LootItem; }))
+		if (FHollowItemStack* Stack = Loot.FindByPredicate([&Item](const FHollowItemStack& S) { return S.Item == Item; }))
 		{
 			++Stack->Count;
 		}
 		else
 		{
 			FHollowItemStack& NewStack = Loot.AddDefaulted_GetRef();
-			NewStack.Item = Definition->LootItem;
+			NewStack.Item = Item;
 			NewStack.Count = 1;
 		}
 	}
