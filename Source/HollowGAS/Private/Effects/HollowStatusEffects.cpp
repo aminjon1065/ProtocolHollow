@@ -39,6 +39,13 @@ UHollowPulseMineCooldownEffect::UHollowPulseMineCooldownEffect(const FObjectInit
 	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CooldownTag")), HollowTags::Cooldown_Gadget_PulseMine));
 }
 
+UHollowOccultWardCooldownEffect::UHollowOccultWardCooldownEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CooldownTag")), HollowTags::Cooldown_Gadget_OccultWard));
+}
+
 UHollowHelmetLampCooldownEffect::UHollowHelmetLampCooldownEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

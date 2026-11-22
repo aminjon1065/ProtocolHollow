@@ -14,7 +14,7 @@ namespace HollowOccultEffectsPrivate
 	constexpr float AnyLevelMax = 1.f;
 }
 
-UHollowLanternEffect::UHollowLanternEffect(const FObjectInitializer& ObjectInitializer)
+UHollowRenewedEffect::UHollowRenewedEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	using namespace HollowOccultEffectsPrivate;
@@ -25,11 +25,11 @@ UHollowLanternEffect::UHollowLanternEffect(const FObjectInitializer& ObjectIniti
 	StackLimitCount = OneInstance;
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
-	// A renewal must not re-trigger the cues: every one would be a multicast RPC, ten a second per lit enemy.
+	// A renewal must not re-trigger the cues: every one would be a multicast RPC, at every check, per target.
 	bSuppressStackingCues = true;
 }
 
-void UHollowLanternEffect::InitLanternStructure(const FGameplayTag& StateTag)
+void UHollowRenewedEffect::InitRenewedStructure(const FGameplayTag& StateTag)
 {
 	UTargetTagsGameplayEffectComponent* TargetTags = CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("StateTag"));
 	FInheritedTagContainer Granted;
@@ -38,16 +38,33 @@ void UHollowLanternEffect::InitLanternStructure(const FGameplayTag& StateTag)
 	GEComponents.Add(TargetTags);
 }
 
+UHollowLanternEffect::UHollowLanternEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
 UHollowOccultExposeEffect::UHollowOccultExposeEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	using namespace HollowOccultEffectsPrivate;
-	InitLanternStructure(HollowTags::State_Exposed);
+	InitRenewedStructure(HollowTags::State_Exposed);
 	GameplayCues.Add(FGameplayEffectCue(HollowTags::GameplayCue_Status_Exposed, AnyLevelMin, AnyLevelMax));
 }
 
 UHollowAntiResonanceEffect::UHollowAntiResonanceEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	InitLanternStructure(HollowTags::State_AntiResonance);
+	InitRenewedStructure(HollowTags::State_AntiResonance);
+}
+
+UHollowWardBindEffect::UHollowWardBindEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	InitRenewedStructure(HollowTags::State_Warded);
+}
+
+UHollowWardCalmEffect::UHollowWardCalmEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	InitRenewedStructure(HollowTags::State_Warded);
 }

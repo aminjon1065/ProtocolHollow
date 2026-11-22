@@ -85,6 +85,12 @@
   - аура `GE_AntiResonance` (6 м) на живых игроках рядом: прирост Резонанса ×0,5, в том числе у носильщика ядра;
   - фонарь в стартовом наборе оккультиста (застрахован) и в магазине (450 кр); один непрерывный инструмент за раз;
   - тесты `Hollow.GAS.AetherLantern.{Effects, Beam, Stalker, Data}`, кооп-смоук `playthrough-mac.sh lantern`.
+- **S6-03 — сделано** (2026-11-22, [ADR-0036](../ADR/ADR-0036-ritual-ward.md)):
+  - `GA_OccultWard` на G / RB (кнопка мины, общий кулдаун гаджетов 20 с): рунный круг `AHollowOccultWard` под ногами на 15 с, радиус 2,5 м, без Tick;
+  - враги внутри ×0,5 (`MoveSpeedMultiplier`, с фонарём ×0,3); у игроков внутри Резонанс −1 / с и прирост ×0,5;
+  - вид синхронен по реплицированному времени установки: процедурная декаль рун, свет, процедурный гул `MS_Ward_Hum`;
+  - расходник `DA_Item_OccultWard`: 2 в наборе оккультиста, рецепт на верстаке (2 осколка, 1 лом, 10 кр);
+  - тесты `Hollow.GAS.OccultWard.Effects`, `Hollow.Game.Gadget.OccultWard`, `Hollow.Game.OccultWard.Data`, кооп-смоук `playthrough-mac.sh ward`.
 
 ---
 

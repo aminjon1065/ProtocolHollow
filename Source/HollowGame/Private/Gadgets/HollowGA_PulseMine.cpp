@@ -1,7 +1,7 @@
 #include "Gadgets/HollowGA_PulseMine.h"
 
-#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
+#include "Gadgets/HollowGadgetPlacement.h"
 #include "Gadgets/HollowPulseMine.h"
 #include "Gadgets/HollowPulseMineDefinition.h"
 #include "GameFramework/Character.h"
@@ -17,6 +17,7 @@ UHollowGA_PulseMine::UHollowGA_PulseMine(const FObjectInitializer& ObjectInitial
 	ItemCostPerUse = 1;   // every mine laid is one of the mines the player brought (DA_Item_PulseMine grants this, ADR-0030)
 	SetAssetTags(FGameplayTagContainer(HollowTags::Ability_Gadget_PulseMine));
 	ActivationBlockedTags.AddTag(HollowTags::State_Dead);
+	ActivationBlockedTags.AddTag(HollowTags::Cooldown_Gadget);   // shared with every gadget (S6-03): one press never spends two
 }
 
 bool UHollowGA_PulseMine::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -56,11 +57,7 @@ void UHollowGA_PulseMine::PlaceMine()
 		UE_LOG(LogHollowGame, Log, TEXT("%s: takes back %s"), *Placer->GetName(), *Previous->GetName());
 		Previous->Destroy();   // one mine per player
 	}
-	const FVector Feet = Placer->GetActorLocation() - FVector(0.0, 0.0, Placer->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	FHitResult Floor;
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowPulseMinePlace), /*bTraceComplex=*/false, Placer);
-	const bool bFloor = World->LineTraceSingleByChannel(Floor, Placer->GetActorLocation(), Feet - FVector(0.0, 0.0, Definition->PlaceTraceDistance), ECC_Visibility, Params);
-	const FTransform Transform(FRotator(0.0, Placer->GetActorRotation().Yaw, 0.0), bFloor ? Floor.ImpactPoint : Feet);
+	const FTransform Transform = HollowGadgetPlacement::OnFloorBelow(*Placer, Definition->PlaceTraceDistance);
 
 	FActorSpawnParameters Spawn;
 	Spawn.Owner = Placer;

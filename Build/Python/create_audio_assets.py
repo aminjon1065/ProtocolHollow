@@ -124,6 +124,16 @@ def lantern():
     return g.out("pulsing").spec
 
 
+def ward_hum():
+    """S6-03: the ritual ward - a low fifth that breathes, a faint glassy shimmer above it."""
+    g = Graph(one_shot=False)
+    g.node("root", SINE, {"Frequency": 98.0}).node("fifth", SINE, {"Frequency": 147.0}).node("glass", TRIANGLE, {"Frequency": 588.0})
+    g.mix("chord", [("root", "Audio", 0.3), ("fifth", "Audio", 0.2), ("glass", "Audio", 0.05)])
+    g.node("breath", LFO, {"Frequency": 0.4, "Min Value": 0.55, "Max Value": 1.0})
+    g.node("breathing", SCALE).link("chord", "Out", "breathing", "PrimaryOperand").link("breath", "Out", "breathing", "AdditionalOperands")
+    return g.out("breathing").spec
+
+
 def door_servo():
     g = Graph(one_shot=True)
     g.node("whine_lfo", LFO, {"Frequency": 4.0, "Min Value": 118.0, "Max Value": 142.0})
@@ -280,7 +290,7 @@ METASOUNDS = {
     "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter, "MS_Tool_Lantern": lantern,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
     "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
-    "MS_HelmetLamp_Click": helmet_lamp_click,
+    "MS_HelmetLamp_Click": helmet_lamp_click, "MS_Ward_Hum": ward_hum,
     "MS_Footstep_Light": footstep_light, "MS_Footstep_Heavy": footstep_heavy, "MS_Footstep_Stalker": footstep_stalker,
     "MS_Pilgrim_Windup": pilgrim_windup, "MS_Stalker_Shriek": stalker_shriek, "MS_Stalker_Vent": stalker_vent,
     "MS_Room_Tone": room_tone, "MS_Room_Tone_Vault": room_tone_vault,
@@ -311,6 +321,7 @@ ENTRIES = [
     ("Hollow.Sound.Mine.Blast", "MS_Mine_Blast", "SCON_Impacts", 0.0, 1.0, 0.05, "Hollow.Noise.Impact.Heavy"),
     ("Hollow.Sound.Core.Hum", "MS_Core_Hum", None, 900.0, 0.5, 0.0, None),
     ("Hollow.Sound.HelmetLamp.Toggle", "MS_HelmetLamp_Click", None, 600.0, 0.4, 0.06, None),   # S4-08: within a room
+    ("Hollow.Sound.Ward.Hum", "MS_Ward_Hum", None, 1200.0, 0.5, 0.0, None),   # S6-03: players only
 ]
 
 # ---------------------------------------------------------------- room acoustics (data)

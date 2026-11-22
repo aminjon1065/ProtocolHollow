@@ -71,13 +71,14 @@ namespace HollowAudioGameTests
 	TArray<FGameplayTag> NativeSounds()
 	{
 		return {HollowTags::Sound_Door_Servo, HollowTags::Sound_Footstep_Heavy, HollowTags::Sound_Footstep_Stalker, HollowTags::Sound_Enemy_PilgrimWindup,
-			HollowTags::Sound_Enemy_StalkerShriek, HollowTags::Sound_Stalker_Vent, HollowTags::Sound_Mine_Arm, HollowTags::Sound_Mine_Blast, HollowTags::Sound_Core_Hum};
+			HollowTags::Sound_Enemy_StalkerShriek, HollowTags::Sound_Stalker_Vent, HollowTags::Sound_Mine_Arm, HollowTags::Sound_Mine_Blast, HollowTags::Sound_Core_Hum,
+			HollowTags::Sound_Ward_Hum};
 	}
 
 	/** Sounds that run until stopped (tools while used, the core's hum); every other one ends by itself. */
 	TArray<FGameplayTag> Loops()
 	{
-		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Noise_Tool_Lantern, HollowTags::Sound_Core_Hum};
+		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Noise_Tool_Lantern, HollowTags::Sound_Core_Hum, HollowTags::Sound_Ward_Hum};
 	}
 
 	/** Plays of Tag since the call before (counts per tag, UHollowAudioSubsystem). */

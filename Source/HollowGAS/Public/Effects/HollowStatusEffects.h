@@ -27,6 +27,16 @@ public:
 	explicit UHollowPulseMineCooldownEffect(const FObjectInitializer& ObjectInitializer);
 };
 
+/** Ritual ward recharging (cooldown of GA_OccultWard, S6-03): Hollow.Cooldown.Gadget.OccultWard for the duration (data). */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowOccultWardCooldownEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowOccultWardCooldownEffect(const FObjectInitializer& ObjectInitializer);
+};
+
 /** Helmet lamp just switched (cooldown of GA_HelmetLamp, S4-08): Hollow.Cooldown.HelmetLamp for the duration (data), no strobing. */
 UCLASS(Abstract)
 class HOLLOWGAS_API UHollowHelmetLampCooldownEffect : public UGameplayEffect

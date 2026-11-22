@@ -8,7 +8,7 @@ A class's effect, ability set and tag are granted by the server while a player p
 starting loadout is a profile's the first time it picks the class; its visor colour tints the visor's telemetry.
 The default class and the HollowClass scan are config (DefaultGame.ini), checked here. Effects and ability sets are
 created when missing; the classes are filled or refreshed when they differ from the spec. Run after
-create_inventory_assets.py, create_lantern_assets.py and create_economy_assets.py:
+create_inventory_assets.py, create_lantern_assets.py, create_ward_assets.py and create_economy_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_class_assets.py
 """
 import traceback
@@ -27,7 +27,7 @@ INI_LINES = ["DefaultClass=HollowClass:DA_Class_Engineer"]
 INI_SCAN = 'PrimaryAssetType="HollowClass"'
 RAID_ITEM_TYPES = ["Hollow.Item.Type.Tool", "Hollow.Item.Type.Consumable"]   # UHollowEconomySettings::LoadoutItemTypes
 ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_AetherLantern": "Tools", "DA_Item_FuelCell": "Consumables",
-             "DA_Item_PulseMine": "Consumables"}
+             "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables"}
 EFFECT_LEVEL = 1.0   # gameplay ability system levels start at 1
 
 # The classes (S6-01 clarifications 2, 4, 6). Modifiers: (attribute set, attribute, op, magnitude); only attributes
@@ -45,11 +45,11 @@ CLASSES = {
     },
     "DA_Class_Occultist": {
         "display": "Techno-Occultist",
-        "description": "Reads the Aether and keeps it quiet: Resonance builds slower. The Aether lantern exposes what hunts the squad and dampens its Resonance; the ritual ward is coming.",
+        "description": "Reads the Aether and keeps it quiet: Resonance builds slower. The Aether lantern exposes what hunts the squad and dampens its Resonance; the ritual ward holds a doorway and calms whoever stands in it.",
         "tag": "Hollow.Class.Occultist",
         "effect": ("GE_Class_Occultist", [("HollowResonanceSet", "ResonanceGainMultiplier", "MultiplyAdditive", 0.8)]),
         "ability_set": "DA_AbilitySet_Class_Occultist",
-        "kit": [("DA_Item_AetherLantern", 1, True), ("DA_Item_FuelCell", 3, False)],   # S6-02: the lantern, insured
+        "kit": [("DA_Item_AetherLantern", 1, True), ("DA_Item_FuelCell", 3, False), ("DA_Item_OccultWard", 2, False)],   # S6-02 lantern, S6-03 wards
         "visor": (0.78, 0.62, 1.0, 0.9),
     },
 }

@@ -13,6 +13,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Interact, "Hollow.Ability.Interact", "Generic interaction ability.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Carry_Heavy, "Hollow.Ability.Carry.Heavy", "Pick up / carry a heavy Aether core.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Gadget_PulseMine, "Hollow.Ability.Gadget.PulseMine", "Kinetic pulse mine (stuns the Echo-Stalker).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Gadget_OccultWard, "Hollow.Ability.Gadget.OccultWard", "Techno-Occultist ritual ward (S6-03): a rune circle on the floor that slows enemies and calms the players inside.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_HelmetLamp, "Hollow.Ability.HelmetLamp", "Helmet lamp toggle (S4-08): predicted, the Echo-Stalker keeps out of a lit cone only.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy, "Hollow.Ability.Enemy", "Parent of enemy abilities (server only).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Pilgrim_Breach, "Hollow.Ability.Enemy.Pilgrim.Breach", "Iron Pilgrim: structural blow at a door or bulkhead.");
@@ -20,7 +21,9 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Ability_Enemy_Stalker_Ambush, "Hollow.Ability.Enemy.Stalker.Ambush", "Echo-Stalker: strike out of an ambush.");
 
 	// Cooldowns
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Gadget, "Hollow.Cooldown.Gadget", "Any gadget recharging (S6-03): every gadget ability is blocked by it, so one press never spends two.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Gadget_PulseMine, "Hollow.Cooldown.Gadget.PulseMine", "Pulse mine recharging: a player places no new one meanwhile.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Gadget_OccultWard, "Hollow.Cooldown.Gadget.OccultWard", "Ritual ward recharging: a player places no new one meanwhile.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_HelmetLamp, "Hollow.Cooldown.HelmetLamp", "Helmet lamp switched a moment ago: no strobing.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Cooldown_Tool_Refuel, "Hollow.Cooldown.Tool.Refuel", "A fuel cell went in a moment ago: a held key burns no second one.");
 
@@ -50,6 +53,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Invulnerable_Kinetic, "Hollow.State.Invulnerable.Kinetic", "Immune to kinetic damage (Echo-Stalker).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Exposed, "Hollow.State.Exposed", "In the Aether lantern's light (GE_Occult_Expose): slowed, weaker armour, no kinetic immunity; the Echo-Stalker flees.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_AntiResonance, "Hollow.State.AntiResonance", "Within an Aether lantern's aura (GE_AntiResonance): Resonance builds slower.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Warded, "Hollow.State.Warded", "Inside a ritual ward (S6-03): an enemy is slowed (GE_Ward_Bind), a player's Resonance builds slower and drains (GE_Ward_Calm).");
 
 	// Damage types
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Damage_Kinetic, "Hollow.Damage.Kinetic", "Kinetic damage.");
@@ -81,6 +85,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Blast, "Hollow.Sound.Mine.Blast", "Pulse mine going off (heard by the AI as Impact.Heavy).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Core_Hum, "Hollow.Sound.Core.Hum", "Aether core hum (loop).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_HelmetLamp_Toggle, "Hollow.Sound.HelmetLamp.Toggle", "Helmet lamp click (players only; the AI does not hear it).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Ward_Hum, "Hollow.Sound.Ward.Hum", "Ritual ward hum (loop while it burns; players only, the AI does not hear it).");
 
 	// Input
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Input_Move, "Hollow.Input.Move", "Move input.");
@@ -131,6 +136,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_ResonanceGain, "Hollow.Data.ResonanceGain", "SetByCaller: Resonance gain magnitude.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_FuelCost, "Hollow.Data.FuelCost", "SetByCaller: tool fuel cost per period.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_HeatGain, "Hollow.Data.HeatGain", "SetByCaller: tool heat added by one sample.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Data_ResonanceDrain, "Hollow.Data.ResonanceDrain", "SetByCaller: Resonance change of one drain (negative: taken away, never through the gain multiplier).");
 
 	// GameplayCues
 	HOLLOW_DEFINE_GAMEPLAY_TAG(GameplayCue_Tool_Beam, "GameplayCue.Hollow.Tool.Beam", "Looping tool beam (cutter/welder) cosmetics.");
