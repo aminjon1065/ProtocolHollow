@@ -7,7 +7,7 @@
 /**
  * The contracts terminal's screen (W_ContractTerminal, S5-04): the host picks the squad's contract (the server
  * validates it, ADR-0032) and launches the raid, the same launch as the system menu's Start raid; a guest sees the
- * host's choice change live and cannot launch.
+ * host's choice change live and cannot launch. Every contract shows its sector and what it pays this player (ADR-0041).
  */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowContractTerminalWidget : public UHollowHubScreenWidget
@@ -16,6 +16,9 @@ class HOLLOWUI_API UHollowContractTerminalWidget : public UHollowHubScreenWidget
 
 public:
 	UCommonButtonBase* GetLaunchButton() const { return LaunchButton; }
+
+	/** Who decides, and the squad's contract with its sector and reward. */
+	FText GetRoleText() const;
 
 	/** Whether the screen's player picks and launches (the host's machine). */
 	bool IsHostScreen() const;

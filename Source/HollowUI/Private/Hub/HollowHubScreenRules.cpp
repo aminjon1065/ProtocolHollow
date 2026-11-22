@@ -5,6 +5,7 @@
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
 #include "Engine/AssetManager.h"
+#include "Extraction/HollowExtractionResolver.h"
 #include "Hub/HollowContractDefinition.h"
 #include "Items/HollowItemDefinition.h"
 #include "Profile/HollowProfileTypes.h"
@@ -26,6 +27,40 @@ FText FHollowHubNames::GetDescription(const FPrimaryAssetId& Id) const
 void FHollowHubNames::Add(const FPrimaryAssetId& Id, const FText& Name, const FText& Description)
 {
 	Entries.Add(Id, FEntry{Name, Description});
+}
+
+TArray<FHollowContractOffer> FHollowContractOffer::Load(const TConstArrayView<FPrimaryAssetId> Contracts, const int32 CoreValuePercent)
+{
+	TArray<const UHollowContractDefinition*> Definitions;
+	TArray<FPrimaryAssetId> Items;
+	for (const FPrimaryAssetId& Id : Contracts)
+	{
+		const UHollowContractDefinition* Definition = UHollowContractDefinition::Load(Id);
+		Definitions.Add(Definition);
+		if (Definition)
+		{
+			for (const FPrimaryAssetId& Item : Definition->RewardItems)
+			{
+				Items.AddUnique(Item);
+			}
+		}
+	}
+	const FHollowItemCatalog Catalog = FHollowItemCatalog::Load(Items);
+	TArray<FHollowContractOffer> Offers;
+	for (int32 Index = 0; Index < Contracts.Num(); ++Index)
+	{
+		FHollowContractOffer& Offer = Offers.AddDefaulted_GetRef();
+		Offer.Contract = Contracts[Index];
+		if (const UHollowContractDefinition* Definition = Definitions[Index])
+		{
+			Offer.SectorName = Definition->SectorName;
+			for (const FPrimaryAssetId& Item : Definition->RewardItems)
+			{
+				Offer.Rewards.Emplace(Item, FHollowExtractionResolver::ItemEarnings(Catalog, Item, 1, CoreValuePercent));
+			}
+		}
+	}
+	return Offers;
 }
 
 FHollowHubNames FHollowHubNames::Load(const TConstArrayView<FPrimaryAssetId> Ids)
@@ -384,18 +419,49 @@ namespace HollowHubScreenRules
 		return Rows;
 	}
 
-	TArray<FHollowHubRow> ContractRows(const TConstArrayView<FPrimaryAssetId> Contracts, const FPrimaryAssetId& Selected, const bool bHost,
+	FText OfferText(const FHollowContractOffer& Offer, const FHollowHubNames& Names)
+	{
+		TArray<FText> Rewards;
+		for (const TPair<FPrimaryAssetId, int32>& Reward : Offer.Rewards)
+		{
+			Rewards.Add(FText::Format(LOCTEXT("RewardItem", "{0} {1} cr"), Names.GetName(Reward.Key), Reward.Value));
+		}
+		const FText Sector = Offer.SectorName.IsEmpty() ? LOCTEXT("NoSector", "Unknown sector") : Offer.SectorName;
+		return Rewards.IsEmpty() ? Sector : FText::Format(LOCTEXT("ContractOffer", "{0}. Reward: {1}"), Sector, FText::Join(FText::FromString(TEXT(", ")), Rewards));
+	}
+
+	FText ContractRoleText(const TConstArrayView<FHollowContractOffer> Offers, const FPrimaryAssetId& Selected, const bool bHost, const FHollowHubNames& Names)
+	{
+		const FText Role = bHost ? LOCTEXT("HostRole", "Choose the squad's contract, then launch.") : LOCTEXT("GuestRole", "The host chooses the contract and launches.");
+		const FHollowContractOffer* Chosen = Offers.FindByPredicate([&Selected](const FHollowContractOffer& Offer) { return Offer.Contract == Selected; });
+		if (!Selected.IsValid() || !Chosen)
+		{
+			return Role;
+		}
+		// Two lines: the role text does not wrap, the summary is as long as a row's offer.
+		return FText::Format(bHost ? LOCTEXT("HostChosen", "{0}\nNow: {1} - {2}") : LOCTEXT("GuestChosen", "{0}\nThe host chose: {1} - {2}"), Role,
+			Names.GetName(Selected), OfferText(*Chosen, Names));
+	}
+
+	int32 CoreValuePercent(const FHollowProfileState& State, const FHollowEconomyTerms& Terms)
+	{
+		return HollowCraftingRules::SumEffects(State.Profile.Upgrades, Terms.Upgrades).CoreValuePercent;
+	}
+
+	TArray<FHollowHubRow> ContractRows(const TConstArrayView<FHollowContractOffer> Offers, const FPrimaryAssetId& Selected, const bool bHost,
 		const FHollowHubNames& Names)
 	{
-		TArray<FPrimaryAssetId> Sorted(Contracts);
-		Sorted.Sort([](const FPrimaryAssetId& A, const FPrimaryAssetId& B) { return A.ToString() < B.ToString(); });
+		TArray<FHollowContractOffer> Sorted(Offers);
+		Sorted.Sort([](const FHollowContractOffer& A, const FHollowContractOffer& B) { return A.Contract.ToString() < B.Contract.ToString(); });
 		TArray<FHollowHubRow> Rows;
-		for (const FPrimaryAssetId& Id : Sorted)
+		for (const FHollowContractOffer& Offer : Sorted)
 		{
+			const FPrimaryAssetId& Id = Offer.Contract;
 			const bool bSelected = Id == Selected;
 			FHollowHubRow& Row = Rows.AddDefaulted_GetRef();
 			Row.Name = Names.GetName(Id);
-			Row.Detail = Names.GetDescription(Id);
+			const FText Description = Names.GetDescription(Id);
+			Row.Detail = Description.IsEmpty() ? OfferText(Offer, Names) : FText::Format(LOCTEXT("OfferDetail", "{0}. {1}"), OfferText(Offer, Names), Description);
 			Row.bHighlighted = bSelected;
 			if (bHost)
 			{

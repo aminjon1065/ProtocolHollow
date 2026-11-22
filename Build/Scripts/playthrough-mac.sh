@@ -43,17 +43,26 @@
 #          the cutter holds the primary input), buys the Reliquary, equips the brace, insures the ring; in the raid both
 #          dump the gear, the client carries the core faster than the host does, then dies: the insured ring comes home,
 #          the brace is lost.
-#   cathedral  S7-01 Reactor Cathedral (ADR-0038): host + 1 headless client behind --net, the host's raid sector
-#          overridden to HollowSector_Cathedral (dev: the contract picks it from S7-04 on). Both machines dump the sector
+#   cathedral  S7-01 Reactor Cathedral (ADR-0038): host + 1 headless client behind --net; the host picks the Cathedral's
+#          contract in the hub (it picks the sector, ADR-0041). Both machines dump the sector
 #          (same layout hash, the plugin Active), the host its generated map and the Standard and Heavy paths to the
 #          extraction; the AI lives for 20 s (both dump it); both dump the rooms' light against DA_LightBudget and the
 #          sounds heard (S7-03: rigs, reactor hum, reverbs); the host walks 4 rooms with real input taking lit pictures,
 #          then carries the core out and both extract.
-#   altar  S7-02 Cathedral mechanics (ADR-0039): host + 1 headless client behind --net, raid sector overridden to the
-#          Cathedral. The client carries the core to the Purification Altar and lays it there (Interact on a carry
+#   altar  S7-02 Cathedral mechanics (ADR-0039): host + 1 headless client behind --net, the host picks the Cathedral's
+#          contract in the hub. The client carries the core to the Purification Altar and lays it there (Interact on a carry
 #          receiver); both dump the altar through the 20 s ritual, the AI and the heat (the bell draws them); the core
 #          comes off purified. The client stands in an electric arc, vulnerable: struck; the host cuts its breaker: no more
 #          strikes. The client carries the purified core out: both extract for 1250 credits.
+#   biomes  S7-04 both sectors in one session (ADR-0041), the Phase 2 co-op regression: host (Engineer) + 1 headless
+#          client behind --net. Hub: the client turns Techno-Occultist, crafts and equips the Ring of Silence and watches
+#          the contracts screen (the Docks, their sector and reward); both machines dump both sectors (Registered, no
+#          reference). Raid 1 in the Docks: same layout hash, the Docks Active and the Cathedral not; the host carries the
+#          core out. Hub: after a garbage collection nothing of either sector is loaded on either machine, the contract is
+#          still the Docks; the host picks the Cathedral at its terminal with the gamepad while the client's open contracts
+#          screen follows live, and launches from it. Raid 2 in the Cathedral: same hash, the Cathedral Active and the Docks
+#          released; the Occultist lays the core on the altar (the ritual, purified), the host cuts an arc's breaker, the
+#          client carries the purified core out. Hub: both sectors released and unloaded again, the contract kept; profiles.
 #   screens  S5-04 hub screens (ADR-0033), one rendered process: the workbench (craft with A, RB to the shop, D-pad and A
 #          to buy, E / Q to the upgrades and back, Esc), the locker (take with the keyboard and A, insure, B), the
 #          contracts screen (A on Launch); a screenshot of each; the raid, then the hub again.
@@ -66,7 +75,7 @@
 #          profiles show what was spent.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -75,7 +84,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar ]] || { sed -n '2,72p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes ]] || { sed -n '2,82p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -98,7 +107,7 @@ case "$NET" in
 	bad) NET_ARGS=(-PktEmulationProfile=Bad) ;;
 	*) echo "Unknown --net: $NET (0, 150 or bad)" >&2; exit 2 ;;
 esac
-if [[ ("$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar) && "$NET" == none ]]; then
+if [[ ("$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes) && "$NET" == none ]]; then
 	NET_ARGS=(-PktLag=150)   # the co-op smokes but coop and soak always run behind a slow network
 fi
 GAME="$APP/Contents/MacOS/ProtocolHollow"
@@ -393,8 +402,9 @@ case "$MODE" in
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	cathedral)
-		HOST_ARGS=("-ini:Game:[/Script/HollowGame.HollowSectorSettings]:RaidSector=HollowSector_Cathedral")   # the client learns it from the manifest
 		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 36 Hollow.Hub.Select DA_Contract_Cathedral"           # the contract picks the sector; the client learns it from the manifest
+		h "Hollow.Dev.RunAfter 37 Hollow.Hub.Dump"
 		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
 		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"
 		h "Hollow.Dev.RunInRaid 2 Hollow.Sector.Info"; C+=("Hollow.Dev.RunInRaid 2.5 Hollow.Sector.Info")
@@ -418,8 +428,8 @@ case "$MODE" in
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	altar)
-		HOST_ARGS=("-ini:Game:[/Script/HollowGame.HollowSectorSettings]:RaidSector=HollowSector_Cathedral")   # the client learns it from the manifest
 		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 36 Hollow.Hub.Select DA_Contract_Cathedral"           # the contract picks the sector; the client learns it from the manifest
 		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
 		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"
 		h "Hollow.Dev.RunInRaid 2 Hollow.Altar.Dump"; C+=("Hollow.Dev.RunInRaid 2.5 Hollow.Altar.Dump")
@@ -448,6 +458,76 @@ case "$MODE" in
 		C1+=("Hollow.Dev.RunInRaid 58.5 Hollow.Dev.FaceCore"); C1+=("Hollow.Dev.RunInRaid 59 Hollow.Interact")
 		h "Hollow.Dev.RunInRaid 61 Hollow.Dev.GoToExtraction All"
 		h "Hollow.Dev.RunInRaid 100 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 101 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	biomes)
+		D=HollowSector_Docks; K=HollowSector_Cathedral
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		# Hub 1. The client (its own clock): Techno-Occultist, the Ring of Silence crafted (1 shard bought) and equipped.
+		C1+=("Hollow.Dev.RunAfter 17 Hollow.Class.Select DA_Class_Occultist")
+		C1+=("Hollow.Dev.RunAfter 18 Hollow.Shop.Buy DA_Item_AetherShard 1")
+		C1+=("Hollow.Dev.RunAfter 18.5 Hollow.Craft.Make DA_Recipe_Relic_RingOfSilence 1")
+		C1+=("Hollow.Dev.RunAfter 19 Hollow.Profile.Equip DA_Item_Relic_RingOfSilence 1")
+		C1+=("Hollow.Dev.RunAfter 20 Hollow.Class.Dump"); C1+=("Hollow.Dev.RunAfter 20.5 Hollow.Shop.Dump")
+		C1+=("Hollow.Dev.RunAfter 21 Hollow.Sector.Status $D"); C1+=("Hollow.Dev.RunAfter 21.2 Hollow.Sector.Status $K")
+		C1+=("Hollow.Dev.RunAfter 22 Hollow.Hub.Open Contracts"); C1+=("Hollow.Dev.RunAfter 23 Hollow.UI.Dump")   # a guest's screen: the Docks
+		C1+=("Hollow.Dev.RunAfter 24 Hollow.Hub.Close")
+		h "Hollow.Dev.RunAfter 14 Hollow.Hub.Dump"
+		h "Hollow.Dev.RunAfter 14.5 Hollow.Sector.Status $D"; h "Hollow.Dev.RunAfter 14.7 Hollow.Sector.Status $K"
+		h "Hollow.Dev.RunAfter 45 Hollow.Hub.Launch"                                # the default contract: the Docks
+		# Raid 1, the Docks.
+		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"; h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 2.5 Hollow.Sector.Info"; C+=("Hollow.Dev.RunInRaid 3 Hollow.Sector.Info")
+		h "Hollow.Dev.RunInRaid 3.2 Hollow.Sector.Status $D"; h "Hollow.Dev.RunInRaid 3.4 Hollow.Sector.Status $K"
+		C+=("Hollow.Dev.RunInRaid 3.5 Hollow.Sector.Status $D"); C+=("Hollow.Dev.RunInRaid 3.7 Hollow.Sector.Status $K")
+		h "Hollow.Dev.RunInRaid 4 Hollow.Class.Dump"; C+=("Hollow.Dev.RunInRaid 4 Hollow.Class.Dump"); C+=("Hollow.Dev.RunInRaid 4.5 Hollow.Gear.Dump")
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.GoToNearestCore All"; h "Hollow.Dev.RunInRaid 6 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 7 Hollow.Dev.GoToExtraction All"
+		# Hub 2 (the raid's clock goes on): nothing of the Docks left after a collection, the contract kept.
+		h "Hollow.Dev.RunInRaid 46 obj gc"; C+=("Hollow.Dev.RunInRaid 46 obj gc")
+		h "Hollow.Dev.RunInRaid 47 Hollow.Sector.Status $D"; h "Hollow.Dev.RunInRaid 47.2 Hollow.Sector.Status $K"
+		C+=("Hollow.Dev.RunInRaid 47.5 Hollow.Sector.Status $D"); C+=("Hollow.Dev.RunInRaid 47.7 Hollow.Sector.Status $K")
+		h "Hollow.Dev.RunInRaid 48 Hollow.Hub.Dump"; C+=("Hollow.Dev.RunInRaid 48.5 Hollow.Hub.Dump")
+		h "Hollow.Dev.RunInRaid 49 Hollow.UI.PressKey Escape"                        # the unread debrief
+		C1+=("Hollow.Dev.RunInRaid 50 Hollow.Hub.Open Contracts"); C1+=("Hollow.Dev.RunInRaid 51 Hollow.UI.Dump")
+		# The host at its terminal: focus on Launch, up to the Cathedral's Choose (rows in id order), A.
+		h "Hollow.Dev.RunInRaid 51 Hollow.Dev.GoToTerminal Contracts"; h "Hollow.Dev.RunInRaid 52 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 53 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 53.5 Hollow.UI.PressKey Gamepad_DPad_Up"; h "Hollow.Dev.RunInRaid 54 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 54.5 Hollow.UI.PressKey Gamepad_DPad_Up"; h "Hollow.Dev.RunInRaid 55 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 55.5 Hollow.UI.PressKey $PRESS"; h "Hollow.Dev.RunInRaid 56.5 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 57 Hollow.UI.Shot Biomes_Contracts"
+		C1+=("Hollow.Dev.RunInRaid 58 Hollow.UI.Dump"); C1+=("Hollow.Dev.RunInRaid 59 Hollow.Hub.Close")   # live: the host's Cathedral
+		C+=("Hollow.Dev.RunInRaid 59.5 Hollow.Hub.Dump")
+		h "Hollow.Dev.RunInRaid 59 Hollow.UI.PressKey Gamepad_FaceButton_Right"     # B: closed; again: the focus on Launch
+		h "Hollow.Dev.RunInRaid 59.5 Hollow.Dev.GoToTerminal Contracts"              # (the view turns when the screen closes)
+		h "Hollow.Dev.RunInRaid 60.5 Hollow.Interact"; h "Hollow.Dev.RunInRaid 61.5 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 62.5 Hollow.UI.PressKey $PRESS"                      # A on Launch: the Cathedral
+		# Raid 2, the Cathedral: registered in the hub, so these wait for the next ready raid.
+		N="Hollow.Dev.RunInRaid 50 Hollow.Dev.RunInRaid"
+		h "$N 1 Hollow.Dev.Invulnerable All"
+		h "$N 2 Hollow.Sector.Info"; C+=("$N 2.5 Hollow.Sector.Info")
+		h "$N 2.2 Hollow.Sector.Status $K"; h "$N 2.4 Hollow.Sector.Status $D"
+		C+=("$N 2.7 Hollow.Sector.Status $K"); C+=("$N 2.9 Hollow.Sector.Status $D")
+		h "$N 3 Hollow.Class.Dump"; C+=("$N 3 Hollow.Class.Dump"); C+=("$N 3.5 Hollow.Gear.Dump"); h "$N 3.7 Hollow.Altar.Dump"
+		h "$N 4 Hollow.Dev.GoToNearestCore Others"                                   # the Occultist lifts the core...
+		C1+=("$N 4.5 Hollow.Dev.FaceCore"); C1+=("$N 5 Hollow.Interact")
+		h "$N 7 Hollow.Dev.GoToAltar Others"; C1+=("$N 8.5 Hollow.Interact")         # ...and lays it on the altar
+		h "$N 10 Hollow.Altar.Dump"; C+=("$N 10.5 Hollow.Altar.Dump"); h "$N 10.2 Hollow.AI.Heat"
+		h "$N 31 Hollow.Altar.Dump"; C+=("$N 31.5 Hollow.Altar.Dump")               # done: purified
+		h "$N 31.2 Hollow.Audio.Dump"; C+=("$N 31.7 Hollow.Audio.Dump")
+		h "$N 32 Hollow.AI.Kill"
+		h "$N 33 Hollow.Dev.GoToArc Breaker"; h "$N 34 Hollow.Interact"             # the Engineer cuts an arc's breaker
+		h "$N 35 Hollow.Arc.Dump"; C+=("$N 35.5 Hollow.Arc.Dump")
+		h "$N 37 Hollow.Dev.GoToNearestCore Others"
+		C1+=("$N 37.5 Hollow.Dev.FaceCore"); C1+=("$N 38 Hollow.Interact")          # the purified core
+		h "$N 40 Hollow.Dev.GoToExtraction All"
+		# Hub 3 (raid 2's clock): both sectors released and unloaded, the contract kept, the profiles.
+		h "$N 82 obj gc"; C+=("$N 82 obj gc")
+		h "$N 83 Hollow.Sector.Status $D"; h "$N 83.2 Hollow.Sector.Status $K"
+		C+=("$N 83.5 Hollow.Sector.Status $D"); C+=("$N 83.7 Hollow.Sector.Status $K")
+		h "$N 84 Hollow.Hub.Dump"; C+=("$N 84.5 Hollow.Hub.Dump")
+		h "$N 86 Hollow.Profile.Dump"; C+=("$N 87 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	screens)
@@ -556,7 +636,7 @@ else
 	launch Host "${VIEW[@]}" ${HOST_ARGS[@]+"${HOST_ARGS[@]}"} -ExecCmds="$(join "${H[@]}")"
 	wait_for "$OUT/Host.log" 'listening on port' 240 || { echo "the host never listened"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
@@ -578,10 +658,12 @@ sleep 3
 kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 
+SUMMARY_LINES=160
+[[ "$MODE" == biomes ]] && SUMMARY_LINES=320   # two raids and three hubs
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: " "$log" | grep -v "Command Line\|commandline" | strip | awk 'NR <= 160'
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role " "$log" | grep -v "Command Line\|commandline" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
 done
 if [[ "$MODE" == lantern ]]; then
 	# Every player's Resonance in the host's four dumps (by name and pawn: local processes share a name): the carrier

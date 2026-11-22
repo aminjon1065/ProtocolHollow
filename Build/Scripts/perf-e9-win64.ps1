@@ -11,11 +11,15 @@
        turns evenly while Hollow.Perf.Capture records WarmupSeconds + Seconds.
     4. Prints the verdict; the folder holds the trace (.utrace), the CSV, the JSON report, the logs and summary.txt.
     -ClientTrace adds a run measuring a rendered client (headless host); -Hunt adds a CPU run with the AI alive (no verdict).
+    -Contract Cathedral measures the Reactor Cathedral: the host picks DA_Contract_Cathedral in the hub before the raid
+    (the contract picks the sector, ADR-0041); the captures are named E9-<Preset>-Cathedral.
     Exit code: 0 E9 passed, 1 failed, 2 the run did not complete.
 .EXAMPLE
     .\Build\Scripts\perf-e9-win64.cmd
 .EXAMPLE
     .\Build\Scripts\perf-e9-win64.cmd -SkipPackage -Preset Low -ClientTrace -Hunt
+.EXAMPLE
+    .\Build\Scripts\perf-e9-win64.cmd -SkipPackage -Contract Cathedral
 #>
 [CmdletBinding()]
 param(
@@ -36,7 +40,10 @@ param(
     [string] $BuildDir,
     [switch] $ClientTrace,
     [switch] $Hunt,
-    [switch] $NoTrace
+    [switch] $NoTrace,
+    # The raid's contract: Docks (the default one) or Cathedral; it picks the sector (ADR-0041).
+    [ValidateSet('Docks', 'Cathedral')]
+    [string] $Contract = 'Docks'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -47,6 +54,7 @@ $StartupTimeoutSec = 300      # first launch of a cooked build compiles shaders 
 $ReportGraceSec    = 180
 $ClientFpsCap      = 30       # headless clients only have to play
 $RaidStartSec      = 45       # the host starts the raid this long after hosting (clients join meanwhile)
+$ContractSec       = 40       # the host picks the contract in the hub this long after hosting, before the raid
 $Clients           = 3
 $Welders           = 2
 
@@ -132,7 +140,8 @@ function Wait-ForLog([string] $Log, [string] $Pattern, [int] $TimeoutSec) {
 }
 
 function Get-HostScenario([string] $Capture, [bool] $KillAi, [bool] $Measured) {
-    $C = @('r.VSync 0', 't.MaxFPS 0', 'Hollow.Session.Host InviteOnly', "Hollow.Dev.RunAfter $RaidStartSec Hollow.Raid.Start $Seed")
+    $C = @('r.VSync 0', 't.MaxFPS 0', 'Hollow.Session.Host InviteOnly', "Hollow.Dev.RunAfter $ContractSec Hollow.Hub.Select DA_Contract_$Contract",
+        "Hollow.Dev.RunAfter $RaidStartSec Hollow.Raid.Start $Seed")
     if ($KillAi) {
         $C += @('Hollow.Dev.RunInRaid 2 Hollow.AI.Kill', 'Hollow.Dev.RunInRaid 3 Hollow.AI.Director Spawn', 'Hollow.Dev.RunInRaid 4 Hollow.AI.Kill')
     } else {
@@ -204,10 +213,12 @@ function Invoke-Run([string] $Capture, [string] $Measured, [bool] $KillAi) {
 }
 
 # --- 3. Runs ------------------------------------------------------------------------------------------------------------
-$E9 = Invoke-Run "E9-$Preset" 'host' $true
+$Sector = ''
+if ($Contract -ne 'Docks') { $Sector = "-$Contract" }
+$E9 = Invoke-Run "E9-$Preset$Sector" 'host' $true
 $Extra = @()
-if ($ClientTrace) { $Extra += Invoke-Run "Client-$Preset" 'client' $true }
-if ($Hunt) { $Extra += Invoke-Run "Hunt-$Preset" 'host' $false }
+if ($ClientTrace) { $Extra += Invoke-Run "Client-$Preset$Sector" 'client' $true }
+if ($Hunt) { $Extra += Invoke-Run "Hunt-$Preset$Sector" 'host' $false }
 
 # --- 4. Summary ---------------------------------------------------------------------------------------------------------
 $Summary = @("Protocol: Hollow E9 run $Stamp ($Configuration, preset $Preset, ${ResX}x${ResY})")

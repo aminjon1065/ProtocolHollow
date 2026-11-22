@@ -8,6 +8,8 @@
 #include "GameFeaturesSubsystem.h"
 #include "GameFeatureTypes.h"
 #include "HollowGameLog.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowSectorFeatureSubsystem)
 
@@ -92,14 +94,33 @@ bool UHollowSectorFeatureSubsystem::IsSectorActive(const FString& PluginName) co
 	return UGameFeaturesSubsystem::Get().IsGameFeaturePluginActiveByName(PluginName);
 }
 
+int32 UHollowSectorFeatureSubsystem::GetReferences(const FString& PluginName) const
+{
+	const int32* Count = References.Find(PluginName);
+	return Count ? *Count : 0;
+}
+
+int32 UHollowSectorFeatureSubsystem::CountLoadedPackages(const FString& PluginName)
+{
+	const FString MountRoot = FString::Printf(TEXT("/%s/"), *PluginName);
+	const FString FeatureData = MountRoot + PluginName;
+	int32 Count = 0;
+	ForEachObjectOfClass(UPackage::StaticClass(), [&MountRoot, &FeatureData, &Count](const UObject* Package)
+	{
+		const FString Name = Package->GetName();
+		Count += Name.StartsWith(MountRoot) && Name != FeatureData ? 1 : 0;
+	}, /*bIncludeDerivedClasses=*/false);
+	return Count;
+}
+
 FString UHollowSectorFeatureSubsystem::DescribeSector(const FString& PluginName) const
 {
 	FString URL;
 	const FString State = UGameFeaturesSubsystem::Get().GetPluginURLByName(PluginName, URL)
 		? UE::GameFeatures::ToString(UGameFeaturesSubsystem::Get().GetPluginState(URL))
 		: FString(TEXT("Unknown"));
-	const int32* Count = References.Find(PluginName);
-	return FString::Printf(TEXT("%s state=%s references=%d rooms=%d"), *PluginName, *State, Count ? *Count : 0, GetSectorRooms(PluginName).Num());
+	return FString::Printf(TEXT("%s state=%s references=%d rooms=%d loaded=%d"), *PluginName, *State, GetReferences(PluginName), GetSectorRooms(PluginName).Num(),
+		CountLoadedPackages(PluginName));
 }
 
 TArray<FPrimaryAssetId> UHollowSectorFeatureSubsystem::GetSectorRooms(const FString& PluginName)

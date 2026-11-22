@@ -15,6 +15,7 @@
 #include "Inventory/HollowLoadoutRules.h"
 #include "Profile/HollowEconomySettings.h"
 #include "Raid/HollowExtractionZone.h"
+#include "Raid/HollowRaidLauncher.h"
 #include "Raid/HollowRaidRules.h"
 #include "Raid/HollowRaidSettings.h"
 #include "Raid/HollowRaidStateComponent.h"
@@ -381,7 +382,8 @@ void UHollowRaidFlowComponent::EndRaid(const TCHAR* Why)
 
 void UHollowRaidFlowComponent::ReturnToHub()
 {
-	const FString Hub = GetDefault<UHollowNetworkSettings>()->HubMap.GetLongPackageName();
+	// The hub keeps the squad's contract (ADR-0041): the host picks again only to change it.
+	const FString Hub = HollowRaidLauncher::MakeHubUrl(Contract);
 	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: returning to %s"), *RaidId.ToString(), *Hub);
 	GetWorld()->ServerTravel(Hub);
 }

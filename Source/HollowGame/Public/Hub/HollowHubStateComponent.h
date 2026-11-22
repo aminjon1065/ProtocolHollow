@@ -34,7 +34,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
-	/** Server: starts on UHollowSectorSettings::DefaultContract. */
+	/** Server: starts on the contract the travel URL names (back from a raid), else UHollowSectorSettings::DefaultContract. */
 	virtual void BeginPlay() override;
 
 private:

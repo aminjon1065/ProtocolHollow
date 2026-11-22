@@ -23,4 +23,10 @@ struct HOLLOWECONOMY_API FHollowExtractionResolver
 
 	/** Does the outcome bring the loot home? */
 	static bool KeepsLoot(EHollowRaidOutcome Outcome);
+
+	/**
+	 * Credits Count of Item bring home when extracted: their catalog value, Aether cores CoreValuePercent more. The one
+	 * price rule of extraction and of a contract's reward on the hub's screen (ADR-0041).
+	 */
+	static int32 ItemEarnings(const FHollowItemCatalog& Catalog, const FPrimaryAssetId& Item, int32 Count, int32 CoreValuePercent);
 };

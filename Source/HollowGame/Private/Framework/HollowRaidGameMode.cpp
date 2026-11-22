@@ -1,8 +1,6 @@
 #include "Framework/HollowRaidGameMode.h"
 
 #include "Framework/HollowPlayerController.h"
-#include "Hub/HollowContractDefinition.h"
-#include "Kismet/GameplayStatics.h"
 #include "Raid/HollowRaidFlowComponent.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
@@ -20,11 +18,10 @@ AHollowRaidGameMode::AHollowRaidGameMode(const FObjectInitializer& ObjectInitial
 void AHollowRaidGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
-	const FString Contract = UGameplayStatics::ParseOption(Options, HollowRaidLauncher::ContractOption);
-	if (!Contract.IsEmpty())
-	{
-		RaidFlow->SetContract(FPrimaryAssetId(UHollowContractDefinition::AssetType, FName(*Contract)));
-	}
+	// Every raid has a contract (the default one without the hub's choice), and the contract picks the sector (ADR-0041).
+	const FPrimaryAssetId Contract = HollowRaidLauncher::ContractFromOptions(Options);
+	RaidFlow->SetContract(Contract);
+	SectorAuthority->SetContract(Contract);
 }
 
 void AHollowRaidGameMode::GenericPlayerInitialization(AController* NewPlayer)

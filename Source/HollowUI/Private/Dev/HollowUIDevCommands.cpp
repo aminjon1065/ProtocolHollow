@@ -63,6 +63,10 @@ namespace HollowUIDevConsole
 		const TArray<UHollowHubRowWidget*> Rows = Screen->GetRowWidgets();
 		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: hub screen %s%s%s, %d row(s), close focus %d, status \"%s\", message \"%s\""), *Screen->GetName(),
 			*Tab, *LaunchState, Rows.Num(), bCloseFocused, *Screen->GetStatus().ToString(), *Screen->GetMessage().ToString());
+		if (Contracts)
+		{
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: hub role \"%s\""), *Contracts->GetRoleText().ToString().Replace(TEXT("\n"), TEXT(" | ")));   // one log line
+		}
 		for (int32 Index = 0; Index < Rows.Num(); ++Index)
 		{
 			const FHollowHubRow& Row = Rows[Index]->GetRow();

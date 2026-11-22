@@ -102,6 +102,98 @@ namespace HollowSectorTests
 	}
 }
 
+namespace HollowSectorTests
+{
+	/** Transitions one step of a switch starts, and what is checked once they are all done. */
+	using FStartStep = TFunction<void(TArray<TSharedRef<FTransition>>&)>;
+
+	/** One latent step: starts its transitions, waits for every one (or the timeout), then checks. */
+	void QueueStep(FAutomationTestBase& Test, const FString& Label, FStartStep Start, TFunction<void()> Check)
+	{
+		const TSharedRef<TArray<TSharedRef<FTransition>>> Transitions = MakeShared<TArray<TSharedRef<FTransition>>>();
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([Transitions, Start]()
+		{
+			Start(*Transitions);
+			return true;
+		}));
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([&Test, Label, Transitions, Check]()
+		{
+			for (const TSharedRef<FTransition>& Transition : *Transitions)
+			{
+				if (!Transition->bDone)
+				{
+					if (Transition->TimedOut())
+					{
+						Test.AddError(FString::Printf(TEXT("%s: a transition did not complete"), *Label));
+						return true;
+					}
+					return false;
+				}
+				Test.TestTrue(FString::Printf(TEXT("%s: every transition succeeded"), *Label), Transition->bSucceeded);
+			}
+			Check();
+			return true;
+		}));
+	}
+
+	/** A transition's completion, kept with the step's others. */
+	UHollowSectorFeatureSubsystem::FOnHollowSectorChanged Track(TArray<TSharedRef<FTransition>>& Transitions)
+	{
+		const TSharedRef<FTransition> Transition = MakeShared<FTransition>();
+		Transitions.Add(Transition);
+		return Transition->Start(Transition);
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSectorSwitchTest, "Hollow.Game.Sector.Switch",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowSectorSwitchTest::RunTest(const FString& Parameters)
+{
+	// ADR-0041: one session goes Docks -> hub -> Cathedral -> hub. Leaving a raid releases its sector while the next
+	// raid's sector activates (the travel overlaps them); each plugin keeps its own references and state, and every
+	// sector ends Registered with no reference left.
+	using namespace HollowSectorTests;
+	UHollowSectorFeatureSubsystem* Sectors = UHollowSectorFeatureSubsystem::Get();
+	if (!TestNotNull(TEXT("Sector subsystem exists"), Sectors) || !TestTrue(TEXT("Both sectors start Registered, unused"),
+		!Sectors->IsSectorActive(DocksPlugin) && !Sectors->IsSectorActive(CathedralPlugin) && Sectors->GetReferences(DocksPlugin) == 0
+		&& Sectors->GetReferences(CathedralPlugin) == 0))
+	{
+		return false;
+	}
+	const auto State = [this, Sectors](const TCHAR* Step, const bool bDocks, const int32 DocksRefs, const bool bCathedral, const int32 CathedralRefs)
+	{
+		TestTrue(FString::Printf(TEXT("%s: Docks active %d with %d reference(s) (%s)"), Step, bDocks, DocksRefs, *Sectors->DescribeSector(DocksPlugin)),
+			Sectors->IsSectorActive(DocksPlugin) == bDocks && Sectors->GetReferences(DocksPlugin) == DocksRefs);
+		TestTrue(FString::Printf(TEXT("%s: Cathedral active %d with %d reference(s) (%s)"), Step, bCathedral, CathedralRefs, *Sectors->DescribeSector(CathedralPlugin)),
+			Sectors->IsSectorActive(CathedralPlugin) == bCathedral && Sectors->GetReferences(CathedralPlugin) == CathedralRefs);
+		TestTrue(FString::Printf(TEXT("%s: both sectors' rooms stay known"), Step), UHollowSectorFeatureSubsystem::GetSectorRooms(DocksPlugin).Num() >= DocksMinRooms
+			&& UHollowSectorFeatureSubsystem::GetSectorRooms(CathedralPlugin).Num() == CathedralRooms);
+	};
+
+	QueueStep(*this, TEXT("Raid in the Docks"), [Sectors](TArray<TSharedRef<FTransition>>& T) { Sectors->ActivateSector(DocksPlugin, Track(T)); },
+		[State]() { State(TEXT("Raid in the Docks"), true, 1, false, 0); });
+	QueueStep(*this, TEXT("Docks released while the Cathedral activates"), [Sectors](TArray<TSharedRef<FTransition>>& T)
+		{
+			Sectors->DeactivateSector(DocksPlugin, Track(T));
+			Sectors->ActivateSector(CathedralPlugin, Track(T));
+		},
+		[State]() { State(TEXT("Raid in the Cathedral"), false, 0, true, 1); });
+	QueueStep(*this, TEXT("A second game instance in the Cathedral"), [Sectors](TArray<TSharedRef<FTransition>>& T)
+		{
+			Sectors->ActivateSector(CathedralPlugin, Track(T));
+			Sectors->DeactivateSector(CathedralPlugin, Track(T));
+		},
+		[State]() { State(TEXT("One instance left the Cathedral"), false, 0, true, 1); });
+	QueueStep(*this, TEXT("Back to the hub"), [Sectors](TArray<TSharedRef<FTransition>>& T) { Sectors->DeactivateSector(CathedralPlugin, Track(T)); },
+		[State]() { State(TEXT("Hub"), false, 0, false, 0); });
+	QueueStep(*this, TEXT("The Docks again"), [Sectors](TArray<TSharedRef<FTransition>>& T) { Sectors->ActivateSector(DocksPlugin, Track(T)); },
+		[State]() { State(TEXT("The Docks again"), true, 1, false, 0); });
+	QueueStep(*this, TEXT("Home"), [Sectors](TArray<TSharedRef<FTransition>>& T) { Sectors->DeactivateSector(DocksPlugin, Track(T)); },
+		[State]() { State(TEXT("Hub again"), false, 0, false, 0); });
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSectorActivationTest, "Hollow.Game.Sector.Activation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

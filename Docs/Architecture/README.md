@@ -200,4 +200,10 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
   - **Свет в бюджете `DA_LightBudget`:** залы — теневые панели второго света с объёмной тенью, аварийная лампа `M_LF_Emergency` в каждой комнате; риг — компоненты одного актёра `CathedralLook`.
   - **Акустика:** `RE_Cathedral` 4,5 с, `RE_Crypt` 2,4 с, `RE_Cloister` 1,4 с на Audio Gameplay Volumes 8 комнат; тон комнат — гул реактора.
   - **MetaSounds без WAV:** `MS_Reactor_Hum`, `MS_Arc_Crackle`, `MS_Arc_Discharge`, `MS_Core_Purified`; дуга и алтарь звучат от реплицированного состояния, без RPC.
-  - **Контент** `create_cathedral_look.py` (34-й); тесты `Hollow.Game.{Light.CathedralBudgets, Audio.CathedralAcoustics, Cathedral.Look}`; смоук `cathedral` — кадры со светом, `perf-capture-mac.sh --sector Cathedral`.
+  - **Контент** `create_cathedral_look.py` (34-й); тесты `Hollow.Game.{Light.CathedralBudgets, Audio.CathedralAcoustics, Cathedral.Look}`; смоук `cathedral` — кадры со светом, E9 в Соборе (`perf-capture-mac.sh --contract Cathedral` с S7-04).
+- **S7-04 «Контракт выбирает сектор»** ([ADR-0041](../ADR/ADR-0041-contract-picks-sector.md)), Sprint 7 и Фаза 2 закрыты:
+  - **Сектор — из контракта:** `HollowRaidLauncher::ContractFromOptions` → `AHollowRaidGameMode::InitGame` → `UHollowSectorAuthorityComponent::SetContract`; `UHollowSectorSettings::RaidSector` удалён.
+  - **Контракты:** `DA_Contract_Docks` и `DA_Contract_Cathedral` (`SectorName`, `RewardItems`); хаб помнит контракт отряда после рейда (`?Contract=` в URL возврата).
+  - **Награда на экране:** `FHollowContractOffer` по правилу эвакуации `FHollowExtractionResolver::ItemEarnings` с бонусом ядер игрока; строка роли `W_ContractTerminal` — сводка выбора, у гостя вживую.
+  - **Утечки:** `Hollow.Sector.Status` печатает `references` и `loaded` (пакеты плагина в памяти).
+  - **Тесты** `Hollow.Game.{Raid.ContractSector, Sector.Switch}`, расширены `Hub.{Data, Terminals}` и `UI.Hub.{Rules, Contracts}`; смоук `playthrough-mac.sh biomes` (Доки → хаб → Собор → хаб); `perf-capture-mac.sh --contract`, `perf-e9-win64.ps1 -Contract`.

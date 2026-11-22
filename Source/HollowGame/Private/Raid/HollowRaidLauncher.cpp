@@ -2,7 +2,9 @@
 
 #include "Engine/World.h"
 #include "HollowGameLog.h"
+#include "Hub/HollowContractDefinition.h"
 #include "Hub/HollowHubStateComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Sector/HollowSectorAuthorityComponent.h"
 #include "Sector/HollowSectorSettings.h"
 #include "Session/HollowNetworkSettings.h"
@@ -50,4 +52,31 @@ FString HollowRaidLauncher::MakeTravelUrl(const UWorld* World, const int32 Secto
 		Url += FString::Printf(TEXT("?%s=%s"), ContractOption, *Hub->GetSelectedContract().PrimaryAssetName.ToString());
 	}
 	return Url;
+}
+
+FString HollowRaidLauncher::MakeHubUrl(const FPrimaryAssetId& Contract)
+{
+	const FString Hub = GetDefault<UHollowNetworkSettings>()->HubMap.GetLongPackageName();
+	if (Hub.IsEmpty() || !Contract.IsValid())
+	{
+		return Hub;
+	}
+	return FString::Printf(TEXT("%s?%s=%s"), *Hub, ContractOption, *Contract.PrimaryAssetName.ToString());
+}
+
+FPrimaryAssetId HollowRaidLauncher::ContractFromOptions(const FString& Options)
+{
+	const FPrimaryAssetId& Default = GetDefault<UHollowSectorSettings>()->DefaultContract;
+	const FString Name = UGameplayStatics::ParseOption(Options, ContractOption);
+	if (Name.IsEmpty())
+	{
+		return Default;
+	}
+	const FPrimaryAssetId Contract(UHollowContractDefinition::AssetType, FName(*Name));
+	if (!UHollowContractDefinition::Exists(Contract))
+	{
+		UE_LOG(LogHollowGame, Warning, TEXT("Travel names contract %s, which does not exist: the default contract %s instead."), *Name, *Default.ToString());
+		return Default;
+	}
+	return Contract;
 }

@@ -30,8 +30,17 @@ public:
 
 	bool IsSectorActive(const FString& PluginName) const;
 
-	/** One-line state for logs and the console: plugin state, references, rooms. */
+	/** Game instances of this process using the plugin now. */
+	int32 GetReferences(const FString& PluginName) const;
+
+	/** One-line state for logs and the console: plugin state, references, rooms, packages loaded. */
 	FString DescribeSector(const FString& PluginName) const;
+
+	/**
+	 * Packages of the plugin in memory now, but its GameFeatureData (loaded while it is registered). After a garbage
+	 * collection in the hub this is 0: a raid's sector leaves nothing behind (ADR-0041).
+	 */
+	static int32 CountLoadedPackages(const FString& PluginName);
 
 	/** Room definitions the asset manager knows inside the plugin, sorted by PrimaryAssetId (deterministic order). */
 	static TArray<FPrimaryAssetId> GetSectorRooms(const FString& PluginName);

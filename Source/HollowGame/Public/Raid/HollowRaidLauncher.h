@@ -2,12 +2,14 @@
 
 #include "Containers/UnrealString.h"
 #include "Misc/Optional.h"
+#include "UObject/PrimaryAssetId.h"
 
 class UWorld;
 
 /**
  * Sends the session into a raid (S4-06): the menu's "Start raid" and the console's Hollow.Raid.Start take this one path.
- * The host travels everyone (seamless travel) to UHollowSectorSettings::RaidMap with the sector seed.
+ * The host travels everyone (seamless travel) to UHollowSectorSettings::RaidMap with the sector seed and the contract,
+ * which picks the sector (ADR-0041); the squad comes back to the hub with the same contract chosen.
  */
 namespace HollowRaidLauncher
 {
@@ -31,4 +33,13 @@ namespace HollowRaidLauncher
 
 	/** The raid map's travel URL for SectorSeed and the hub's selected contract (empty without a raid map). */
 	HOLLOWGAME_API FString MakeTravelUrl(const UWorld* World, int32 SectorSeed);
+
+	/** The hub map's travel URL back from a raid on Contract: the hub keeps the squad's choice (empty without a hub map). */
+	HOLLOWGAME_API FString MakeHubUrl(const FPrimaryAssetId& Contract);
+
+	/**
+	 * The contract of travel Options (ContractOption): the named contract, else UHollowSectorSettings::DefaultContract
+	 * (no option: a raid map opened directly, Hollow.Raid.Start away from the hub; an unknown one is logged).
+	 */
+	HOLLOWGAME_API FPrimaryAssetId ContractFromOptions(const FString& Options);
 }

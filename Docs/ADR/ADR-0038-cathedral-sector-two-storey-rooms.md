@@ -63,7 +63,7 @@
 6. **Без света и акустики до S7-03** (уточнения 5, 6): `DA_LightBudget` и `RE_Cathedral` — там. В PIE и смоуке — `viewmode unlit`.
 7. **Editor:** `UHollowAssetAuthoring::AddInstanceComponent` делает первый scene-компонент корнем актёра без корня (пустой актёр `Decor`).
 
-**Сеть:** без изменений. Сектор выбирает хост (`UHollowSectorSettings::RaidSector`); клиенты узнают плагин из манифеста. Выбор контракта — S7-04; до тех пор dev-переопределение через `-ini`.
+**Сеть:** без изменений. Сектор выбирает хост (`UHollowSectorSettings::RaidSector`); клиенты узнают плагин из манифеста. Выбор контракта — S7-04; до тех пор dev-переопределение через `-ini`. С S7-04 сектор выбирает контракт `DA_Contract_Cathedral`, `RaidSector` удалён ([ADR-0041](ADR-0041-contract-picks-sector.md)).
 
 ## Проверка
 - **Автотесты:**

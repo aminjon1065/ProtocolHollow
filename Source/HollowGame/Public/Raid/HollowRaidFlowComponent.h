@@ -51,7 +51,7 @@ public:
 	EHollowRaidOutcome GetOutcome(const AController* Player) const;
 	const FGuid& GetRaidId() const { return RaidId; }
 
-	/** The contract the hub sent the squad on (ADR-0032; the sector is still UHollowSectorSettings::RaidSector until S7-04). */
+	/** The contract the hub sent the squad on (ADR-0032): it picked the sector (ADR-0041) and goes back to the hub with the squad. */
 	void SetContract(const FPrimaryAssetId& InContract) { Contract = InContract; }
 	const FPrimaryAssetId& GetContract() const { return Contract; }
 

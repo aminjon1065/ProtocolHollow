@@ -45,8 +45,18 @@ namespace HollowHubConsole
 		const UHollowHubStateComponent* Hub = UHollowHubStateComponent::Get(World);
 		const UHollowHubTerminalSubsystem* Terminals = UHollowHubTerminalSubsystem::Get(World);
 		const AHollowHubTerminal* Open = Terminals ? Terminals->GetOpenTerminal(LocalPlayer(World)) : nullptr;
-		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Hub.Dump: contract %s | open terminal %s | can start a raid %d"),
+		const UHollowContractDefinition* Contract = Hub ? UHollowContractDefinition::Load(Hub->GetSelectedContract()) : nullptr;
+		FString Rewards;
+		if (Contract)
+		{
+			for (const FPrimaryAssetId& Item : Contract->RewardItems)
+			{
+				Rewards += (Rewards.IsEmpty() ? TEXT("") : TEXT(",")) + Item.PrimaryAssetName.ToString();
+			}
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Hub.Dump: contract %s (sector %s \"%s\", reward %s) | open terminal %s | can start a raid %d"),
 			Hub && Hub->GetSelectedContract().IsValid() ? *Hub->GetSelectedContract().ToString() : TEXT("none"),
+			Contract ? *Contract->SectorFeature : TEXT("none"), Contract ? *Contract->SectorName.ToString() : TEXT(""), Rewards.IsEmpty() ? TEXT("none") : *Rewards,
 			Open ? *HollowEnumToString(Open->GetKind()) : TEXT("none"), HollowRaidLauncher::CanStartRaid(World));
 		for (TActorIterator<AHollowHubTerminal> It(World); It; ++It)
 		{

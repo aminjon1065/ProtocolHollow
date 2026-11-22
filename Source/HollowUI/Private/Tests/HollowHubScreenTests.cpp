@@ -74,6 +74,11 @@ namespace HollowHubScreenTests
 	const FPrimaryAssetId RealCellRecipe(UHollowCraftingRecipe::AssetType, TEXT("DA_Recipe_FuelCell"));
 	const FPrimaryAssetId RealReserve(UHollowShipUpgradeDefinition::AssetType, TEXT("DA_Upgrade_FuelReserve"));
 	const FPrimaryAssetId Docks(UHollowContractDefinition::AssetType, TEXT("DA_Contract_Docks"));
+	const FPrimaryAssetId RealCathedral(UHollowContractDefinition::AssetType, TEXT("DA_Contract_Cathedral"));
+	const FPrimaryAssetId RealCore(UHollowItemDefinition::AssetType, TEXT("DA_Item_AetherCore"));
+	const FPrimaryAssetId RealPurified(UHollowItemDefinition::AssetType, TEXT("DA_Item_PurifiedCore"));
+	const FPrimaryAssetId RealCoreBonus(UHollowShipUpgradeDefinition::AssetType, TEXT("DA_Upgrade_CoreBonus"));
+	constexpr int32 PercentBase = 100;
 	const FPrimaryAssetId RealEngineer(UHollowClassDefinition::AssetType, TEXT("DA_Class_Engineer"));
 	const FPrimaryAssetId RealOccultist(UHollowClassDefinition::AssetType, TEXT("DA_Class_Occultist"));
 	constexpr int32 StartCredits = 1000;
@@ -386,15 +391,39 @@ bool FHollowHubScreenRulesTest::RunTest(const FString& Parameters)
 		&& Rows[0].Actions[0].Reason.EqualTo(HollowHubScreenRules::ResultText(R::AlreadySelected)) && Rows[1].Actions[0].bAvailable
 		&& Rows[1].Actions[0].Transaction.ClassId == SecondClass);
 
-	// Contracts: the host chooses (the chosen one greyed out, highlighted), a guest only sees the host's choice.
-	const TArray<FPrimaryAssetId> Contracts = {Beta, Alpha};
-	Rows = HollowHubScreenRules::ContractRows(Contracts, Alpha, /*bHost=*/true, Names);
+	// Contracts: the host chooses (the chosen one greyed out, highlighted), a guest only sees the host's choice; every row
+	// and the role line name the sector and the reward (ADR-0041).
+	FHollowContractOffer AlphaOffer;
+	AlphaOffer.Contract = Alpha;
+	AlphaOffer.SectorName = FText::FromString(TEXT("Sector A"));
+	AlphaOffer.Rewards.Emplace(Cell, CellValue);
+	FHollowContractOffer BetaOffer;
+	BetaOffer.Contract = Beta;
+	BetaOffer.SectorName = FText::FromString(TEXT("Sector B"));
+	BetaOffer.Rewards.Emplace(Cutter, CutterValue);
+	BetaOffer.Rewards.Emplace(Welder, WelderValue);
+	const TArray<FHollowContractOffer> Offers = {BetaOffer, AlphaOffer};
+	Rows = HollowHubScreenRules::ContractRows(Offers, Alpha, /*bHost=*/true, Names);
 	TestTrue(TEXT("Host: id order, Choose on each, the chosen one greyed out"), Rows.Num() == 2 && Rows[0].Name.ToString() == TEXT("Alpha") && Rows[0].bHighlighted
 		&& !Rows[0].Actions[0].bAvailable && Rows[1].Actions[0].bAvailable && Rows[1].Actions[0].Command == EHollowHubCommand::SelectContract
 		&& Rows[1].Actions[0].Contract == Beta);
-	Rows = HollowHubScreenRules::ContractRows(Contracts, Alpha, /*bHost=*/false, Names);
+	const FString AlphaDetail = Rows[0].Detail.ToString();
+	const FString BetaDetail = Rows[1].Detail.ToString();
+	TestTrue(FString::Printf(TEXT("Each row: sector, reward, description (%s | %s)"), *AlphaDetail, *BetaDetail),
+		AlphaDetail.Contains(TEXT("Sector A")) && AlphaDetail.Contains(TEXT("Cell 24 cr")) && AlphaDetail.Contains(TEXT("First."))
+		&& BetaDetail.Contains(TEXT("Sector B")) && BetaDetail.Contains(TEXT("Cutter 400 cr")) && BetaDetail.Contains(TEXT("300 cr")));
+	Rows = HollowHubScreenRules::ContractRows(Offers, Alpha, /*bHost=*/false, Names);
 	TestTrue(TEXT("Guest: no buttons, the host's choice named"), Rows.Num() == 2 && Rows[0].Actions.IsEmpty() && Rows[1].Actions.IsEmpty()
-		&& Rows[0].bHighlighted && Rows[0].Detail.ToString().Contains(TEXT("host")));
+		&& Rows[0].bHighlighted && Rows[0].Detail.ToString().Contains(TEXT("host")) && Rows[0].Detail.ToString().Contains(TEXT("Sector A")));
+	const FString HostRole = HollowHubScreenRules::ContractRoleText(Offers, Alpha, /*bHost=*/true, Names).ToString();
+	const FString GuestRole = HollowHubScreenRules::ContractRoleText(Offers, Beta, /*bHost=*/false, Names).ToString();
+	TestTrue(FString::Printf(TEXT("Role lines: the squad's contract, sector and reward (%s | %s)"), *HostRole, *GuestRole),
+		HostRole.Contains(TEXT("\nNow: Alpha - Sector A. Reward: Cell 24 cr")) && GuestRole.Contains(TEXT("The host chose:")) && GuestRole.Contains(TEXT("Sector B"))
+		&& GuestRole.Contains(TEXT("Cutter 400 cr")));
+	TestTrue(TEXT("Nothing chosen yet: who decides only"), !HollowHubScreenRules::ContractRoleText(Offers, FPrimaryAssetId(), /*bHost=*/false, Names).ToString().Contains(TEXT("chose")));
+	FHollowContractOffer Bare;
+	Bare.SectorName = FText::FromString(TEXT("Sector C"));
+	TestEqual(TEXT("No reward: the sector alone"), HollowHubScreenRules::OfferText(Bare, Names).ToString(), FString(TEXT("Sector C")));
 	return true;
 }
 
@@ -553,7 +582,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowHubContractScreenTest, "Hollow.UI.Hub.Co
 
 bool FHollowHubContractScreenTest::RunTest(const FString& Parameters)
 {
-	// The real W_ContractTerminal for the host: choosing goes through the server, the screen follows the hub state.
+	// The real W_ContractTerminal for the host: choosing goes through the server, the screen follows the hub state; it
+	// shows both sectors' contracts with their reward priced for this player (their ship's core bonus, ADR-0041) and
+	// follows a change of the squad's contract live, as a guest's screen does.
 	using namespace HollowHubScreenTests;
 	FScreenRig Rig;
 	if (!Rig.Build(*this))
@@ -568,7 +599,10 @@ bool FHollowHubContractScreenTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	Host->SetAsLocalPlayerController();
-	UHollowContractTerminalWidget* Screen = Rig.Show<UHollowContractTerminalWidget>(GetDefault<UHollowUISettings>()->ContractScreenClass, nullptr, Host);
+	FMemoryProfile Profile;
+	Profile.State.Profile.Credits = StartCredits;
+	Profile.State.Profile.Upgrades = {RealCoreBonus};
+	UHollowContractTerminalWidget* Screen = Rig.Show<UHollowContractTerminalWidget>(GetDefault<UHollowUISettings>()->ContractScreenClass, &Profile, Host);
 	if (!TestNotNull(TEXT("W_ContractTerminal on the Menu layer"), Screen))
 	{
 		return false;
@@ -588,6 +622,29 @@ bool FHollowHubContractScreenTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The server made it the squad's"), Hub->GetSelectedContract() == Docks);
 	Row = FindRowWidget(*Screen, [](const FHollowHubAction& Each) { return Each.Contract == Docks; }, Action);
 	TestTrue(TEXT("The screen followed: chosen, highlighted, greyed out"), Row && Row->GetRow().bHighlighted && !Row->GetActionButton(Action)->IsInteractionEnabled());
+
+	// What the Cathedral pays this player: a core and a purified core, with the ship's core bonus (both are Aether cores).
+	const UHollowItemDefinition* Core = Cast<UHollowItemDefinition>(UAssetManager::Get().GetPrimaryAssetPath(RealCore).TryLoad());
+	const UHollowItemDefinition* Purified = Cast<UHollowItemDefinition>(UAssetManager::Get().GetPrimaryAssetPath(RealPurified).TryLoad());
+	const UHollowShipUpgradeDefinition* Bonus = Cast<UHollowShipUpgradeDefinition>(UAssetManager::Get().GetPrimaryAssetPath(RealCoreBonus).TryLoad());
+	if (!TestTrue(TEXT("The core, the purified core, the core bonus"), Core && Purified && Bonus && Bonus->CoreValuePercent > 0))
+	{
+		return false;
+	}
+	// Numbers as the screen formats them (the culture's grouping: 1,500).
+	const FString CoreCredits = FText::AsNumber(Core->BaseValue * (PercentBase + Bonus->CoreValuePercent) / PercentBase).ToString() + TEXT(" cr");
+	const FString PurifiedCredits = FText::AsNumber(Purified->BaseValue * (PercentBase + Bonus->CoreValuePercent) / PercentBase).ToString() + TEXT(" cr");
+	Row = FindRowWidget(*Screen, [](const FHollowHubAction& Each) { return Each.Contract == RealCathedral; }, Action);
+	const FString Detail = Row ? Row->GetRow().Detail.ToString() : FString();
+	TestTrue(FString::Printf(TEXT("The Cathedral's row: its sector, both cores at this player's price (%s; %s, %s)"), *Detail, *CoreCredits, *PurifiedCredits),
+		Detail.Contains(TEXT("Reactor Cathedral")) && Detail.Contains(CoreCredits) && Detail.Contains(PurifiedCredits));
+
+	// The squad's contract changes on the server (the host chose elsewhere): the open screen follows at once.
+	Hub->SelectContract(RealCathedral);
+	Row = FindRowWidget(*Screen, [](const FHollowHubAction& Each) { return Each.Contract == RealCathedral; }, Action);
+	const FString Role = Screen->GetRoleText().ToString();
+	TestTrue(FString::Printf(TEXT("Live: the Cathedral highlighted, the role line names it and its reward (%s)"), *Role), Row && Row->GetRow().bHighlighted
+		&& Role.Contains(TEXT("Reactor Cathedral")) && Role.Contains(PurifiedCredits));
 	Screen->DeactivateWidget();
 	return true;
 }

@@ -1,11 +1,13 @@
 #include "Hub/HollowHubStateComponent.h"
 
 #include "Engine/World.h"
+#include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameStateBase.h"
 #include "HollowGameLog.h"
 #include "Hub/HollowContractDefinition.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
+#include "Raid/HollowRaidLauncher.h"
 #include "Sector/HollowSectorSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowHubStateComponent)
@@ -34,10 +36,16 @@ void UHollowHubStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 void UHollowHubStateComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	const FPrimaryAssetId& Default = GetDefault<UHollowSectorSettings>()->DefaultContract;
-	if (GetOwner()->HasAuthority() && !SelectedContract.IsValid() && Default.IsValid())
+	if (!GetOwner()->HasAuthority() || SelectedContract.IsValid())
 	{
-		SelectContract(Default);
+		return;
+	}
+	// Back from a raid the travel URL names the squad's contract (ADR-0041); a new session starts on the default one.
+	const AGameModeBase* GameMode = GetWorld()->GetAuthGameMode();
+	const FPrimaryAssetId Initial = GameMode ? HollowRaidLauncher::ContractFromOptions(GameMode->OptionsString) : GetDefault<UHollowSectorSettings>()->DefaultContract;
+	if (Initial.IsValid())
+	{
+		SelectContract(Initial);
 	}
 }
 

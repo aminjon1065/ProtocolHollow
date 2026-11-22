@@ -24,7 +24,7 @@ public:
 	UHollowRaidFlowComponent* GetRaidFlow() const { return RaidFlow; }
 
 protected:
-	/** Reads the raid's contract from the travel URL (HollowRaidLauncher::ContractOption, ADR-0032). */
+	/** Reads the raid's contract from the travel URL (HollowRaidLauncher::ContractFromOptions): it picks the sector (ADR-0041). */
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	/** Every arrival (login or seamless travel): the raid asks for the player's loadout (ADR-0030). */
 	virtual void GenericPlayerInitialization(AController* NewPlayer) override;

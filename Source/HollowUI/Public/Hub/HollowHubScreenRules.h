@@ -60,6 +60,21 @@ private:
 	TMap<FPrimaryAssetId, FEntry> Entries;
 };
 
+/** A contract as the contracts screen shows it (ADR-0041): its sector, and what it pays this player. */
+struct HOLLOWUI_API FHollowContractOffer
+{
+	FPrimaryAssetId Contract;
+	FText SectorName;
+	/** Each reward item and the credits one brings this player home (FHollowExtractionResolver::ItemEarnings). */
+	TArray<TPair<FPrimaryAssetId, int32>> Rewards;
+
+	/**
+	 * The offers of Contracts to a player whose ship adds CoreValuePercent to Aether cores: loads the contracts and their
+	 * reward items (tiny data assets). Unknown contracts have no sector and no reward.
+	 */
+	static TArray<FHollowContractOffer> Load(TConstArrayView<FPrimaryAssetId> Contracts, int32 CoreValuePercent);
+};
+
 /**
  * Pure rules of the hub's screens (S5-04, ADR-0033): which rows and buttons they show and what each button would do
  * now. Every button is previewed by HollowCraftingRules on a copy of the profile, so the screens repeat no economy
@@ -101,9 +116,21 @@ namespace HollowHubScreenRules
 	/** Locker, top: a row per player class (id order), Choose; the class played is highlighted (ADR-0034). */
 	HOLLOWUI_API TArray<FHollowHubRow> ClassRows(const FHollowProfileState& State, const FHollowEconomyTerms& Terms, const FHollowHubNames& Names);
 
-	/** Contracts (id order): the host gets Select on each, a guest sees the host's choice only. */
-	HOLLOWUI_API TArray<FHollowHubRow> ContractRows(TConstArrayView<FPrimaryAssetId> Contracts, const FPrimaryAssetId& Selected, bool bHost,
+	/**
+	 * Contracts (id order), each with its sector and reward (ADR-0041): the host gets Select on each, a guest sees the
+	 * host's choice only.
+	 */
+	HOLLOWUI_API TArray<FHollowHubRow> ContractRows(TConstArrayView<FHollowContractOffer> Offers, const FPrimaryAssetId& Selected, bool bHost,
 		const FHollowHubNames& Names);
+
+	/** "Sector II - Reactor Cathedral. Reward: Aether core 500 cr, Purified Aether core 1250 cr" (the sector alone without a reward). */
+	HOLLOWUI_API FText OfferText(const FHollowContractOffer& Offer, const FHollowHubNames& Names);
+
+	/** The contracts screen's role line: who decides, then the squad's contract, its sector and reward (live for a guest). */
+	HOLLOWUI_API FText ContractRoleText(TConstArrayView<FHollowContractOffer> Offers, const FPrimaryAssetId& Selected, bool bHost, const FHollowHubNames& Names);
+
+	/** What the ship's upgrades in State add to sold Aether cores, in percent (ADR-0032). */
+	HOLLOWUI_API int32 CoreValuePercent(const FHollowProfileState& State, const FHollowEconomyTerms& Terms);
 
 	/** Credits, stash and loadout use, insured slots of the limit (the ship's upgrades included), a raid in escrow. */
 	HOLLOWUI_API FText StatusLine(const FHollowProfileState& State, const FHollowEconomyTerms& Terms);

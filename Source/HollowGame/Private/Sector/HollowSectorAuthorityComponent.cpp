@@ -20,6 +20,7 @@
 #include "Generation/HollowSectorGraph.h"
 #include "Generation/HollowSectorTemplates.h"
 #include "HollowGameLog.h"
+#include "Hub/HollowContractDefinition.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/DateTime.h"
 #include "Nav/HollowNavSettings.h"
@@ -114,6 +115,19 @@ void UHollowSectorAuthorityComponent::EndPlay(const EEndPlayReason::Type EndPlay
 	Super::EndPlay(EndPlayReason);
 }
 
+void UHollowSectorAuthorityComponent::SetContract(const FPrimaryAssetId& InContract)
+{
+	Contract = InContract;
+	const UHollowContractDefinition* Definition = UHollowContractDefinition::Load(Contract);
+	SectorPlugin = Definition ? Definition->SectorFeature : FString();
+	if (SectorPlugin.IsEmpty())
+	{
+		UE_LOG(LogHollowGame, Error, TEXT("Contract %s names no sector: the raid has none (ADR-0041)."), *Contract.ToString());
+		return;
+	}
+	UE_LOG(LogHollowGame, Log, TEXT("Raid contract %s: sector %s"), *Contract.ToString(), *SectorPlugin);
+}
+
 void UHollowSectorAuthorityComponent::StartBuild(const int32 Seed)
 {
 	PendingSeed = Seed;
@@ -130,12 +144,11 @@ void UHollowSectorAuthorityComponent::StartBuild(const int32 Seed)
 
 void UHollowSectorAuthorityComponent::LoadContent()
 {
-	const FString& Sector = GetDefault<UHollowSectorSettings>()->RaidSector;
-	BiomeId = UHollowSectorFeatureSubsystem::GetSectorBiome(Sector);
-	RoomIds = UHollowSectorFeatureSubsystem::GetSectorRooms(Sector);
+	BiomeId = UHollowSectorFeatureSubsystem::GetSectorBiome(SectorPlugin);
+	RoomIds = UHollowSectorFeatureSubsystem::GetSectorRooms(SectorPlugin);
 	if (!BiomeId.IsValid() || RoomIds.IsEmpty())
 	{
-		UE_LOG(LogHollowGame, Error, TEXT("Sector %s has no biome or rooms (HollowSectorSettings.RaidSector, ADR-0012)."), *Sector);
+		UE_LOG(LogHollowGame, Error, TEXT("Sector '%s' of contract %s has no biome or rooms (ADR-0012, ADR-0041)."), *SectorPlugin, *Contract.ToString());
 		return;
 	}
 	TArray<FPrimaryAssetId> Ids = RoomIds;
@@ -216,7 +229,7 @@ void UHollowSectorAuthorityComponent::Generate()
 	}
 	FHollowSectorManifest Manifest;
 	FString Error;
-	if (!HollowSectorManifest::Build(Layout, Definitions, Biome, FName(GetDefault<UHollowSectorSettings>()->RaidSector), ++BuildCounter, Manifest, Error))
+	if (!HollowSectorManifest::Build(Layout, Definitions, Biome, FName(*SectorPlugin), ++BuildCounter, Manifest, Error))
 	{
 		UE_LOG(LogHollowGame, Error, TEXT("Sector seed %d: %s"), PendingSeed, *Error);
 		return;
@@ -499,8 +512,8 @@ FString UHollowSectorAuthorityComponent::Describe() const
 	{
 		++Players;
 	}
-	return FString::Printf(TEXT("authority: build %d, server assembled %d, navigation %d, reported %d/%d, ready %d, %d gameplay actors"), BuildId,
-		bServerAssembled, bNavigationReady, Reported.Num(), Players, bSectorReady, SpawnedActors.Num());
+	return FString::Printf(TEXT("authority: contract %s, sector %s, build %d, server assembled %d, navigation %d, reported %d/%d, ready %d, %d gameplay actors"),
+		*Contract.PrimaryAssetName.ToString(), *SectorPlugin, BuildId, bServerAssembled, bNavigationReady, Reported.Num(), Players, bSectorReady, SpawnedActors.Num());
 }
 
 #undef LOCTEXT_NAMESPACE

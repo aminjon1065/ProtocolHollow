@@ -8,14 +8,19 @@
 #include "Engine/AssetManager.h"
 #include "EngineUtils.h"
 #include "Framework/HollowGameState.h"
+#include "Framework/HollowRaidGameMode.h"
 #include "Framework/HollowPlayerController.h"
 #include "GameFramework/PlayerStart.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Hub/HollowContractDefinition.h"
 #include "Hub/HollowHubStateComponent.h"
 #include "Hub/HollowHubTerminal.h"
 #include "Hub/HollowHubTerminalSubsystem.h"
+#include "Raid/HollowRaidFlowComponent.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Rules/HollowLightBudget.h"
+#include "Sector/HollowSectorAuthorityComponent.h"
+#include "Sector/HollowSectorFeatureSubsystem.h"
 #include "Sector/HollowSectorSettings.h"
 #include "Session/HollowNetworkSettings.h"
 #include "Tags/HollowGameplayTags.h"
@@ -29,6 +34,14 @@ namespace HollowHubTests
 {
 	const TCHAR* const SkiffMap = TEXT("/Game/Hollow/Maps/L_Hub_Skiff.L_Hub_Skiff");
 	const FPrimaryAssetId Docks(TEXT("HollowContract"), TEXT("DA_Contract_Docks"));
+	/** Sector II's contract (S7-04, ADR-0041). */
+	const FPrimaryAssetId Cathedral(TEXT("HollowContract"), TEXT("DA_Contract_Cathedral"));
+	const TCHAR* const DocksPlugin = TEXT("HollowSector_Docks");
+	const TCHAR* const CathedralPlugin = TEXT("HollowSector_Cathedral");
+	const FPrimaryAssetId CoreItem(TEXT("HollowItem"), TEXT("DA_Item_AetherCore"));
+	const FPrimaryAssetId PurifiedItem(TEXT("HollowItem"), TEXT("DA_Item_PurifiedCore"));
+	constexpr int32 ContractCount = 2;
+	const TCHAR* const RaidMapName = TEXT("L_Raid_Dev");
 	constexpr int32 PlayerStarts = 4;
 	/** Where the test's player body waits, under the cabin. */
 	constexpr double OutOfTheWay = 5000.0;
@@ -120,6 +133,10 @@ bool FHollowHubTerminalsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The host may pick it (unchanged: no event)"), Hub->GetSelectedContract() == Docks && Changes == 0);
 	const FString Url = HollowRaidLauncher::MakeTravelUrl(World, 7);
 	TestTrue(FString::Printf(TEXT("The raid's URL carries the contract (%s)"), *Url), Url.Contains(TEXT("?Seed=7")) && Url.Contains(TEXT("?Contract=DA_Contract_Docks")));
+	Host->Server_SelectContract(Cathedral);
+	const FString CathedralUrl = HollowRaidLauncher::MakeTravelUrl(World, 7);
+	TestTrue(FString::Printf(TEXT("The host picks the Cathedral: the raid goes there (%s)"), *CathedralUrl), Hub->GetSelectedContract() == Cathedral && Changes == 1
+		&& HollowRaidLauncher::ContractFromOptions(CathedralUrl.Mid(CathedralUrl.Find(TEXT("?")))) == Cathedral);
 	return true;
 }
 
@@ -128,21 +145,91 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowHubDataTest, "Hollow.Game.Hub.Data",
 
 bool FHollowHubDataTest::RunTest(const FString& Parameters)
 {
-	// The shipped hub: L_Hub_Skiff is the hub map; the default contract exists, is valid and names the raid's sector
-	// (contracts pick the sector in S7-04).
+	// The shipped hub: L_Hub_Skiff is the hub map; the hub offers both sectors' contracts (S7-04, ADR-0041), each valid,
+	// naming a sector Game Feature with a biome and rooms, its sector's name and what it pays; the Docks are the default.
 	using namespace HollowHubTests;
 	TestEqual(TEXT("The hub map is the Skiff"), GetDefault<UHollowNetworkSettings>()->HubMap.ToSoftObjectPath().ToString(), FString(SkiffMap));
-	const UHollowContractDefinition* Contract = Cast<UHollowContractDefinition>(UAssetManager::Get().GetPrimaryAssetPath(Docks).TryLoad());
-	if (!TestNotNull(TEXT("DA_Contract_Docks"), Contract))
+	TestTrue(TEXT("The hub starts on the Docks"), GetDefault<UHollowSectorSettings>()->DefaultContract == Docks);
+	TArray<FPrimaryAssetId> Listed;
+	UAssetManager::Get().GetPrimaryAssetIdList(UHollowContractDefinition::AssetType, Listed);
+	TestTrue(FString::Printf(TEXT("The hub lists the %d contracts (%d)"), ContractCount, Listed.Num()), Listed.Num() == ContractCount && Listed.Contains(Docks)
+		&& Listed.Contains(Cathedral));
+	TestTrue(TEXT("A contract id names a contract only"), UHollowContractDefinition::Exists(Docks) && UHollowContractDefinition::Exists(Cathedral)
+		&& !UHollowContractDefinition::Exists(FPrimaryAssetId(TEXT("HollowItem"), TEXT("DA_Contract_Docks"))) && !UHollowContractDefinition::Load(CoreItem));
+	FString RaidSector;
+	TestFalse(TEXT("No configured raid sector is left: the contract picks it"),
+		GConfig->GetString(TEXT("/Script/HollowGame.HollowSectorSettings"), TEXT("RaidSector"), RaidSector, GGameIni));
+
+	const struct
+	{
+		FPrimaryAssetId Id;
+		const TCHAR* Sector;
+		TArray<FPrimaryAssetId> Rewards;
+	} Expected[] = {{Docks, DocksPlugin, {CoreItem}}, {Cathedral, CathedralPlugin, {CoreItem, PurifiedItem}}};
+	for (const auto& Each : Expected)
+	{
+		const UHollowContractDefinition* Contract = UHollowContractDefinition::Load(Each.Id);
+		if (!TestNotNull(*Each.Id.ToString(), Contract))
+		{
+			continue;
+		}
+		TestEqual(FString::Printf(TEXT("%s: its sector"), *Each.Id.ToString()), Contract->SectorFeature, FString(Each.Sector));
+		TestTrue(FString::Printf(TEXT("%s: a sector Game Feature with a biome and rooms"), *Each.Id.ToString()),
+			UHollowSectorFeatureSubsystem::GetSectorBiome(Contract->SectorFeature).IsValid() && !UHollowSectorFeatureSubsystem::GetSectorRooms(Contract->SectorFeature).IsEmpty());
+		TestTrue(FString::Printf(TEXT("%s: named, its sector named"), *Each.Id.ToString()), !Contract->DisplayName.IsEmpty() && !Contract->SectorName.IsEmpty());
+		TestTrue(FString::Printf(TEXT("%s: pays with its items"), *Each.Id.ToString()), Contract->RewardItems == Each.Rewards);
+#if WITH_EDITOR
+		FDataValidationContext Validation;
+		TestTrue(FString::Printf(TEXT("%s: valid"), *Each.Id.ToString()), Contract->IsDataValid(Validation) != EDataValidationResult::Invalid && Validation.GetNumErrors() == 0);
+#endif
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowRaidContractSectorTest, "Hollow.Game.Raid.ContractSector",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowRaidContractSectorTest::RunTest(const FString& Parameters)
+{
+	// ADR-0041: the raid's travel URL names the contract and the contract picks the sector. A raid without one (the raid
+	// map opened directly) or with an unknown one gets the default contract; the squad comes back to the hub with the
+	// same contract chosen.
+	using namespace HollowHubTests;
+	const FPrimaryAssetId& Default = GetDefault<UHollowSectorSettings>()->DefaultContract;
+	AddExpectedMessage(TEXT("which does not exist"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, /*Occurrences=*/2, /*IsRegex=*/false);
+	TestTrue(TEXT("The URL's contract"), HollowRaidLauncher::ContractFromOptions(TEXT("?Seed=7?Contract=DA_Contract_Cathedral")) == Cathedral);
+	TestTrue(TEXT("No contract: the default one"), HollowRaidLauncher::ContractFromOptions(TEXT("?Seed=7")) == Default && Default == Docks);
+	TestTrue(TEXT("An unknown contract: the default one"), HollowRaidLauncher::ContractFromOptions(TEXT("?Contract=Test_NoContract")) == Default);
+
+	const FString Hub = GetDefault<UHollowNetworkSettings>()->HubMap.GetLongPackageName();
+	const FString HubUrl = HollowRaidLauncher::MakeHubUrl(Cathedral);
+	TestTrue(FString::Printf(TEXT("Back to the hub with the contract (%s)"), *HubUrl), HubUrl.StartsWith(Hub + TEXT("?"))
+		&& HollowRaidLauncher::ContractFromOptions(HubUrl.Mid(Hub.Len())) == Cathedral);
+	TestEqual(TEXT("Without a contract: the hub map alone"), HollowRaidLauncher::MakeHubUrl(FPrimaryAssetId()), Hub);
+
+	// The raid game mode's InitGame gives the contract to the raid flow and its sector to the authority.
+	FTestWorldWrapper TestWorld;
+	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
+	AHollowRaidGameMode* Raid = World ? World->SpawnActor<AHollowRaidGameMode>() : nullptr;
+	if (!TestNotNull(TEXT("A raid game mode"), Raid))
 	{
 		return false;
 	}
-	TestTrue(TEXT("It exists for the hub state"), UHollowContractDefinition::Exists(Docks) && !UHollowContractDefinition::Exists(FPrimaryAssetId(TEXT("HollowItem"), TEXT("DA_Contract_Docks"))));
-	TestEqual(TEXT("Its sector is the raid's"), Contract->SectorFeature, GetDefault<UHollowSectorSettings>()->RaidSector);
-#if WITH_EDITOR
-	FDataValidationContext Validation;
-	TestTrue(TEXT("Valid"), Contract->IsDataValid(Validation) != EDataValidationResult::Invalid && Validation.GetNumErrors() == 0);
-#endif
+	const struct
+	{
+		const TCHAR* Options;
+		FPrimaryAssetId Contract;
+		const TCHAR* Sector;
+	} Cases[] = {{TEXT("?Seed=7?Contract=DA_Contract_Cathedral"), Cathedral, CathedralPlugin}, {TEXT("?Seed=7?Contract=DA_Contract_Docks"), Docks, DocksPlugin},
+		{TEXT("?Seed=7"), Docks, DocksPlugin}, {TEXT("?Seed=7?Contract=Test_NoContract"), Docks, DocksPlugin}};
+	for (const auto& Case : Cases)
+	{
+		FString Error;
+		static_cast<AGameModeBase*>(Raid)->InitGame(RaidMapName, Case.Options, Error);
+		TestTrue(FString::Printf(TEXT("%s: contract %s, sector %s (got %s, %s)"), Case.Options, *Case.Contract.ToString(), Case.Sector,
+			*Raid->GetRaidFlow()->GetContract().ToString(), *Raid->GetSectorAuthority()->GetSectorPlugin()),
+			Error.IsEmpty() && Raid->GetRaidFlow()->GetContract() == Case.Contract && Raid->GetSectorAuthority()->GetSectorPlugin() == Case.Sector);
+	}
 	return true;
 }
 

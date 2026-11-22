@@ -17,11 +17,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Raid")
 	TSoftObjectPtr<UWorld> RaidMap;
 
-	/** Sector Game Feature of the raid until contracts pick it (decision S1-08, ADR-0012; contracts pick it in S7-04). */
-	UPROPERTY(Config, EditAnywhere, Category = "Raid")
-	FString RaidSector;
-
-	/** The contract the hub starts with (ADR-0032); the host picks another at the contracts terminal. */
+	/**
+	 * The contract the hub starts with (ADR-0032); the host picks another at the contracts terminal. Also the contract,
+	 * and so the sector (ADR-0041), of a raid travelled to without one (the raid map opened directly).
+	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Raid", meta = (AllowedTypes = "HollowContract"))
 	FPrimaryAssetId DefaultContract;
 

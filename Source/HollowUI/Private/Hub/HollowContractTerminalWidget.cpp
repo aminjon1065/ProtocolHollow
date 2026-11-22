@@ -53,7 +53,24 @@ TArray<UPanelWidget*> UHollowContractTerminalWidget::GetLists() const
 
 TArray<FPrimaryAssetId> UHollowContractTerminalWidget::GetNamedIds(const FHollowProfileState& State, const FHollowEconomyTerms& Terms) const
 {
-	return ListContracts();
+	// The contracts, and the items they pay with (the reward's names).
+	TArray<FPrimaryAssetId> Ids = ListContracts();
+	for (const FPrimaryAssetId& Id : ListContracts())
+	{
+		if (const UHollowContractDefinition* Contract = UHollowContractDefinition::Load(Id))
+		{
+			for (const FPrimaryAssetId& Item : Contract->RewardItems)
+			{
+				Ids.AddUnique(Item);
+			}
+		}
+	}
+	return Ids;
+}
+
+FText UHollowContractTerminalWidget::GetRoleText() const
+{
+	return RoleText->GetText();
 }
 
 void UHollowContractTerminalWidget::BindHub()
@@ -76,10 +93,13 @@ void UHollowContractTerminalWidget::UnbindHub()
 void UHollowContractTerminalWidget::RefreshRows(const FHollowProfileState& State, const FHollowEconomyTerms& Terms)
 {
 	const UHollowHubStateComponent* Hub = UHollowHubStateComponent::Get(GetWorld());
+	const FPrimaryAssetId Selected = Hub ? Hub->GetSelectedContract() : FPrimaryAssetId();
 	const bool bHost = IsHostScreen();
-	FillList(RowList, HollowHubScreenRules::ContractRows(ListContracts(), Hub ? Hub->GetSelectedContract() : FPrimaryAssetId(), bHost, GetNames()));
+	// Priced for this player: their own ship's core bonus (ADR-0041).
+	const TArray<FHollowContractOffer> Offers = FHollowContractOffer::Load(ListContracts(), HollowHubScreenRules::CoreValuePercent(State, Terms));
+	FillList(RowList, HollowHubScreenRules::ContractRows(Offers, Selected, bHost, GetNames()));
 	LaunchButton->SetVisibility(bHost && HollowRaidLauncher::CanStartRaid(GetWorld()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	RoleText->SetText(bHost ? LOCTEXT("HostRole", "Choose the squad's contract, then launch.") : LOCTEXT("GuestRole", "The host chooses the contract and launches."));
+	RoleText->SetText(HollowHubScreenRules::ContractRoleText(Offers, Selected, bHost, GetNames()));
 }
 
 void UHollowContractTerminalWidget::RunCommand(const FHollowHubAction& Action, const FText& RowName)

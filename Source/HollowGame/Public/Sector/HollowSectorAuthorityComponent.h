@@ -13,8 +13,8 @@ class UHollowSectorStateComponent;
 struct FStreamableHandle;
 
 /**
- * Server-only sector lifecycle of a raid (Docs/Architecture/02 sec. 2.2/2.9): seed -> generate -> manifest on the
- * GameState; once the server has assembled it, spawns the gameplay actors at sockets and connections and builds the
+ * Server-only sector lifecycle of a raid (Docs/Architecture/02 sec. 2.2/2.9): the contract's sector Game Feature
+ * (ADR-0041), seed -> generate -> manifest on the GameState; once the server has assembled it, spawns the gameplay actors at sockets and connections and builds the
  * navmesh; collects every player's Server_ReportSectorReady (hash must match, late players are kicked after a
  * timeout); then marks the sector ready and gives players their pawns.
  */
@@ -28,6 +28,15 @@ public:
 
 	/** The one non-deterministic input of a raid: a seed when the host did not pick one (ADR-0003). */
 	static int32 MakeRandomSeed();
+
+	/**
+	 * The raid's contract (the game mode's InitGame, before BeginPlay): its sector Game Feature is the one this raid
+	 * generates and every machine activates from the manifest. A contract without a sector leaves the raid without one.
+	 */
+	void SetContract(const FPrimaryAssetId& Contract);
+
+	/** The sector plugin of the contract (empty before SetContract or for a contract without one). */
+	const FString& GetSectorPlugin() const { return SectorPlugin; }
 
 	/** Replaces the current sector with a new one (also Hollow.Sector.Rebuild). */
 	void StartBuild(int32 Seed);
@@ -61,6 +70,8 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UHollowRoomDefinition>> Rooms;
 
+	FPrimaryAssetId Contract;
+	FString SectorPlugin;
 	FPrimaryAssetId BiomeId;
 	TArray<FPrimaryAssetId> RoomIds;
 	TSharedPtr<FStreamableHandle> ContentHandle;

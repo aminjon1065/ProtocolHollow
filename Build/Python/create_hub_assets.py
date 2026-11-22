@@ -2,6 +2,8 @@
 
   /Game/Hollow/Hub/BP_HubTerminal                  AHollowHubTerminal: greybox cabinet and screen (the art pass replaces them)
   /Game/Hollow/Hub/Contracts/DA_Contract_Docks     UHollowContractDefinition: salvage in the Orbital Docks (HollowSector_Docks)
+  /Game/Hollow/Hub/Contracts/DA_Contract_Cathedral UHollowContractDefinition: purification in the Reactor Cathedral
+                                                   (HollowSector_Cathedral, S7-04, ADR-0041); a contract picks the sector
   /Game/Hollow/Maps/L_Hub_Skiff                    the shuttle's cabin: shell, the contracts terminal in the cockpit, the
                                                    workbench and the locker along the sides, four player starts, a calm
                                                    light rig within the hub's DA_LightBudget limits, the hangar's reverb
@@ -21,7 +23,7 @@ SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
 HUB_DIR = "/Game/Hollow/Hub"
 TERMINAL_BP = HUB_DIR + "/BP_HubTerminal"
-CONTRACT_PATH = HUB_DIR + "/Contracts/DA_Contract_Docks"
+CONTRACT_DIR = HUB_DIR + "/Contracts"
 HUB_MAP = "/Game/Hollow/Maps/L_Hub_Skiff"
 MATERIALS = "/Game/Hollow/World/Materials"
 REVERB = "/Game/Hollow/Audio/Reverb/RE_Hangar"
@@ -35,9 +37,18 @@ INI = "Config/DefaultGame.ini"
 INI_LINES = ["HubMap=/Game/Hollow/Maps/L_Hub_Skiff.L_Hub_Skiff", '+MapsToCook=(FilePath="/Game/Hollow/Maps/L_Hub_Skiff")',
              "DefaultContract=HollowContract:DA_Contract_Docks", 'PrimaryAssetType="HollowContract"']
 
-# The contract (data, S5-03 clarification 6).
-CONTRACT = {"display_name": "Orbital Docks salvage", "sector_feature": "HollowSector_Docks",
-            "description": "Recover an Aether core from the derelict docks and bring it to the extraction shuttle."}
+# The contracts (data, S5-03 clarification 6; the Cathedral's S7-04): the sector Game Feature each raid assembles, its name
+# on the screen, and the items it pays with (priced on the screen as their extraction pays them, ADR-0041).
+CONTRACTS = [
+    {"name": "DA_Contract_Docks", "display_name": "Orbital Docks salvage", "sector_feature": "HollowSector_Docks",
+     "sector_name": "Sector I - Orbital Docks",
+     "description": "Recover an Aether core from the derelict docks and bring it to the extraction shuttle.",
+     "rewards": ["DA_Item_AetherCore"]},
+    {"name": "DA_Contract_Cathedral", "display_name": "Reactor Cathedral purification", "sector_feature": "HollowSector_Cathedral",
+     "sector_name": "Sector II - Reactor Cathedral",
+     "description": "Carry the Aether core to the Purification Altar, hold out through the ritual and bring the purified core home.",
+     "rewards": ["DA_Item_AetherCore", "DA_Item_PurifiedCore"]},
+]
 
 # The terminal (data): a cabinet (depth along its X, which points at its user), a screen on its face, where its user stands.
 # Chest high: a player looking ahead from the eyes (about 160 cm) at the use spot still focuses it (ProbeRadius 8, range 250).
@@ -147,22 +158,38 @@ def same_vector(a, b):
 
 # ---------------------------------------------------------------- contract and terminal
 
-def ensure_contract():
-    if assets.does_asset_exist(CONTRACT_PATH):
-        contract, created = load(CONTRACT_PATH), False
+def item_id(name):
+    asset_id = unreal.PrimaryAssetId()
+    if not asset_id.import_text("HollowItem:" + name):
+        raise RuntimeError("Bad item id " + name)
+    return asset_id
+
+
+def contract_matches(contract, spec):
+    return str(contract.get_editor_property("display_name")) == spec["display_name"] \
+        and str(contract.get_editor_property("description")) == spec["description"] \
+        and str(contract.get_editor_property("sector_name")) == spec["sector_name"] \
+        and contract.get_editor_property("sector_feature") == spec["sector_feature"] \
+        and [r.export_text() for r in contract.get_editor_property("reward_items")] == [item_id(n).export_text() for n in spec["rewards"]]
+
+
+def ensure_contract(spec):
+    path = CONTRACT_DIR + "/" + spec["name"]
+    if assets.does_asset_exist(path):
+        contract, created = load(path), False
     else:
         factory = unreal.DataAssetFactory()
         factory.set_editor_property("data_asset_class", unreal.HollowContractDefinition)
-        contract, created = create(CONTRACT_PATH, unreal.HollowContractDefinition, factory), True
-    if not created and str(contract.get_editor_property("display_name")) == CONTRACT["display_name"] \
-            and str(contract.get_editor_property("description")) == CONTRACT["description"] \
-            and contract.get_editor_property("sector_feature") == CONTRACT["sector_feature"]:
+        contract, created = create(path, unreal.HollowContractDefinition, factory), True
+    if not created and contract_matches(contract, spec):
         return contract
-    contract.set_editor_property("display_name", unreal.Text(CONTRACT["display_name"]))
-    contract.set_editor_property("description", unreal.Text(CONTRACT["description"]))
-    contract.set_editor_property("sector_feature", CONTRACT["sector_feature"])
+    contract.set_editor_property("display_name", unreal.Text(spec["display_name"]))
+    contract.set_editor_property("description", unreal.Text(spec["description"]))
+    contract.set_editor_property("sector_name", unreal.Text(spec["sector_name"]))
+    contract.set_editor_property("sector_feature", spec["sector_feature"])
+    contract.set_editor_property("reward_items", [item_id(n) for n in spec["rewards"]])
     save(contract)
-    log("DA_Contract_Docks ready")
+    log(spec["name"] + " ready")
     return contract
 
 
@@ -340,12 +367,16 @@ def check(condition, message):
 
 
 def validate(terminal_class):
-    contract = load(CONTRACT_PATH)
     with open(unreal.Paths.project_dir() + INI) as ini:
         text = ini.read()
     for line in INI_LINES:
         check(line in text, "DefaultGame.ini: " + line)
-    check("RaidSector=" + contract.get_editor_property("sector_feature") in text, "DA_Contract_Docks is the raid's sector (until S7-04)")
+    check("RaidSector=" not in text, "DefaultGame.ini: no RaidSector (the contract picks the sector, ADR-0041)")
+    for spec in CONTRACTS:
+        contract = load(CONTRACT_DIR + "/" + spec["name"])
+        check(contract_matches(contract, spec), spec["name"] + " matches its spec")
+        sector = spec["sector_feature"]
+        check(assets.does_asset_exist("/%s/%s" % (sector, sector)), "%s: sector %s is a Game Feature (its GameFeatureData)" % (spec["name"], sector))
     check(unreal.MathLibrary.class_is_child_of(terminal_class, unreal.HollowHubTerminal.static_class()), "BP_HubTerminal is a hub terminal")
     if not levels.load_level(HUB_MAP):
         raise RuntimeError("Could not load " + HUB_MAP)
@@ -363,7 +394,8 @@ def validate(terminal_class):
 
 
 def main():
-    ensure_contract()
+    for spec in CONTRACTS:
+        ensure_contract(spec)
     terminal_class = ensure_terminal()
     ensure_map(terminal_class)
     validate(terminal_class)
