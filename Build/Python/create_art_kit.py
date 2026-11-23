@@ -10,7 +10,8 @@
   /Game/Hollow/Art/Textures/T_*        CC0 textures of Poly Haven at 1K (Build/Art/cc0_textures.json, fetched by
                                        Build/Scripts/fetch-cc0-textures.sh into Intermediate; their SHA-256 is checked)
   /Game/Hollow/Art/Parts/DA_Parts_*    UHollowCosmeticPartSet: the armour on the placeholder skeleton's bones
-  /Game/Hollow/FX/NS_Tool_BeamSparks   the beam's sparks: the engine's DirectionalBurst template, duplicated (the cue re-fires it)
+  /Game/Hollow/FX/NS_Tool_BeamSparks   the beam's sparks (AK-8): the engine's Fountain emitter with its Collision module, built
+                                       by UHollowNiagaraAuthoring; M_Kit_Spark their additive streak
 Bindings (only fields the base scripts set once at creation, never again):
   DA_Tool_PlasmaCutter/Welder/AetherLantern   HeldMesh, HeldTransform, MuzzleSocket
   DA_Class_Engineer/Occultist                 HeldTool (the class's tool in hand)
@@ -41,7 +42,31 @@ MAT_DIR = ART + "/Materials"
 TEX_DIR = ART + "/Textures"
 PARTS_DIR = ART + "/Parts"
 SPARKS_PATH = "/Game/Hollow/FX/NS_Tool_BeamSparks"
-SPARKS_TEMPLATE = "/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst.DirectionalBurst"
+LANTERN_CUE = "/Game/Hollow/GAS/Cues/GCN_Tool_Lantern"
+LANTERN_FLASH = {"flash_intensity_scale": 2.0, "flash_seconds": 0.3}   # AK-8: the cone flares as the lantern lights
+# AK-8: one stream of orange-white sparks, each a short streak along its flight, falling and bouncing off the floor
+# (CPU sim, ray-traced collision). Built by UHollowNiagaraAuthoring: the engine's Fountain emitter, the engine's Collision
+# module, these constants by the end of their names (Hollow.Editor.ArtSparks checks the budget). The beam cue turns the
+# system so its up is the way out of the surface it bites.
+SPARKS = {
+    "version": 3,
+    "emitter": "/Niagara/DefaultAssets/Templates/Emitters/Fountain.Fountain",
+    "modules": ["/Niagara/Modules/Collision/Collision.Collision"],
+    "constants": [
+        ("SpawnRate.SpawnRate", "220"),                        # about 170 alive per tool: within the CPU budget, even four at once
+        ("AddVelocity.Cone Angle", "50"),
+        ("RandomRangeFloat.Minimum", "260"), ("RandomRangeFloat.Maximum", "700"),   # cm/s out of the cut
+        ("InitializeParticle.Lifetime Min", "0.45"), ("InitializeParticle.Lifetime Max", "1.1"),
+        ("InitializeParticle.Uniform Sprite Size Min", "7"), ("InitializeParticle.Uniform Sprite Size Max", "14"),   # streak length
+        ("InitializeParticle.Color", "(R=8.0,G=2.0,B=0.3,A=1.0)"),   # deep orange; M_Kit_Spark makes the core white-hot
+        ("Drag.Drag", "0.8"),
+        ("GravityForce.Gravity", "(X=0,Y=0,Z=-980)"),
+        ("Collision.Kill On Collision", "0"), ("Collision.Max Number Of Collisions", "3"),
+        ("Collision.Restitution", "0.4"), ("Collision.Friction", "0.35"),
+    ],
+}
+SPARK_MATERIAL = MAT_DIR + "/M_Kit_Spark"
+SPARK_STREAK = (0.015, 0.07, 2.5)   # the streak's half width from..to (of the sprite's width), the white core's boost
 COLLECTION = "/Game/Hollow/FX/Resonance/MPC_Resonance"
 REDUCED_FLASHES = "ReducedFlashes"
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
@@ -118,6 +143,7 @@ MATERIALS = {
     "MI_Kit_StatusGlow": (GLOW_MASTER, {"GlowColor": (0.3, 0.9, 0.5), "Strength": 4.0, "PulseHz": 0.5, "PulseDepth": 0.4}),
     "MI_Kit_CutterGlow": (TOOL_GLOW_MASTER, {"GlowColor": (1.0, 0.42, 0.12), "Idle": 0.4, "Firing": 30.0}),
     "MI_Kit_WelderGlow": (TOOL_GLOW_MASTER, {"GlowColor": (0.45, 0.7, 1.0), "Idle": 0.3, "Firing": 35.0}),
+    "MI_Kit_LanternFlame": (TOOL_GLOW_MASTER, {"GlowColor": (0.35, 0.9, 0.85), "Idle": 4.0, "Firing": 28.0}),   # AK-8: bright while it runs
     "MI_Kit_Visor": (VISOR_MASTER, {"Strength": 5.0}),
     "MI_Kit_WeldSeam": (SEAM_MASTER, {"HotColor": (1.0, 0.32, 0.04), "HotStrength": 25.0, "ScarColor": (0.3, 0.13, 0.05), "ScarStrength": 0.8,
                                       "CoolSeconds": 4.0}),
@@ -130,7 +156,7 @@ SLOT_MATERIALS = {"Body": "MI_Kit_DarkAlloy", "Metal": "MI_Kit_Steel", "Trim": "
 MESH_SLOTS = {   # per mesh, slot -> material where it differs from SLOT_MATERIALS
     "SM_Tool_PlasmaCutter": {"Glow": "MI_Kit_CutterGlow"},
     "SM_Tool_Welder": {"Glow": "MI_Kit_WelderGlow"},
-    "SM_Tool_AetherLantern": {"Glow": "MI_Kit_LanternGlow"},
+    "SM_Tool_AetherLantern": {"Glow": "MI_Kit_LanternFlame", "Glass": "MI_Kit_LanternFlame"},   # the glass glows with its flame
     "SM_AetherCore": {"Glow": "/Game/Hollow/Items/AetherCore/MI_AetherCore"},
     "SM_Door_Leaf": {"Body": "MI_Kit_DoorLeaf", "Trim": "MI_Kit_Hazard"},
     "SM_Hub_Console": {"Glow": "MI_Kit_ConsoleKeys", "Trim": "MI_Kit_Hazard"},
@@ -279,6 +305,12 @@ class Graph(object):
 
     def time(self, column):
         return self.node(unreal.MaterialExpressionTime, column)
+
+    def node_smooth(self, column, low, high, value):
+        """0 below low, 1 above high, smooth between."""
+        expression = self.node(unreal.MaterialExpressionSmoothStep, column, const_min=low, const_max=high)
+        self.wire(value, expression, "Value")
+        return expression
 
     def half_wave(self, column, hertz):
         """0..1 at hertz: 0.5 + 0.5 sin(2 pi f t)."""
@@ -581,17 +613,51 @@ def ensure_textures():
 
 # ---------------------------------------------------------------- the beam's sparks
 
+def build_spark_material(material):
+    """Additive, unlit: a thin streak along the sprite's length (the sprite flies along its velocity), white-hot inside."""
+    g = Graph(material)
+    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+    material.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    material.set_editor_property("used_with_niagara_sprites", True)
+    uv = g.node(unreal.MaterialExpressionTextureCoordinate, 8)
+    u = g.node(unreal.MaterialExpressionComponentMask, 7, r=True, g=False, b=False, a=False)
+    g.wire(uv, u)
+    v = g.node(unreal.MaterialExpressionComponentMask, 7, r=False, g=True, b=False, a=False)
+    g.wire(uv, v)
+    across = g.single(unreal.MaterialExpressionAbs, 6, g.sub(7, u, const=0.5))
+    line = g.single(unreal.MaterialExpressionOneMinus, 4, g.node_smooth(5, SPARK_STREAK[0], SPARK_STREAK[1], across))
+    taper = g.mul(4, g.node_smooth(5, 0.0, 0.3, v), g.single(unreal.MaterialExpressionOneMinus, 5, g.node_smooth(6, 0.55, 1.0, v)))
+    glow = g.mul(3, line, taper)
+    core = g.mul(2, g.mul(3, glow, glow), g.mul(3, glow, g.scalar(4, "CoreBoost", SPARK_STREAK[2])))
+    colour = g.node(unreal.MaterialExpressionComponentMask, 3, r=True, g=True, b=True, a=False)
+    g.wire(g.node(unreal.MaterialExpressionParticleColor, 4), colour)
+    emissive = g.add(1, g.mul(2, colour, glow), core)
+    g.out(emissive, unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+
+
 def ensure_sparks():
-    """A copy of an engine template: a burst the beam cue fires again while the beam bites (it re-activates it)."""
-    if assets.does_asset_exist(SPARKS_PATH):
-        sparks = load(SPARKS_PATH)
-        check(assets.get_metadata_tag(sparks, SPEC_TAG) == SPARKS_TEMPLATE, SPARKS_PATH + " is a copy of " + SPARKS_TEMPLATE + " (rename it to change the template)")
+    """AK-8: the beam's sparks, built from SPARKS (rebuilt in place when the spec changes; the beam cue keeps its reference)."""
+    material, created = existing_or_new(SPARK_MATERIAL, unreal.Material, unreal.MaterialFactoryNew())
+    material_hash = digest(MASTERS_VERSION, "spark", SPARK_STREAK)
+    if created or not up_to_date(material, material_hash):
+        build_spark_material(material)
+        mel.recompile_material(material)
+        stamp(material, material_hash)
+        log("M_Kit_Spark built")
+    sparks, created = existing_or_new(SPARKS_PATH, unreal.NiagaraSystem, unreal.NiagaraSystemFactoryNew())
+    spec_hash = digest(SPARKS, material_hash)
+    if not created and up_to_date(sparks, spec_hash):
         return sparks
-    if not assets.duplicate_asset(SPARKS_TEMPLATE.split(".")[0], SPARKS_PATH):
-        raise RuntimeError("Could not duplicate " + SPARKS_TEMPLATE)
-    sparks = load(SPARKS_PATH)
-    stamp(sparks, SPARKS_TEMPLATE)
-    log(SPARKS_PATH.rsplit("/", 1)[1] + " from " + SPARKS_TEMPLATE)
+    authoring = unreal.HollowNiagaraAuthoring
+    modules = [load(path) for path in SPARKS["modules"]]
+    if not authoring.build_single_emitter_system(sparks, load(SPARKS["emitter"]), "Sparks", modules):
+        raise RuntimeError("Could not build " + SPARKS_PATH)
+    for suffix, value in SPARKS["constants"]:
+        check(authoring.set_constant(sparks, suffix, value) >= 1, "%s has the constant %s" % (SPARKS_PATH, suffix))
+    check(authoring.set_sprite_renderer(sparks, material, True) == 1, SPARKS_PATH + " has one sprite renderer")
+    check(authoring.compile(sparks), SPARKS_PATH + " compiles")
+    stamp(sparks, spec_hash)
+    log("NS_Tool_BeamSparks: Fountain + Collision, %d constants" % len(SPARKS["constants"]))
     return sparks
 
 
@@ -826,6 +892,13 @@ def ensure_blueprints(sets, sparks):
         component.set_editor_property("asset", sparks)
         save(cue_bp)
         log("GCN_Tool_Beam: sparks")
+    lantern_bp = load(LANTERN_CUE)
+    lantern = unreal.get_default_object(lantern_bp.generated_class())
+    if any(abs(lantern.get_editor_property(k) - v) > 1e-4 for k, v in LANTERN_FLASH.items()):
+        for name, value in LANTERN_FLASH.items():
+            lantern.set_editor_property(name, value)
+        save(lantern_bp)
+        log("GCN_Tool_Lantern: flares x%.1f over %.2f s" % (LANTERN_FLASH["flash_intensity_scale"], LANTERN_FLASH["flash_seconds"]))
     # The characters: their part sets and body materials (the placeholder skeleton stays, ADR-0011).
     for path, (set_name, body_materials) in sorted(CHARACTERS.items()):
         blueprint = load(path)

@@ -43,7 +43,10 @@ public class HollowEditor : ModuleRules
 			"StateTreeEditorModule",
 			"PropertyBindingUtils",
 			"GameplayStateTreeModule",
-			"AIModule"
+			"AIModule",
+			"Niagara",
+			"NiagaraCore",
+			"NiagaraEditor"   // Art-01: the beam's sparks are built from the content scripts (UHollowNiagaraAuthoring)
 		});
 	}
 }

@@ -66,7 +66,9 @@ ITEM = {"display_name": "Aether lantern", "item_type": "Hollow.Item.Type.Tool", 
         "equip_slot": "Hollow.Item.Slot.Primary"}   # S6-04: the cutter's input, one of them per loadout
 # Cosmetics (greybox data): the light cone (no shadows: light budget) and the glow on an exposed enemy.
 LIGHT_CUE = {"update_rate_hz": 30.0, "muzzle_offset": (30.0, 15.0, -15.0), "inner_cone_fraction": 0.6}
-LIGHT = {"intensity": 2000.0}
+# AK-8: in lumens like the rooms' lights (3500 lm practicals): unitless 2000 was far dimmer than a practical, and
+# the cone did not show at all; it flares x2 as the lantern lights (GCN_Tool_Lantern, create_art_kit.py).
+LIGHT = {"intensity_units": unreal.LightUnits.LUMENS, "intensity": 2500.0}
 GLOW_CUE = {"glow_offset": (0.0, 0.0, 40.0)}
 GLOW = {"intensity": 800.0, "attenuation_radius": 220.0}
 GLOW_COLOR = (180, 110, 255)

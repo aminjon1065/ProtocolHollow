@@ -28,6 +28,11 @@ public:
 
 	USpotLightComponent* GetLight() const { return Light; }
 
+	/** The cone's brightness now: its steady brightness, times the flare while it settles (AK-8). */
+	float GetIntensity() const;
+	float GetFlashIntensityScale() const { return FlashIntensityScale; }
+	float GetFlashSeconds() const { return FlashSeconds; }
+
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Lantern")
 	TObjectPtr<USpotLightComponent> Light;
@@ -44,12 +49,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Lantern", meta = (ClampMin = "0", ClampMax = "1"))
 	float InnerConeFraction = 0.f;
 
+	/**
+	 * AK-8 (ADR-0043): the lantern flares as it lights: the cone starts FlashIntensityScale times as bright and settles
+	 * over FlashSeconds (on the light's own refresh timer). None with reduced flashes (H-1, ADR-0029).
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Lantern", meta = (ClampMin = "1"))
+	float FlashIntensityScale = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Lantern", meta = (ClampMin = "0", Units = "Seconds"))
+	float FlashSeconds = 0.f;
+
 private:
 	void UpdateLight();
 
 	TWeakObjectPtr<APawn> Wielder;
 	TWeakObjectPtr<const UHollowLanternDefinition> Lantern;
 	FTimerHandle UpdateTimer;
+	/** The cone's steady brightness (the class default's, so a flare never compounds) and the world time it lit at. */
+	float BaseIntensity = 0.f;
+	double LitAt = 0.0;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> Sound;

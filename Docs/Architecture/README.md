@@ -221,3 +221,4 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
   - **Склад Fab:** `create-art-staging.sh`, `prepare_fab_assets.py`, `fetch-cc0-textures.sh`, `run-editor-python.sh --project`.
   - **Dev-команды** `Hollow.Art.{Showcase, View, Dump}`.
   - **Тесты** `Hollow.Game.Art.{CosmeticParts, ToolInHand, DoorSeam, Kit}`.
+  - **AK-8:** искры `NS_Tool_BeamSparks` (Fountain + Collision, гравитация и отскоки, `M_Kit_Spark`) собирает `create_art_kit.py` через редакторную библиотеку `UHollowNiagaraAuthoring`; вспышка и пламя Эфирного фонаря (`AHollowLanternCue::FlashIntensityScale/FlashSeconds`, свет в люменах). Тесты `Hollow.Editor.ArtSparks`, `Hollow.Game.Art.LanternFlash`.

@@ -8,7 +8,9 @@
 #include "Classes/HollowClassDefinition.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Cosmetics/HollowCosmeticParts.h"
+#include "Data/HollowLanternDefinition.h"
 #include "Data/HollowToolDefinition.h"
 #include "Doors/HollowDoor.h"
 #include "Doors/HollowDoorStateComponent.h"
@@ -17,7 +19,9 @@
 #include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraComponent.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Tags/HollowGameplayTags.h"
+#include "Tools/HollowLanternCue.h"
 #include "Tools/HollowToolBeamCue.h"
 #include "Tools/HollowToolMountComponent.h"
 #include "UObject/UObjectGlobals.h"
@@ -31,6 +35,7 @@ namespace HollowArtTests
 	const TCHAR* const DoorClass = TEXT("/Game/Hollow/World/Kit/Doors/BP_Door.BP_Door_C");
 	const TCHAR* const CoreClass = TEXT("/Game/Hollow/Items/AetherCore/BP_AetherCore.BP_AetherCore_C");
 	const TCHAR* const BeamCueClass = TEXT("/Game/Hollow/GAS/Cues/GCN_Tool_Beam.GCN_Tool_Beam_C");
+	const TCHAR* const LanternCueClass = TEXT("/Game/Hollow/GAS/Cues/GCN_Tool_Lantern.GCN_Tool_Lantern_C");
 	const TCHAR* const CutterPath = TEXT("/Game/Hollow/Tools/PlasmaCutter/DA_Tool_PlasmaCutter.DA_Tool_PlasmaCutter");
 	const TCHAR* const WelderPath = TEXT("/Game/Hollow/Tools/Welder/DA_Tool_Welder.DA_Tool_Welder");
 	const TCHAR* const LanternPath = TEXT("/Game/Hollow/Tools/AetherLantern/DA_Tool_AetherLantern.DA_Tool_AetherLantern");
@@ -49,6 +54,8 @@ namespace HollowArtTests
 	constexpr float TickSeconds = 1.f / 30.f;
 	constexpr int32 LoadFrames = 30;
 	constexpr float WeldWork = 0.5f;
+	constexpr float IntensityTolerance = 0.01f;   // of the steady brightness
+	constexpr int32 SettleSlackFrames = 2;
 
 	void Tick(FTestWorldWrapper& World, const int32 Frames)
 	{
@@ -195,6 +202,69 @@ bool FHollowArtToolInHandTest::RunTest(const FString& Parameters)
 	const UClass* Cue = LoadClass<AHollowToolBeamCue>(nullptr, BeamCueClass);
 	const UNiagaraComponent* Sparks = Cue ? Cue->GetDefaultObject<AHollowToolBeamCue>()->FindComponentByClass<UNiagaraComponent>() : nullptr;
 	TestTrue(TEXT("The beam sparks (NS_Tool_BeamSparks)"), Sparks && Sparks->GetAsset() && !Sparks->bAutoActivate);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowArtLanternFlashTest, "Hollow.Game.Art.LanternFlash",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowArtLanternFlashTest::RunTest(const FString& Parameters)
+{
+	// AK-8: the Aether lantern flares as it lights and settles to its steady cone over FlashSeconds (its refresh timer,
+	// no Tick); none with reduced flashes (H-1); its flame glows while it runs and dims when it goes out.
+	using namespace HollowArtTests;
+	FTestWorldWrapper TestWorld;
+	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
+	PreloadParts();
+	AHollowExoFrameCharacter* Character = World ? SpawnPlaying<AHollowExoFrameCharacter>(World, ExoFrameClass) : nullptr;
+	UHollowToolMountComponent* Mount = Character ? UHollowToolMountComponent::Get(Character) : nullptr;
+	const UHollowLanternDefinition* Lantern = LoadObject<UHollowLanternDefinition>(nullptr, LanternPath);
+	const TSubclassOf<AHollowLanternCue> CueClass = LoadClass<AHollowLanternCue>(nullptr, LanternCueClass);
+	UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	if (!TestNotNull(TEXT("BP_ExoFrame's tool mount"), Mount) || !TestNotNull(TEXT("DA_Tool_AetherLantern"), Lantern)
+		|| !TestNotNull(TEXT("GCN_Tool_Lantern"), CueClass.Get()) || !TestNotNull(TEXT("The game's settings class"), Settings))
+	{
+		return false;
+	}
+	const AHollowLanternCue* Defaults = CueClass->GetDefaultObject<AHollowLanternCue>();
+	const float Steady = Defaults->GetLight()->Intensity;
+	const float Flare = Defaults->GetFlashIntensityScale();
+	TestTrue(FString::Printf(TEXT("GCN_Tool_Lantern flares x%.1f over %.2f s"), Flare, Defaults->GetFlashSeconds()), Steady > 0.f && Flare > 1.f
+		&& Defaults->GetFlashSeconds() > 0.f);
+	FGameplayCueParameters Cue;
+	Cue.SourceObject = Lantern;
+	// The cues stay in the world (the cue manager recycles them; destroying one is an error) and go with it.
+	auto Light = [World, &CueClass, Character, &Cue]()
+	{
+		AHollowLanternCue* Spawned = World->SpawnActor<AHollowLanternCue>(CueClass, FTransform::Identity);
+		if (Spawned)
+		{
+			Spawned->OnActive(Character, Cue);
+		}
+		return Spawned;
+	};
+	auto Near = [Steady](const float Intensity, const float Scale) { return FMath::IsNearlyEqual(Intensity, Steady * Scale, Steady * IntensityTolerance); };
+	const bool bReducedBefore = Settings->IsReducedFlashes();
+
+	Settings->SetReducedFlashes(false, /*bSave=*/false);
+	AHollowLanternCue* Lit = Light();
+	if (TestNotNull(TEXT("The light cue"), Lit))
+	{
+		TestTrue(FString::Printf(TEXT("Lit: it flares (%.0f)"), Lit->GetLight()->Intensity), Near(Lit->GetLight()->Intensity, Flare));
+		TestTrue(TEXT("...its flame glows"), Mount->IsFiring() && Mount->GetShownTool() == Lantern);
+		Tick(TestWorld, FMath::CeilToInt32(Lit->GetFlashSeconds() / TickSeconds) + SettleSlackFrames);
+		TestTrue(FString::Printf(TEXT("...and settles to its steady cone (%.0f)"), Lit->GetLight()->Intensity), Near(Lit->GetLight()->Intensity, 1.f));
+		Lit->OnRemove(Character, Cue);
+		TestTrue(TEXT("Out: the light hides, the flame dims"), !Lit->GetLight()->IsVisible() && !Mount->IsFiring());
+	}
+	Settings->SetReducedFlashes(true, /*bSave=*/false);
+	AHollowLanternCue* Calm = Light();
+	if (TestNotNull(TEXT("The light cue again"), Calm))
+	{
+		TestTrue(FString::Printf(TEXT("Reduced flashes: steady from the start (%.0f)"), Calm->GetLight()->Intensity), Near(Calm->GetLight()->Intensity, 1.f));
+		Calm->OnRemove(Character, Cue);
+	}
+	Settings->SetReducedFlashes(bReducedBefore, /*bSave=*/false);
 	return true;
 }
 

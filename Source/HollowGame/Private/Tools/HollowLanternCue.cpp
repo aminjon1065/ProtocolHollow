@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "HollowGameLog.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "TimerManager.h"
 #include "Tools/HollowToolAim.h"
 #include "Tools/HollowToolMountComponent.h"
@@ -42,7 +43,10 @@ bool AHollowLanternCue::OnActive_Implementation(AActor* MyTarget, const FGamepla
 	if (UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(Wielder.Get()))
 	{
 		Mount->ShowTool(Definition);   // the lantern in hand on this machine too (cosmetic; the cue is what replicates)
+		Mount->SetFiring(true);        // Art-01: its flame burns bright while it runs
 	}
+	BaseIntensity = GetClass()->GetDefaultObject<AHollowLanternCue>()->Light->Intensity;
+	LitAt = GetWorld()->GetTimeSeconds();
 	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
 	{
 		Sound = Audio->PlayAttached(Definition->NoiseTag, Wielder->GetRootComponent());
@@ -59,6 +63,14 @@ bool AHollowLanternCue::OnRemove_Implementation(AActor* MyTarget, const FGamepla
 {
 	GetWorld()->GetTimerManager().ClearTimer(UpdateTimer);
 	Light->SetVisibility(false);
+	if (BaseIntensity > 0.f)
+	{
+		Light->SetIntensity(BaseIntensity);
+	}
+	if (UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(Wielder.Get()))
+	{
+		Mount->SetFiring(false);
+	}
 	if (Sound)
 	{
 		Sound->Stop();
@@ -78,4 +90,14 @@ void AHollowLanternCue::UpdateLight()
 	Aim.Eyes = Pawn->GetPawnViewLocation();
 	Aim.Aim = Pawn->GetBaseAimRotation();
 	SetActorLocationAndRotation(HollowToolAim::BeamStart(*Pawn, Aim, MuzzleOffset), Aim.Aim);
+	Light->SetIntensity(GetIntensity());
+}
+
+float AHollowLanternCue::GetIntensity() const
+{
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	const bool bReduced = Settings && Settings->IsReducedFlashes();
+	const double Since = GetWorld() ? GetWorld()->GetTimeSeconds() - LitAt : FlashSeconds;
+	const float Settle = FlashSeconds > 0.f ? FMath::Clamp(static_cast<float>(Since) / FlashSeconds, 0.f, 1.f) : 1.f;
+	return BaseIntensity * (bReduced ? 1.f : FMath::Lerp(FlashIntensityScale, 1.f, Settle));
 }

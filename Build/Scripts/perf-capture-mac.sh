@@ -67,7 +67,8 @@ launch() {
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="$HOLLOW_PROJECT_ROOT/Saved/PerfCapture/$STAMP-$PRESET"
 mkdir -p "$OUT"
-SAVES="$HOLLOW_PROJECT_ROOT/Saved/SaveGames"
+# The editor keeps its saves in the project, a packaged Mac game in Application Support (ADR-0024, as playthrough-mac.sh).
+SAVES=("$HOLLOW_PROJECT_ROOT/Saved/SaveGames" "$HOME/Library/Application Support/Epic/ProtocolHollow/Saved/SaveGames")
 COMMON=(-nosplash -unattended -nop4 "-HollowPreset=$PRESET"
 	"-ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null" "-ini:Engine:[OnlineSubsystemSteam]:bEnabled=false")
 HEADLESS=(-nullrhi -nosound)
@@ -100,7 +101,9 @@ W="Hollow.Dev.RunInRaid 8 Hollow.Tool.Hold Hollow.Input.SecondaryUse $TOTAL"
 
 TRACEARGS=()
 [[ "$TRACE" == 1 ]] && TRACEARGS=(-trace=default,gpu,frame,net,physics,audio "-tracefile=$OUT/host.utrace" -statnamedevents)
-for s in PerfHost PerfClient1 PerfClient2 PerfClient3; do rm -f "$SAVES/$s.sav"; done
+# Fresh profiles every capture: the raid a capture cuts off costs the loadout (escrow), so the welders would come back
+# empty-handed (KnownIssues AK-13).
+for d in "${SAVES[@]}"; do for s in PerfHost PerfClient1 PerfClient2 PerfClient3; do rm -f "$d/$s.sav"; done; done
 PIDS=()
 trap 'kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true' EXIT   # never leave a game running: it would load the next capture
 launch "$OUT/host.log" "${COMMON[@]}" -RenderOffScreen -windowed -ResX=1920 -ResY=1080 "$(slot PerfHost)" ${TRACEARGS[@]+"${TRACEARGS[@]}"} -ExecCmds="$H"

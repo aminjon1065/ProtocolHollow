@@ -124,10 +124,10 @@ void AHollowToolBeamCue::UpdateBeam()
 	SetActorTransform(FTransform(FRotationMatrix::MakeFromZ(Span).Rotator(), Muzzle + Span * 0.5, Scale));
 	Glow->SetWorldLocation(Impact);
 	Glow->SetVisibility(bHit);
-	// Sparks spray back from where the beam bites; none into thin air.
+	// Sparks spray back out of where the beam bites (the system's up is the way out), then fall; none into thin air.
 	if (bHit && Sparks->GetAsset())
 	{
-		Sparks->SetWorldLocationAndRotation(Impact, (-Span).Rotation());
+		Sparks->SetWorldLocationAndRotation(Impact, FRotationMatrix::MakeFromZ(-Span).Rotator());
 		if (!Sparks->IsActive())
 		{
 			Sparks->Activate(/*bReset=*/true);

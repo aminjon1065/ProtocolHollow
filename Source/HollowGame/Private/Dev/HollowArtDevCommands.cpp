@@ -1,3 +1,4 @@
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Cosmetics/HollowCosmeticParts.h"
 #include "Data/HollowToolDefinition.h"
@@ -7,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "HollowGameLog.h"
+#include "Tools/HollowLanternCue.h"
 #include "Tools/HollowToolMountComponent.h"
 
 /** Art-01 (ADR-0043): pictures of the art kit in a running game (the smoke's "art" mode, the owner's art pass). */
@@ -84,6 +86,12 @@ namespace HollowArtDev
 			{
 				UE_LOG(LogHollowGame, Display, TEXT("Hollow.Art.Dump: %s parts %d%s tint #%s"), *It->GetName(), Parts->GetPartComponents().Num(),
 					Parts->IsLoading() ? TEXT(" (loading)") : TEXT(""), *Parts->GetTint().ToFColor(true).ToHex());
+			}
+			if (const AHollowLanternCue* Lantern = Cast<AHollowLanternCue>(*It))
+			{
+				const USpotLightComponent* Light = Lantern->GetLight();
+				UE_LOG(LogHollowGame, Display, TEXT("Hollow.Art.Dump: lantern light at %s facing %s, intensity %.0f (%s)"), *Light->GetComponentLocation().ToCompactString(),
+					*Light->GetComponentRotation().ToCompactString(), Light->Intensity, Light->IsVisible() ? TEXT("on") : TEXT("off"));
 			}
 			if (const UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(*It))
 			{

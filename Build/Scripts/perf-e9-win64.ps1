@@ -113,6 +113,9 @@ function Get-Trace([string] $Name) {
 }
 
 function Start-Game([string] $Name, [string[]] $Arguments, [string] $Commands) {
+    # A fresh profile every capture: the raid a capture cuts off costs the loadout (escrow), so the welders would come
+    # back empty-handed (KnownIssues AK-13).
+    Remove-Item -LiteralPath (Join-Path $GameSaved "SaveGames\$Name.sav") -ErrorAction SilentlyContinue
     # Start-Process joins the arguments with spaces: paths and the command list are quoted here.
     $All = $Common + $Arguments + @((Get-Slot $Name), "-abslog=`"$(Join-Path $Out "$Name.log")`"", "-ExecCmds=`"$Commands`"")
     return Start-Process -FilePath $Exe.FullName -ArgumentList $All -PassThru
