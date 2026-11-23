@@ -104,7 +104,8 @@ for s in PerfHost PerfClient1 PerfClient2 PerfClient3; do rm -f "$SAVES/$s.sav";
 PIDS=()
 trap 'kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true' EXIT   # never leave a game running: it would load the next capture
 launch "$OUT/host.log" "${COMMON[@]}" -RenderOffScreen -windowed -ResX=1920 -ResY=1080 "$(slot PerfHost)" ${TRACEARGS[@]+"${TRACEARGS[@]}"} -ExecCmds="$H"
-wait_for "$OUT/host.log" 'listening on port' 240 || { echo "host never listened"; kill "${PIDS[@]}"; exit 1; }
+# The game's driver, not the trace server's "Control listening on port 1985" (KnownIssues RG-1).
+wait_for "$OUT/host.log" 'IpNetDriver listening on port' 240 || { echo "host never listened"; kill "${PIDS[@]}"; exit 1; }
 for i in 1 2 3; do
 	CMDS="$HEADLESS_FPS,open 127.0.0.1"
 	[[ "$i" != 3 ]] && CMDS="$CMDS,$W"   # two of them weld

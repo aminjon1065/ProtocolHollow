@@ -262,7 +262,7 @@ case "$MODE" in
 		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
 		h "Hollow.Dev.RunAfter 12 Hollow.Hub.Dump"
 		h "Hollow.Dev.RunAfter 13 Hollow.UI.Shot Skiff_Start"
-		# Host time; the client starts some 10 s later (it waits for the host to listen) and counts from its own start.
+		# Host time; the client starts some 10 s later (after the host's menu) and counts from its own start.
 		h "Hollow.Dev.RunAfter 20 Hollow.Dev.GoToTerminal Workbench Others"
 		h "Hollow.Dev.RunAfter 26 Hollow.Dev.GoToTerminal Workbench Others"
 		C1+=("Hollow.Dev.RunAfter 20 Hollow.Interact")                              # the client's workbench, on the client only
@@ -281,9 +281,10 @@ case "$MODE" in
 		C1+=("Hollow.Dev.RunAfter 44 Hollow.Hub.Open Contracts")                    # a guest's contracts screen: no Launch
 		C1+=("Hollow.Dev.RunAfter 45 Hollow.UI.Dump")
 		C1+=("Hollow.Dev.RunAfter 46 Hollow.Hub.Close")
-		h "Hollow.Dev.RunAfter 52 Hollow.Hub.Dump"
-		h "Hollow.Dev.RunAfter 55 Hollow.UI.Dump"
-		h "$(key 56 $PRESS)"                                                          # A on Launch: the raid
+		# The launch waits for the client's last hub step (46 on its clock, up to some 15 s behind the host's; S7-04 run: 12).
+		h "Hollow.Dev.RunAfter 62 Hollow.Hub.Dump"
+		h "Hollow.Dev.RunAfter 65 Hollow.UI.Dump"
+		h "$(key 66 $PRESS)"                                                          # A on Launch: the raid
 		C+=("Hollow.Dev.RunInRaid 1 Hollow.UI.Dump")                                 # the screens are gone with the hub
 		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
 		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore All"
@@ -510,24 +511,27 @@ case "$MODE" in
 		h "$N 2.2 Hollow.Sector.Status $K"; h "$N 2.4 Hollow.Sector.Status $D"
 		C+=("$N 2.7 Hollow.Sector.Status $K"); C+=("$N 2.9 Hollow.Sector.Status $D")
 		h "$N 3 Hollow.Class.Dump"; C+=("$N 3 Hollow.Class.Dump"); C+=("$N 3.5 Hollow.Gear.Dump"); h "$N 3.7 Hollow.Altar.Dump"
+		# The client faces the core 1.5 s after the host moved it there: the move reaches it through the 150 ms link first.
 		h "$N 4 Hollow.Dev.GoToNearestCore Others"                                   # the Occultist lifts the core...
-		C1+=("$N 4.5 Hollow.Dev.FaceCore"); C1+=("$N 5 Hollow.Interact")
-		h "$N 7 Hollow.Dev.GoToAltar Others"; C1+=("$N 8.5 Hollow.Interact")         # ...and lays it on the altar
+		C1+=("$N 5.5 Hollow.Dev.FaceCore"); C1+=("$N 6 Hollow.Interact")
+		h "$N 7.5 Hollow.Dev.GoToAltar Others"; C1+=("$N 9 Hollow.Interact")         # ...and lays it on the altar
 		h "$N 10 Hollow.Altar.Dump"; C+=("$N 10.5 Hollow.Altar.Dump"); h "$N 10.2 Hollow.AI.Heat"
 		h "$N 31 Hollow.Altar.Dump"; C+=("$N 31.5 Hollow.Altar.Dump")               # done: purified
 		h "$N 31.2 Hollow.Audio.Dump"; C+=("$N 31.7 Hollow.Audio.Dump")
 		h "$N 32 Hollow.AI.Kill"
 		h "$N 33 Hollow.Dev.GoToArc Breaker"; h "$N 34 Hollow.Interact"             # the Engineer cuts an arc's breaker
 		h "$N 35 Hollow.Arc.Dump"; C+=("$N 35.5 Hollow.Arc.Dump")
-		h "$N 37 Hollow.Dev.GoToNearestCore Others"
-		C1+=("$N 37.5 Hollow.Dev.FaceCore"); C1+=("$N 38 Hollow.Interact")          # the purified core
-		h "$N 40 Hollow.Dev.GoToExtraction All"
+		# The purified core sits on the altar's bowl: from in front of the altar (GoToNearestCore may stand diagonally,
+		# where the altar's candles hide the core from the focus probe, KnownIssues RG-3).
+		h "$N 37 Hollow.Dev.GoToAltar Others"
+		C1+=("$N 38.5 Hollow.Dev.FaceCore"); C1+=("$N 39 Hollow.Interact")          # the purified core
+		h "$N 41 Hollow.Dev.GoToExtraction All"
 		# Hub 3 (raid 2's clock): both sectors released and unloaded, the contract kept, the profiles.
 		h "$N 82 obj gc"; C+=("$N 82 obj gc")
 		h "$N 83 Hollow.Sector.Status $D"; h "$N 83.2 Hollow.Sector.Status $K"
 		C+=("$N 83.5 Hollow.Sector.Status $D"); C+=("$N 83.7 Hollow.Sector.Status $K")
 		h "$N 84 Hollow.Hub.Dump"; C+=("$N 84.5 Hollow.Hub.Dump")
-		h "$N 86 Hollow.Profile.Dump"; C+=("$N 87 Hollow.Profile.Dump")
+		h "$N 86 Hollow.Profile.Dump"; C+=("$N 89 Hollow.Profile.Dump")              # the client's ends the run: the host's first
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	screens)
@@ -634,7 +638,10 @@ if [[ "$MODE" == solo || "$MODE" == economy || "$MODE" == screens ]]; then
 	wait_for "$OUT/Host.log" "$END" 400 || echo "the $MODE playthrough did not finish"
 else
 	launch Host "${VIEW[@]}" ${HOST_ARGS[@]+"${HOST_ARGS[@]}"} -ExecCmds="$(join "${H[@]}")"
-	wait_for "$OUT/Host.log" 'listening on port' 240 || { echo "the host never listened"; exit 1; }
+	# The clients start once the host's main menu is up (their "open" waits for the host to listen): the scenarios'
+	# client clocks are tuned to that. Until S7-04 this waited for "listening on port", which the trace server's
+	# "Control listening on port 1985" matched at the same moment; the game's driver listens a menu press later (RG-1).
+	wait_for "$OUT/Host.log" 'UI up for .*[(]main menu[)]' 240 || { echo "the host's menu never came up"; exit 1; }
 	CLIENTS=3
 	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
@@ -647,14 +654,18 @@ else
 	LIMIT=500
 	[[ "$MODE" == soak ]] && LIMIT=$((MINUTES * 60 + 600))
 	# Client 1 runs the scenario's client side and says when it is over; if it dies, say so now (KnownIssues V-6).
+	HOST_WAIT=90   # seconds for the host to host after its menu (one press, a map load)
 	for ((t = 0; t < LIMIT; t++)); do
 		grep -qE "$END" "$OUT/Client1.log" 2> /dev/null && break
 		kill -0 "$CLIENT1" 2> /dev/null || { echo "client 1 died after ${t} s (exit: see ~/Library/Logs/DiagnosticReports)"; break; }
+		((t == HOST_WAIT)) && ! grep -q 'IpNetDriver listening on port' "$OUT/Host.log" && { echo "the host never hosted (its menu press was lost?)"; break; }
 		sleep 1
 	done
 	((t >= LIMIT)) && echo "the $MODE playthrough did not finish"
 fi
 sleep 3
+# The clients first: a host gone before them makes each log "Host closed the connection" as errors (teardown only).
+((${#PIDS[@]} > 1)) && { kill "${PIDS[@]:1}" 2>/dev/null || true; sleep 2; }
 kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 

@@ -177,7 +177,8 @@ function Invoke-Run([string] $Capture, [string] $Measured, [bool] $KillAi) {
     $HostArgs = (Get-View ($Measured -eq 'host'))
     if ($Measured -eq 'host') { $HostArgs += (Get-Trace "$Capture-host") }
     $Processes += Start-Game "$Capture-host" $HostArgs (Get-HostScenario $Capture $KillAi ($Measured -eq 'host'))
-    if (-not (Wait-ForLog $HostLog 'listening on port' $StartupTimeoutSec)) {
+    # The game's driver, not the trace server's "Control listening on port 1985" (KnownIssues RG-1).
+    if (-not (Wait-ForLog $HostLog 'IpNetDriver listening on port' $StartupTimeoutSec)) {
         Write-Host "FAILED: the host never listened (see $HostLog)" -ForegroundColor Red
         $Processes | Stop-Process -Force -ErrorAction SilentlyContinue
         return $null
