@@ -67,3 +67,17 @@
 | `Hollow.PCG.DocksOpenings` | Проём перекрыт, в ошибке — имя актёра |
 | `Hollow.Editor.ArtBudget` | Текстура больше 2048 или декор с коллизией / навигацией |
 | `Hollow.Game.Tool.Mount`, `Hollow.Game.Enemy.Montages` | Ошибка в коде крепления или монтажей, а не в арте (ADR-0027) |
+
+## 6. Склад Fab и подмена слотов ([ADR-0043](../ADR/ADR-0043-art-kit-fab-staging-cc0.md))
+1. **Склад.** `Build/Scripts/create-art-staging.sh` создаёт пустой проект `~/Desktop/HollowArtStaging` вне git. Откройте его в UE 5.8, **Window → Fab → Add to Project**: паки ложатся туда, а не в игру.
+2. **Подготовка.** `Build/Scripts/run-editor-python.sh Build/Python/prepare_fab_assets.py --project ~/Desktop/HollowArtStaging/HollowArtStaging.uproject`:
+   - текстуры — не больше 2048, у мелких пропов (меньше 1 м) — не больше 1024;
+   - мелким пропам ставится профиль `NoCollision` по умолчанию;
+   - у анимаций выключается root motion;
+   - вес каждого пака — в логе и в `Saved/FabReport.json` склада.
+3. **Отбор.** Пак переложите в `/Game/Fab/<Pack>` (правый клик по папке → Move). В `Build/Art/fab_manifest.json`, в `packs[].keep`, впишите только нужные ассеты (зависимости скрипт найдёт сам).
+4. **Перенос.** Тот же запуск с `HOLLOW_FAB_MIGRATE=1`. Скрипт откажется переносить, если `Content/Fab` игры станет тяжелее `budget_mb` (50 МБ, квота GitHub Free LFS).
+5. **Подмена.** В `swaps` манифеста: `{"asset": "/Game/Hollow/Tools/PlasmaCutter/DA_Tool_PlasmaCutter", "property": "held_mesh", "value": "/Game/Fab/<Pack>/SM_Cutter"}`. Компонент блюпринта задаётся ключом `"component"`, например `{"asset": ".../BP_AetherCore", "component": "visual", "property": "static_mesh", ...}`. Затем `Build/Scripts/run-editor-python.sh Build/Python/prepare_fab_assets.py` в игре: проверка `/Game/Fab` и подмены.
+6. **Проверка.** Перед коммитом — `run-tests-mac.sh --strict`. `Hollow.Editor.ArtBudget` сканирует и `/Game/Fab`.
+
+**Сокет `Muzzle`** у меша инструмента обязателен: из него выходит луч. Если у меша Fab сокета нет, добавьте его в Static Mesh Editor на срезе сопла.

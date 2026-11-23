@@ -26,6 +26,11 @@ const FText& UHollowVisorStyle::GetVoiceModeLabel(const EHollowVoiceMode Mode) c
 	return FText::GetEmpty();
 }
 
+const FHollowWaypointLook* UHollowVisorStyle::GetWaypointLook(const EHollowWaypointKind Kind) const
+{
+	return Waypoints.FindByPredicate([Kind](const FHollowWaypointLook& Look) { return Look.Kind == Kind; });
+}
+
 #if WITH_EDITOR
 EDataValidationResult UHollowVisorStyle::IsDataValid(FDataValidationContext& Context) const
 {
@@ -46,7 +51,8 @@ EDataValidationResult UHollowVisorStyle::IsDataValid(FDataValidationContext& Con
 			Result = EDataValidationResult::Invalid;
 		}
 	}
-	const FText* Texts[] = {&ResonanceFormat, &PushToTalkLabel, &OpenMicLabel, &MutedLabel, &TransmittingFormat, &TalkingFormat, &LampOnLabel, &LampOffLabel, &LampFormat, &SupplyFormat, &SupplySeparator};
+	const FText* Texts[] = {&ResonanceFormat, &PushToTalkLabel, &OpenMicLabel, &MutedLabel, &TransmittingFormat, &TalkingFormat, &LampOnLabel, &LampOffLabel, &LampFormat, &SupplyFormat, &SupplySeparator,
+		&ObjectiveTitle, &WaypointFormat, &ControlsTitleFormat, &ControlsTitle};
 	for (const FText* Text : Texts)
 	{
 		if (Text->IsEmpty())
@@ -55,6 +61,24 @@ EDataValidationResult UHollowVisorStyle::IsDataValid(FDataValidationContext& Con
 			Result = EDataValidationResult::Invalid;
 			break;
 		}
+	}
+	// UX-01: every kind of place has its look, once.
+	for (const EHollowWaypointKind Kind : TEnumRange<EHollowWaypointKind>())
+	{
+		const int32 Looks = Waypoints.FilterByPredicate([Kind](const FHollowWaypointLook& Look) { return Look.Kind == Kind; }).Num();
+		const FHollowWaypointLook* Look = GetWaypointLook(Kind);
+		if (Looks != 1 || Look->Label.IsEmpty())
+		{
+			Context.AddError(FText::Format(LOCTEXT("WaypointLook", "{0}: waypoint {1} needs exactly one look with a label (has {2})."), FText::FromName(GetFName()),
+				StaticEnum<EHollowWaypointKind>()->GetDisplayNameTextByValue(static_cast<int64>(Kind)), Looks));
+			Result = EDataValidationResult::Invalid;
+		}
+	}
+	if (WaypointRateHz < MinWaypointRateHz || WaypointRateHz > MaxWaypointRateHz)
+	{
+		Context.AddError(FText::Format(LOCTEXT("WaypointRate", "{0}: the waypoints follow the view at {1}..{2} Hz (has {3})."), FText::FromName(GetFName()),
+			MinWaypointRateHz, MaxWaypointRateHz, WaypointRateHz));
+		Result = EDataValidationResult::Invalid;
 	}
 	return Result;
 }

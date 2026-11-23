@@ -32,6 +32,7 @@
 		{ "Name": "GameFeatures",             "Enabled": true },
 		{ "Name": "ModularGameplay",          "Enabled": true },
 		{ "Name": "MotionWarping",            "Enabled": true },
+		{ "Name": "Niagara",                  "Enabled": true },
 		{ "Name": "Metasound",                "Enabled": true },
 		{ "Name": "AudioModulation",          "Enabled": true },
 		{ "Name": "AudioGameplayVolume",      "Enabled": true },

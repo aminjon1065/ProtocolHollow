@@ -5,6 +5,7 @@
 #include "HollowUISettings.generated.h"
 
 class UCommonActivatableWidget;
+class UHollowControlsHintSet;
 class UHollowInputGlyphSet;
 class UHollowDebriefWidget;
 class UHollowHubScreenWidget;
@@ -73,9 +74,17 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Input")
 	TSoftObjectPtr<UHollowInputGlyphSet> InputGlyphs;
 
+	/** UX-01 (ADR-0042): folds and unfolds the visor's controls cheat sheet (H / View). */
+	UPROPERTY(Config, EditAnywhere, Category = "Input")
+	TSoftObjectPtr<UInputAction> ControlsHintAction;
+
 	/** Tiers, telemetry texts and colours of the visor (S4-08, DA_VisorStyle). */
 	UPROPERTY(Config, EditAnywhere, Category = "Visor")
 	TSoftObjectPtr<UHollowVisorStyle> VisorStyle;
+
+	/** UX-01: the rows of the visor's controls cheat sheet (DA_ControlsHint). */
+	UPROPERTY(Config, EditAnywhere, Category = "Visor")
+	TSoftObjectPtr<UHollowControlsHintSet> ControlsHint;
 
 	/** How often the visor re-traces the active tool's target. */
 	UPROPERTY(Config, EditAnywhere, Category = "Visor", meta = (ClampMin = "1", Units = "Hertz"))

@@ -2,6 +2,7 @@
 
 #include "Engine/DataAsset.h"
 #include "Resonance/HollowResonanceTypes.h"
+#include "Visor/HollowObjectiveRules.h"
 #include "Voice/HollowVoiceRules.h"
 
 #include "HollowVisorStyle.generated.h"
@@ -32,6 +33,22 @@ struct FHollowVisorTierLook
 	float Interference = 0.f;
 };
 
+/** How the visor marks one kind of place (UX-01): its label and colour. */
+USTRUCT(BlueprintType)
+struct FHollowWaypointLook
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints")
+	EHollowWaypointKind Kind = EHollowWaypointKind::Extraction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints")
+	FText Label;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints")
+	FLinearColor Color = FLinearColor::White;
+};
+
 /**
  * The look of the diegetic visor (S4-08, ADR-0026; DA_VisorStyle, chosen in UHollowUISettings): the Resonance tiers,
  * the telemetry's texts and colours. Layout is W_Visor; the glass is M_UI_VisorGlass.
@@ -45,11 +62,18 @@ public:
 	/** No light on the visor pulses faster: three flashes per second is the photosensitive seizure limit (WCAG 2.3.1). */
 	static constexpr float MaxPulseHz = 3.f;
 
+	/** The waypoints follow the view at least this often (a marker lagging behind a turn misleads) and at most this often (UX-01). */
+	static constexpr float MinWaypointRateHz = 1.f;
+	static constexpr float MaxWaypointRateHz = 30.f;
+
 	/** The look of Tier; a calm look if the data lacks it. */
 	const FHollowVisorTierLook& GetTierLook(EHollowResonanceTier Tier) const;
 
 	/** The label of a voice mode. */
 	const FText& GetVoiceModeLabel(EHollowVoiceMode Mode) const;
+
+	/** How Kind is marked; null if the data lacks it. */
+	const FHollowWaypointLook* GetWaypointLook(EHollowWaypointKind Kind) const;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
@@ -113,4 +137,39 @@ public:
 	/** Between two consumables. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Supplies")
 	FText SupplySeparator;
+
+	/** UX-01 (ADR-0042): the tracker's title over the objective. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Objective")
+	FText ObjectiveTitle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Objective")
+	FLinearColor ObjectiveColor = FLinearColor::White;
+
+	/** One per EHollowWaypointKind. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints")
+	TArray<FHollowWaypointLook> Waypoints;
+
+	/** {0} = the place's label, {1} = whole metres to it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints")
+	FText WaypointFormat;
+
+	/** How often the markers follow the view while any is shown (a timer, not Tick). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "1", ClampMax = "30", Units = "Hertz"))
+	float WaypointRateHz = 12.f;
+
+	/** A place this close is not marked (the player stands at it). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "0", Units = "Meters"))
+	float WaypointHideMetres = 0.f;
+
+	/** A marker off screen sits this far inside the visor's edges, with an arrow. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "0"))
+	float WaypointEdgeMargin = 0.f;
+
+	/** The cheat sheet's title: {0} = the key that folds it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controls")
+	FText ControlsTitleFormat;
+
+	/** The title without a key (no local player). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controls")
+	FText ControlsTitle;
 };

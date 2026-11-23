@@ -9,6 +9,8 @@
 #include "HollowExoFrameCharacter.generated.h"
 
 class UCameraComponent;
+class AHollowPlayerState;
+class UHollowClassComponent;
 class UGameplayEffect;
 class UHollowHealthSet;
 class UHollowCarrierComponent;
@@ -87,12 +89,17 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
 	virtual void OnRep_PlayerState() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
 	/** Binds the player state's ability system to this pawn (server and owning client). */
 	void InitializeFromPlayerState();
+
+	/** Art-01: every machine follows the player's class: its colour on the helmet's visor, its tool in hand. */
+	void BindClassLook(AHollowPlayerState* HollowPlayerState);
+	void ApplyClassLook();
 
 	void HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, float Damage);
 	void UnbindHealth();
@@ -122,6 +129,9 @@ private:
 	void HandleInteract();
 	void HandleAbilityInputPressed(FGameplayTag InputTag);
 	void HandleAbilityInputReleased(FGameplayTag InputTag);
+
+	TWeakObjectPtr<UHollowClassComponent> LookClass;
+	FDelegateHandle LookClassHandle;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonMesh;

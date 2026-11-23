@@ -32,7 +32,7 @@ public class HollowUI : ModuleRules
 		{
 			"Slate",
 			"SlateCore",
-			"HollowPhysics"   // automation tests drive the real door (the visor itself only knows Core interfaces)
+			"HollowPhysics"   // the objective follows the Aether cores (UX-01); tests drive the real door
 		});
 	}
 }

@@ -194,7 +194,11 @@ def ensure_contract(spec):
 
 
 def set_part(component, spec):
-    """A greybox part of the terminal: the engine cube sized and placed relative to its base; True if it changed."""
+    """A greybox part of the terminal: the engine cube sized and placed relative to its base; True if it changed.
+    A part the art pass gave its own mesh is left alone."""
+    current = component.get_editor_property("static_mesh")
+    if current is not None and current != load(CUBE):
+        return False   # the art pass dressed it (create_art_kit.py, Art-01): its mesh, place and materials are art's
     scale = tuple(s / SHAPE_SIZE for s in spec["size"])
     wanted_material = material(spec["material"])
     if component.get_editor_property("static_mesh") == load(CUBE) and same_vector(component.get_editor_property("relative_location"), spec["location"]) \

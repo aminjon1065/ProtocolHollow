@@ -62,6 +62,22 @@ PALETTE = {
     "MI_Reactor_Glow": (EMISSIVE, {"Strength": 6.0, "FollowResonance": 1.0}, {"Color": (0.2, 0.9, 1.0)}),
     "MI_Candle_Flame": (EMISSIVE, {"Strength": 12.0}, {"Color": (1.0, 0.65, 0.3)}),
 }
+# Art-01 (ADR-0043): CC0 textures on the stone (create_art_kit.py), outside PALETTE so the rooms' spec hashes stay as they
+# are (no level is re-dressed for a material instance): parameter -> texture, a cold tint, the tile size in uu.
+TEXTURE_DIR = "/Game/Hollow/Art/Textures"
+
+
+def textured(stem, tint, size):
+    return {"textures": {"BaseColorMap": stem + "_D", "NormalMap": stem + "_N", "ARMMap": stem + "_ARM"},
+            "vectors": {"TextureTint": tint}, "scalars": {"TextureSize": size}, "switches": {"UseTextures": True}}
+
+
+PALETTE_TEXTURES = {
+    "MI_Cathedral_Stone": textured("T_CathedralStone", (0.42, 0.44, 0.52), 300.0),
+    "MI_Cathedral_Floor": textured("T_CathedralMarble", (0.3, 0.31, 0.36), 200.0),
+    "MI_Cathedral_Vault": textured("T_CathedralStone", (0.26, 0.28, 0.36), 350.0),
+    "MI_Cathedral_Pier": textured("T_CathedralPier", (0.48, 0.48, 0.54), 150.0),
+}
 SHELL = {"Floor": "MI_Cathedral_Floor", "Ceiling": "MI_Cathedral_Vault", "Wall": "MI_Cathedral_Stone", "Lintel": "MI_Cathedral_Stone"}
 DECOR = {"DecorSolid": "MI_Cathedral_Pier", "DecorVault": "MI_Cathedral_Gilt"}
 
@@ -179,10 +195,24 @@ def ensure_palette():
             if abs(mel.get_material_instance_scalar_parameter_value(instance, key) - value) > 1e-4:
                 mel.set_material_instance_scalar_parameter_value(instance, key, value)
                 changed = True
-        for key, rgb in vectors.items():
+        extra = PALETTE_TEXTURES.get(name, {})
+        for key, value in extra.get("scalars", {}).items():
+            if abs(mel.get_material_instance_scalar_parameter_value(instance, key) - value) > 1e-4:
+                mel.set_material_instance_scalar_parameter_value(instance, key, value)
+                changed = True
+        for key, rgb in list(vectors.items()) + list(extra.get("vectors", {}).items()):
             current = mel.get_material_instance_vector_parameter_value(instance, key)
             if any(abs(a - b) > 1e-4 for a, b in zip((current.r, current.g, current.b), rgb)):
                 mel.set_material_instance_vector_parameter_value(instance, key, unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1.0))
+                changed = True
+        for key, texture in extra.get("textures", {}).items():
+            wanted = load(TEXTURE_DIR + "/" + texture)
+            if mel.get_material_instance_texture_parameter_value(instance, key) != wanted:
+                mel.set_material_instance_texture_parameter_value(instance, key, wanted)
+                changed = True
+        for key, enabled in extra.get("switches", {}).items():
+            if mel.get_material_instance_static_switch_parameter_value(instance, key) != enabled:
+                mel.set_material_instance_static_switch_parameter_value(instance, key, enabled)
                 changed = True
         if changed:
             mel.update_material_instance(instance)

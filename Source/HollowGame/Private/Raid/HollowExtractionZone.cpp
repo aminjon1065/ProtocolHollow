@@ -16,6 +16,7 @@ AHollowExtractionZone::AHollowExtractionZone(const FObjectInitializer& ObjectIni
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;                 // clients see the pad; the zone itself never changes
 	NetDormancy = DORM_DormantAll;
+	bAlwaysRelevant = true;             // the visor's EVAC waypoint on every machine, however far (UX-01); dormant: free
 
 	Volume = CreateDefaultSubobject<UBoxComponent>(TEXT("Volume"));
 	RootComponent = Volume;

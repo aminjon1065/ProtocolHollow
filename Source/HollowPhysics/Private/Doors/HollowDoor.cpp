@@ -78,9 +78,12 @@ void AHollowDoor::BeginPlay()
 	LeafClosedLocation = Leaf->GetRelativeLocation();
 	LeafCollision = Leaf->GetCollisionEnabled();
 	LeafMaterial = Leaf->CreateDynamicMaterialInstance(0);
+	const int32 SeamIndex = SeamSlot.IsNone() ? INDEX_NONE : Leaf->GetMaterialIndex(SeamSlot);
+	SeamMaterial = SeamIndex == INDEX_NONE ? nullptr : Leaf->CreateDynamicMaterialInstance(SeamIndex);
 	StateChangedHandle = DoorState->OnStateChanged.AddUObject(this, &ThisClass::HandleStateChanged);
 	UpdateLeaf();
 	UpdateWeldColor();
+	UpdateSeam(/*bHeat=*/false);   // a door welded before this machine saw it is cold
 }
 
 void AHollowDoor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -209,6 +212,7 @@ void AHollowDoor::HandleStateChanged(const FHollowDoorNetState& Old, const FHoll
 	}
 	PlayStateSounds(Old, New, bFresh);
 	UpdateWeldColor();
+	UpdateSeam(Old.WeldQ != New.WeldQ);   // welding or cutting heats it (a weld change is never "fresh": its pace is throttled)
 	UpdateLeaf();
 	const bool bMoving = New.State == EHollowDoorState::Opening || New.State == EHollowDoorState::Closing;
 	if (bMoving && LeafUpdateRateHz > 0.f && !GetWorld()->GetTimerManager().IsTimerActive(LeafTimer))
@@ -271,6 +275,22 @@ void AHollowDoor::UpdateWeldColor()
 	{
 		const FLinearColor Welded = FLinearColor::LerpUsingHSV(ClosedColor, WeldedColor, DoorState->GetWeld());
 		LeafMaterial->SetVectorParameterValue(WeldColorParameter, FLinearColor::LerpUsingHSV(Welded, DamagedColor, 1.f - DoorState->GetStructure()));
+	}
+}
+
+void AHollowDoor::UpdateSeam(const bool bHeat)
+{
+	if (!SeamMaterial)
+	{
+		return;
+	}
+	if (!SeamWeldParameter.IsNone())
+	{
+		SeamMaterial->SetScalarParameterValue(SeamWeldParameter, DoorState->GetWeld());
+	}
+	if (bHeat && !SeamHeatParameter.IsNone())
+	{
+		SeamMaterial->SetScalarParameterValue(SeamHeatParameter, GetWorld()->GetTimeSeconds());
 	}
 }
 

@@ -55,6 +55,8 @@ class HOLLOWGAME_API AHollowRitualAltar : public AActor, public IHollowInteracta
 	GENERATED_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowAltarStateChanged, const AHollowRitualAltar& /*Altar*/);
+
 	explicit AHollowRitualAltar(const FObjectInitializer& ObjectInitializer);
 
 	const UHollowRitualAltarDefinition* GetDefinition() const { return Definition; }
@@ -67,6 +69,9 @@ public:
 	int32 GetTolls() const { return Tolls; }
 	/** One line for Hollow.Altar.Dump and the smoke logs. */
 	FString Describe() const;
+
+	/** Every machine: the phase this machine shows changed (the visor's objective follows it, UX-01). */
+	FOnHollowAltarStateChanged OnAltarStateChanged;
 
 	// IHollowInteractable
 	virtual FHollowInteractionInfo GetInteractionInfo(const AActor* Interactor) const override;

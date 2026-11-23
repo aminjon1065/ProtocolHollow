@@ -179,6 +179,21 @@ void UHollowGameUserSettings::SetReducedFlashes(const bool bReduced, const bool 
 	OnReducedFlashesChanged.Broadcast();
 }
 
+void UHollowGameUserSettings::SetControlsHintShown(const bool bShown, const bool bSave)
+{
+	if (bShown == bControlsHintShown)
+	{
+		return;
+	}
+	bControlsHintShown = bShown;
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	UE_LOG(LogHollowGame, Display, TEXT("Controls cheat sheet %s"), bShown ? TEXT("shown") : TEXT("folded"));
+	OnControlsHintChanged.Broadcast();
+}
+
 void UHollowGameUserSettings::InitializePreset()
 {
 	if (!FApp::CanEverRender())

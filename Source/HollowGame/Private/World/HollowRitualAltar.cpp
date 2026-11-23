@@ -35,6 +35,7 @@ AHollowRitualAltar::AHollowRitualAltar(const FObjectInitializer& ObjectInitializ
 	bReplicates = true;
 	SetReplicatingMovement(false);   // it stands where the sector put it
 	NetDormancy = DORM_DormantAll;   // nothing to send between its few changes (ADR-0002)
+	bAlwaysRelevant = true;          // a visor waypoint on every machine, however far (UX-01); dormant, so it costs nothing
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -206,6 +207,7 @@ void AHollowRitualAltar::ApplyState()
 	Timers.ClearTimer(FlashTimer);
 	const bool bJustPurified = ShownPhase == EHollowAltarPhase::Ritual && AltarState.Phase == EHollowAltarPhase::Spent;
 	ShownPhase = AltarState.Phase;
+	OnAltarStateChanged.Broadcast(*this);
 	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
 	if (bJustPurified && Audio && Definition->PurifiedSound.IsValid())
 	{

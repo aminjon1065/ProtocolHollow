@@ -32,8 +32,18 @@ public:
 	/** Attaches the meshes to the hand sockets of the first-person and the body meshes. */
 	void AttachToHands(USceneComponent* FirstPersonParent, USceneComponent* ThirdPersonParent);
 
-	/** Shows Tool's held mesh in both hands (none: empty hands). */
+	/** Shows Tool's held mesh in both hands (none: empty hands): the tool in use. */
 	void ShowTool(const UHollowToolDefinition* Tool);
+
+	/** Art-01: the class's own tool replaces DefaultTool as long as no other tool was used (the Occultist holds the lantern). */
+	void SetClassTool(const UHollowToolDefinition* Tool);
+
+	/** Art-01: the held tool glows while it runs (custom primitive data FiringDataIndex of both meshes, 0 or 1). */
+	void SetFiring(bool bFiring);
+	bool IsFiring() const { return bFiringShown; }
+
+	/** Index of the firing flag in the held meshes' custom primitive data (the tools' glow material reads it). */
+	static constexpr int32 FiringDataIndex = 0;
 	const UHollowToolDefinition* GetShownTool() const { return ShownTool.Get(); }
 
 	/**
@@ -61,16 +71,35 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Tool")
 	FName ThirdPersonSocket;
 
+	/**
+	 * Art-01 (ADR-0043): the first-person tool rides the camera at FirstPersonViewOffset instead of the hand (the
+	 * placeholder arms have no first-person holding pose, so a tool in the hand stays out of view). Everyone else
+	 * still sees it in the body's hand; the beam leaves the muzzle the owner sees either way.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Tool")
+	bool bFirstPersonOnCamera = false;
+
+	/** Where the first-person tool sits in the camera's space (forward, right, up) while it rides the camera. */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Tool", meta = (EditCondition = "bFirstPersonOnCamera"))
+	FTransform FirstPersonViewOffset;
+
 	/** In hand from the start, until another tool is used. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Tool")
 	TSoftObjectPtr<UHollowToolDefinition> DefaultTool;
 
 private:
 	void ApplyMesh();
+	/** Shows the class's tool, else DefaultTool, until a tool is used. */
+	void ShowDefault();
+	void Show(const UHollowToolDefinition* Tool);
 
 	TWeakObjectPtr<UStaticMeshComponent> FirstPersonMesh;
 	TWeakObjectPtr<UStaticMeshComponent> ThirdPersonMesh;
 	TWeakObjectPtr<UCameraComponent> Camera;
 	TWeakObjectPtr<const UHollowToolDefinition> ShownTool;
 	TSharedPtr<FStreamableHandle> Loading;
+	TWeakObjectPtr<const UHollowToolDefinition> ClassTool;
+	/** No tool used yet: the hands show the default (the class's tool once it is known). */
+	bool bShowingDefault = true;
+	bool bFiringShown = false;
 };

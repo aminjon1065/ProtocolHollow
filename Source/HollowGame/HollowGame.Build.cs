@@ -39,6 +39,7 @@ public class HollowGame : ModuleRules
 			"AudioGameplay",
 			"AudioGameplayVolume",
 			"Json",
+			"Niagara",   // the tool beam's sparks (Art-01)
 			"RHI",
 			"StateTreeModule",
 			"GameplayStateTreeModule"

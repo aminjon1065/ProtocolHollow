@@ -27,6 +27,7 @@
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "Util/HollowEnumUtils.h"
+#include "ViewModels/HollowObjectiveModel.h"
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "ViewModels/HollowVisorContext.h"
@@ -148,6 +149,10 @@ namespace HollowUIDevConsole
 					UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: raid line \"%s\""), *Raid->GetStatus().ToString());
 				}
 			});
+		}
+		if (const UHollowObjectiveModel* Objective = Context->GetObjective())
+		{
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: %s"), *Objective->Describe());   // UX-01, also when the tracker is hidden
 		}
 		const UHollowPromptModel* Prompt = Context->GetPrompt();
 		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: prompt %d [%s] %s (%s)"), Prompt->IsVisible(), *Prompt->GetKeyLabel().ToString(),

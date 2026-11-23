@@ -48,6 +48,14 @@ public:
 	/** The reduced-flashes choice changed (presentation, visor). */
 	FSimpleMulticastDelegate OnReducedFlashesChanged;
 
+	/** UX-01 (ADR-0042): whether the visor's controls cheat sheet is unfolded (H / View folds it). Unfolded until the player folds it. */
+	bool IsControlsHintShown() const { return bControlsHintShown; }
+
+	/** Folds or unfolds it now (OnControlsHintChanged); bSave keeps it for the next launch. */
+	void SetControlsHintShown(bool bShown, bool bSave = true);
+
+	FSimpleMulticastDelegate OnControlsHintChanged;
+
 	/** Only the preset's scalability and its console variables (what tests check: no window, no saving). */
 	static bool ApplyScalability(const FHollowGraphicsPresetSpec& Spec);
 
@@ -84,4 +92,7 @@ private:
 
 	UPROPERTY(Config)
 	bool bReducedFlashes = false;
+
+	UPROPERTY(Config)
+	bool bControlsHintShown = true;
 };

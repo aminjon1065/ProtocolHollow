@@ -8,6 +8,7 @@ class APawn;
 class UHollowToolDefinition;
 class UAudioComponent;
 class UMaterialInstanceDynamic;
+class UNiagaraComponent;
 class UPointLightComponent;
 class UStaticMeshComponent;
 
@@ -35,6 +36,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Beam")
 	TObjectPtr<UPointLightComponent> Glow;
+
+	/** Art-01 (ADR-0043): sparks where the beam bites (its system is data, GCN_Tool_Beam); only while it hits. */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Beam")
+	TObjectPtr<UNiagaraComponent> Sparks;
 
 	/** Beam refresh rate while the tool runs. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Beam", meta = (ClampMin = "1", Units = "Hertz"))

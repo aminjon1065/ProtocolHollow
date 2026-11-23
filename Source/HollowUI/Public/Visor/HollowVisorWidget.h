@@ -5,7 +5,7 @@
 
 #include "HollowVisorWidget.generated.h"
 
-/** The visor screen on the Game layer: game input, and the system menu action (Esc / Start). */
+/** The visor screen on the Game layer: game input, the system menu action (Esc / Start) and the cheat sheet's (H / View). */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowVisorWidget : public UHollowActivatableWidget
 {
@@ -20,6 +20,9 @@ protected:
 
 private:
 	void OpenSystemMenu();
+	/** UX-01: H / View folds or unfolds the controls cheat sheet (kept in the game's settings). */
+	void ToggleControlsHint();
 
 	FUIActionBindingHandle SystemMenuBinding;
+	FUIActionBindingHandle ControlsHintBinding;
 };

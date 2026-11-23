@@ -10,6 +10,15 @@
   /Game/Hollow/UI/Visor/W_SupplyReadout       "PULSE MINE 2   FUEL CELL 3": the consumables of the raid inventory (S5-01)
   /Game/Hollow/UI/Visor/W_Visor               the visor: glass, crosshair, target, prompt and the telemetry at the edges
                                               (health and stamina, tool fuel and heat, supplies, voice and lamp, Resonance, raid)
+UX-01 (ADR-0042):
+  /Game/Hollow/UI/Visor/M_UI_WaypointMarker   UI material: a diamond (Shape 0) or an edge chevron (Shape 1), tinted by
+                                              the image's colour; MI_UI_WaypointPip / MI_UI_WaypointArrow
+  /Game/Hollow/UI/Visor/W_VisorObjective      "OBJECTIVE" over what to do now
+  /Game/Hollow/UI/Visor/W_VisorWaypoint       one waypoint: pip or arrow, "EVAC 42 m"
+  /Game/Hollow/UI/Visor/W_VisorWaypoints      the full-screen layer the waypoints are placed on
+  /Game/Hollow/UI/Visor/W_ControlsHint        "[H] CONTROLS" and a line per action
+  /Game/Hollow/UI/Visor/DA_ControlsHint       UHollowControlsHintSet: the cheat sheet's rows and class labels
+  /Game/Hollow/UI/Input/IA_ControlsHint       folds the cheat sheet (H / View), mapped in IMC_UI
 
 Nothing heavy: one node-only material and small widget trees. Every asset keeps a hash of its spec (metadata
 "HollowSpec") and is rebuilt only when its spec changes - every save is a new LFS object.
@@ -32,7 +41,35 @@ OVERHEATED_TAG = "Hollow.State.Tool.Overheated"
 SPEC_TAG = "HollowSpec"
 INI = "Config/DefaultGame.ini"
 INI_LINES = ["VisorStyle=/Game/Hollow/UI/Visor/DA_VisorStyle.DA_VisorStyle",
-             "HelmetLampAction=/Game/Hollow/Core/Input/Actions/IA_HelmetLamp.IA_HelmetLamp"]
+             "HelmetLampAction=/Game/Hollow/Core/Input/Actions/IA_HelmetLamp.IA_HelmetLamp",
+             "ControlsHintAction=/Game/Hollow/UI/Input/IA_ControlsHint.IA_ControlsHint",
+             "ControlsHint=/Game/Hollow/UI/Visor/DA_ControlsHint.DA_ControlsHint"]
+
+# UX-01 (ADR-0042): the waypoint marks, the cheat sheet's input and rows.
+MARKER_PATH = VISOR_DIR + "/M_UI_WaypointMarker"
+CLEAR_ATTEMPTS = 16
+MARKER_INSTANCES = {"MI_UI_WaypointPip": 0.0, "MI_UI_WaypointArrow": 1.0}   # Shape
+MARKER = {
+    "version": 3,
+    "diamond": [0.44, 0.48, 0.26, 0.30, 0.35],   # outer edge from..to, hole from..to, fill opacity inside the ring
+    "chevron": [0.22, 1.1, 0.03, 0.17, 0.38],    # tip v, slope, edge softness, band width, half span in u
+}
+INPUT_DIR = "/Game/Hollow/UI/Input"
+CONTROLS_ACTION = "IA_ControlsHint"
+CONTROLS_KEYS = ["H", "Gamepad_Special_Left"]
+CONTROLS_PATH = VISOR_DIR + "/DA_ControlsHint"
+GAME_INPUT_DIR = "/Game/Hollow/Core/Input/Actions"
+ENGINEER, OCCULTIST = "Hollow.Class.Engineer", "Hollow.Class.Occultist"
+# (action, label, {class: own label, "" hides it}, raid only). The keys come from the mapping contexts at run time.
+CONTROLS_ROWS = [
+    ("IA_PrimaryUse", "Tool", {ENGINEER: "Plasma cutter", OCCULTIST: "Aether lantern"}, True),
+    ("IA_SecondaryUse", "Welder", {OCCULTIST: ""}, True),
+    ("IA_Gadget", "Gadget", {ENGINEER: "Pulse mine", OCCULTIST: "Ritual ward"}, True),
+    ("IA_Reload", "Refuel", {}, True),
+    ("IA_HelmetLamp", "Helmet lamp", {}, False),
+    ("IA_PushToTalk", "Voice", {}, False),
+    ("IA_Interact", "Interact", {}, False),
+]
 
 # The glass (data). r is the distance from the centre in half-screens: 0 centre, 1 the middle of an edge, 1.41 a corner.
 GLASS = {
@@ -63,12 +100,26 @@ STYLE_TEXTS = {
     "transmitting_format": "{0}  >> TX", "talking_format": "VOX  {0}",
     "lamp_on_label": "LAMP ON", "lamp_off_label": "LAMP OFF", "lamp_format": "[{0}] {1}",
     "supply_format": "{0} {1}", "supply_separator": "   ",
+    "objective_title": "OBJECTIVE", "waypoint_format": "{0}  {1} m",
+    "controls_title_format": "[{0}] CONTROLS", "controls_title": "CONTROLS",
 }
 STYLE_COLORS = {
     "telemetry_color": (0.6, 0.88, 1.0, 0.9),
     "transmitting_color": (0.45, 1.0, 0.55, 1.0), "muted_color": (0.65, 0.45, 0.45, 0.85),
     "lamp_on_color": (1.0, 0.95, 0.85, 0.9), "lamp_off_color": (0.5, 0.55, 0.6, 0.75),
+    "objective_color": (0.92, 0.95, 1.0, 0.95),
 }
+STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoint_edge_margin": 96.0}
+# Hub terminals pale cyan (the contracts console amber: it launches), extraction green, the vault aether cyan, the
+# altar ritual gold (Docs/Art bible palette).
+WAYPOINT_LOOKS = [
+    ("CONTRACTS", "CONTRACTS", (1.0, 0.72, 0.35, 1.0)),
+    ("WORKBENCH", "WORKBENCH", (0.6, 0.88, 1.0, 1.0)),
+    ("LOCKER", "LOCKER", (0.6, 0.88, 1.0, 1.0)),
+    ("EXTRACTION", "EVAC", (0.45, 1.0, 0.55, 1.0)),
+    ("VAULT", "VAULT", (0.32, 0.85, 0.84, 1.0)),
+    ("ALTAR", "ALTAR", (0.95, 0.8, 0.45, 1.0)),
+]
 
 # Telemetry widgets (data).
 TELEMETRY_TEXT = 16
@@ -84,11 +135,15 @@ WIDGETS = {
     "W_VoiceIndicator": {"version": 1, "text": TELEMETRY_TEXT, "small": TELEMETRY_SMALL, "bar": VOICE_BAR, "gap": GAP},
     "W_LampIndicator": {"version": 1, "text": TELEMETRY_TEXT},
     "W_SupplyReadout": {"version": 1, "text": TELEMETRY_TEXT},
+    "W_VisorObjective": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_TEXT, "wrap": 620.0, "gap": GAP},
+    "W_VisorWaypoint": {"version": 1, "pip": 14.0, "arrow": 26.0, "text": TELEMETRY_SMALL, "gap": GAP},
+    "W_VisorWaypoints": {"version": 1},
+    "W_ControlsHint": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_SMALL, "gap": GAP},
 }
 
 # W_Visor layout (data): distances from the screen edges, inside the glass's rim.
 LAYOUT = {
-    "version": 3,
+    "version": 4,
     "edge": 48.0,
     "crosshair": 6.0,
     "target": [360.0, 48.0, 60.0],             # size, below the crosshair
@@ -97,6 +152,8 @@ LAYOUT = {
     "tool_bar": [300.0, 24.0], "tool_gap": 36.0,
     "supply_above_tools": 72.0,
     "lamp_below_voice": 64.0,
+    "objective_below_voice": 108.0,           # UX-01: under the lamp line
+    "controls_below_readout": 76.0,           # UX-01: under the Resonance readout
     "colors": {"health": (0.75, 0.15, 0.15, 1.0), "stamina": (0.35, 0.85, 0.55, 1.0), "fuel": (0.2, 0.6, 1.0, 1.0),
                "heat": (1.0, 0.55, 0.1, 1.0), "alert": (1.0, 0.1, 0.05, 1.0), "crosshair": (1.0, 1.0, 1.0, 1.0)},
 }
@@ -293,7 +350,7 @@ def ensure_style():
     factory = unreal.DataAssetFactory()
     factory.set_editor_property("data_asset_class", unreal.HollowVisorStyle)
     style, created = existing_or_new(STYLE_PATH, unreal.HollowVisorStyle, factory)
-    spec_hash = digest(TIERS, STYLE_TEXTS, STYLE_COLORS)
+    spec_hash = digest(TIERS, STYLE_TEXTS, STYLE_COLORS, STYLE_SCALARS, WAYPOINT_LOOKS)
     if not created and up_to_date(style, spec_hash):
         return style
     looks = []
@@ -310,9 +367,160 @@ def ensure_style():
         style.set_editor_property(name, unreal.Text(value))
     for name, rgba in STYLE_COLORS.items():
         style.set_editor_property(name, color(rgba))
+    for name, value in STYLE_SCALARS.items():
+        style.set_editor_property(name, value)
+    waypoints = []
+    for kind, label, rgba in WAYPOINT_LOOKS:
+        look = unreal.HollowWaypointLook()
+        look.set_editor_property("kind", getattr(unreal.HollowWaypointKind, kind))
+        look.set_editor_property("label", unreal.Text(label))
+        look.set_editor_property("color", color(rgba))
+        waypoints.append(look)
+    style.set_editor_property("waypoints", waypoints)
     stamp(style, spec_hash)
     log("DA_VisorStyle ready")
     return style
+
+
+# ---------------------------------------------------------------- waypoint marks (UX-01)
+
+def build_marker(material):
+    m = MARKER
+    Add, Sub, Mul = unreal.MaterialExpressionAdd, unreal.MaterialExpressionSubtract, unreal.MaterialExpressionMultiply
+    # delete_all_material_expressions removes about half of a graph per call (it walks the list it edits): repeat.
+    for _ in range(CLEAR_ATTEMPTS):
+        if not mel.get_num_material_expressions(material):
+            break
+        mel.delete_all_material_expressions(material)
+    if mel.get_num_material_expressions(material):
+        raise RuntimeError("M_UI_WaypointMarker kept %d old expressions" % mel.get_num_material_expressions(material))
+    material.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
+    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    g = Graph(material)
+    uv = g.node(unreal.MaterialExpressionTextureCoordinate, 12)
+    offset = g.single(unreal.MaterialExpressionAbs, 10, g.math(Sub, 11, uv, const_b=0.5))
+    ax = g.node(unreal.MaterialExpressionComponentMask, 9, r=True, g=False, b=False, a=False)
+    g.wire(offset, ax)
+    v = g.node(unreal.MaterialExpressionComponentMask, 9, r=False, g=True, b=False, a=False)
+    g.wire(uv, v)
+
+    # The diamond: an opaque ring and a faint inside (|x| + |y| is the distance in the diamond's own metric).
+    out_from, out_to, hole_from, hole_to, fill = m["diamond"]
+    ay = g.node(unreal.MaterialExpressionComponentMask, 9, r=False, g=True, b=False, a=False)
+    g.wire(offset, ay)
+    metric = g.math(Add, 8, ax, ay)
+    inside = g.single(unreal.MaterialExpressionOneMinus, 6, g.smooth(7, out_from, out_to, metric))
+    core = g.single(unreal.MaterialExpressionOneMinus, 6, g.smooth(7, hole_from, hole_to, metric))
+    ring = g.math(Sub, 5, inside, core)
+    diamond = g.math(Add, 4, ring, g.math(Mul, 5, core, const_b=fill))
+
+    # The chevron pointing up: a band under the line v = tip + slope |x|, cut at the span's ends.
+    tip, slope, soft, band, span = m["chevron"]
+    above = g.math(Sub, 7, v, g.math(Add, 8, g.math(Mul, 9, ax, const_b=slope), const_b=tip))
+    lower = g.smooth(6, -soft, soft, above)
+    upper = g.single(unreal.MaterialExpressionOneMinus, 5, g.smooth(6, band - soft, band + soft, above))
+    ends = g.single(unreal.MaterialExpressionOneMinus, 5, g.smooth(6, span - soft, span + soft, ax))
+    chevron = g.math(Mul, 3, g.math(Mul, 4, lower, upper), ends)
+
+    shape = g.scalar("Shape", 4)
+    lerp = g.node(unreal.MaterialExpressionLinearInterpolate, 2)
+    g.wire(diamond, lerp, "A")
+    g.wire(chevron, lerp, "B")
+    g.wire(shape, lerp, "Alpha")
+    # The image's colour tints it (UMG passes it as the vertex colour; its main output is RGB only).
+    tint = g.node(unreal.MaterialExpressionVertexColor, 4)
+    opacity = g.single(unreal.MaterialExpressionSaturate, 1, lerp)
+    if not mel.connect_material_property(tint, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
+        raise RuntimeError("Could not connect the marker colour")
+    if not mel.connect_material_property(opacity, "", unreal.MaterialProperty.MP_OPACITY):
+        raise RuntimeError("Could not connect the marker opacity")
+    mel.recompile_material(material)
+
+
+def ensure_marker_material():
+    material, created = existing_or_new(MARKER_PATH, unreal.Material, unreal.MaterialFactoryNew())
+    spec_hash = digest(MARKER)
+    if created or not up_to_date(material, spec_hash):
+        build_marker(material)
+        stamp(material, spec_hash)
+        log("M_UI_WaypointMarker built (%d expressions)" % mel.get_num_material_expressions(material))
+    instances = {}
+    for name, shape in MARKER_INSTANCES.items():
+        instance, made = existing_or_new(VISOR_DIR + "/" + name, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        instance_hash = digest(MARKER, name, shape)
+        if made or not up_to_date(instance, instance_hash):
+            instance.set_editor_property("parent", material)
+            mel.set_material_instance_scalar_parameter_value(instance, "Shape", shape)
+            stamp(instance, instance_hash)
+            log(name + " ready")
+        instances[name] = instance
+    return instances
+
+
+# ---------------------------------------------------------------- the cheat sheet (UX-01)
+
+def make_key(name):
+    key = unreal.Key()
+    if not key.import_text(name):
+        raise RuntimeError("Unknown key " + name)
+    return key
+
+
+def ensure_controls_input():
+    """IA_ControlsHint, a UI action like the system menu's, and its keys in IMC_UI (create_ui_assets.py)."""
+    path = INPUT_DIR + "/" + CONTROLS_ACTION
+    action, created = existing_or_new(path, unreal.InputAction, unreal.InputAction_Factory())
+    if created:
+        action.set_editor_property("value_type", unreal.InputActionValueType.BOOLEAN)
+        action.set_editor_property("consume_input", False)   # CommonUI reads it; it never takes a key from the game
+        save(action)
+        log("created " + CONTROLS_ACTION)
+    context = load(INPUT_DIR + "/IMC_UI")
+    data = context.get_editor_property("default_key_mappings")
+    entries = list(data.get_editor_property("mappings"))
+    known = set((e.get_editor_property("action").get_path_name(), e.get_editor_property("key").export_text()) for e in entries
+                if e.get_editor_property("action") is not None)
+    added = 0
+    for key_name in CONTROLS_KEYS:
+        key = make_key(key_name)
+        if (action.get_path_name(), key.export_text()) in known:
+            continue
+        entry = unreal.EnhancedActionKeyMapping()
+        entry.set_editor_property("action", action)
+        entry.set_editor_property("key", key)
+        entries.append(entry)
+        added += 1
+    if added:
+        data.set_editor_property("mappings", entries)
+        context.set_editor_property("default_key_mappings", data)
+        save(context)
+        log("IMC_UI: %d cheat sheet key(s) mapped" % added)
+
+
+def ensure_controls_rows():
+    factory = unreal.DataAssetFactory()
+    factory.set_editor_property("data_asset_class", unreal.HollowControlsHintSet)
+    rows_asset, created = existing_or_new(CONTROLS_PATH, unreal.HollowControlsHintSet, factory)
+    spec_hash = digest(CONTROLS_ROWS)
+    if not created and up_to_date(rows_asset, spec_hash):
+        return
+    rows = []
+    for action, label, class_labels, raid_only in CONTROLS_ROWS:
+        row = unreal.HollowControlsHintRow()
+        row.set_editor_property("action", load(GAME_INPUT_DIR + "/" + action))
+        row.set_editor_property("label", unreal.Text(label))
+        own = []
+        for class_tag, class_label in sorted(class_labels.items()):
+            entry = unreal.HollowControlsClassLabel()
+            entry.set_editor_property("class_tag", make_tag(class_tag))
+            entry.set_editor_property("label", unreal.Text(class_label))
+            own.append(entry)
+        row.set_editor_property("class_labels", own)
+        row.set_editor_property("raid_only", raid_only)
+        rows.append(row)
+    rows_asset.set_editor_property("rows", rows)
+    stamp(rows_asset, spec_hash)
+    log("DA_ControlsHint ready (%d rows)" % len(rows))
 
 
 # ---------------------------------------------------------------- widgets
@@ -453,6 +661,80 @@ def ensure_supply():
     finish(blueprint, spec)
 
 
+def image_size(size):
+    vector = unreal.DeprecateSlateVector2D()   # Slate's float vector type
+    vector.set_editor_property("x", size)
+    vector.set_editor_property("y", size)
+    return vector
+
+
+def marker_image(blueprint, name, parent, instance, size):
+    image = add(blueprint, unreal.Image, name, parent)
+    brush = image.get_editor_property("brush")
+    brush.set_editor_property("resource_object", instance)
+    brush.set_editor_property("draw_as", unreal.SlateBrushDrawType.IMAGE)
+    brush.set_editor_property("image_size", image_size(size))
+    image.set_editor_property("brush", brush)
+    box_slot(image, H.H_ALIGN_CENTER, V.V_ALIGN_CENTER)
+    return image
+
+
+def ensure_objective():
+    spec = WIDGETS["W_VisorObjective"]
+    blueprint = widget_blueprint("W_VisorObjective", unreal.HollowObjectiveWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.VerticalBox, "Root")
+    title = add(blueprint, unreal.TextBlock, "TitleText", "Root")
+    telemetry_text(title, spec["title"])
+    box_slot(title, H.H_ALIGN_LEFT, V.V_ALIGN_TOP)
+    text = add(blueprint, unreal.TextBlock, "ObjectiveText", "Root")
+    telemetry_text(text, spec["text"])
+    text.set_editor_property("wrap_text_at", spec["wrap"])
+    box_slot(text, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(0.0, spec["gap"], 0.0, 0.0))
+    finish(blueprint, spec)
+
+
+def ensure_waypoint(instances):
+    spec = WIDGETS["W_VisorWaypoint"]
+    blueprint = widget_blueprint("W_VisorWaypoint", unreal.HollowWaypointMarkerWidget, dict(spec, marks=sorted(MARKER_INSTANCES), marker=MARKER))
+    if blueprint is None:
+        return
+    add(blueprint, unreal.VerticalBox, "Root")
+    marks = add(blueprint, unreal.Overlay, "Marks", "Root")
+    box_slot(marks, H.H_ALIGN_CENTER, V.V_ALIGN_TOP)
+    marker_image(blueprint, "Pip", "Marks", instances["MI_UI_WaypointPip"], spec["pip"])
+    marker_image(blueprint, "Arrow", "Marks", instances["MI_UI_WaypointArrow"], spec["arrow"])
+    label = add(blueprint, unreal.TextBlock, "LabelText", "Root")
+    telemetry_text(label, spec["text"], unreal.TextJustify.CENTER)
+    box_slot(label, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, spec["gap"], 0.0, 0.0))
+    finish(blueprint, dict(spec, marks=sorted(MARKER_INSTANCES), marker=MARKER))
+
+
+def ensure_waypoint_layer():
+    spec = WIDGETS["W_VisorWaypoints"]
+    blueprint = widget_blueprint("W_VisorWaypoints", unreal.HollowWaypointLayerWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.CanvasPanel, "MarkerCanvas")
+    finish(blueprint, spec)
+
+
+def ensure_controls():
+    spec = WIDGETS["W_ControlsHint"]
+    blueprint = widget_blueprint("W_ControlsHint", unreal.HollowControlsHintWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.VerticalBox, "Root")
+    title = add(blueprint, unreal.TextBlock, "TitleText", "Root")
+    telemetry_text(title, spec["title"])
+    box_slot(title, H.H_ALIGN_LEFT, V.V_ALIGN_TOP)
+    rows = add(blueprint, unreal.TextBlock, "ListText", "Root")
+    telemetry_text(rows, spec["text"])
+    box_slot(rows, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(0.0, spec["gap"], 0.0, 0.0))
+    finish(blueprint, spec)
+
+
 def configure_bar(bar, label, set_name, attribute, max_attribute, fill_color, alert_tag=None):
     bar.set_editor_property("label", unreal.Text(label))
     bar.set_editor_property("attribute", make_attribute(set_name, attribute))
@@ -464,7 +746,7 @@ def configure_bar(bar, label, set_name, attribute, max_attribute, fill_color, al
 
 
 def visor_spec():
-    return {"layout": LAYOUT, "widgets": sorted(WIDGETS)}
+    return {"layout": LAYOUT, "widgets": sorted(WIDGETS), "waypoint": "W_VisorWaypoint"}
 
 
 def ensure_visor():
@@ -485,6 +767,10 @@ def ensure_visor():
     # material drawn in the same layer as text after the text (the glass covered the telemetry).
     add(blueprint, unreal.Overlay, "Layers")
     box_slot(add(blueprint, cls("W_VisorFrame"), "VisorFrame", "Layers"))
+    # UX-01: the waypoints over the glass, under the telemetry; the layer places its markers itself.
+    waypoints = add(blueprint, cls("W_VisorWaypoints"), "Waypoints", "Layers")
+    waypoints.set_editor_property("marker_class", cls("W_VisorWaypoint"))
+    box_slot(waypoints)
     root = add(blueprint, unreal.CanvasPanel, "Root", "Layers")
     box_slot(root)
 
@@ -530,6 +816,12 @@ def ensure_visor():
     canvas_slot(raid, top_centre, top_centre, unreal.Vector2D(0.0, edge), auto_size=True)
     readout = add(blueprint, cls("W_ResonanceReadout"), "ResonanceReadout", "Root")
     canvas_slot(readout, top_right, top_right, unreal.Vector2D(-edge, edge), auto_size=True)
+
+    # UX-01: what to do now under the lamp, the controls under Resonance.
+    objective = add(blueprint, cls("W_VisorObjective"), "Objective", "Root")
+    canvas_slot(objective, top_left, top_left, unreal.Vector2D(edge, edge + L["objective_below_voice"]), auto_size=True)
+    controls = add(blueprint, cls("W_ControlsHint"), "ControlsHint", "Root")
+    canvas_slot(controls, top_right, top_right, unreal.Vector2D(-edge, edge + L["controls_below_readout"]), auto_size=True)
     finish(blueprint, spec)
 
 
@@ -553,16 +845,41 @@ def validate():
     check(all(0.0 <= t.get_editor_property("pulse_hz") <= 3.0 for t in tiers), "no visor pulse over 3 Hz")
     for path, parent in (("W_VisorFrame", unreal.HollowVisorFrameWidget), ("W_ResonanceReadout", unreal.HollowResonanceReadoutWidget),
                          ("W_VoiceIndicator", unreal.HollowVoiceIndicatorWidget), ("W_LampIndicator", unreal.HollowLampIndicatorWidget),
-                         ("W_SupplyReadout", unreal.HollowSupplyReadoutWidget), ("W_Visor", unreal.HollowVisorWidget)):
+                         ("W_SupplyReadout", unreal.HollowSupplyReadoutWidget), ("W_VisorObjective", unreal.HollowObjectiveWidget),
+                         ("W_VisorWaypoint", unreal.HollowWaypointMarkerWidget), ("W_VisorWaypoints", unreal.HollowWaypointLayerWidget),
+                         ("W_ControlsHint", unreal.HollowControlsHintWidget), ("W_Visor", unreal.HollowVisorWidget)):
         blueprint = load(VISOR_DIR + "/" + path)
         generated = blueprint.generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
         spec = visor_spec() if path == "W_Visor" else WIDGETS[path]
+        if path == "W_VisorWaypoint":
+            spec = dict(spec, marks=sorted(MARKER_INSTANCES), marker=MARKER)
         check(up_to_date(blueprint, digest(spec)), path + " matches its spec")
     visor = load(VISOR_DIR + "/W_Visor")
     for name in ("Layers", "VisorFrame", "Root", "Crosshair", "TargetStatus", "InteractionPrompt", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar",
-                 "VoiceIndicator", "LampIndicator", "SupplyReadout", "RaidStatus", "ResonanceReadout"):
+                 "VoiceIndicator", "LampIndicator", "SupplyReadout", "RaidStatus", "ResonanceReadout", "Waypoints", "Objective", "ControlsHint"):
         check(author.find_widget(visor, name) is not None, "W_Visor shows " + name)
+    check(author.find_widget(visor, "Waypoints").get_editor_property("marker_class") == load(VISOR_DIR + "/W_VisorWaypoint").generated_class(),
+          "the waypoint layer places W_VisorWaypoint")
+    # UX-01: every kind of place has its look; the marks; the cheat sheet's action, keys and rows.
+    looks = style.get_editor_property("waypoints")
+    check(len(looks) == len(WAYPOINT_LOOKS) and len(set(str(l.get_editor_property("kind")) for l in looks)) == len(WAYPOINT_LOOKS), "a look per waypoint kind")
+    check(1.0 <= style.get_editor_property("waypoint_rate_hz") <= 30.0, "waypoints follow the view at 1..30 Hz")
+    marker = load(MARKER_PATH)
+    check(marker.get_editor_property("material_domain") == unreal.MaterialDomain.MD_UI and up_to_date(marker, digest(MARKER)), "M_UI_WaypointMarker")
+    check("Shape" in [str(n) for n in mel.get_scalar_parameter_names(marker)], "M_UI_WaypointMarker has Shape")
+    for name, shape in MARKER_INSTANCES.items():
+        instance = load(VISOR_DIR + "/" + name)
+        check(instance.get_editor_property("parent") == marker and abs(mel.get_material_instance_scalar_parameter_value(instance, "Shape") - shape) < 1e-4,
+              name + " is the marker with Shape %.0f" % shape)
+    action = load(INPUT_DIR + "/" + CONTROLS_ACTION)
+    check(not action.get_editor_property("consume_input"), CONTROLS_ACTION + " never consumes its keys")
+    mappings = load(INPUT_DIR + "/IMC_UI").get_editor_property("default_key_mappings").get_editor_property("mappings")
+    known = set((m.get_editor_property("action").get_path_name(), m.get_editor_property("key").export_text()) for m in mappings if m.get_editor_property("action"))
+    for key_name in CONTROLS_KEYS:
+        check((action.get_path_name(), make_key(key_name).export_text()) in known, "IMC_UI maps %s to %s" % (key_name, CONTROLS_ACTION))
+    rows = load(CONTROLS_PATH)
+    check(up_to_date(rows, digest(CONTROLS_ROWS)) and len(rows.get_editor_property("rows")) == len(CONTROLS_ROWS), "DA_ControlsHint matches its spec")
     with open(unreal.Paths.project_dir() + INI) as ini:
         text = ini.read()
     for line in INI_LINES:
@@ -573,11 +890,18 @@ def validate():
 def main():
     glass = ensure_glass()
     ensure_style()
+    instances = ensure_marker_material()
+    ensure_controls_input()
+    ensure_controls_rows()
     ensure_frame(glass)
     ensure_readout()
     ensure_voice()
     ensure_lamp()
     ensure_supply()
+    ensure_objective()
+    ensure_waypoint(instances)
+    ensure_waypoint_layer()
+    ensure_controls()
     ensure_visor()
     validate()
     unreal.log(SUCCESS_MARKER)

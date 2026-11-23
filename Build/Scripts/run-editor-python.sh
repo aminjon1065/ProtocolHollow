@@ -2,9 +2,10 @@
 # Runs an editor-only Python content script headless (ADR-0010) and fails unless the script reported success.
 # The script must log the marker "HOLLOW_PYTHON_OK" when done and call unreal.SystemLibrary.quit_editor().
 #
-# Usage:  Build/Scripts/run-editor-python.sh <script.py> [--no-build] [--timeout 1800]
+# Usage:  Build/Scripts/run-editor-python.sh <script.py> [--no-build] [--timeout 1800] [--project PATH.uproject]
 #   --no-build  skip build-editor-mac.sh (default: incremental build + zero-warning gate first)
 #   --timeout   seconds before the editor is killed (default: 1800)
+#   --project   run it in another project (no build), e.g. the Fab staging of Build/Scripts/create-art-staging.sh
 # Env:    UE_ROOT  engine root (default: /Users/Shared/Epic Games/UE_5.8)
 #
 # Exit codes: 0 success | 1 script failed (no success marker) | 2 usage or environment | 6 timeout | 7 build failed
@@ -16,11 +17,13 @@ SUCCESS_MARKER="HOLLOW_PYTHON_OK"
 SCRIPT=""
 DO_BUILD=1
 TIMEOUT_SEC=1800
+UPROJECT=""
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--no-build) DO_BUILD=0; shift ;;
 		--timeout)  TIMEOUT_SEC="${2:?--timeout needs a value}"; shift 2 ;;
+		--project)  UPROJECT="${2:?--project needs a .uproject}"; DO_BUILD=0; shift 2 ;;   # another project (Art-01: the Fab staging)
 		-h|--help)  sed -n '2,10p' "$0"; exit 0 ;;
 		-*)         echo "Unknown argument: $1" >&2; exit 2 ;;
 		*)          SCRIPT="$1"; shift ;;
@@ -32,6 +35,11 @@ if [[ -z "${SCRIPT}" || ! -f "${SCRIPT}" ]]; then
 	exit 2
 fi
 SCRIPT="$(cd "$(dirname "${SCRIPT}")" && pwd)/$(basename "${SCRIPT}")"
+if [[ -n "${UPROJECT}" && ! -f "${UPROJECT}" ]]; then
+	echo "Project not found: '${UPROJECT}'" >&2
+	exit 2
+fi
+UPROJECT="${UPROJECT:-${HOLLOW_UPROJECT}}"
 hollow_require_tools "${HOLLOW_EDITOR_CMD}"
 
 if [[ ${DO_BUILD} -eq 1 ]] && ! hollow_build_editor; then
@@ -46,7 +54,7 @@ mkdir -p "${RUN_DIR}"
 echo "Running ${SCRIPT} (timeout ${TIMEOUT_SEC}s) -> ${RUN_DIR}"
 EDITOR_EXIT=0
 hollow_run_editor_with_timeout "${TIMEOUT_SEC}" "${RUN_DIR}/Console.txt" "${EDITOR_LOG}" \
-	"${HOLLOW_EDITOR_CMD}" "${HOLLOW_UPROJECT}" \
+	"${HOLLOW_EDITOR_CMD}" "${UPROJECT}" \
 	-ExecutePythonScript="${SCRIPT}" \
 	-unattended -nullrhi -nosplash -nosound -nop4 \
 	-abslog="${EDITOR_LOG}" || EDITOR_EXIT=$?

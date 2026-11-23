@@ -207,3 +207,17 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
   - **Награда на экране:** `FHollowContractOffer` по правилу эвакуации `FHollowExtractionResolver::ItemEarnings` с бонусом ядер игрока; строка роли `W_ContractTerminal` — сводка выбора, у гостя вживую.
   - **Утечки:** `Hollow.Sector.Status` печатает `references` и `loaded` (пакеты плагина в памяти).
   - **Тесты** `Hollow.Game.{Raid.ContractSector, Sector.Switch}`, расширены `Hub.{Data, Terminals}` и `UI.Hub.{Rules, Contracts}`; смоук `playthrough-mac.sh biomes` (Доки → хаб → Собор → хаб); `perf-capture-mac.sh --contract`, `perf-e9-win64.ps1 -Contract`.
+
+- **UX-01 «Цель, маркеры, шпаргалка»** ([ADR-0042](../ADR/ADR-0042-objective-tracker-waypoints-controls.md)), после плейтеста:
+  - **Цель:** чистые правила `HollowObjectiveRules` и модель `UHollowObjectiveModel` в контексте визора — только события фазы рейда, ядер, алтаря, терминалов и смерти. Цены — через `ItemEarnings` с бонусом игрока.
+  - **Маркеры:** `UHollowWaypointLayerWidget` (12 Гц, математика `HollowWaypointMath`) и `W_VisorWaypoint` (`M_UI_WaypointMarker`).
+  - **Шпаргалка:** `UHollowControlsHintWidget` + `DA_ControlsHint`, `IA_ControlsHint` (H / View), состояние в `UHollowGameUserSettings`.
+  - **Сеть:** `bAlwaysRelevant` у зоны и алтаря, новый `AHollowRitualAltar::OnAltarStateChanged`.
+  - **Тесты** `Hollow.UI.{Objective.Rules, Waypoint.Math, Visor.Objective, Visor.HubObjective, Visor.ControlsHint}`; смоук `playthrough-mac.sh guide`.
+- **Art-01 «Без greybox»** ([ADR-0043](../ADR/ADR-0043-art-kit-fab-staging-cc0.md)):
+  - **Меши:** `Build/Blender/hollow_kit.py` + `create_art_kit.py` (23 меша, 7 мастеров и 23 MI, 18 CC0-текстур, части персонажей, привязки к инструментам, ядру, двери, терминалу, cue и персонажам, оформление хаба).
+  - **Комнаты:** `create_docks_look.py` (оболочки Доков), ветка `UseTextures` в `M_Hollow_Surface`.
+  - **C++:** `UHollowCosmeticPartsComponent` / `UHollowCosmeticPartSet` (HollowCore, на `AHollowCharacterBase`), `UHollowClassDefinition::HeldTool`, инструмент у камеры, свечение и искры Niagara, шов двери.
+  - **Склад Fab:** `create-art-staging.sh`, `prepare_fab_assets.py`, `fetch-cc0-textures.sh`, `run-editor-python.sh --project`.
+  - **Dev-команды** `Hollow.Art.{Showcase, View, Dump}`.
+  - **Тесты** `Hollow.Game.Art.{CosmeticParts, ToolInHand, DoorSeam, Kit}`.

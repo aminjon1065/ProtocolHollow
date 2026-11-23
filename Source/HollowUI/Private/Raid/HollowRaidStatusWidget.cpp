@@ -5,6 +5,7 @@
 #include "Foundation/HollowUISettings.h"
 #include "Raid/HollowRaidStateComponent.h"
 #include "TimerManager.h"
+#include "Visor/HollowObjectiveRules.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowRaidStatusWidget)
 
@@ -14,17 +15,6 @@ namespace HollowRaidStatusPrivate
 {
 	/** Retry while the game state has not replicated yet. */
 	constexpr float BindRetrySeconds = 0.5f;
-	constexpr int32 SecondsPerMinute = 60;
-	constexpr int32 ClockSecondDigits = 2;
-
-	/** m:ss, the visor's clock. */
-	FText Clock(const int32 Seconds)
-	{
-		FNumberFormattingOptions TwoDigits;
-		TwoDigits.MinimumIntegralDigits = ClockSecondDigits;
-		const int32 Clamped = FMath::Max(Seconds, 0);
-		return FText::Format(INVTEXT("{0}:{1}"), FText::AsNumber(Clamped / SecondsPerMinute), FText::AsNumber(Clamped % SecondsPerMinute, &TwoDigits));
-	}
 }
 
 UHollowRaidStatusWidget::UHollowRaidStatusWidget(const FObjectInitializer& ObjectInitializer)
@@ -96,7 +86,7 @@ FText UHollowRaidStatusWidget::GetStatus() const
 		return FText::GetEmpty();
 	}
 	const FHollowRaidNetState& Net = State->GetState();
-	const FText Left = HollowRaidStatusPrivate::Clock(FMath::CeilToInt(State->GetSecondsLeft()));
+	const FText Left = HollowObjectiveRules::Clock(FMath::CeilToInt(State->GetSecondsLeft()));
 	switch (Net.Phase)
 	{
 	case EHollowRaidPhase::Deploying:

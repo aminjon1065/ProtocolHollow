@@ -7,6 +7,7 @@
 #include "HollowCharacterBase.generated.h"
 
 class UHollowAbilitySystemComponent;
+class UHollowCosmeticPartsComponent;
 
 /**
  * Shared base of players (ExoFrame) and enemies: ability system access and owned gameplay tags.
@@ -34,7 +35,13 @@ public:
 	 */
 	FOnHollowAbilitySystemChanged OnAbilitySystemChanged;
 
+	/** Armour and anatomy on the skeleton (Art-01, ADR-0043): which parts is data (BP); purely local cosmetics. */
+	UHollowCosmeticPartsComponent* GetCosmeticParts() const { return CosmeticParts; }
+
 protected:
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Art")
+	TObjectPtr<UHollowCosmeticPartsComponent> CosmeticParts;
+
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** Makes this character the avatar of an ability system owned by InOwnerActor (player state or itself). */

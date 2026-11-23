@@ -5,12 +5,16 @@
 #include "Audio/HollowAudioSubsystem.h"
 #include "Audio/HollowFootstepAudioComponent.h"
 #include "Camera/CameraComponent.h"
-#include "Character/HollowFootstepNoiseComponent.h"
 #include "Carry/HollowCarrierComponent.h"
+#include "Character/HollowFootstepNoiseComponent.h"
+#include "Classes/HollowClassComponent.h"
+#include "Classes/HollowClassDefinition.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Cosmetics/HollowCosmeticParts.h"
+#include "Data/HollowToolDefinition.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
@@ -55,6 +59,7 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	FirstPersonMesh->SetOnlyOwnerSee(true);
 	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 	FirstPersonMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	CosmeticParts->Setup(GetMesh(), FirstPersonMesh);   // Art-01: bracers on the first-person hands too
 
 	// Offsets, field of view and first-person scale are data (BP_ExoFrame).
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
@@ -138,6 +143,7 @@ void AHollowExoFrameCharacter::InitializeFromPlayerState()
 	}
 	InitializeAbilitySystem(HollowPlayerState->GetHollowAbilitySystemComponent(), HollowPlayerState);
 	HollowPlayerState->GetVoiceTalker()->RefreshPlacement();   // the voice comes from this helmet now (S4-07)
+	BindClassLook(HollowPlayerState);
 
 	// The server learns of death from the health set (on the player state); clients follow the replicated flag.
 	const UHollowAbilitySystemComponent* AbilitySystem = GetHollowAbilitySystemComponent();
@@ -148,6 +154,49 @@ void AHollowExoFrameCharacter::InitializeFromPlayerState()
 		OutOfHealthHandle = Health->OnOutOfHealth.AddUObject(this, &ThisClass::HandleOutOfHealth);
 		BoundHealthSet = Health;
 	}
+}
+
+void AHollowExoFrameCharacter::BindClassLook(AHollowPlayerState* HollowPlayerState)
+{
+	UHollowClassComponent* Class = UHollowClassComponent::Get(HollowPlayerState);
+	if (LookClass.Get() != Class)
+	{
+		if (UHollowClassComponent* Old = LookClass.Get())
+		{
+			Old->OnClassChanged.Remove(LookClassHandle);
+		}
+		LookClass = Class;
+		if (Class)
+		{
+			LookClassHandle = Class->OnClassChanged.AddWeakLambda(this, [this](const FPrimaryAssetId&) { ApplyClassLook(); });
+		}
+	}
+	ApplyClassLook();
+}
+
+void AHollowExoFrameCharacter::ApplyClassLook()
+{
+	const UHollowClassComponent* Class = LookClass.Get();
+	const UHollowClassDefinition* Definition = Class ? Class->GetDefinition() : nullptr;
+	if (!Definition)
+	{
+		return;
+	}
+	if (UHollowCosmeticPartsComponent* Parts = GetCosmeticParts())
+	{
+		Parts->SetTint(Definition->VisorColor);
+	}
+	ToolMount->SetClassTool(Definition->HeldTool.LoadSynchronous());   // a small data asset; its mesh loads asynchronously
+}
+
+void AHollowExoFrameCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UHollowClassComponent* Class = LookClass.Get())
+	{
+		Class->OnClassChanged.Remove(LookClassHandle);
+	}
+	LookClass.Reset();
+	Super::EndPlay(EndPlayReason);
 }
 
 void AHollowExoFrameCharacter::UnbindHealth()

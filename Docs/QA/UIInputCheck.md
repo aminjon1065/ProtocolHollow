@@ -37,3 +37,14 @@
 | H9 | B / Esc на любом экране | Экран закрыт, мышь снова управляет камерой, E у терминала открывает его снова |
 
 Результат (Mac / Windows, модель геймпада, отклонения) запишите в описание коммита или в issue.
+
+## Цель, маркеры и шпаргалка (UX-01, [ADR-0042](../ADR/ADR-0042-objective-tracker-waypoints-controls.md))
+| Шаг | Ожидание |
+|---|---|
+| Хаб, клавиатура | Слева вверху «OBJECTIVE / 1/2 Check the workbench or the locker»; маркеры CONTRACTS, WORKBENCH, LOCKER с метрами; справа «[H] CONTROLS» и строки F / V / E |
+| Открыть верстак (E), закрыть (Esc) | Под экраном маркеров нет; после — «2/2 Go to the contracts console…» (у гостя «…the host launches the raid») |
+| H | Шпаргалка сворачивается до «[H] CONTROLS», второй раз — разворачивается; после перезапуска игры состояние то же |
+| Геймпад: любая кнопка, затем View | Подписи становятся глифами геймпада (RT, LT, RB, Y, D-Up, LB, X), заголовок «[View] CONTROLS»; View сворачивает |
+| Рейд: старт | «Find the Aether core in the vault», маркеры VAULT и EVAC; позади — стрелка у края экрана |
+| Поднять ядро в Соборе | «Purify the core at the Altar (1,250 cr) or carry it to extraction (500 cr)» — цены свои (с апгрейдом 1,500 / 600), маркеры ALTAR и EVAC |
+| Ритуал, очищенное ядро, зона | «Guard the Altar…», «Deliver the core…», «Hold the zone until departure 0:42» с обратным отсчётом |

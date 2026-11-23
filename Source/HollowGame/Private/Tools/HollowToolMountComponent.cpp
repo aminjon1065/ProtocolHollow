@@ -70,16 +70,54 @@ void UHollowToolMountComponent::AttachToHands(USceneComponent* FirstPersonParent
 		UE_CLOG(!bHasSocket, LogHollowGame, Warning, TEXT("%s: %s has no socket %s for the tool in hand."), *GetNameSafe(GetOwner()), *Parent->GetName(), *Socket.ToString());
 		Mesh->AttachToComponent(Parent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, bHasSocket ? Socket : NAME_None);
 	};
-	Attach(FirstPersonMesh.Get(), FirstPersonParent, FirstPersonSocket);
+	if (bFirstPersonOnCamera && Camera.IsValid() && FirstPersonMesh.IsValid())
+	{
+		FirstPersonMesh->AttachToComponent(Camera.Get(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
+	else
+	{
+		Attach(FirstPersonMesh.Get(), FirstPersonParent, FirstPersonSocket);
+	}
 	Attach(ThirdPersonMesh.Get(), ThirdPersonParent, ThirdPersonSocket);
 }
 
 void UHollowToolMountComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	if (!ShownTool.IsValid() && !DefaultTool.IsNull())
+	if (!ShownTool.IsValid() && bShowingDefault)
 	{
-		ShowTool(DefaultTool.LoadSynchronous());   // a small data asset (the tool abilities hold it anyway); its mesh loads asynchronously
+		ShowDefault();
+	}
+}
+
+void UHollowToolMountComponent::ShowDefault()
+{
+	// A small data asset (the tool abilities hold it anyway); its mesh loads asynchronously.
+	const UHollowToolDefinition* Tool = ClassTool.IsValid() ? ClassTool.Get() : DefaultTool.LoadSynchronous();
+	if (Tool)
+	{
+		Show(Tool);
+	}
+}
+
+void UHollowToolMountComponent::SetClassTool(const UHollowToolDefinition* Tool)
+{
+	ClassTool = Tool;
+	if (bShowingDefault && Tool && HasBegunPlay())
+	{
+		ShowDefault();
+	}
+}
+
+void UHollowToolMountComponent::SetFiring(const bool bFiring)
+{
+	bFiringShown = bFiring;
+	for (UStaticMeshComponent* Component : {FirstPersonMesh.Get(), ThirdPersonMesh.Get()})
+	{
+		if (Component)
+		{
+			Component->SetCustomPrimitiveDataFloat(FiringDataIndex, bFiring ? 1.f : 0.f);
+		}
 	}
 }
 
@@ -94,6 +132,12 @@ void UHollowToolMountComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 }
 
 void UHollowToolMountComponent::ShowTool(const UHollowToolDefinition* Tool)
+{
+	bShowingDefault = false;   // a tool was used: it stays in hand
+	Show(Tool);
+}
+
+void UHollowToolMountComponent::Show(const UHollowToolDefinition* Tool)
 {
 	if (ShownTool.Get() == Tool && Tool)
 	{
@@ -128,8 +172,9 @@ void UHollowToolMountComponent::ApplyMesh()
 	{
 		if (Component)
 		{
+			const bool bOnCamera = bFirstPersonOnCamera && Component == FirstPersonMesh.Get() && Component->GetAttachParent() == Camera.Get();
 			Component->SetStaticMesh(Mesh);
-			Component->SetRelativeTransform(Tool ? Tool->HeldTransform : FTransform::Identity);
+			Component->SetRelativeTransform(bOnCamera ? FirstPersonViewOffset : Tool ? Tool->HeldTransform : FTransform::Identity);
 			Component->SetVisibility(Mesh != nullptr);
 		}
 	}

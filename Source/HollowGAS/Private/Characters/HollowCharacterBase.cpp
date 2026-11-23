@@ -1,6 +1,7 @@
 #include "Characters/HollowCharacterBase.h"
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Cosmetics/HollowCosmeticParts.h"
 #include "HollowGASLog.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowCharacterBase)
@@ -9,6 +10,8 @@ AHollowCharacterBase::AHollowCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = false;   // CLAUDE.md sec. 1: event-driven, no Tick
+	CosmeticParts = CreateDefaultSubobject<UHollowCosmeticPartsComponent>(TEXT("CosmeticParts"));
+	CosmeticParts->Setup(GetMesh(), nullptr);
 }
 
 UAbilitySystemComponent* AHollowCharacterBase::GetAbilitySystemComponent() const

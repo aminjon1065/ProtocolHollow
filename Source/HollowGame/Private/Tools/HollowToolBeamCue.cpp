@@ -10,6 +10,7 @@
 #include "GameFramework/Pawn.h"
 #include "HollowGameLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "NiagaraComponent.h"
 #include "TimerManager.h"
 #include "Tools/HollowToolAim.h"
 #include "Tools/HollowToolMountComponent.h"
@@ -34,6 +35,13 @@ AHollowToolBeamCue::AHollowToolBeamCue(const FObjectInitializer& ObjectInitializ
 	Glow->SetUsingAbsoluteScale(true);
 	Glow->SetCastShadows(false);
 	Glow->SetVisibility(false);
+
+	Sparks = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Sparks"));
+	Sparks->SetupAttachment(Beam);
+	Sparks->SetUsingAbsoluteLocation(true);
+	Sparks->SetUsingAbsoluteRotation(true);
+	Sparks->SetUsingAbsoluteScale(true);
+	Sparks->SetAutoActivate(false);
 }
 
 bool AHollowToolBeamCue::OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters)
@@ -57,6 +65,10 @@ bool AHollowToolBeamCue::OnActive_Implementation(AActor* MyTarget, const FGamepl
 		Mount->ShowTool(Tool.Get());   // the running tool in hand on this machine too (cosmetic; the cue is what replicates)
 	}
 	Beam->SetVisibility(true);
+	if (UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(Wielder.Get()))
+	{
+		Mount->SetFiring(true);   // Art-01: the nozzle glows while it runs
+	}
 	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))
 	{
 		Sound = Audio->PlayAttached(Tool->NoiseTag, Wielder->GetRootComponent());
@@ -73,6 +85,11 @@ bool AHollowToolBeamCue::OnRemove_Implementation(AActor* MyTarget, const FGamepl
 	GetWorld()->GetTimerManager().ClearTimer(UpdateTimer);
 	Beam->SetVisibility(false);
 	Glow->SetVisibility(false);
+	Sparks->Deactivate();
+	if (UHollowToolMountComponent* Mount = UHollowToolMountComponent::Get(Wielder.Get()))
+	{
+		Mount->SetFiring(false);
+	}
 	if (Sound)
 	{
 		Sound->Stop();
@@ -107,4 +124,17 @@ void AHollowToolBeamCue::UpdateBeam()
 	SetActorTransform(FTransform(FRotationMatrix::MakeFromZ(Span).Rotator(), Muzzle + Span * 0.5, Scale));
 	Glow->SetWorldLocation(Impact);
 	Glow->SetVisibility(bHit);
+	// Sparks spray back from where the beam bites; none into thin air.
+	if (bHit && Sparks->GetAsset())
+	{
+		Sparks->SetWorldLocationAndRotation(Impact, (-Span).Rotation());
+		if (!Sparks->IsActive())
+		{
+			Sparks->Activate(/*bReset=*/true);
+		}
+	}
+	else if (Sparks->IsActive())
+	{
+		Sparks->Deactivate();
+	}
 }

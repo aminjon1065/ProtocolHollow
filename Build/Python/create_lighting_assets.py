@@ -47,6 +47,7 @@ SHAPE_SIZE = 100.0            # engine basic shapes are 100 uu
 SPEC_TAG = "HollowSpec"
 # Bumped when the way rigs are built changes (2: fixtures and dressing without collision through their profile).
 RIG_VERSION = 2
+CLEAR_ATTEMPTS = 16
 MANAGED_TAG = "HollowLighting"
 MARKER_LABEL = "HollowLightingSpec"
 LEGACY_LIGHT = "Light"        # the single greybox light of create_docks_greybox.py before S4-03
@@ -73,16 +74,31 @@ DYING = {"version": 1, "from": 0.5, "span": 0.5, "slow_hz": 0.43, "fast_hz": 9.1
 # Critical strobe a sine of strobe_hz dimming down to 1 - strobe_depth.
 REDUCED = {"version": 1, "dropout_level": 0.8, "brownout_share": 0.5, "strobe_hz": 0.5, "strobe_depth": 0.5}
 MAX_REDUCED_HZ = 2.0
-SURFACE_SPEC = {"version": 1, "grime_floor": 0.6, "grime_gain": 3.0, "grime_roughness": 0.5, "grime_darken": 0.6}
+SURFACE_SPEC = {"version": 2, "grime_floor": 0.6, "grime_gain": 3.0, "grime_roughness": 0.5, "grime_darken": 0.6,
+                # Art-01 (ADR-0043): CC0 textures behind the static switch UseTextures, projected along the face's dominant
+                # world axis (the greybox boxes have no useful UVs); the axis picks with this sharpness.
+                "axis_sharpness": 1000.0, "ao_strength": 0.6}
+TEXTURE_DIR = "/Game/Hollow/Art/Textures"   # create_art_kit.py (CC0, Build/Art/cc0_textures.json)
+SURFACE_TEXTURES = {"BaseColorMap": ("T_RustyMetal_D", "SAMPLERTYPE_COLOR"), "NormalMap": ("T_RustyMetal_N", "SAMPLERTYPE_NORMAL"),
+                    "ARMMap": ("T_RustyMetal_ARM", "SAMPLERTYPE_MASKS")}
 SURFACE_DEFAULTS = {"scalars": {"Metallic": 0.7, "Roughness": 0.45, "PanelSize": 200.0, "SeamWidth": 1.5, "SeamDarken": 0.6, "GrimeScale": 150.0,
-                                "GrimeAmount": 0.35, "StripeWidth": 30.0, "StripeAmount": 0.0},
-                    "vectors": {"BaseColor": (0.18, 0.19, 0.2), "StripeColor": (0.02, 0.02, 0.02)}}
+                                "GrimeAmount": 0.35, "StripeWidth": 30.0, "StripeAmount": 0.0, "TextureSize": 200.0, "NormalStrength": 0.8},
+                    "vectors": {"BaseColor": (0.18, 0.19, 0.2), "StripeColor": (0.02, 0.02, 0.02), "TextureTint": (1.0, 1.0, 1.0)}}
 EMISSIVE_DEFAULTS = {"scalars": {"Strength": 5.0, "FollowResonance": 0.0}, "vectors": {"Color": (1.0, 1.0, 1.0)}}
+# Art-01: the hull wears CC0 textures (UseTextures); its tint keeps the dark Docks palette.
+HULL_WALL_TEXTURES = {"BaseColorMap": "T_RustyMetal_D", "NormalMap": "T_RustyMetal_N", "ARMMap": "T_RustyMetal_ARM"}
+HULL_FLOOR_TEXTURES = {"BaseColorMap": "T_MetalPlate_D", "NormalMap": "T_MetalPlate_N", "ARMMap": "T_MetalPlate_ARM"}
+HULL_CEILING_TEXTURES = {"BaseColorMap": "T_CorrugatedIron_D", "NormalMap": "T_CorrugatedIron_N", "ARMMap": "T_CorrugatedIron_ARM"}
 MATERIAL_INSTANCES = {
-    "MI_Hull_Wall": (SURFACE, {"scalars": {"Metallic": 0.6, "Roughness": 0.5}, "vectors": {"BaseColor": (0.2, 0.21, 0.22)}}),
-    "MI_Hull_Floor": (SURFACE, {"scalars": {"Metallic": 0.8, "Roughness": 0.65, "PanelSize": 100.0, "GrimeAmount": 0.5},
-                                "vectors": {"BaseColor": (0.08, 0.085, 0.09)}}),
-    "MI_Hull_Ceiling": (SURFACE, {"scalars": {"Metallic": 0.5, "Roughness": 0.7}, "vectors": {"BaseColor": (0.12, 0.12, 0.13)}}),
+    "MI_Hull_Wall": (SURFACE, {"scalars": {"Metallic": 0.6, "Roughness": 0.5, "TextureSize": 250.0, "GrimeAmount": 0.25},
+                               "vectors": {"BaseColor": (0.2, 0.21, 0.22), "TextureTint": (0.3, 0.33, 0.37)},
+                               "textures": HULL_WALL_TEXTURES, "switches": {"UseTextures": True}}),
+    "MI_Hull_Floor": (SURFACE, {"scalars": {"Metallic": 0.8, "Roughness": 0.65, "PanelSize": 100.0, "GrimeAmount": 0.4, "TextureSize": 150.0},
+                                "vectors": {"BaseColor": (0.08, 0.085, 0.09), "TextureTint": (0.5, 0.52, 0.55)},
+                                "textures": HULL_FLOOR_TEXTURES, "switches": {"UseTextures": True}}),
+    "MI_Hull_Ceiling": (SURFACE, {"scalars": {"Metallic": 0.5, "Roughness": 0.7, "TextureSize": 200.0},
+                                  "vectors": {"BaseColor": (0.12, 0.12, 0.13), "TextureTint": (0.35, 0.37, 0.4)},
+                                  "textures": HULL_CEILING_TEXTURES, "switches": {"UseTextures": True}}),
     "MI_Pipe": (SURFACE, {"scalars": {"Metallic": 0.9, "Roughness": 0.35, "PanelSize": 1000.0, "GrimeAmount": 0.25},
                           "vectors": {"BaseColor": (0.35, 0.3, 0.24)}}),
     "MI_Hazard": (SURFACE, {"scalars": {"Metallic": 0.2, "Roughness": 0.6, "StripeAmount": 1.0, "StripeWidth": 25.0},
@@ -332,7 +348,10 @@ def rebuild_if_changed(path, factory, spec, build):
     material, created = existing_or_new(path, unreal.Material, factory)
     if not created and assets.get_metadata_tag(material, SPEC_TAG) == digest(spec):
         return material
-    mel.delete_all_material_expressions(material)
+    for _ in range(CLEAR_ATTEMPTS):   # delete_all_material_expressions removes about half a graph per call
+        if not mel.get_num_material_expressions(material):
+            break
+        mel.delete_all_material_expressions(material)
     build(material)
     mel.recompile_material(material)
     assets.set_metadata_tag(material, SPEC_TAG, digest(spec))
@@ -394,8 +413,42 @@ def build_surface(material):
     grime_shade = g.single(unreal.MaterialExpressionOneMinus, 2, g.mul(3, grime, const=s["grime_darken"]))
     colour_out = g.mul(1, g.mul(2, base, seam_shade), grime_shade)
     roughness = g.lerp(1, g.scalar(2, "Roughness", scalars["Roughness"]), g.const(2, 1.0), g.mul(2, grime, const=s["grime_roughness"]))
-    for source, prop in ((colour_out, unreal.MaterialProperty.MP_BASE_COLOR), (roughness, unreal.MaterialProperty.MP_ROUGHNESS),
-                         (g.scalar(1, "Metallic", scalars["Metallic"]), unreal.MaterialProperty.MP_METALLIC)):
+    metallic = g.scalar(1, "Metallic", scalars["Metallic"])
+
+    # Art-01 (ADR-0043): CC0 textures, one sample each, projected along the face's dominant world axis.
+    OneMinus, Append = unreal.MaterialExpressionOneMinus, unreal.MaterialExpressionAppendVector
+    nx, ny, nz = g.mask(11, normal, "r"), g.mask(11, normal, "g"), g.mask(11, normal, "b")
+    is_x = g.saturate(9, g.mul(10, g.sub(10, nx, g.math(Max, 11, ny, nz)), const=s["axis_sharpness"]))
+    is_y = g.mul(9, g.saturate(10, g.mul(10, g.sub(11, ny, nz), const=s["axis_sharpness"])), g.single(OneMinus, 10, is_x))
+    is_z = g.single(OneMinus, 8, g.add(9, is_x, is_y))
+    px, py, pz = g.mask(11, position, "r"), g.mask(11, position, "g"), g.mask(11, position, "b")
+    uv = g.add(7, g.add(8, g.mul(9, g.math(Append, 10, py, pz), is_x), g.mul(9, g.math(Append, 10, px, pz), is_y)),
+               g.mul(8, g.math(Append, 10, px, py), is_z))
+    uv = g.div(6, uv, g.scalar(7, "TextureSize", scalars["TextureSize"]))
+    maps = {}
+    for name, (texture, sampler) in sorted(SURFACE_TEXTURES.items()):
+        sample = g.node(unreal.MaterialExpressionTextureSampleParameter2D, 5, parameter_name=name, texture=load(TEXTURE_DIR + "/" + texture),
+                        sampler_type=getattr(unreal.MaterialSamplerType, sampler))
+        g.wire(uv, sample, "UVs")
+        maps[name] = sample
+    arm = maps["ARMMap"]
+    ao = g.lerp(3, g.const(4, 1.0), g.mask(4, arm, "r"), g.const(4, s["ao_strength"]))
+    textured_colour = g.mul(1, g.mul(2, g.mul(3, g.mul(4, maps["BaseColorMap"], g.vector(5, "TextureTint", vectors["TextureTint"])), ao), seam_shade), grime_shade)
+    textured_roughness = g.lerp(1, g.mask(2, arm, "g"), g.const(2, 1.0), g.mul(2, grime, const=s["grime_roughness"]))
+    textured_metallic = g.mul(1, g.mask(2, arm, "b"), metallic)
+    flat = g.node(unreal.MaterialExpressionConstant3Vector, 3, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    textured_normal = g.lerp(1, flat, maps["NormalMap"], g.scalar(2, "NormalStrength", scalars["NormalStrength"]))
+
+    def switch(textured, plain):
+        expression = g.node(unreal.MaterialExpressionStaticSwitchParameter, 0, parameter_name="UseTextures", default_value=False)
+        g.wire(textured, expression, "True")
+        g.wire(plain, expression, "False")
+        return expression
+
+    for source, prop in ((switch(textured_colour, colour_out), unreal.MaterialProperty.MP_BASE_COLOR),
+                         (switch(textured_roughness, roughness), unreal.MaterialProperty.MP_ROUGHNESS),
+                         (switch(textured_metallic, metallic), unreal.MaterialProperty.MP_METALLIC),
+                         (switch(textured_normal, flat), unreal.MaterialProperty.MP_NORMAL)):
         if not mel.connect_material_property(source, "", prop):
             raise RuntimeError("Could not connect M_Hollow_Surface")
 
@@ -442,6 +495,15 @@ def ensure_materials():
             current = mel.get_material_instance_vector_parameter_value(instance, parameter)
             if any(abs(a - b) > 1e-4 for a, b in zip((current.r, current.g, current.b), rgb)):
                 mel.set_material_instance_vector_parameter_value(instance, parameter, linear(rgb))
+                changed = True
+        for parameter, texture in values.get("textures", {}).items():
+            wanted = load(TEXTURE_DIR + "/" + texture)
+            if mel.get_material_instance_texture_parameter_value(instance, parameter) != wanted:
+                mel.set_material_instance_texture_parameter_value(instance, parameter, wanted)
+                changed = True
+        for parameter, enabled in values.get("switches", {}).items():
+            if mel.get_material_instance_static_switch_parameter_value(instance, parameter) != enabled:
+                mel.set_material_instance_static_switch_parameter_value(instance, parameter, enabled)
                 changed = True
         if changed:
             mel.update_material_instance(instance)

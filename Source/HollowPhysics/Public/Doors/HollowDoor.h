@@ -35,6 +35,9 @@ public:
 	explicit AHollowDoor(const FObjectInitializer& ObjectInitializer);
 
 	UHollowDoorStateComponent* GetDoorState() const { return DoorState; }
+
+	/** Art-01: the leaf's weld seam material (null without a seam slot); tests and Hollow.Art.Dump. */
+	UMaterialInstanceDynamic* GetSeamMaterial() const { return SeamMaterial; }
 	UStaticMeshComponent* GetLeaf() const { return Leaf; }
 	UNavLinkCustomComponent* GetNavLink() const { return NavLink; }
 	/** Area of the nav link (server: the navmesh exists only there). */
@@ -115,12 +118,28 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Door")
 	FLinearColor DamagedColor = FLinearColor::White;
 
+	/**
+	 * Art-01 (ADR-0043): the leaf's material slot of its weld seam (none: no seam). The seam gets its own dynamic
+	 * instance: SeamWeldParameter = how welded (0..1), SeamHeatParameter = the world time it was last welded or cut, so
+	 * the material glows red-hot then cools by itself (no Tick, every machine from the replicated weld).
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Door|Art")
+	FName SeamSlot;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Door|Art")
+	FName SeamWeldParameter;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Door|Art")
+	FName SeamHeatParameter;
+
 private:
 	void HandleStateChanged(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, bool bFresh);
 	/** Every machine: servo on a fresh motion, the crash of a fresh breach, a blow as it lands (DA_SoundBank, ADR-0022). */
 	void PlayStateSounds(const FHollowDoorNetState& Old, const FHollowDoorNetState& New, bool bFresh) const;
 	void UpdateLeaf();
 	void UpdateWeldColor();
+	/** Art-01: the seam's weld, and its heat when the weld just changed here (bHeat). */
+	void UpdateSeam(bool bHeat);
 	void UpdateNavArea();
 	void TearLeafOff(bool bBackwards);
 	void HandleTornLeafExpired();
@@ -136,6 +155,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> LeafMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> SeamMaterial;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> TornLeaf;

@@ -6,6 +6,8 @@
 
 #include "HollowClassDefinition.generated.h"
 
+class UHollowToolDefinition;
+
 class UGameplayEffect;
 class UHollowAbilitySet;
 struct FHollowClassTerms;
@@ -60,7 +62,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout", meta = (TitleProperty = "Item"))
 	TArray<FHollowLoadoutSlot> StartingLoadout;
 
-	/** Its players' visor telemetry colour. */
+	/** Its players' visor telemetry colour; also the glow of their helmet's visor (Art-01). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visor")
 	FLinearColor VisorColor = FLinearColor::White;
+
+	/** The tool its players hold until they use another (Art-01): the class's main tool (the Occultist's lantern). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Art")
+	TSoftObjectPtr<UHollowToolDefinition> HeldTool;
 };

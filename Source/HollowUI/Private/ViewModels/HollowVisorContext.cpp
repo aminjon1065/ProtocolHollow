@@ -18,6 +18,7 @@
 #include "InputAction.h"
 #include "Resonance/HollowSquadResonanceComponent.h"
 #include "ViewModels/HollowInputGlyphSet.h"
+#include "ViewModels/HollowObjectiveModel.h"
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "Visor/HollowVisorStyle.h"
@@ -61,10 +62,16 @@ void UHollowVisorContext::Initialize(APlayerController* InPlayer)
 	ToolTarget = NewObject<UHollowToolTargetModel>(this);
 	ToolTarget->Initialize(*this, Settings->TargetProbeRateHz, Settings->TargetLingerSeconds);
 	SetCharacter(Cast<AHollowExoFrameCharacter>(InPlayer->GetPawn()));
+	Objective = NewObject<UHollowObjectiveModel>(this);
+	Objective->Initialize(*this);   // after the character: it binds the ability system the context found
 }
 
 void UHollowVisorContext::Deinitialize()
 {
+	if (Objective)
+	{
+		Objective->Deinitialize();
+	}
 	SetCharacter(nullptr);
 	if (UHollowClassComponent* Old = ClassComponent.Get())
 	{
