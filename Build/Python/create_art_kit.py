@@ -41,7 +41,8 @@ KIT_DIR = ART + "/Kit"
 MAT_DIR = ART + "/Materials"
 TEX_DIR = ART + "/Textures"
 PARTS_DIR = ART + "/Parts"
-SPARKS_PATH = "/Game/Hollow/FX/NS_Tool_BeamSparks"
+FX_DIR = "/Game/Hollow/FX"
+SPARKS_PATH = FX_DIR + "/NS_Tool_BeamSparks"
 LANTERN_CUE = "/Game/Hollow/GAS/Cues/GCN_Tool_Lantern"
 LANTERN_FLASH = {"flash_intensity_scale": 2.0, "flash_seconds": 0.3}   # AK-8: the cone flares as the lantern lights
 # AK-8: one stream of orange-white sparks, each a short streak along its flight, falling and bouncing off the floor
@@ -65,12 +66,46 @@ SPARKS = {
         ("Collision.Restitution", "0.4"), ("Collision.Friction", "0.35"),
     ],
 }
+# GP-01 (ADR-0044): a shot's effects, one-shot bursts (DirectionalBurst: one burst, then done, so the pool takes them back)
+# with +Z along the shot (UHollowWeaponFireCue). The tracer is one fast streak killed where it collides.
+BURST_EMITTER = "/Niagara/DefaultAssets/Templates/Emitters/DirectionalBurst.DirectionalBurst"
+COLLISION_MODULE = "/Niagara/Modules/Collision/Collision.Collision"
+WEAPON_FX = {
+    "NS_Weapon_MuzzleFlash": {"version": 1, "modules": [], "constants": [
+        ("SpawnBurst_Instantaneous.Spawn Count", "40"), ("AddVelocity.Cone Axis", "(X=0,Y=0,Z=1)"), ("AddVelocity.Cone Angle", "22"),
+        ("RandomRangeFloat001.Minimum", "400"), ("RandomRangeFloat001.Maximum", "1400"),
+        ("InitializeParticle.Lifetime Min", "0.035"), ("InitializeParticle.Lifetime Max", "0.07"),
+        ("InitializeParticle.Sprite Size Min", "(X=2,Y=6)"), ("InitializeParticle.Sprite Size Max", "(X=4,Y=16)"),
+        ("InitializeParticle.Color", "(R=12.0,G=6.0,B=2.5,A=1.0)"), ("GravityForce.Gravity", "(X=0,Y=0,Z=0)"),
+        ("SolveForcesAndVelocity.Speed Limit", "3000")]},
+    "NS_Weapon_Tracer": {"version": 1, "modules": [COLLISION_MODULE], "constants": [
+        ("SpawnBurst_Instantaneous.Spawn Count", "1"), ("AddVelocity.Cone Axis", "(X=0,Y=0,Z=1)"), ("AddVelocity.Cone Angle", "0"),
+        ("RandomRangeFloat001.Minimum", "24000"), ("RandomRangeFloat001.Maximum", "24000"),
+        ("InitializeParticle.Lifetime Min", "0.07"), ("InitializeParticle.Lifetime Max", "0.07"),
+        ("InitializeParticle.Sprite Size Min", "(X=2.5,Y=90)"), ("InitializeParticle.Sprite Size Max", "(X=2.5,Y=90)"),
+        ("ScaleSpriteSizeBySpeed.Min Scale Factor", "(X=1,Y=1)"), ("ScaleSpriteSizeBySpeed.Max Scale Factor", "(X=1,Y=1)"),
+        ("InitializeParticle.Color", "(R=6.0,G=4.0,B=1.6,A=1.0)"), ("GravityForce.Gravity", "(X=0,Y=0,Z=0)"),
+        ("SolveForcesAndVelocity.Speed Limit", "30000"), ("Collision.Kill On Collision", "1")]},
+    "NS_Weapon_Impact": {"version": 1, "modules": [], "constants": [
+        ("SpawnBurst_Instantaneous.Spawn Count", "14"), ("AddVelocity.Cone Axis", "(X=0,Y=0,Z=1)"), ("AddVelocity.Cone Angle", "55"),
+        ("RandomRangeFloat001.Minimum", "200"), ("RandomRangeFloat001.Maximum", "700"),
+        ("InitializeParticle.Lifetime Min", "0.15"), ("InitializeParticle.Lifetime Max", "0.35"),
+        ("InitializeParticle.Sprite Size Min", "(X=1.5,Y=4)"), ("InitializeParticle.Sprite Size Max", "(X=2.5,Y=9)"),
+        ("InitializeParticle.Color", "(R=6.0,G=2.0,B=0.4,A=1.0)")]},
+}
+WEAPON_FX_SLOTS = {"muzzle_flash": "NS_Weapon_MuzzleFlash", "tracer": "NS_Weapon_Tracer", "impact": "NS_Weapon_Impact"}
 SPARK_MATERIAL = MAT_DIR + "/M_Kit_Spark"
 SPARK_STREAK = (0.015, 0.07, 2.5)   # the streak's half width from..to (of the sprite's width), the white core's boost
 COLLECTION = "/Game/Hollow/FX/Resonance/MPC_Resonance"
 REDUCED_FLASHES = "ReducedFlashes"
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 BLENDER_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_kit.py")
+# GP-01 (ADR-0044): the combat kit (weapons) is its own script reusing hollow_kit.py's primitives, so a mesh's hash
+# follows its own script and the art kit's meshes stay as they are.
+COMBAT_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_combat_kit.py")
+# GP-02 (ADR-0047): the creature kit (the Whisperers and their nests), its own script for the same reason.
+CREATURE_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_creature_kit.py")
+SCRIPTS = {"kit": BLENDER_SCRIPT, "combat": COMBAT_SCRIPT, "creature": CREATURE_SCRIPT}
 WORK = os.path.join(PROJECT, "Intermediate", "HollowArt")
 CC0_MANIFEST = os.path.join(PROJECT, "Build", "Art", "cc0_textures.json")
 BLENDER = [os.environ.get("HOLLOW_BLENDER", ""), "/Applications/Blender.app/Contents/MacOS/Blender",
@@ -107,6 +142,18 @@ MESHES = {
     "SM_Stalker_Spines": {"kind": "stalker_spines"},
     "SM_Stalker_Eyes": {"kind": "stalker_eyes"},
     "SM_Stalker_Blade": {"kind": "stalker_blade"},
+    # GP-01 (ADR-0044): the weapons, muzzles along +X, the tools' grip.
+    "SM_Weapon_Nailgun": {"kind": "nailgun", "script": "combat"},
+    "SM_Weapon_Shotgun": {"kind": "shotgun", "script": "combat"},
+    # GP-01b (ADR-0045): loot on the floor.
+    "SM_Pickup_Scrap": {"kind": "pickup_scrap", "script": "combat"},
+    "SM_Pickup_Shard": {"kind": "pickup_shard", "script": "combat"},
+    "SM_Pickup_FuelCell": {"kind": "pickup_fuelcell", "script": "combat"},
+    "SM_Pickup_Nails": {"kind": "pickup_ammo", "script": "combat"},
+    "SM_Pickup_Shells": {"kind": "pickup_ammo", "script": "combat", "tall": True},
+    # GP-02 (ADR-0047): a Whisperer (front along +X, origin on the floor) and its nest.
+    "SM_Whisperer_Body": {"kind": "whisperer", "script": "creature"},
+    "SM_Whisperer_Nest": {"kind": "whisperer_nest", "script": "creature"},
 }
 COLLIDING = {"SM_Door_Leaf", "SM_Hub_Console"}   # a box round it; everything else is looks only
 MAX_TRIANGLES = 6000                              # per kit mesh (Hollow.Editor.ArtKit checks the same)
@@ -120,6 +167,7 @@ VISOR_MASTER = MAT_DIR + "/M_Kit_Visor"
 SEAM_MASTER = MAT_DIR + "/M_Kit_WeldSeam"
 HAZARD_MASTER = MAT_DIR + "/M_Kit_Hazard"
 SCREEN_MASTER = MAT_DIR + "/M_Kit_Screen"
+CREATURE_MASTER = MAT_DIR + "/M_Kit_Creature"   # GP-02: shell, scuttling legs and eyes of a Whisperer, its nest
 MASTERS_VERSION = 2
 # A pulse never faster than 3 Hz (photosensitivity); the reduced-flashes choice holds every one steady (H-1, ADR-0029).
 MATERIALS = {
@@ -149,6 +197,15 @@ MATERIALS = {
                                       "CoolSeconds": 4.0}),
     "MI_Kit_Hazard": (HAZARD_MASTER, {"ColorA": (0.86, 0.32, 0.03), "ColorB": (0.02, 0.02, 0.02), "Stripes": 4.0}),
     "MI_Kit_Screen": (SCREEN_MASTER, {"ScreenColor": (0.25, 0.85, 0.8), "Strength": 2.5, "Lines": 120.0}),
+    # GP-02: a Whisperer - dark oily chitin, steel-dark legs that scuttle (their tips lift, 3 Hz), pale violet eyes that
+    # flare white-hot in a beam (AHollowWhisperer's custom data; steady with reduced flashes); its nest's flesh and pods.
+    "MI_Kit_WhispererShell": (CREATURE_MASTER, {"Color": (0.022, 0.018, 0.026), "Metallic": 0.5, "Roughness": 0.3}),
+    "MI_Kit_WhispererLegs": (CREATURE_MASTER, {"Color": (0.035, 0.032, 0.034), "Metallic": 0.85, "Roughness": 0.38, "Swing": 2.5,
+                                               "SwingHz": 3.0, "LegHeight": 18.0}),
+    "MI_Kit_WhispererEyes": (CREATURE_MASTER, {"Color": (0.02, 0.02, 0.025), "Roughness": 0.15, "GlowColor": (0.62, 0.55, 1.0),
+                                               "GlowStrength": 4.0, "FlareStrength": 40.0}),
+    "MI_Kit_NestFlesh": (CREATURE_MASTER, {"Color": (0.045, 0.026, 0.032), "Metallic": 0.15, "Roughness": 0.55}),
+    "MI_Kit_NestPods": (CREATURE_MASTER, {"Color": (0.03, 0.02, 0.04), "Roughness": 0.2, "GlowColor": (0.5, 0.35, 0.95), "GlowStrength": 2.5}),
 }
 SLOT_MATERIALS = {"Body": "MI_Kit_DarkAlloy", "Metal": "MI_Kit_Steel", "Trim": "MI_Kit_AmberPaint", "Glow": "MI_Kit_AetherGlow",
                   "Gilt": "MI_Kit_Gilt", "Glass": "MI_Kit_Glass", "Runes": "MI_Kit_Runes", "Visor": "MI_Kit_Visor",
@@ -157,6 +214,9 @@ MESH_SLOTS = {   # per mesh, slot -> material where it differs from SLOT_MATERIA
     "SM_Tool_PlasmaCutter": {"Glow": "MI_Kit_CutterGlow"},
     "SM_Tool_Welder": {"Glow": "MI_Kit_WelderGlow"},
     "SM_Tool_AetherLantern": {"Glow": "MI_Kit_LanternFlame", "Glass": "MI_Kit_LanternFlame"},   # the glass glows with its flame
+    "SM_Weapon_Nailgun": {"Glow": "MI_Kit_CutterGlow"},   # GP-01: the charged tips, idle
+    "SM_Weapon_Shotgun": {"Glow": "MI_Kit_CutterGlow"},
+    "SM_Pickup_FuelCell": {"Glow": "MI_Kit_WelderGlow"},
     "SM_AetherCore": {"Glow": "/Game/Hollow/Items/AetherCore/MI_AetherCore"},
     "SM_Door_Leaf": {"Body": "MI_Kit_DoorLeaf", "Trim": "MI_Kit_Hazard"},
     "SM_Hub_Console": {"Glow": "MI_Kit_ConsoleKeys", "Trim": "MI_Kit_Hazard"},
@@ -175,6 +235,8 @@ MESH_SLOTS = {   # per mesh, slot -> material where it differs from SLOT_MATERIA
     "SM_Stalker_Spines": {"Body": "MI_Kit_Obsidian"},
     "SM_Stalker_Eyes": {"Glow": "MI_Kit_StalkerEyes"},
     "SM_Stalker_Blade": {"Body": "MI_Kit_Obsidian"},
+    "SM_Whisperer_Body": {"Shell": "MI_Kit_WhispererShell", "Legs": "MI_Kit_WhispererLegs", "Eyes": "MI_Kit_WhispererEyes"},
+    "SM_Whisperer_Nest": {"Shell": "MI_Kit_NestFlesh", "Pods": "MI_Kit_NestPods"},
 }
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
@@ -413,8 +475,41 @@ def build_screen(material):
     g.out(g.scalar(1, "Roughness", 0.15), unreal.MaterialProperty.MP_ROUGHNESS)
 
 
+def build_creature(material):
+    """GP-02: one master for a Whisperer's parts and its nest. Surface colour; an emissive glow that flares with
+    AHollowWhisperer::FlareDataIndex (steady for reduced flashes) and goes out with DeadDataIndex; and the scuttle: a
+    vertex low in the mesh (a leg's tip) lifts by up to Swing cm at SwingHz, phased along the body, never under the floor,
+    still once dead. A slot with Swing 0 (the shell, the eyes) keeps its shape."""
+    g = Graph(material)
+    flare = g.node(unreal.MaterialExpressionScalarParameter, 6, parameter_name="FlareFlag", default_value=0.0,
+                   use_custom_primitive_data=True, primitive_data_index=0)   # AHollowWhisperer::FlareDataIndex
+    dead = g.node(unreal.MaterialExpressionScalarParameter, 6, parameter_name="DeadFlag", default_value=0.0,
+                  use_custom_primitive_data=True, primitive_data_index=1)    # AHollowWhisperer::DeadDataIndex
+    alive = g.single(unreal.MaterialExpressionOneMinus, 5, dead)
+    flaring = g.mul(4, g.mul(5, flare, g.scalar(6, "FlareStrength", 0.0)), g.steady(5))
+    strength = g.mul(2, g.add(3, g.scalar(4, "GlowStrength", 0.0), flaring), alive)
+    g.out(g.vector(1, "Color", (0.03, 0.03, 0.03)), unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(g.scalar(1, "Metallic", 0.0), unreal.MaterialProperty.MP_METALLIC)
+    g.out(g.scalar(1, "Roughness", 0.5), unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(g.mul(1, g.vector(2, "GlowColor", (0.6, 0.5, 1.0)), strength), unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    local = g.node(unreal.MaterialExpressionLocalPosition, 9)
+    along = g.node(unreal.MaterialExpressionComponentMask, 8, r=True, g=False, b=False, a=False)
+    g.wire(local, along)
+    across = g.node(unreal.MaterialExpressionComponentMask, 8, r=False, g=True, b=False, a=False)
+    g.wire(local, across)
+    height = g.node(unreal.MaterialExpressionComponentMask, 8, r=False, g=False, b=True, a=False)
+    g.wire(local, height)
+    phase = g.add(6, g.mul(7, g.time(8), g.scalar(8, "SwingHz", 3.0)), g.mul(7, g.add(8, along, across), const=0.04))
+    lift = g.single(unreal.MaterialExpressionSaturate, 4, g.single(unreal.MaterialExpressionSine, 5, phase, period=1.0))
+    tip = g.single(unreal.MaterialExpressionOneMinus, 4, g.single(unreal.MaterialExpressionSaturate, 5,
+                   g.math(unreal.MaterialExpressionDivide, 6, height, g.scalar(7, "LegHeight", 18.0))))
+    offset = g.mul(2, g.mul(3, g.mul(4, lift, tip), g.scalar(4, "Swing", 0.0)), alive)
+    up = g.node(unreal.MaterialExpressionConstant3Vector, 2, constant=unreal.LinearColor(0.0, 0.0, 1.0, 0.0))
+    g.out(g.mul(1, up, offset), unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
+
+
 MASTERS = {SURFACE_MASTER: build_surface, GLOW_MASTER: build_glow, TOOL_GLOW_MASTER: build_tool_glow, VISOR_MASTER: build_visor,
-           SEAM_MASTER: build_seam, HAZARD_MASTER: build_hazard, SCREEN_MASTER: build_screen}
+           SEAM_MASTER: build_seam, HAZARD_MASTER: build_hazard, SCREEN_MASTER: build_screen, CREATURE_MASTER: build_creature}
 
 
 def ensure_materials():
@@ -457,12 +552,14 @@ def metrics():
 def mesh_specs():
     m = metrics()
     specs = {}
-    script = file_digest(BLENDER_SCRIPT)
+    kit = file_digest(BLENDER_SCRIPT)
+    # The combat kit reads the art kit's primitives: its meshes follow both scripts; the art kit's only its own.
+    scripts = {"kit": kit, "combat": file_digest(COMBAT_SCRIPT) + kit, "creature": file_digest(CREATURE_SCRIPT) + kit}
     for name, entry in MESHES.items():
         spec = dict(entry)
         if spec["kind"] == "door_leaf":
             spec["size"] = [LEAF_THICKNESS, m["door_width"] / 100.0, m["door_height"] / 100.0]
-        spec["hash"] = digest(KIT_VERSION, name, spec, script, MESH_SLOTS.get(name, {}), SLOT_MATERIALS, name in COLLIDING)
+        spec["hash"] = digest(KIT_VERSION, name, spec, scripts[spec.get("script", "kit")], MESH_SLOTS.get(name, {}), SLOT_MATERIALS, name in COLLIDING)
         specs[name] = spec
     return specs
 
@@ -474,7 +571,7 @@ def find_blender():
     return None
 
 
-def run_blender(specs, out_dir):
+def run_blender(specs, out_dir, script=BLENDER_SCRIPT):
     blender = find_blender()
     if blender is None:
         raise RuntimeError("Blender 5.2 is needed to rebuild %s (set HOLLOW_BLENDER)" % ", ".join(sorted(specs)))
@@ -484,7 +581,7 @@ def run_blender(specs, out_dir):
     spec_path = os.path.join(out_dir, "kit_spec.json")
     with open(spec_path, "w") as f:
         json.dump({"meshes": specs}, f, sort_keys=True)
-    result = subprocess.run([blender, "-b", "--factory-startup", "--python", BLENDER_SCRIPT, "--", spec_path, out_dir],
+    result = subprocess.run([blender, "-b", "--factory-startup", "--python", script, "--", spec_path, out_dir],
                             capture_output=True, text=True, timeout=BLENDER_TIMEOUT)
     if "HOLLOW_KIT_OK" not in result.stdout:
         raise RuntimeError("Blender failed:\n" + result.stdout[-4000:] + result.stderr[-2000:])
@@ -558,13 +655,17 @@ def ensure_meshes():
              if not assets.does_asset_exist(KIT_DIR + "/" + name) or not up_to_date(load(KIT_DIR + "/" + name), spec["hash"])}
     if not stale:
         return
-    out_dir = os.path.join(WORK, "Kit")
-    report = run_blender(stale, out_dir)
-    for name in sorted(stale):
-        mesh = import_fbx(name, os.path.join(out_dir, name + ".fbx"))
-        dress_mesh(name, mesh)
-        stamp(mesh, stale[name]["hash"])
-        log("%s built (%d triangles, slots %s)" % (name, report[name]["triangles"], ", ".join(slot_names(mesh))))
+    for kind, script in sorted(SCRIPTS.items()):
+        batch = {name: spec for name, spec in stale.items() if spec.get("script", "kit") == kind}
+        if not batch:
+            continue
+        out_dir = os.path.join(WORK, "Kit" if kind == "kit" else "Kit_" + kind)
+        report = run_blender(batch, out_dir, script)
+        for name in sorted(batch):
+            mesh = import_fbx(name, os.path.join(out_dir, name + ".fbx"))
+            dress_mesh(name, mesh)
+            stamp(mesh, batch[name]["hash"])
+            log("%s built (%d triangles, slots %s)" % (name, report[name]["triangles"], ", ".join(slot_names(mesh))))
 
 
 # ---------------------------------------------------------------- CC0 textures (Build/Art/cc0_textures.json)
@@ -748,7 +849,8 @@ def ensure_part_sets(frames_cache):
         factory = unreal.DataAssetFactory()
         factory.set_editor_property("data_asset_class", unreal.HollowCosmeticPartSet)
         part_set, created = existing_or_new(path, unreal.HollowCosmeticPartSet, factory)
-        spec_hash = digest(KIT_VERSION, parts, MESH_SLOTS, SLOT_MATERIALS)
+        # Only its own meshes' slots: a mesh added to the kit later (GP-02) leaves the set as it is.
+        spec_hash = digest(KIT_VERSION, parts, {mesh: MESH_SLOTS.get(mesh, {}) for mesh, _, _, _, _, _ in parts}, SLOT_MATERIALS)
         if created or not up_to_date(part_set, spec_hash):
             if not frames_cache:
                 frames_cache.update(bone_frames())
@@ -775,6 +877,17 @@ TOOLS = {   # tool data -> its held mesh
     "/Game/Hollow/Tools/AetherLantern/DA_Tool_AetherLantern": "SM_Tool_AetherLantern",
 }
 GRIP = (-6.0, 0.0, -8.5)       # the tools' grip in their own space (cm, Build/Blender/hollow_kit.py tool_body)
+WEAPONS = {   # GP-01: weapon data -> its held mesh (the same fields as a tool's) and its shot effects
+    "/Game/Hollow/Weapons/Nailgun/DA_Weapon_Nailgun": "SM_Weapon_Nailgun",
+    "/Game/Hollow/Weapons/Shotgun/DA_Weapon_Shotgun": "SM_Weapon_Shotgun",
+}
+PICKUPS = {   # GP-01b: item -> how it lies on the floor (UHollowItemDefinition::PickupMesh)
+    "/Game/Hollow/Items/Materials/DA_Item_Scrap": "SM_Pickup_Scrap",
+    "/Game/Hollow/Items/Materials/DA_Item_AetherShard": "SM_Pickup_Shard",
+    "/Game/Hollow/Items/Consumables/DA_Item_FuelCell": "SM_Pickup_FuelCell",
+    "/Game/Hollow/Items/Ammo/DA_Item_Ammo_Nails": "SM_Pickup_Nails",
+    "/Game/Hollow/Items/Ammo/DA_Item_Ammo_Shells": "SM_Pickup_Shells",
+}
 CLASS_TOOLS = {"/Game/Hollow/Classes/DA_Class_Engineer": "/Game/Hollow/Tools/PlasmaCutter/DA_Tool_PlasmaCutter",
                "/Game/Hollow/Classes/DA_Class_Occultist": "/Game/Hollow/Tools/AetherLantern/DA_Tool_AetherLantern"}
 CORE_BP = "/Game/Hollow/Items/AetherCore/BP_AetherCore"
@@ -825,6 +938,63 @@ def ensure_tools(frames_cache):
             definition.set_editor_property("held_tool", load(tool_path))
             save(definition)
             log("%s holds %s" % (path.rsplit("/", 1)[1], tool_path.rsplit("/", 1)[1]))
+
+
+def ensure_weapon_fx():
+    """GP-01: the shot's three bursts, rebuilt in place when their spec changes (the weapons keep their references)."""
+    material = load(SPARK_MATERIAL)
+    authoring = unreal.HollowNiagaraAuthoring
+    systems = {}
+    for name, spec in sorted(WEAPON_FX.items()):
+        path = FX_DIR + "/" + name
+        system, created = existing_or_new(path, unreal.NiagaraSystem, unreal.NiagaraSystemFactoryNew())
+        spec_hash = digest(spec, BURST_EMITTER, digest(MASTERS_VERSION, "spark", SPARK_STREAK))
+        systems[name] = system
+        if not created and up_to_date(system, spec_hash):
+            continue
+        if not authoring.build_single_emitter_system(system, load(BURST_EMITTER), "Burst", [load(m) for m in spec["modules"]]):
+            raise RuntimeError("Could not build " + path)
+        for suffix, value in spec["constants"]:
+            check(authoring.set_constant(system, suffix, value) >= 1, "%s has the constant %s" % (path, suffix))
+        check(authoring.set_sprite_renderer(system, material, True) == 1, path + " has one sprite renderer")
+        check(authoring.compile(system), path + " compiles")
+        stamp(system, spec_hash)
+        log("%s built (%d constants)" % (name, len(spec["constants"])))
+    return systems
+
+
+def ensure_weapons(frames_cache, systems):
+    if not frames_cache:
+        frames_cache.update(bone_frames())
+    held = held_transform(frames_cache)
+    for path, mesh_name in sorted(WEAPONS.items()):
+        weapon = load(path)
+        mesh = load(KIT_DIR + "/" + mesh_name)
+        changed = False
+        if weapon.get_editor_property("held_mesh") != mesh or not same_transform(weapon.get_editor_property("held_transform"), held) \
+                or str(weapon.get_editor_property("muzzle_socket")) != "Muzzle" or not same_transform(weapon.get_editor_property("view_offset"), VIEW_OFFSET):
+            weapon.set_editor_property("held_mesh", mesh)
+            weapon.set_editor_property("held_transform", held)
+            weapon.set_editor_property("muzzle_socket", "Muzzle")
+            weapon.set_editor_property("view_offset", VIEW_OFFSET)   # where the tools ride the camera (ADR-0043)
+            changed = True
+        for slot, system_name in sorted(WEAPON_FX_SLOTS.items()):
+            if weapon.get_editor_property(slot) != systems[system_name]:
+                weapon.set_editor_property(slot, systems[system_name])
+                changed = True
+        if changed:
+            save(weapon)
+            log("%s holds %s, its shots %s" % (path.rsplit("/", 1)[1], mesh_name, ", ".join(sorted(WEAPON_FX_SLOTS.values()))))
+
+
+def ensure_pickups():
+    for path, mesh_name in sorted(PICKUPS.items()):
+        item = load(path)
+        mesh = load(KIT_DIR + "/" + mesh_name)
+        if item.get_editor_property("pickup_mesh") != mesh:
+            item.set_editor_property("pickup_mesh", mesh)
+            save(item)
+            log("%s lies on the floor as %s" % (path.rsplit("/", 1)[1], mesh_name))
 
 
 def ensure_mesh_component(component, mesh, materials, extra=None):
@@ -1007,8 +1177,15 @@ def validate():
         check(mesh.get_num_triangles(0) <= MAX_TRIANGLES, "%s under %d triangles" % (name, MAX_TRIANGLES))
         check(all(m.get_editor_property("material_interface") is not None for m in mesh.get_editor_property("static_materials")),
               name + " has a material on every slot")
-    for name in ("SM_Tool_PlasmaCutter", "SM_Tool_Welder", "SM_Tool_AetherLantern"):
+    for name in ("SM_Tool_PlasmaCutter", "SM_Tool_Welder", "SM_Tool_AetherLantern", "SM_Weapon_Nailgun", "SM_Weapon_Shotgun"):
         check(load(KIT_DIR + "/" + name).find_socket("Muzzle") is not None, name + " has its Muzzle socket")
+    for path, mesh_name in PICKUPS.items():
+        check(load(path).get_editor_property("pickup_mesh") == load(KIT_DIR + "/" + mesh_name), path + " lies as " + mesh_name)
+    for path, mesh_name in WEAPONS.items():
+        weapon = load(path)
+        check(weapon.get_editor_property("held_mesh") == load(KIT_DIR + "/" + mesh_name), path + " holds " + mesh_name)
+        for slot, system_name in WEAPON_FX_SLOTS.items():
+            check(weapon.get_editor_property(slot) == load(FX_DIR + "/" + system_name), "%s: %s is %s" % (path, slot, system_name))
     log("validation passed")
 
 
@@ -1020,6 +1197,8 @@ def main():
     frames = {}
     sets = ensure_part_sets(frames)
     ensure_tools(frames)
+    ensure_weapons(frames, ensure_weapon_fx())
+    ensure_pickups()
     ensure_blueprints(sets, sparks)
     ensure_hub_dressing()
     validate()

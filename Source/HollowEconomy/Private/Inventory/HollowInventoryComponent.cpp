@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "HollowEconomyLog.h"
 #include "Items/HollowItemDefinition.h"
+#include "Loot/HollowLootTable.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -87,6 +88,21 @@ void UHollowInventoryComponent::AddItem(UHollowItemDefinition* Item, const int32
 	Changed(Entry);
 }
 
+void UHollowInventoryComponent::AddFoundItem(UHollowItemDefinition* Item, const int32 Count)
+{
+	if (!Item || Count <= 0 || !GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	AddItem(Item, Count, /*bFromProfile=*/false);
+	if (FHollowInventoryEntry* Entry = FindEntry(Item))
+	{
+		Entry->Found += Count;
+		Changed(Entry);
+	}
+	UE_LOG(LogHollowEconomy, Log, TEXT("%s: finds %d %s"), *GetNameSafe(GetOwner()), Count, *Item->GetName());
+}
+
 void UHollowInventoryComponent::Clear()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
@@ -138,12 +154,29 @@ TArray<FHollowItemStack> UHollowInventoryComponent::GetSpent() const
 	return Spent;
 }
 
+TArray<FHollowItemStack> UHollowInventoryComponent::GetFound() const
+{
+	TArray<FHollowItemStack> Found;
+	for (const FHollowInventoryEntry& Entry : Inventory.Entries)
+	{
+		const int32 Held = HollowLootRules::FoundHeld(Entry.Count, Entry.Taken, Entry.Found);
+		if (Entry.Item && Held > 0)
+		{
+			FHollowItemStack& Stack = Found.AddDefaulted_GetRef();
+			Stack.Item = Entry.Item->GetPrimaryAssetId();
+			Stack.Count = Held;
+		}
+	}
+	return Found;
+}
+
 FString UHollowInventoryComponent::Describe() const
 {
 	TArray<FString> Parts;
 	for (const FHollowInventoryEntry& Entry : Inventory.Entries)
 	{
-		Parts.Add(FString::Printf(TEXT("%s %d/%d"), Entry.Item ? *Entry.Item->GetName() : TEXT("(unmapped)"), Entry.Count, Entry.Taken));
+		Parts.Add(FString::Printf(TEXT("%s %d/%d%s"), Entry.Item ? *Entry.Item->GetName() : TEXT("(unmapped)"), Entry.Count, Entry.Taken,
+			Entry.Found > 0 ? *FString::Printf(TEXT(" (found %d)"), Entry.Found) : TEXT("")));
 	}
 	return Parts.IsEmpty() ? FString(TEXT("empty")) : FString::Join(Parts, TEXT(", "));
 }

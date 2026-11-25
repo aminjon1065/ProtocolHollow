@@ -32,6 +32,27 @@ UHollowStunnedEffect::UHollowStunnedEffect(const FObjectInitializer& ObjectIniti
 	GEComponents.Add(Blocked);
 }
 
+UHollowWeaponFireCooldownEffect::UHollowWeaponFireCooldownEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CooldownTag")), HollowTags::Cooldown_Weapon_Fire));
+}
+
+UHollowMeleeCooldownEffect::UHollowMeleeCooldownEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("CooldownTag")), HollowTags::Cooldown_Melee));
+}
+
+UHollowHandsSwapEffect::UHollowHandsSwapEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+	GEComponents.Add(&HollowStatusEffectsPrivate::Grant(*CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("SwappingTag")), HollowTags::State_Hands_Swapping));
+}
+
 UHollowPulseMineCooldownEffect::UHollowPulseMineCooldownEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

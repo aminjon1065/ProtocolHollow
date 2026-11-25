@@ -1,6 +1,7 @@
 #include "ViewModels/HollowVisorContext.h"
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Algo/AnyOf.h"
 #include "Character/HollowExoFrameCharacter.h"
 #include "Classes/HollowClassComponent.h"
 #include "Classes/HollowClassDefinition.h"
@@ -8,7 +9,9 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystems.h"
+#include "EnhancedPlayerInput.h"
 #include "Foundation/HollowHUD.h"
 #include "Foundation/HollowUISettings.h"
 #include "GameFramework/GameStateBase.h"
@@ -16,6 +19,7 @@
 #include "GameFramework/PlayerState.h"
 #include "HollowUILog.h"
 #include "InputAction.h"
+#include "InputTriggers.h"
 #include "Resonance/HollowSquadResonanceComponent.h"
 #include "ViewModels/HollowInputGlyphSet.h"
 #include "ViewModels/HollowObjectiveModel.h"
@@ -140,7 +144,18 @@ FText UHollowVisorContext::GetKeyLabel(const UInputAction* Action) const
 		return FText::GetEmpty();
 	}
 	const FKey Key = UHollowInputGlyphSet::PickKey(Input->QueryKeysMappedToAction(Action), GetInputType());
-	return Key.IsValid() ? Glyphs->GetLabel(Key) : FText::GetEmpty();
+	if (!Key.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+	// GP-01: a key that has to be held for this action says so (the gamepad's X: a tap reloads, holding it interacts).
+	const UEnhancedPlayerInput* PlayerInput = Input->GetPlayerInput();
+	const bool bHold = PlayerInput && Algo::AnyOf(PlayerInput->GetEnhancedActionMappingsView(), [Action, &Key](const FEnhancedActionKeyMapping& Mapping)
+	{
+		return Mapping.Action == Action && Mapping.Key == Key
+			&& Mapping.Triggers.ContainsByPredicate([](const UInputTrigger* Trigger) { return Trigger && Trigger->IsA<UInputTriggerHold>(); });
+	});
+	return bHold ? FText::Format(NSLOCTEXT("HollowVisorContext", "HoldKey", "Hold {0}"), Glyphs->GetLabel(Key)) : Glyphs->GetLabel(Key);
 }
 
 AHollowExoFrameCharacter* UHollowVisorContext::GetCharacter() const

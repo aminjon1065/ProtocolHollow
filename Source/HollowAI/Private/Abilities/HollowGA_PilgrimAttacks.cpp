@@ -62,3 +62,9 @@ UHollowGA_StalkerAmbush::UHollowGA_StalkerAmbush(const FObjectInitializer& Objec
 {
 	SetTrigger(HollowTags::Event_Enemy_Ambush, HollowTags::Ability_Enemy_Stalker_Ambush);
 }
+
+UHollowGA_WhispererBite::UHollowGA_WhispererBite(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SetTrigger(HollowTags::Event_Enemy_Melee, HollowTags::Ability_Enemy_Whisperer_Bite);
+}

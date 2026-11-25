@@ -28,8 +28,8 @@ public:
 };
 
 /**
- * Filters out points a lamp lights (IHollowLightSource cones with a clear line from the lamp), checked PointHeight
- * above the point: where a body standing there would be seen (ADR-0019).
+ * Filters out points a lamp or a burning lantern lights (IHollowLightSource cones with a clear line from it), checked
+ * PointHeight above the point: where a body standing there would be seen (ADR-0019; the lantern since GP-02).
  */
 UCLASS(meta = (DisplayName = "Hollow: Out Of Light Cone"))
 class HOLLOWAI_API UHollowEnvQueryTest_OutOfLightCone : public UEnvQueryTest
@@ -44,6 +44,16 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Test", meta = (ClampMin = "0", Units = "Centimeters"))
 	float PointHeight = 0.f;
+};
+
+/** The player the querier hunts (AHollowAIController::GetTarget), as an actor: its place and its facing (GP-02 flank). */
+UCLASS(meta = (DisplayName = "Hollow: Target"))
+class HOLLOWAI_API UHollowEnvQueryContext_Target : public UEnvQueryContext
+{
+	GENERATED_BODY()
+
+public:
+	virtual void ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const override;
 };
 
 /** Where the squad comes and goes in the focus room: its hottest portal, else the room's centre (ADR-0019). */

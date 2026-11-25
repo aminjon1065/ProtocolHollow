@@ -6,6 +6,7 @@
 #include "HollowAISettings.generated.h"
 
 class AHollowEnemyCharacter;
+class AHollowWhispererNest;
 class UHollowThreatConfig;
 
 /** AI settings (DefaultGame.ini): the threat config of a raid and the Hollow.AI.* development commands; enemy tuning lives in their definitions. */
@@ -22,6 +23,10 @@ public:
 	/** Enemy that Hollow.AI.Spawn places. */
 	UPROPERTY(Config, EditAnywhere, Category = "Development")
 	TSoftClassPtr<AHollowEnemyCharacter> DevEnemyClass;
+
+	/** Nest that Hollow.AI.Nest places (GP-02). */
+	UPROPERTY(Config, EditAnywhere, Category = "Development")
+	TSoftClassPtr<AHollowWhispererNest> DevNestClass;
 
 	/** Default distance of Hollow.AI.Spawn: in front of the player, or behind the nearest obstacle. */
 	UPROPERTY(Config, EditAnywhere, Category = "Development", meta = (ClampMin = "0", Units = "Centimeters"))

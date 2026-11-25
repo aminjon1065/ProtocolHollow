@@ -24,6 +24,10 @@ struct HOLLOWECONOMY_API FHollowInventoryEntry : public FFastArraySerializerItem
 	/** Brought into the raid from the profile (the accepted loadout, plus what was added since; not the ship's free items). */
 	UPROPERTY()
 	int32 Taken = 0;
+
+	/** Picked up in the raid (GP-01b, ADR-0045): goes to the stash if the player extracts with it. */
+	UPROPERTY()
+	int32 Found = 0;
 };
 
 /** The entries of a UHollowInventoryComponent, delta-replicated (FFastArraySerializer) to the owner only. */

@@ -397,7 +397,7 @@ bool FHollowStalkerAmbushQueryTest::RunTest(const FString& Parameters)
 	Brain->SetFocusRoom(East);
 	UHollowActivityHeatmapSubsystem::Get(Scene.World)->AddPortalHeat(0, 1.f);
 	FHollowLightCone Cone;
-	TestTrue(TEXT("The player's lamp is on"), Player->GetLightCone(Cone));
+	TestTrue(TEXT("The player's lamp is on"), Player->GetHelmetLampCone(Cone));
 
 	const TSharedPtr<FEnvQueryResult> Result = UEnvQueryManager::GetCurrent(Scene.World)->RunInstantQuery(FEnvQueryRequest(Definition->FocusQuery, Stalker),
 		EEnvQueryRunMode::AllMatching);
@@ -466,7 +466,7 @@ bool FHollowStalkerLampOffTest::RunTest(const FString& Parameters)
 	Brain->SetFocusRoom(East);
 	UHollowActivityHeatmapSubsystem::Get(Scene.World)->AddPortalHeat(0, 1.f);
 	FHollowLightCone Cone;
-	if (!TestTrue(TEXT("The lamp is on"), Player->GetLightCone(Cone)))
+	if (!TestTrue(TEXT("The lamp is on"), Player->GetHelmetLampCone(Cone)))
 	{
 		return false;
 	}
@@ -538,7 +538,7 @@ bool FHollowStalkerAmbushInHottestRoomTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("It lies in wait in the hottest room nobody is in"), Brain->GetFocusRoom(), static_cast<int32>(NorthEast));
 	TestTrue(TEXT("...there, still"), Waiting());
 	FHollowLightCone Cone;
-	TestTrue(TEXT("...out of the player's lamp"), Player->GetLightCone(Cone) && !Cone.Contains(Stalker->GetActorLocation()));
+	TestTrue(TEXT("...out of the player's lamp"), Player->GetHelmetLampCone(Cone) && !Cone.Contains(Stalker->GetActorLocation()));
 
 	// The player walks up to it.
 	const float FullHealth = Health(PlayerAbilities);

@@ -21,6 +21,9 @@ UHollowDeadEffect::UHollowDeadEffect(const FObjectInitializer& ObjectInitializer
 	FInheritedTagContainer Blocked;
 	Blocked.Added.AddTag(HollowTags::Ability_Tool);
 	Blocked.Added.AddTag(HollowTags::Ability_Gadget_PulseMine);
+	Blocked.Added.AddTag(HollowTags::Ability_Weapon);   // GP-01
+	Blocked.Added.AddTag(HollowTags::Ability_Melee);
+	Blocked.Added.AddTag(HollowTags::Ability_Hands_Swap);
 	BlockedAbilities->SetAndApplyBlockedAbilityTagChanges(Blocked);
 	GEComponents.Add(BlockedAbilities);
 }

@@ -38,7 +38,7 @@ namespace HollowLampConsolePrivate
 		{
 			const AHollowExoFrameCharacter* Character = *It;
 			FHollowLightCone Cone;
-			const bool bCone = Character->GetLightCone(Cone);
+			const bool bCone = Character->GetHelmetLampCone(Cone);
 			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Lamp.Dump: %s (%s%s): switched %s, light %d, cone %d, dead %d"), *Character->GetName(),
 				*HollowEnumToString(Character->GetLocalRole()), Character->IsLocallyControlled() ? TEXT(", local") : TEXT(""),
 				Character->IsHelmetLampOn() ? TEXT("on") : TEXT("off"), Character->GetHelmetLight()->IsVisible() ? 1 : 0, bCone ? 1 : 0, Character->IsDead() ? 1 : 0);

@@ -55,6 +55,13 @@ struct FHollowSocketActorRule
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly", meta = (EditCondition = "MaxPerSector > 0"))
 	EHollowSocketPick Pick = EHollowSocketPick::ManifestOrder;
+
+	/**
+	 * Only sockets in rooms at least this many links from the Spawn room (GP-02: no Whisperer nest next to the airlock);
+	 * 0: any. A socket whose room has no route from Spawn counts as far. The sockets it skips go to the next rule.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Assembly", meta = (ClampMin = "0"))
+	int32 MinRoomDistance = 0;
 };
 
 /** A room socket of a sector, in manifest order, as UHollowBiomeDefinition::AssignSocketRules sees it. */

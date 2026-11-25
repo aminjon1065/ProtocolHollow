@@ -29,5 +29,9 @@ enum class EHollowAIActivity : uint8
 	/** Echo-Stalker: lie in wait in the hottest room nobody is in, strike whoever comes close. */
 	Ambush,
 	/** Echo-Stalker: into the nearest vent, out of the farthest one, hidden until the director calls it back. */
-	Retreat
+	Retreat,
+	/** Whisperer (GP-02): caught by a beam, it freezes with a shriek, then backs out of the light. */
+	Recoil,
+	/** Whisperer (GP-02): through the dark to a spot by its prey that no light reaches, then the lunge. */
+	Flank
 };

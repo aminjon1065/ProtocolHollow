@@ -74,9 +74,9 @@ bool FHollowHelmetLampSwitchTest::RunTest(const FString& Parameters)
 	const int32 ClicksBefore = Audio ? Audio->GetPlayCount(HollowTags::Sound_HelmetLamp_Toggle) : 0;
 
 	FHollowLightCone Cone;
-	TestTrue(TEXT("On at spawn: lit, with a cone"), Character->IsHelmetLampOn() && Character->GetHelmetLight()->IsVisible() && Character->GetLightCone(Cone));
+	TestTrue(TEXT("On at spawn: lit, with a cone"), Character->IsHelmetLampOn() && Character->GetHelmetLight()->IsVisible() && Character->GetHelmetLampCone(Cone));
 	TestTrue(TEXT("The ability switches it off"), AbilitySystem->TryActivateAbilityByClass(AbilityClass));
-	TestTrue(TEXT("...dark, no cone for the AI"), !Character->IsHelmetLampOn() && !Character->GetHelmetLight()->IsVisible() && !Character->GetLightCone(Cone));
+	TestTrue(TEXT("...dark, no cone for the AI"), !Character->IsHelmetLampOn() && !Character->GetHelmetLight()->IsVisible() && !Character->GetHelmetLampCone(Cone));
 	TestTrue(TEXT("...the visor hears it"), Heard.Num() == 1 && !Heard[0]);
 	if (Audio)
 	{
@@ -88,7 +88,7 @@ bool FHollowHelmetLampSwitchTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("The cooldown (%.2f s) allows at most %.0f flashes a second"), Cooldown, MaxFlashesPerSecond),
 		Cooldown * SwitchesPerFlash >= 1.f / MaxFlashesPerSecond - UE_KINDA_SMALL_NUMBER);
 	Advance(TestWorld, Cooldown + TickSeconds * 2.f);
-	TestTrue(TEXT("After it: back on"), AbilitySystem->TryActivateAbilityByClass(AbilityClass) && Character->IsHelmetLampOn() && Character->GetLightCone(Cone));
+	TestTrue(TEXT("After it: back on"), AbilitySystem->TryActivateAbilityByClass(AbilityClass) && Character->IsHelmetLampOn() && Character->GetHelmetLampCone(Cone));
 
 	// The owner's prediction: a switch the server rejects is switched back; an accepted one stays.
 	FPredictionKeyEvent Rejected;
@@ -111,7 +111,7 @@ bool FHollowHelmetLampSwitchTest::RunTest(const FString& Parameters)
 
 	// The dead: dark, and the switch is refused.
 	Character->Die();
-	TestTrue(TEXT("Dead: dark and no cone"), !Character->GetHelmetLight()->IsVisible() && !Character->GetLightCone(Cone));
+	TestTrue(TEXT("Dead: dark and no cone"), !Character->GetHelmetLight()->IsVisible() && !Character->GetHelmetLampCone(Cone));
 	Advance(TestWorld, Cooldown + TickSeconds * 2.f);
 	TestFalse(TEXT("...the dead cannot switch"), AbilitySystem->TryActivateAbilityByClass(AbilityClass));
 	return true;

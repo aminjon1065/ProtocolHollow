@@ -25,9 +25,10 @@ ATTRIBUTE_MODULE = "/Script/HollowGAS"
 INI = "Config/DefaultGame.ini"
 INI_LINES = ["DefaultClass=HollowClass:DA_Class_Engineer"]
 INI_SCAN = 'PrimaryAssetType="HollowClass"'
-RAID_ITEM_TYPES = ["Hollow.Item.Type.Tool", "Hollow.Item.Type.Consumable", "Hollow.Item.Type.Relic"]   # UHollowEconomySettings::LoadoutItemTypes
+RAID_ITEM_TYPES = ["Hollow.Item.Type.Tool", "Hollow.Item.Type.Consumable", "Hollow.Item.Type.Relic", "Hollow.Item.Type.Weapon",
+                   "Hollow.Item.Type.Ammo"]   # UHollowEconomySettings::LoadoutItemTypes
 ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_AetherLantern": "Tools", "DA_Item_FuelCell": "Consumables",
-             "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables"}
+             "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables", "DA_Item_Weapon_Nailgun": "Weapons", "DA_Item_Ammo_Nails": "Ammo"}
 EFFECT_LEVEL = 1.0   # gameplay ability system levels start at 1
 
 # The classes (S6-01 clarifications 2, 4, 6). Modifiers: (attribute set, attribute, op, magnitude); only attributes
@@ -40,7 +41,8 @@ CLASSES = {
         "effect": ("GE_Class_Engineer", [("HollowToolSet", "MaxToolHeat", "AddBase", 25.0), ("HollowHealthSet", "Armor", "AddBase", 10.0)]),
         "ability_set": "DA_AbilitySet_Class_Engineer",
         # The old new-profile loadout (DefaultGame.ini before S6-01).
-        "kit": [("DA_Item_Welder", 1, True), ("DA_Item_PlasmaCutter", 1, False), ("DA_Item_FuelCell", 3, False), ("DA_Item_PulseMine", 2, False)],
+        "kit": [("DA_Item_Welder", 1, True), ("DA_Item_PlasmaCutter", 1, False), ("DA_Item_FuelCell", 3, False), ("DA_Item_PulseMine", 2, False),
+                ("DA_Item_Weapon_Nailgun", 1, False), ("DA_Item_Ammo_Nails", 40, False)],   # GP-01: the starting sidearm
         "visor": (1.0, 0.72, 0.38, 0.9),
     },
     "DA_Class_Occultist": {
@@ -49,7 +51,8 @@ CLASSES = {
         "tag": "Hollow.Class.Occultist",
         "effect": ("GE_Class_Occultist", [("HollowResonanceSet", "ResonanceGainMultiplier", "MultiplyAdditive", 0.8)]),
         "ability_set": "DA_AbilitySet_Class_Occultist",
-        "kit": [("DA_Item_AetherLantern", 1, True), ("DA_Item_FuelCell", 3, False), ("DA_Item_OccultWard", 2, False)],   # S6-02 lantern, S6-03 wards
+        "kit": [("DA_Item_AetherLantern", 1, True), ("DA_Item_FuelCell", 3, False), ("DA_Item_OccultWard", 2, False),   # S6-02 lantern, S6-03 wards
+                ("DA_Item_Weapon_Nailgun", 1, False), ("DA_Item_Ammo_Nails", 40, False)],   # GP-01: the starting sidearm
         "visor": (0.78, 0.62, 1.0, 0.9),
     },
 }

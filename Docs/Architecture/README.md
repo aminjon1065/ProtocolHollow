@@ -222,3 +222,30 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
   - **Dev-команды** `Hollow.Art.{Showcase, View, Dump}`.
   - **Тесты** `Hollow.Game.Art.{CosmeticParts, ToolInHand, DoorSeam, Kit}`.
   - **AK-8:** искры `NS_Tool_BeamSparks` (Fountain + Collision, гравитация и отскоки, `M_Kit_Spark`) собирает `create_art_kit.py` через редакторную библиотеку `UHollowNiagaraAuthoring`; вспышка и пламя Эфирного фонаря (`AHollowLanternCue::FlashIntensityScale/FlashSeconds`, свет в люменах). Тесты `Hollow.Editor.ArtSparks`, `Hollow.Game.Art.LanternFlash`.
+- **GP-01a «Оружие и руки»** ([ADR-0044](../ADR/ADR-0044-weapons-hands-client-hits.md)), после живого плейтеста:
+  - **Руки:** `UHollowHandsComponent` (Tools/Weapon, loose-тег `Hollow.State.Hands.Weapon`), `UHollowGA_SwapHands` (1 / 2 / колесо / Y), блоки при переноске и смерти.
+  - **Оружие:** `UHollowWeaponDefinition`, `UHollowWeaponSet` (магазин), `UHollowGA_WeaponFire` (клиентские попадания `FHollowWeaponShotData` + `HollowWeaponMath::CheckHit` на сервере), `UHollowGA_WeaponReload`, `UHollowGA_WeaponDryFire`, `UHollowGA_WeaponAim`, `UHollowGA_MeleeBash`, cue `UHollowWeaponFireCue`.
+  - **Бой:** пробитие брони в `UHollowDamageExecution`, `IHollowImpulseReceiver` (отброс и стаггер врагов), `UAISense_Damage`, канал `HollowWeapon`, без огня по своим.
+  - **Данные и контент:** `create_weapon_assets.py`; гвоздомёт и дробовик, гвозди и дробь; магазин, верстак, стартовые наборы; MetaSounds; меши `hollow_combat_kit.py`; Niagara-вспышка, трассер и искры; строка патронов `W_WeaponReadout`; раскладка R / X-тап / X-удержание / Y / R3; string table `ST_Gameplay`.
+  - **Тесты** `Hollow.GAS.Weapons.*`, `Hollow.GAS.Damage.Penetration`, `Hollow.Economy.Weapons.Rules`, `Hollow.Game.Weapons.*`, `Hollow.Game.Art.WeaponInHand`; смоук `playthrough-mac.sh weapons`.
+- **GP-01b «Ящики с лутом»** ([ADR-0045](../ADR/ADR-0045-loot-crates-found-loot.md)):
+  - **Ящик:** `AHollowLootCrate` на Loot-сокетах Доков и Собора (первое правило биома), сид от сектора и слота (`IHollowSeededActor`), содержимое `UHollowLootTableDefinition` / `HollowLootRules::Roll`; вскрывают выстрелы и удар (`IHollowBreakableProp`) и резак (`IHollowToolTarget`); `FHollowCrateNetState`, косметический разлом `GC_LootCrate` в бюджете обломков, бокс-препятствие навигации.
+  - **Предметы:** `AHollowLootPickup` (физика на всех машинах, после засыпания dormant, профиль `HollowPickup`, вид `PickupMesh`), Interact → `UHollowInventoryComponent::AddFoundItem`.
+  - **Найденное:** `FHollowInventoryEntry::Found`, `HollowLootRules::FoundHeld`, `FHollowRaidResult::Found`; резолвер кладёт на склад (`RoomInStash`), лишнее продаёт, при гибели теряет; дебриф показывает.
+  - **Контент** `create_loot_assets.py`, меши предметов в `hollow_combat_kit.py`, шум и звуки ящика; dev-команды `Hollow.Loot.Dump`, `Hollow.Dev.{GoToNearestCrate, FaceNearestCrate, FaceNearestPickup}`.
+  - **Тесты** `Hollow.Economy.{Loot.Rules, Resolver.Found}`, `Hollow.Game.Loot.{Data, Crate, Shoot}`; смоук `playthrough-mac.sh loot`.
+- **GP-01c «Ощущение от игры»** ([ADR-0046](../ADR/ADR-0046-game-feel.md)):
+  - **Ядро** (HollowCore/Feel): `UHollowFeelSubsystem` (личное `EmitFor` и мировое по звукам `UHollowAudioSubsystem::OnSoundPlayed`), `DA_FeelConfig` / `UHollowFeelSettings`, `UHollowFeelCameraShake` + `UHollowFeelShakePattern`, `UHollowViewFeelModifier` (толчки и покачивание, только камера), `HollowFeelRules`; Reduced Flashes через `IHollowComfortSettings`.
+  - **Игра:** `UHollowViewFeelComponent` (поза рук в `UHollowToolMountComponent::SetViewFeelOffset`, рывок от урона), ощущение выстрела, удара и смены рук, хитмаркер `HollowHitMarker` + `UHollowHandsComponent::OnHitMarker`.
+  - **Урон:** `HollowDamageRules::Resolve` (одна функция для execution и `Preview`), `HollowDamageMath::Classify` (Hit / Armor / Crit), `ArmorMarkerShare`.
+  - **Визор:** `W_HitMarker` (`M_UI_HitMarker`, звуки `MS_UI_HitMarker_*`), край урона на `M_UI_VisorGlass`, данные в `DA_VisorStyle`.
+  - **Контент:** `create_feel_assets.py`; `FeelTag` в `create_weapon_assets.py`; dev-команда `Hollow.Feel.Dump`.
+  - **Тесты:** `Hollow.Core.Feel.{Rules, View, Subsystem}`, `Hollow.GAS.Damage.Marker`, `Hollow.Game.Feel.{Data, Shots, Damage}`, `Hollow.UI.Visor.{HitMarker, DamageFlash}`; смоук `playthrough-mac.sh weapons`.
+- **GP-02 «Шептуны»** ([ADR-0047](../ADR/ADR-0047-whisperer-swarm-light-fear.md)), третий тип врагов:
+  - **Свет для ИИ** (HollowCore): `EHollowLightKind`, `IHollowLightSource::GetLightCones` / `GatherCones`; ExoFrame отдаёт лампу (`GetHelmetLampCone`) и луч горящего фонаря (`UHollowGA_AetherLantern::FindBeamCone`); EQS Хищника тоже избегает фонаря.
+  - **Где:** `FHollowSocketActorRule::MinRoomDistance` (HollowPCG); `BP_WhispererNest` на EnemySpawn после Пилигрима (Доки и Собор: до 2, не ближе 2 комнат), в комнатах с лутом.
+  - **ИИ** (HollowAI): `AHollowWhispererNest` (`IHollowSeededActor`, выводок 2..4 по сиду), `AHollowWhisperer` (меш без скелета, шёпот, визг, вспышка глаз), `UHollowWhispererDefinition`, `AHollowWhispererController` (активности `Recoil` и `Flank`, добыча в темноте первой), `UHollowSwarmSubsystem` (проверка света 0,2 с, `GE_Whisperer_Lit` / `GE_Whisperer_Frenzy`, не больше двух укусов на игрока со светом, тревога группе), `HollowSwarmRules`, `ST_Whisperer`, `EQ_WhispererFlank` (`UHollowEnvQueryContext_Target`), `UHollowGA_WhispererBite`.
+  - **GAS:** `UHollowLitEffect`, `UHollowFrenzyEffect` (обновляемые, как Expose).
+  - **Добыча врагов:** `FHollowEnemyDrop` в определении, `AHollowEnemyCharacter::OnAnyEnemyDied`, `UHollowEnemyDropSubsystem` (HollowGame) — осколок эфира в 30 % смертей Шептуна, по сиду.
+  - **Контент:** `create_whisperer_assets.py`; меши `hollow_creature_kit.py` + `M_Kit_Creature` (ноги на WPO) в `create_art_kit.py`; 5 процедурных MetaSound в `create_audio_assets.py`; dev-команды `Hollow.AI.{Nest, Swarm}`.
+  - **Тесты:** `Hollow.PCG.Biome.MinRoomDistance`, `Hollow.AI.Swarm.Rules`, `Hollow.Game.Whisperer.{Data, Nest, Light, Flank, Lantern, Kill, Doors}`; смоук `playthrough-mac.sh swarm`.

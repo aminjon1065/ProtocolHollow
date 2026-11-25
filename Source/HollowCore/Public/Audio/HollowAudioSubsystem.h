@@ -13,6 +13,9 @@ class USoundAttenuation;
 class USoundBase;
 class USoundConcurrency;
 
+/** A one-shot was asked for (whether or not anything was heard): its tag, where and how loud (GP-01c: game feel follows). */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHollowSoundPlayed, const FGameplayTag& /*SoundTag*/, const FVector& /*Location*/, float /*VolumeScale*/);
+
 /**
  * The one way gameplay sounds play (ADR-0022), on every machine but a dedicated server. Sounds are local and cosmetic:
  * callers play them from replicated state (door and breach states, carry state, cues), never from the server's noise
@@ -42,6 +45,9 @@ public:
 	void SetSources(const UHollowSoundBank* InBank, const UHollowNoiseConfig* InNoise);
 
 	FString Describe() const;
+
+	/** Every Play (not PlayAttached's loops), even without a sound or an audio device (UHollowFeelSubsystem listens). */
+	FOnHollowSoundPlayed OnSoundPlayed;
 
 protected:
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;

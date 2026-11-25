@@ -43,6 +43,10 @@ struct HOLLOWECONOMY_API FHollowRaidResult
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	TArray<FHollowItemStack> Spent;
 
+	/** What this player picked up and still holds (GP-01b, ADR-0045): the stash's if it extracts. */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> Found;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	float RaidSeconds = 0.f;
 
@@ -64,6 +68,14 @@ struct FHollowRaidContext
 	TArray<FHollowItemStack> Spent;
 	/** Extra percent of their value sold Aether cores bring (the owned ship upgrades, ADR-0032). */
 	int32 CoreValuePercent = 0;
+
+	/** GP-01b: the player's own found loot (FHollowRaidResult::Found) and the stash it would join. */
+	TArray<FHollowItemStack> Found;
+	TArray<FHollowItemStack> Stash;
+
+	/** Slots of that stash (0: no limit); what does not fit is sold at SellPercent of its value. */
+	int32 StashSlots = 0;
+	int32 SellPercent = 0;
 };
 
 /** The change a raid makes to one profile (FHollowExtractionResolver), and its explanation for the debrief. */
@@ -94,4 +106,16 @@ struct HOLLOWECONOMY_API FHollowProfileDelta
 	/** Insured items kept although the player did not come back (ADR-0031): their slots' insurance is spent. */
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	TArray<FHollowItemStack> InsuranceUsed;
+
+	/** GP-01b: found loot brought home, into the stash. */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> Found;
+
+	/** GP-01b: found loot brought home that the stash had no room for, sold (its credits are in Credits). */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> FoundSold;
+
+	/** GP-01b: found loot left behind (the player did not extract). */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FHollowItemStack> FoundLost;
 };

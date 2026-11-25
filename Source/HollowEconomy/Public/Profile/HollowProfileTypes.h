@@ -140,8 +140,12 @@ struct HOLLOWECONOMY_API FHollowProfileState
 /** Pure rules of the profile and its raid escrow (ADR-0005, ADR-0016). Tested by Hollow.Economy.Profile.Escrow. */
 namespace HollowProfileRules
 {
-	/** Applies a resolved delta: credits, spent and lost loadout items, spent insurance, counters. */
-	HOLLOWECONOMY_API void Apply(FHollowProfile& Profile, const FHollowProfileDelta& Delta, EHollowRaidOutcome Outcome);
+	/**
+	 * Applies a resolved delta: credits, spent and lost loadout items, spent insurance, the found loot into the stash
+	 * (GP-01b; in stacks of the catalog's MaxStack, else as one stack each), counters.
+	 */
+	HOLLOWECONOMY_API void Apply(FHollowProfile& Profile, const FHollowProfileDelta& Delta, EHollowRaidOutcome Outcome,
+		const FHollowItemCatalog* Catalog = nullptr);
 
 	/**
 	 * Starts the escrow of RaidId with a snapshot of the loadout. Nothing happens for the raid already in escrow; a
@@ -152,10 +156,11 @@ namespace HollowProfileRules
 
 	/**
 	 * Resolves the escrow with the host's result; a result for another raid (or without escrow) is ignored.
-	 * CoreValuePercent: the owned ship upgrades' bonus on sold Aether cores (ADR-0032).
+	 * CoreValuePercent: the owned ship upgrades' bonus on sold Aether cores (ADR-0032). StashSlots and SellPercent: the
+	 * economy's (GP-01b: found loot without room in the stash is sold; 0 slots: no limit).
 	 */
 	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
-		int32 CoreValuePercent = 0);
+		int32 CoreValuePercent = 0, int32 StashSlots = 0, int32 SellPercent = 0);
 
 	/** Resolves the escrow without a host (SignalLost, Abandoned): no loot. */
 	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ResolveEscrow(FHollowProfileState& State, EHollowRaidOutcome Outcome, const FDateTime& NowUtc,

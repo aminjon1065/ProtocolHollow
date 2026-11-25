@@ -45,18 +45,15 @@ void UHollowDamageExecution::Execute_Implementation(const FGameplayEffectCustomE
 
 	const UHollowDamageEffect* Effect = Cast<UHollowDamageEffect>(Spec.Def);
 	const FGameplayTag DamageType = Effect ? Effect->DamageType : FGameplayTag();
-	const UHollowDamageSettings* Settings = GetDefault<UHollowDamageSettings>();
-	const FHollowDamageTypeRule* Rule = Settings->FindRule(DamageType);
-	// Immune by the type's rule, or to everything with the exact Hollow.State.Invulnerable (its children, such as the
-	// stalker's .Kinetic, only count through their own rule).
-	const bool bInvulnerable = Evaluate.TargetTags && Evaluate.TargetTags->HasTagExact(HollowTags::State_Invulnerable);
-	const bool bImmune = bInvulnerable || (Rule && Rule->ImmunityTag.IsValid() && Evaluate.TargetTags && Evaluate.TargetTags->HasTag(Rule->ImmunityTag));
-	const float Damage = HollowDamageMath::Mitigate(Base, Armor, Settings->ArmorConstant, Rule ? Rule->bArmorApplies : true, bImmune);
+	const float Penetration = Spec.GetSetByCallerMagnitude(HollowTags::Data_ArmorPenetration, /*WarnIfNotFound=*/false, /*DefaultIfNotFound=*/0.f);
+	const float ExposedPenetration = Spec.GetSetByCallerMagnitude(HollowTags::Data_ExposedPenetration, /*WarnIfNotFound=*/false, /*DefaultIfNotFound=*/0.f);
+	const FHollowDamageOutcome Outcome = HollowDamageRules::Resolve(Base, Armor, Evaluate.TargetTags, DamageType, Penetration, ExposedPenetration);
 
-	UE_LOG(LogHollowGAS, Verbose, TEXT("Damage %s: %.1f -> %.1f (armor %.1f%s)"), *DamageType.ToString(), Base, Damage, Armor, bImmune ? TEXT(", immune") : TEXT(""));
-	if (Damage > 0.f)
+	UE_LOG(LogHollowGAS, Verbose, TEXT("Damage %s: %.1f -> %.1f (armor %.1f, penetration %.2f%s%s)"), *DamageType.ToString(), Base, Outcome.Damage, Armor,
+		Penetration, Outcome.bExposed ? TEXT(", exposed") : TEXT(""), Outcome.bImmune ? TEXT(", immune") : TEXT(""));
+	if (Outcome.Damage > 0.f)
 	{
-		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(UHollowHealthSet::GetIncomingDamageAttribute(), EGameplayModOp::Additive, Damage));
+		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(UHollowHealthSet::GetIncomingDamageAttribute(), EGameplayModOp::Additive, Outcome.Damage));
 	}
 }
 

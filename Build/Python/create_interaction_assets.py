@@ -18,6 +18,9 @@ IMC_PATH = "/Game/Hollow/Core/Input/IMC_Raid"
 INPUT_CONFIG_PATH = "/Game/Hollow/Core/Input/DA_InputConfig_Raid"
 INTERACT_TAG = "Hollow.Input.Interact"
 INTERACT_KEYS = ["E", "Gamepad_FaceButton_Left"]
+# GP-01 (ADR-0044): the gamepad's X is shared, a tap reloads (create_inventory_assets.py) and holding it interacts; E on
+# press. Bound to ETriggerEvent::Triggered, so every mapping has its trigger: key -> (trigger class, its settings).
+INTERACT_TRIGGERS = {"E": ("InputTriggerPressed", {}), "Gamepad_FaceButton_Left": ("InputTriggerHold", {"hold_time_threshold": 0.3, "is_one_shot": True})}
 
 SWITCH_BP_PATH = "/Game/Hollow/World/Interactables/BP_Switch"
 HUB_MAP = "/Game/Hollow/Maps/L_Hub_Dev"
@@ -96,23 +99,44 @@ def ensure_action():
     log("created IA_Interact")
 
 
+def trigger_matches(entry, spec):
+    """The mapping's triggers are exactly the spec's one, with its settings."""
+    class_name, settings = spec
+    triggers = list(entry.get_editor_property("triggers"))
+    if len(triggers) != 1 or triggers[0] is None or triggers[0].get_class().get_name() != class_name:
+        return False
+    return all(abs(float(triggers[0].get_editor_property(k)) - float(v)) < 1e-4 if isinstance(v, float) else triggers[0].get_editor_property(k) == v
+               for k, v in settings.items())
+
+
+def make_trigger(context, spec):
+    class_name, settings = spec
+    trigger = unreal.new_object(getattr(unreal, class_name), outer=context)
+    for key, value in settings.items():
+        trigger.set_editor_property(key, value)
+    return trigger
+
+
 def ensure_mappings():
     context = load(IMC_PATH)
     action = load(ACTION_PATH)
     data = context.get_editor_property("default_key_mappings")
     mappings = list(data.get_editor_property("mappings"))
-    if any(entry.get_editor_property("action") == action for entry in mappings):
-        log("IMC_Raid already maps IA_Interact, kept as is")
+    own = [m for m in mappings if m.get_editor_property("action") == action]
+    if sorted(m.get_editor_property("key").export_text() for m in own) == sorted(make_key(k).export_text() for k in INTERACT_KEYS) \
+            and all(trigger_matches(m, INTERACT_TRIGGERS[str(m.get_editor_property("key").get_editor_property("key_name"))]) for m in own):
         return
+    mappings = [m for m in mappings if m.get_editor_property("action") != action]
     for key_name in INTERACT_KEYS:
         entry = unreal.EnhancedActionKeyMapping()
         entry.set_editor_property("action", action)
         entry.set_editor_property("key", make_key(key_name))
+        entry.set_editor_property("triggers", [make_trigger(context, INTERACT_TRIGGERS[key_name])])
         mappings.append(entry)
     data.set_editor_property("mappings", mappings)
     context.set_editor_property("default_key_mappings", data)
     save(context)
-    log("mapped IA_Interact in IMC_Raid")
+    log("mapped IA_Interact in IMC_Raid (E pressed, gamepad X held)")
 
 
 def ensure_config_entry():
@@ -194,6 +218,10 @@ def validate(start_count):
     action = load(ACTION_PATH)
     mappings = load(IMC_PATH).get_editor_property("default_key_mappings").get_editor_property("mappings")
     check(sum(1 for e in mappings if e.get_editor_property("action") == action) >= len(INTERACT_KEYS), "IMC_Raid maps IA_Interact")
+    for e in mappings:
+        if e.get_editor_property("action") == action:
+            key_name = str(e.get_editor_property("key").get_editor_property("key_name"))
+            check(key_name in INTERACT_TRIGGERS and trigger_matches(e, INTERACT_TRIGGERS[key_name]), "IA_Interact on %s has its trigger" % key_name)
     entries = load(INPUT_CONFIG_PATH).get_editor_property("native_actions")
     tag = make_tag(INTERACT_TAG)
     check(sum(1 for e in entries if same_tag(e.get_editor_property("input_tag"), tag)) == 1, "input config has exactly one Interact entry")

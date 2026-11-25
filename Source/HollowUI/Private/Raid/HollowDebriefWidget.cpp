@@ -59,11 +59,17 @@ FText UHollowDebriefWidget::GetDetails() const
 	Args.Add(TEXT("Lost"), DescribeItems(Report.Delta.Lost));
 	Args.Add(TEXT("Used"), DescribeItems(Report.Delta.Spent));
 	Args.Add(TEXT("Insured"), DescribeItems(Report.Delta.InsuranceUsed));
+	Args.Add(TEXT("Found"), DescribeItems(Report.Delta.Found));   // GP-01b: picked up in the raid
+	Args.Add(TEXT("FoundSold"), DescribeItems(Report.Delta.FoundSold));
+	Args.Add(TEXT("FoundLost"), DescribeItems(Report.Delta.FoundLost));
 	return FText::Format(LOCTEXT("Details",
 		"Aboard the shuttle: {Aboard} of {Squad}    Raid time: {Minutes}:{Seconds}\n"
 		"Delivered: {Sold} (+{Earned} cr)\n"
 		"Credits: {Before} -> {After}\n"
 		"Kept: {Kept}\n"
+		"Found, into the stash: {Found}\n"
+		"Found, sold (no room in the stash): {FoundSold}\n"
+		"Found, left behind: {FoundLost}\n"
 		"Insurance used: {Insured}\n"
 		"Used: {Used}\n"
 		"Lost: {Lost}"), Args);

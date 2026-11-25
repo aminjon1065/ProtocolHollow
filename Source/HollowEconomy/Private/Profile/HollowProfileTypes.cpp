@@ -1,5 +1,6 @@
 #include "Profile/HollowProfileTypes.h"
 
+#include "Crafting/HollowCraftingRules.h"
 #include "Extraction/HollowExtractionResolver.h"
 #include "Items/HollowItemTypes.h"
 
@@ -7,7 +8,7 @@
 
 namespace HollowProfileRules
 {
-	void Apply(FHollowProfile& Profile, const FHollowProfileDelta& Delta, const EHollowRaidOutcome Outcome)
+	void Apply(FHollowProfile& Profile, const FHollowProfileDelta& Delta, const EHollowRaidOutcome Outcome, const FHollowItemCatalog* Catalog)
 	{
 		Profile.Credits = FMath::Max(0, Profile.Credits + Delta.Credits);
 		for (const TArray<FHollowItemStack>* Gone : {&Delta.Spent, &Delta.Lost})
@@ -39,6 +40,13 @@ namespace HollowProfileRules
 			}
 		}
 
+		// GP-01b: the found loot, into the stash (the resolver kept to its room).
+		for (const FHollowItemStack& Found : Delta.Found)
+		{
+			const int32 MaxStack = Catalog ? Catalog->GetMaxStack(Found.Item) : FMath::Max(Found.Count, 1);
+			HollowCraftingRules::AddToStash(Profile.Stash, Found.Item, Found.Count, MaxStack, MAX_int32);
+		}
+
 		++Profile.Stats.Raids;
 		Profile.Stats.Extractions += Outcome == EHollowRaidOutcome::Extracted ? 1 : 0;
 		Profile.Stats.Deaths += FHollowExtractionResolver::KeepsLoadout(Outcome) ? 0 : 1;
@@ -51,18 +59,22 @@ namespace HollowProfileRules
 	namespace Private
 	{
 		FHollowRaidReport Resolve(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
-			const int32 CoreValuePercent = 0)
+			const int32 CoreValuePercent = 0, const int32 StashSlots = 0, const int32 SellPercent = 0)
 		{
 			FHollowRaidContext Context;
 			Context.CoreValuePercent = CoreValuePercent;
 			Context.Loadout = State.Escrow.Loadout;
 			Context.Loot = Result.Loot;
 			Context.Spent = Result.Spent;
+			Context.Found = Result.Found;
+			Context.Stash = State.Profile.Stash;
+			Context.StashSlots = StashSlots;
+			Context.SellPercent = SellPercent;
 			FHollowRaidReport Report;
 			Report.Result = Result;
 			Report.Delta = FHollowExtractionResolver::Resolve(Context, Result.Outcome, Catalog);
 			Report.CreditsBefore = State.Profile.Credits;
-			Apply(State.Profile, Report.Delta, Result.Outcome);
+			Apply(State.Profile, Report.Delta, Result.Outcome, &Catalog);
 			Report.CreditsAfter = State.Profile.Credits;
 			State.Escrow = FHollowRaidEscrow();
 			State.PendingReport = Report;
@@ -85,13 +97,13 @@ namespace HollowProfileRules
 	}
 
 	TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
-		const int32 CoreValuePercent)
+		const int32 CoreValuePercent, const int32 StashSlots, const int32 SellPercent)
 	{
 		if (!State.Escrow.IsActive() || Result.RaidId != State.Escrow.RaidId || Result.Outcome == EHollowRaidOutcome::None)
 		{
 			return TOptional<FHollowRaidReport>();
 		}
-		return Private::Resolve(State, Result, Catalog, CoreValuePercent);
+		return Private::Resolve(State, Result, Catalog, CoreValuePercent, StashSlots, SellPercent);
 	}
 
 	TOptional<FHollowRaidReport> ResolveEscrow(FHollowProfileState& State, const EHollowRaidOutcome Outcome, const FDateTime& NowUtc,
@@ -121,7 +133,7 @@ namespace HollowProfileRules
 		}
 		if (Result)
 		{
-			for (const TArray<FHollowItemStack>* Stacks : {&Result->Loot, &Result->Spent})
+			for (const TArray<FHollowItemStack>* Stacks : {&Result->Loot, &Result->Spent, &Result->Found})
 			{
 				for (const FHollowItemStack& Stack : *Stacks)
 				{

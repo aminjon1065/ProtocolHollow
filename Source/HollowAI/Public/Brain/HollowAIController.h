@@ -9,6 +9,7 @@
 
 class UAbilitySystemComponent;
 class UHollowSectorTopologySubsystem;
+class UAISenseConfig_Damage;
 class UAISenseConfig_Hearing;
 class UAISenseConfig_Sight;
 class UHollowEnemyDefinition;
@@ -96,6 +97,10 @@ protected:
 	virtual void OnExposed() {}
 	/** Whether a new sight or sound makes the brain pick again at once (the Pilgrim: always; the stalker only while it roams). */
 	virtual bool ShouldReconsiderOnPerception() const { return true; }
+	/** How dear a seen player is to hunt when it picks one (the least wins): its squared distance; a Whisperer prefers the dark. */
+	virtual double TargetCost(const APawn& Candidate) const;
+	/** It has just found something to hunt (it had none). */
+	virtual void OnNewTarget(APawn& NewTarget) {}
 	/** Hearing range from now on (perception is reconfigured; noises already heard stay). */
 	void SetHearingRange(float Range);
 
@@ -122,6 +127,10 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UAISenseConfig_Hearing> HearingConfig;
+
+	/** GP-01: a hit tells where it came from (the shooter), like a noise there. */
+	UPROPERTY()
+	TObjectPtr<UAISenseConfig_Damage> DamageConfig;
 
 	EHollowAIActivity Activity = EHollowAIActivity::None;
 	FTimerHandle ActivityTimer;

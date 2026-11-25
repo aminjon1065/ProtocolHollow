@@ -8,6 +8,7 @@
   /Game/Hollow/UI/Visor/W_VoiceIndicator      microphone mode, transmission level, who is talking
   /Game/Hollow/UI/Visor/W_LampIndicator       "[F] LAMP ON"
   /Game/Hollow/UI/Visor/W_SupplyReadout       "PULSE MINE 2   FUEL CELL 3": the consumables of the raid inventory (S5-01)
+  /Game/Hollow/UI/Visor/W_WeaponReadout       "NAILGUN  9/12  [36]": the weapon in hand, its magazine, the rounds carried (GP-01)
   /Game/Hollow/UI/Visor/W_Visor               the visor: glass, crosshair, target, prompt and the telemetry at the edges
                                               (health and stamina, tool fuel and heat, supplies, voice and lamp, Resonance, raid)
 UX-01 (ADR-0042):
@@ -19,6 +20,10 @@ UX-01 (ADR-0042):
   /Game/Hollow/UI/Visor/W_ControlsHint        "[H] CONTROLS" and a line per action
   /Game/Hollow/UI/Visor/DA_ControlsHint       UHollowControlsHintSet: the cheat sheet's rows and class labels
   /Game/Hollow/UI/Input/IA_ControlsHint       folds the cheat sheet (H / View), mapped in IMC_UI
+GP-01c (ADR-0046):
+  /Game/Hollow/UI/Visor/M_UI_HitMarker        UI material: four diagonal ticks round the crosshair, tinted by the image
+  /Game/Hollow/UI/Visor/W_HitMarker           the hit marker (hit / armour / crit: colour and size from DA_VisorStyle)
+  M_UI_VisorGlass                             + the damage edge (Damage, DamageColor); DA_VisorStyle + marker and flash data
 
 Nothing heavy: one node-only material and small widget trees. Every asset keeps a hash of its spec (metadata
 "HollowSpec") and is rebuilt only when its spec changes - every save is a new LFS object.
@@ -61,11 +66,14 @@ CONTROLS_PATH = VISOR_DIR + "/DA_ControlsHint"
 GAME_INPUT_DIR = "/Game/Hollow/Core/Input/Actions"
 ENGINEER, OCCULTIST = "Hollow.Class.Engineer", "Hollow.Class.Occultist"
 # (action, label, {class: own label, "" hides it}, raid only). The keys come from the mapping contexts at run time.
+# GP-01: new labels come from the string table (key, English source); the weapon in hand fires and aims on the tool's inputs.
 CONTROLS_ROWS = [
     ("IA_PrimaryUse", "Tool", {ENGINEER: "Plasma cutter", OCCULTIST: "Aether lantern"}, True),
     ("IA_SecondaryUse", "Welder", {OCCULTIST: ""}, True),
+    ("IA_HandsCycle", ("Controls.Hands", "Tools / weapon"), {}, True),
     ("IA_Gadget", "Gadget", {ENGINEER: "Pulse mine", OCCULTIST: "Ritual ward"}, True),
-    ("IA_Reload", "Refuel", {}, True),
+    ("IA_Reload", ("Controls.Reload", "Reload / refuel"), {}, True),
+    ("IA_Melee", ("Controls.Melee", "Melee"), {}, True),
     ("IA_HelmetLamp", "Helmet lamp", {}, False),
     ("IA_PushToTalk", "Voice", {}, False),
     ("IA_Interact", "Interact", {}, False),
@@ -73,7 +81,7 @@ CONTROLS_ROWS = [
 
 # The glass (data). r is the distance from the centre in half-screens: 0 centre, 1 the middle of an edge, 1.41 a corner.
 GLASS = {
-    "version": 2,
+    "version": 3,
     "vignette": [0.75, 1.5, 0.4],             # from r, to r, darkest opacity
     "rim": [1.32, 0.14, 0.09],                # radius, half width, opacity
     "rim_color": [0.75, 0.9, 1.0],
@@ -82,9 +90,16 @@ GLASS = {
     "pulse_depth": 0.5,                       # how far the pulse dims the glow
     "bands": [3.0, 0.08, 0.07, 0.35],         # count over the height, drift per second, width, from r (the centre stays clear)
     "alert_color": [1.0, 0.3, 0.1],           # defaults; DA_VisorStyle sets them per tier
+    "damage": [0.55, 1.35],                   # GP-01c: the damage edge grows from r to r
+    "damage_color": [0.95, 0.08, 0.05],       # default; DA_VisorStyle's DamageColor
 }
-GLASS_PARAMETERS = ["Alert", "PulseHz", "Interference"]
+GLASS_PARAMETERS = ["Alert", "PulseHz", "Interference", "Damage"]
 GLASS_COLOR_PARAMETER = "AlertColor"
+GLASS_DAMAGE_COLOR_PARAMETER = "DamageColor"
+
+# GP-01c: the hit marker's ticks in the image's UV (0.5 = its edge): from, to, half width, edge softness.
+HIT_MARKER_PATH = VISOR_DIR + "/M_UI_HitMarker"
+HIT_MARKER = {"version": 1, "ticks": [0.16, 0.44, 0.035, 0.015]}
 
 # The look per Resonance tier (S4-08 clarification 7): calm Low and Medium; High amber at 1 Hz; Critical red at 2 Hz with
 # interference. Every pulse stays at or under 3 Hz (UHollowVisorStyle::MaxPulseHz, photosensitivity).
@@ -108,8 +123,16 @@ STYLE_COLORS = {
     "transmitting_color": (0.45, 1.0, 0.55, 1.0), "muted_color": (0.65, 0.45, 0.45, 0.85),
     "lamp_on_color": (1.0, 0.95, 0.85, 0.9), "lamp_off_color": (0.5, 0.55, 0.6, 0.75),
     "objective_color": (0.92, 0.95, 1.0, 0.95),
+    # GP-01c: the hit marker white for a hit, steel for armour, amber for a crit; the damage edge red.
+    "hit_color": (1.0, 1.0, 1.0, 0.95), "armor_color": (0.55, 0.62, 0.7, 0.85), "crit_color": (1.0, 0.72, 0.25, 1.0),
+    "damage_color": (0.95, 0.1, 0.06, 1.0),
 }
-STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoint_edge_margin": 96.0}
+STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoint_edge_margin": 96.0,
+                 # GP-01c: a marker for 0.18 s (armour smaller, a crit larger); the damage edge flashes over 0.45 s, full
+                 # strength at a quarter of the health at once; reduced flashes: a dim edge fading over 1.2 s, no flash.
+                 "hit_marker_seconds": 0.18, "armor_marker_scale": 0.8, "crit_marker_scale": 1.3,
+                 "damage_flash_seconds": 0.45, "damage_full_share": 0.25, "reduced_damage_level": 0.35, "reduced_damage_seconds": 1.2,
+                 "damage_fade_rate_hz": 30.0}
 # Hub terminals pale cyan (the contracts console amber: it launches), extraction green, the vault aether cyan, the
 # altar ritual gold (Docs/Art bible palette).
 WAYPOINT_LOOKS = [
@@ -135,22 +158,26 @@ WIDGETS = {
     "W_VoiceIndicator": {"version": 1, "text": TELEMETRY_TEXT, "small": TELEMETRY_SMALL, "bar": VOICE_BAR, "gap": GAP},
     "W_LampIndicator": {"version": 1, "text": TELEMETRY_TEXT},
     "W_SupplyReadout": {"version": 1, "text": TELEMETRY_TEXT},
+    "W_WeaponReadout": {"version": 1, "text": TELEMETRY_TEXT},
     "W_VisorObjective": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_TEXT, "wrap": 620.0, "gap": GAP},
     "W_VisorWaypoint": {"version": 1, "pip": 14.0, "arrow": 26.0, "text": TELEMETRY_SMALL, "gap": GAP},
     "W_VisorWaypoints": {"version": 1},
     "W_ControlsHint": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_SMALL, "gap": GAP},
+    "W_HitMarker": {"version": 1, "size": 44.0},
 }
 
 # W_Visor layout (data): distances from the screen edges, inside the glass's rim.
 LAYOUT = {
-    "version": 4,
+    "version": 6,
     "edge": 48.0,
     "crosshair": 6.0,
+    "hit_marker": 44.0,                       # GP-01c: round the crosshair
     "target": [360.0, 48.0, 60.0],             # size, below the crosshair
     "prompt_offset": 120.0,
     "health": [320.0, 26.0], "stamina": [320.0, 20.0], "bar_gap": 32.0,
     "tool_bar": [300.0, 24.0], "tool_gap": 36.0,
     "supply_above_tools": 72.0,
+    "weapon_above_supply": 30.0,              # GP-01: the weapon's line over the supplies
     "lamp_below_voice": 64.0,
     "objective_below_voice": 108.0,           # UX-01: under the lamp line
     "controls_below_readout": 76.0,           # UX-01: under the Resonance readout
@@ -283,7 +310,7 @@ class Graph(object):
 def build_glass(material):
     m = GLASS
     Add, Sub, Mul = unreal.MaterialExpressionAdd, unreal.MaterialExpressionSubtract, unreal.MaterialExpressionMultiply
-    mel.delete_all_material_expressions(material)
+    clear_graph(material)
     material.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
     material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
     g = Graph(material)
@@ -321,10 +348,17 @@ def build_glass(material):
     bands = g.math(Mul, 5, g.math(Mul, 5, band, interference), g.smooth(6, from_r, m["rim"][0], r))
     tint = g.math(Add, 4, glow, bands)
 
+    # GP-01c: the damage edge, in its own colour, as strong as the widget's Damage (its flash and fade are the widget's).
+    damage = g.scalar("Damage", 10)
+    damage_color = g.node(unreal.MaterialExpressionVectorParameter, 10, parameter_name=GLASS_DAMAGE_COLOR_PARAMETER,
+                          default_value=color(m["damage_color"] + [1.0]))
+    hurt = g.math(Mul, 5, g.smooth(6, m["damage"][0], m["damage"][1], r), damage)
+
     # Darkening plus light: opacity is all of it, the colour only the light (divided back out of the blend).
-    opacity = g.single(unreal.MaterialExpressionSaturate, 2, g.math(Add, 3, g.math(Add, 4, vignette, rim), g.math(Add, 4, tint, scan)))
+    opacity = g.single(unreal.MaterialExpressionSaturate, 2, g.math(Add, 3, g.math(Add, 4, vignette, rim),
+                                                                   g.math(Add, 4, g.math(Add, 5, tint, scan), hurt)))
     rim_color = g.node(unreal.MaterialExpressionConstant3Vector, 5, constant=color(m["rim_color"] + [1.0]))
-    light = g.math(Add, 3, g.math(Mul, 4, rim_color, rim), g.math(Mul, 4, alert_color, tint))
+    light = g.math(Add, 3, g.math(Add, 4, g.math(Mul, 5, rim_color, rim), g.math(Mul, 5, alert_color, tint)), g.math(Mul, 4, damage_color, hurt))
     final = g.math(unreal.MaterialExpressionDivide, 1, light, g.math(unreal.MaterialExpressionMax, 2, opacity, const_b=0.001))
     if not mel.connect_material_property(final, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
         raise RuntimeError("Could not connect the final colour")
@@ -384,16 +418,63 @@ def ensure_style():
 
 # ---------------------------------------------------------------- waypoint marks (UX-01)
 
-def build_marker(material):
-    m = MARKER
-    Add, Sub, Mul = unreal.MaterialExpressionAdd, unreal.MaterialExpressionSubtract, unreal.MaterialExpressionMultiply
-    # delete_all_material_expressions removes about half of a graph per call (it walks the list it edits): repeat.
+def clear_graph(material):
+    """Every expression gone: delete_all_material_expressions removes about half of a graph per call (it walks the list it edits)."""
     for _ in range(CLEAR_ATTEMPTS):
         if not mel.get_num_material_expressions(material):
             break
         mel.delete_all_material_expressions(material)
     if mel.get_num_material_expressions(material):
-        raise RuntimeError("M_UI_WaypointMarker kept %d old expressions" % mel.get_num_material_expressions(material))
+        raise RuntimeError("%s kept %d old expressions" % (material.get_name(), mel.get_num_material_expressions(material)))
+
+
+def build_hit_marker(material):
+    """Four ticks on the diagonals (an X with its middle open), tinted by the image's colour."""
+    near, far, half, soft = HIT_MARKER["ticks"]
+    Add, Sub, Mul = unreal.MaterialExpressionAdd, unreal.MaterialExpressionSubtract, unreal.MaterialExpressionMultiply
+    clear_graph(material)
+    material.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
+    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    g = Graph(material)
+    uv = g.node(unreal.MaterialExpressionTextureCoordinate, 12)
+    offset = g.math(Sub, 11, uv, const_b=0.5)
+    x = g.node(unreal.MaterialExpressionComponentMask, 10, r=True, g=False, b=False, a=False)
+    g.wire(offset, x)
+    y = g.node(unreal.MaterialExpressionComponentMask, 10, r=False, g=True, b=False, a=False)
+    g.wire(offset, y)
+    # Distances along the two diagonals: (x + y) / sqrt 2 and (x - y) / sqrt 2.
+    diagonal = g.single(unreal.MaterialExpressionAbs, 8, g.math(Mul, 9, g.math(Add, 9, x, y), const_b=0.70710678))
+    anti = g.single(unreal.MaterialExpressionAbs, 8, g.math(Mul, 9, g.math(Sub, 9, x, y), const_b=0.70710678))
+
+    def tick(along, across):
+        thin = g.single(unreal.MaterialExpressionOneMinus, 6, g.smooth(7, half - soft, half + soft, across))
+        start = g.smooth(7, near - soft, near + soft, along)
+        end = g.single(unreal.MaterialExpressionOneMinus, 6, g.smooth(7, far - soft, far + soft, along))
+        return g.math(Mul, 4, g.math(Mul, 5, thin, start), end)
+
+    mask = g.single(unreal.MaterialExpressionSaturate, 2, g.math(Add, 3, tick(diagonal, anti), tick(anti, diagonal)))
+    tint = g.node(unreal.MaterialExpressionVertexColor, 4)   # UMG passes the image's colour as the vertex colour
+    if not mel.connect_material_property(tint, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
+        raise RuntimeError("Could not connect the hit marker colour")
+    if not mel.connect_material_property(mask, "", unreal.MaterialProperty.MP_OPACITY):
+        raise RuntimeError("Could not connect the hit marker opacity")
+    mel.recompile_material(material)
+
+
+def ensure_hit_marker_material():
+    material, created = existing_or_new(HIT_MARKER_PATH, unreal.Material, unreal.MaterialFactoryNew())
+    spec_hash = digest(HIT_MARKER)
+    if created or not up_to_date(material, spec_hash):
+        build_hit_marker(material)
+        stamp(material, spec_hash)
+        log("M_UI_HitMarker built (%d expressions)" % mel.get_num_material_expressions(material))
+    return material
+
+
+def build_marker(material):
+    m = MARKER
+    Add, Sub, Mul = unreal.MaterialExpressionAdd, unreal.MaterialExpressionSubtract, unreal.MaterialExpressionMultiply
+    clear_graph(material)
     material.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
     material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
     g = Graph(material)
@@ -497,6 +578,20 @@ def ensure_controls_input():
         log("IMC_UI: %d cheat sheet key(s) mapped" % added)
 
 
+LOCALIZATION_DIR = "/Game/Hollow/Localization"
+STRING_TABLE = "ST_Gameplay"   # create_weapon_assets.py makes it
+
+
+def label_text(label):
+    """A plain text, or (key, source) from the string table (GP-01)."""
+    if isinstance(label, tuple):
+        table = unreal.HollowLocalizationAuthoring.find_or_create_string_table(LOCALIZATION_DIR, STRING_TABLE)
+        text = unreal.HollowLocalizationAuthoring.table_text(table, label[0], label[1])
+        assets.save_loaded_asset(table, True)
+        return text
+    return unreal.Text(label)
+
+
 def ensure_controls_rows():
     factory = unreal.DataAssetFactory()
     factory.set_editor_property("data_asset_class", unreal.HollowControlsHintSet)
@@ -508,7 +603,7 @@ def ensure_controls_rows():
     for action, label, class_labels, raid_only in CONTROLS_ROWS:
         row = unreal.HollowControlsHintRow()
         row.set_editor_property("action", load(GAME_INPUT_DIR + "/" + action))
-        row.set_editor_property("label", unreal.Text(label))
+        row.set_editor_property("label", label_text(label))
         own = []
         for class_tag, class_label in sorted(class_labels.items()):
             entry = unreal.HollowControlsClassLabel()
@@ -661,6 +756,18 @@ def ensure_supply():
     finish(blueprint, spec)
 
 
+def ensure_weapon_readout():
+    spec = WIDGETS["W_WeaponReadout"]
+    blueprint = widget_blueprint("W_WeaponReadout", unreal.HollowWeaponReadoutWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.Overlay, "Root")
+    readout = add(blueprint, unreal.TextBlock, "ReadoutText", "Root")
+    telemetry_text(readout, spec["text"], unreal.TextJustify.RIGHT)
+    box_slot(readout, H.H_ALIGN_RIGHT, V.V_ALIGN_BOTTOM)
+    finish(blueprint, spec)
+
+
 def image_size(size):
     vector = unreal.DeprecateSlateVector2D()   # Slate's float vector type
     vector.set_editor_property("x", size)
@@ -677,6 +784,18 @@ def marker_image(blueprint, name, parent, instance, size):
     image.set_editor_property("brush", brush)
     box_slot(image, H.H_ALIGN_CENTER, V.V_ALIGN_CENTER)
     return image
+
+
+def ensure_hit_marker(material):
+    spec = WIDGETS["W_HitMarker"]
+    built = dict(spec, marker=HIT_MARKER)
+    blueprint = widget_blueprint("W_HitMarker", unreal.HollowHitMarkerWidget, built)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.Overlay, "Root")
+    image = marker_image(blueprint, "Marker", "Root", material, spec["size"])
+    image.set_editor_property("visibility", unreal.SlateVisibility.HIDDEN)   # until the first hit
+    finish(blueprint, built)
 
 
 def ensure_objective():
@@ -784,6 +903,8 @@ def ensure_visor():
     crosshair.set_editor_property("brush", brush)
     crosshair.set_editor_property("color_and_opacity", color(L["colors"]["crosshair"]))
     canvas_slot(crosshair, centre, centre, unreal.Vector2D(0.0, 0.0), size)
+    hit = add(blueprint, cls("W_HitMarker"), "HitMarker", "Root")
+    canvas_slot(hit, centre, centre, unreal.Vector2D(0.0, 0.0), unreal.Vector2D(L["hit_marker"], L["hit_marker"]))
     target = add(blueprint, cls("W_TargetStatus"), "TargetStatus", "Root")
     canvas_slot(target, centre, top_centre, unreal.Vector2D(0.0, L["target"][2]), unreal.Vector2D(L["target"][0], L["target"][1]))
     prompt = add(blueprint, cls("W_InteractionPrompt"), "InteractionPrompt", "Root")
@@ -806,6 +927,8 @@ def ensure_visor():
     canvas_slot(heat, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge), unreal.Vector2D(*L["tool_bar"]))
     supply = add(blueprint, cls("W_SupplyReadout"), "SupplyReadout", "Root")
     canvas_slot(supply, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge - L["supply_above_tools"]), auto_size=True)
+    weapon = add(blueprint, cls("W_WeaponReadout"), "WeaponReadout", "Root")
+    canvas_slot(weapon, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge - L["supply_above_tools"] - L["weapon_above_supply"]), auto_size=True)
 
     # Top: voice and lamp on the left, the raid in the middle, Resonance on the right.
     voice = add(blueprint, cls("W_VoiceIndicator"), "VoiceIndicator", "Root")
@@ -846,6 +969,7 @@ def validate():
     for path, parent in (("W_VisorFrame", unreal.HollowVisorFrameWidget), ("W_ResonanceReadout", unreal.HollowResonanceReadoutWidget),
                          ("W_VoiceIndicator", unreal.HollowVoiceIndicatorWidget), ("W_LampIndicator", unreal.HollowLampIndicatorWidget),
                          ("W_SupplyReadout", unreal.HollowSupplyReadoutWidget), ("W_VisorObjective", unreal.HollowObjectiveWidget),
+                         ("W_WeaponReadout", unreal.HollowWeaponReadoutWidget), ("W_HitMarker", unreal.HollowHitMarkerWidget),
                          ("W_VisorWaypoint", unreal.HollowWaypointMarkerWidget), ("W_VisorWaypoints", unreal.HollowWaypointLayerWidget),
                          ("W_ControlsHint", unreal.HollowControlsHintWidget), ("W_Visor", unreal.HollowVisorWidget)):
         blueprint = load(VISOR_DIR + "/" + path)
@@ -854,11 +978,17 @@ def validate():
         spec = visor_spec() if path == "W_Visor" else WIDGETS[path]
         if path == "W_VisorWaypoint":
             spec = dict(spec, marks=sorted(MARKER_INSTANCES), marker=MARKER)
+        if path == "W_HitMarker":
+            spec = dict(spec, marker=HIT_MARKER)
         check(up_to_date(blueprint, digest(spec)), path + " matches its spec")
     visor = load(VISOR_DIR + "/W_Visor")
     for name in ("Layers", "VisorFrame", "Root", "Crosshair", "TargetStatus", "InteractionPrompt", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar",
-                 "VoiceIndicator", "LampIndicator", "SupplyReadout", "RaidStatus", "ResonanceReadout", "Waypoints", "Objective", "ControlsHint"):
+                 "VoiceIndicator", "LampIndicator", "SupplyReadout", "WeaponReadout", "RaidStatus", "ResonanceReadout", "Waypoints", "Objective",
+                 "ControlsHint", "HitMarker"):
         check(author.find_widget(visor, name) is not None, "W_Visor shows " + name)
+    hit_marker = load(HIT_MARKER_PATH)
+    check(hit_marker.get_editor_property("material_domain") == unreal.MaterialDomain.MD_UI and up_to_date(hit_marker, digest(HIT_MARKER)), "M_UI_HitMarker")
+    check(GLASS_DAMAGE_COLOR_PARAMETER in [str(n) for n in mel.get_vector_parameter_names(glass)], "M_UI_VisorGlass damage colour parameter")
     check(author.find_widget(visor, "Waypoints").get_editor_property("marker_class") == load(VISOR_DIR + "/W_VisorWaypoint").generated_class(),
           "the waypoint layer places W_VisorWaypoint")
     # UX-01: every kind of place has its look; the marks; the cheat sheet's action, keys and rows.
@@ -891,6 +1021,7 @@ def main():
     glass = ensure_glass()
     ensure_style()
     instances = ensure_marker_material()
+    hit_material = ensure_hit_marker_material()
     ensure_controls_input()
     ensure_controls_rows()
     ensure_frame(glass)
@@ -898,6 +1029,8 @@ def main():
     ensure_voice()
     ensure_lamp()
     ensure_supply()
+    ensure_weapon_readout()
+    ensure_hit_marker(hit_material)
     ensure_objective()
     ensure_waypoint(instances)
     ensure_waypoint_layer()

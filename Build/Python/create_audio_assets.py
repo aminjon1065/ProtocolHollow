@@ -266,6 +266,101 @@ def mine_blast():
     return g.mix("mix", [("thump", "Out", 0.8), ("arc", "Out", 0.25), ("blast", "Out", 0.5)]).out("mix").finish_on("thump_env").spec
 
 
+def nailgun_shot():
+    """GP-01: a pneumatic crack: a sharp transient, a short metallic ring and the bolt's thump."""
+    g = Graph(one_shot=True)
+    g.node("crack", NOISE, {"Type": WHITE}).node("crack_hp", HIGHPASS, {"Cutoff Frequency": 1800.0}).link("crack", "Audio", "crack_hp", "In")
+    g.burst("snap", "crack_hp", "Out", 0.0005, 0.05)
+    g.node("ring", SINE, {"Frequency": 1450.0}).burst("tone", "ring", "Audio", 0.001, 0.12)
+    g.node("sub", SINE, {"Frequency": 95.0}).burst("thump", "sub", "Audio", 0.001, 0.09)
+    return g.mix("mix", [("snap", "Out", 0.7), ("tone", "Out", 0.2), ("thump", "Out", 0.6)]).out("mix").finish_on("tone_env").spec
+
+
+def shotgun_blast():
+    """GP-01: a heavy blast with a long low tail, then the pump racking 0.35 s later."""
+    g = Graph(one_shot=True)
+    g.node("air", NOISE, {"Type": PINK}).node("air_lp", LOWPASS, {"Cutoff Frequency": 2400.0}).link("air", "Audio", "air_lp", "In")
+    g.burst("blast", "air_lp", "Out", 0.0005, 0.5)
+    g.node("sub", SINE, {"Frequency": 55.0}).burst("boom", "sub", "Audio", 0.001, 0.55)
+    g.node("pump", DELAY, {"Delay Time": 0.35}).link("@play", "On Play", "pump", "In")
+    g.node("rack", NOISE, {"Type": WHITE}).node("rack_bp", SVF, {"Cutoff Frequency": 2600.0, "Resonance": 2.0}).link("rack", "Audio", "rack_bp", "In")
+    g.burst("clack", "rack_bp", BAND_PASS, 0.001, 0.06, trigger=("pump", "Out"))
+    return g.mix("mix", [("blast", "Out", 0.8), ("boom", "Out", 0.7), ("clack", "Out", 0.35)]).out("mix").finish_on("boom_env").spec
+
+
+def weapon_reload():
+    """GP-01: the magazine out and in: two clacks 0.4 s apart and a latch; players only."""
+    g = Graph(one_shot=True)
+    g.node("metal", NOISE, {"Type": WHITE}).node("metal_bp", SVF, {"Cutoff Frequency": 3200.0, "Resonance": 2.5}).link("metal", "Audio", "metal_bp", "In")
+    g.burst("out", "metal_bp", BAND_PASS, 0.001, 0.05)
+    g.node("second", DELAY, {"Delay Time": 0.4}).link("@play", "On Play", "second", "In")
+    g.node("tick", SQUARE, {"Frequency": 2200.0}).burst("latch", "tick", "Audio", 0.001, 0.03, trigger=("second", "Out"))
+    g.node("end", DELAY, {"Delay Time": 0.6}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("out", "Out", 0.6), ("latch", "Out", 0.3)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.6}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def weapon_dry_fire():
+    """GP-01: the empty trigger: one dry click."""
+    g = Graph(one_shot=True)
+    g.node("snap", NOISE, {"Type": WHITE}).node("snap_hp", HIGHPASS, {"Cutoff Frequency": 3000.0}).link("snap", "Audio", "snap_hp", "In")
+    g.burst("click", "snap_hp", "Out", 0.0005, 0.02)
+    g.node("end", DELAY, {"Delay Time": 0.1}).link("@play", "On Play", "end", "In")
+    return g.node("level", SCALE, {"AdditionalOperands": 0.5}).link("click", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def crate_break():
+    """GP-01b: a crate burst open: a hollow crack, panels clattering down."""
+    g = Graph(one_shot=True)
+    g.node("crack", NOISE, {"Type": WHITE}).node("crack_lp", LOWPASS, {"Cutoff Frequency": 3200.0}).link("crack", "Audio", "crack_lp", "In")
+    g.burst("snap", "crack_lp", "Out", 0.001, 0.08)
+    g.node("box", SINE, {"Frequency": 140.0}).burst("hollow", "box", "Audio", 0.002, 0.25)
+    g.node("rattle", NOISE, {"Type": PINK}).node("rattle_bp", SVF, {"Cutoff Frequency": 1400.0, "Resonance": 1.5}).link("rattle", "Audio", "rattle_bp", "In")
+    g.node("later", DELAY, {"Delay Time": 0.09}).link("@play", "On Play", "later", "In")
+    g.burst("clatter", "rattle_bp", BAND_PASS, 0.002, 0.45, trigger=("later", "Out"))
+    return g.mix("mix", [("snap", "Out", 0.6), ("hollow", "Out", 0.5), ("clatter", "Out", 0.45)]).out("mix").finish_on("clatter_env").spec
+
+
+def loot_pickup():
+    """GP-01b: something picked up: a short soft clink; players only."""
+    g = Graph(one_shot=True)
+    g.node("ping", TRIANGLE, {"Frequency": 1180.0}).burst("clink", "ping", "Audio", 0.001, 0.08)
+    g.node("rub", NOISE, {"Type": PINK}).node("rub_lp", LOWPASS, {"Cutoff Frequency": 900.0}).link("rub", "Audio", "rub_lp", "In")
+    g.burst("grab", "rub_lp", "Out", 0.005, 0.06)
+    g.node("end", DELAY, {"Delay Time": 0.2}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("clink", "Out", 0.4), ("grab", "Out", 0.3)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.5}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def hit_marker_hit():
+    """GP-01c: the visor's tick for a hit: short and dry; the shooter's own (a short range)."""
+    g = Graph(one_shot=True)
+    g.node("tick", SINE, {"Frequency": 2400.0}).burst("tick_burst", "tick", "Audio", 0.001, 0.035)
+    g.node("end", DELAY, {"Delay Time": 0.12}).link("@play", "On Play", "end", "In")
+    return g.node("level", SCALE, {"AdditionalOperands": 0.35}).link("tick_burst", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def hit_marker_armor():
+    """GP-01c: armour took most of it: a dull clank, lower and muffled."""
+    g = Graph(one_shot=True)
+    g.node("plate", TRIANGLE, {"Frequency": 520.0}).burst("clank", "plate", "Audio", 0.001, 0.07)
+    g.node("rasp", NOISE, {"Type": PINK}).node("rasp_lp", LOWPASS, {"Cutoff Frequency": 1200.0}).link("rasp", "Audio", "rasp_lp", "In")
+    g.burst("scrape", "rasp_lp", "Out", 0.002, 0.05)
+    g.node("end", DELAY, {"Delay Time": 0.15}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("clank", "Out", 0.5), ("scrape", "Out", 0.3)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.4}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def hit_marker_crit():
+    """GP-01c: an exposed target: a bright ping with a fifth above it."""
+    g = Graph(one_shot=True)
+    g.node("ping", SINE, {"Frequency": 3100.0}).burst("ping_burst", "ping", "Audio", 0.001, 0.12)
+    g.node("fifth", SINE, {"Frequency": 4650.0}).burst("fifth_burst", "fifth", "Audio", 0.001, 0.06)
+    g.node("end", DELAY, {"Delay Time": 0.2}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("ping_burst", "Out", 0.5), ("fifth_burst", "Out", 0.25)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.35}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
 def footstep_light():
     g = Graph(one_shot=True)
     g.node("scuff", NOISE, {"Type": PINK}).node("scuff_bp", SVF, {"Cutoff Frequency": 1100.0, "Resonance": 2.0}).link("scuff", "Audio", "scuff_bp", "In")
@@ -324,6 +419,68 @@ def stalker_vent():
     return g.mix("mix", [("knock", "Out", 0.6), ("sheet", "Out", 0.2)]).out("mix").finish_on("end", "Out").spec
 
 
+def footstep_whisperer():
+    """GP-02: a Whisperer's scuttle - two quick, faint clicks of chitin."""
+    g = Graph(one_shot=True)
+    g.node("claws", REPEAT, {"Period": 0.022, "Num Repeats": 2}).link("@play", "On Play", "claws", "Start")
+    g.node("tick", NOISE, {"Type": WHITE}).node("tick_hp", HIGHPASS, {"Cutoff Frequency": 4500.0}).link("tick", "Audio", "tick_hp", "In")
+    g.burst("click", "tick_hp", "Out", 0.001, 0.015, trigger=("claws", "RepeatOut"))
+    g.node("end", DELAY, {"Delay Time": 0.12}).link("@play", "On Play", "end", "In")
+    return g.node("level", SCALE, {"AdditionalOperands": 0.3}).link("click", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def whisperer_whisper():
+    """GP-02: the whisper a Whisperer is named for, all the while it lives - two bands of breath, each chopped into
+    syllables by its own slow pulse, a dry hiss over them: heard in the dark before it is seen."""
+    g = Graph(one_shot=False)
+    g.node("breath", NOISE, {"Type": PINK})
+    g.node("low", SVF, {"Cutoff Frequency": 1300.0, "Resonance": 6.0}).link("breath", "Audio", "low", "In")
+    g.node("high", SVF, {"Cutoff Frequency": 2900.0, "Resonance": 7.0}).link("breath", "Audio", "high", "In")
+    g.node("syllables_a", LFO, {"Frequency": 5.3, "Min Value": 0.0, "Max Value": 1.0})
+    g.node("syllables_b", LFO, {"Frequency": 3.7, "Shape": LFO_SAW, "Min Value": 0.0, "Max Value": 1.0})
+    g.node("spoken_a", SCALE).link("low", BAND_PASS, "spoken_a", "PrimaryOperand").link("syllables_a", "Out", "spoken_a", "AdditionalOperands")
+    g.node("spoken_b", SCALE).link("high", BAND_PASS, "spoken_b", "PrimaryOperand").link("syllables_b", "Out", "spoken_b", "AdditionalOperands")
+    g.node("hiss", NOISE, {"Type": WHITE}).node("hiss_hp", HIGHPASS, {"Cutoff Frequency": 6000.0}).link("hiss", "Audio", "hiss_hp", "In")
+    return g.mix("mix", [("spoken_a", "Out", 0.4), ("spoken_b", "Out", 0.3), ("hiss_hp", "Out", 0.04)]).out("mix").spec
+
+
+def whisperer_shriek():
+    """GP-02: caught in a beam - a thin, chittering shriek that breaks off."""
+    g = Graph(one_shot=True)
+    g.node("vibrato", LFO, {"Frequency": 17.0, "Min Value": 1700.0, "Max Value": 2100.0})
+    g.node("voice_a", SAW).link("vibrato", "Out", "voice_a", "Frequency").node("voice_b", SQUARE, {"Frequency": 2650.0})
+    g.mix("voices", [("voice_a", "Audio", 0.45), ("voice_b", "Audio", 0.15)])
+    g.node("throat", SVF, {"Cutoff Frequency": 3200.0, "Resonance": 5.0}).link("voices", "Out", "throat", "In")
+    g.burst("shriek", "throat", BAND_PASS, 0.01, 0.32)
+    g.node("chitter", REPEAT, {"Period": 0.03, "Num Repeats": 6}).link("@play", "On Play", "chitter", "Start")
+    g.node("tick", NOISE, {"Type": WHITE}).node("tick_hp", HIGHPASS, {"Cutoff Frequency": 5000.0}).link("tick", "Audio", "tick_hp", "In")
+    g.burst("clicks", "tick_hp", "Out", 0.001, 0.012, trigger=("chitter", "RepeatOut"))
+    return g.mix("mix", [("shriek", "Out", 0.5), ("clicks", "Out", 0.3)]).out("mix").finish_on("shriek_env").spec
+
+
+def whisperer_bite():
+    """GP-02: a bite winding up - mandibles clicking faster under a rising squeak (as long as the wind-up)."""
+    g = Graph(one_shot=True)
+    g.node("rise", LFO, {"Frequency": 3.3, "Shape": LFO_SAW, "Min Value": 900.0, "Max Value": 2400.0})
+    g.node("squeak", TRIANGLE).link("rise", "Out", "squeak", "Frequency")
+    g.burst("voice", "squeak", "Audio", 0.2, 0.08)
+    g.node("mandibles", REPEAT, {"Period": 0.035, "Num Repeats": 8}).link("@play", "On Play", "mandibles", "Start")
+    g.node("tick", NOISE, {"Type": WHITE}).node("tick_bp", SVF, {"Cutoff Frequency": 3800.0, "Resonance": 4.0}).link("tick", "Audio", "tick_bp", "In")
+    g.burst("clacks", "tick_bp", BAND_PASS, 0.001, 0.02, trigger=("mandibles", "RepeatOut"))
+    return g.mix("mix", [("voice", "Out", 0.25), ("clacks", "Out", 0.5)]).out("mix").finish_on("voice_env").spec
+
+
+def whisperer_death():
+    """GP-02: a Whisperer dying - its shell cracking, a last hiss of air sweeping up out of it."""
+    g = Graph(one_shot=True)
+    g.node("crack", NOISE, {"Type": PINK}).node("crack_lp", LOWPASS, {"Cutoff Frequency": 1600.0}).link("crack", "Audio", "crack_lp", "In")
+    g.burst("crunch", "crack_lp", "Out", 0.001, 0.14)
+    g.node("fall", LFO, {"Frequency": 1.6, "Shape": LFO_SAW, "Min Value": 900.0, "Max Value": 2600.0})
+    g.node("air", NOISE, {"Type": WHITE}).node("air_bp", SVF, {"Resonance": 3.0}).link("air", "Audio", "air_bp", "In").link("fall", "Out", "air_bp", "Cutoff Frequency")
+    g.burst("hiss", "air_bp", BAND_PASS, 0.02, 0.55)
+    return g.mix("mix", [("crunch", "Out", 0.7), ("hiss", "Out", 0.3)]).out("mix").finish_on("hiss_env").spec
+
+
 def room_tone():
     g = Graph(one_shot=False)
     g.node("air", NOISE, {"Type": PINK}).node("air_lp", LOWPASS, {"Cutoff Frequency": 220.0}).link("air", "Audio", "air_lp", "In")
@@ -349,6 +506,11 @@ METASOUNDS = {
     "MS_Footstep_Light": footstep_light, "MS_Footstep_Heavy": footstep_heavy, "MS_Footstep_Stalker": footstep_stalker,
     "MS_Pilgrim_Windup": pilgrim_windup, "MS_Stalker_Shriek": stalker_shriek, "MS_Stalker_Vent": stalker_vent,
     "MS_Room_Tone": room_tone, "MS_Room_Tone_Vault": room_tone_vault,
+    "MS_Weapon_Nailgun": nailgun_shot, "MS_Weapon_Shotgun": shotgun_blast, "MS_Weapon_Reload": weapon_reload, "MS_Weapon_DryFire": weapon_dry_fire,
+    "MS_Crate_Break": crate_break, "MS_Loot_Pickup": loot_pickup,
+    "MS_UI_HitMarker_Hit": hit_marker_hit, "MS_UI_HitMarker_Armor": hit_marker_armor, "MS_UI_HitMarker_Crit": hit_marker_crit,
+    "MS_Footstep_Whisperer": footstep_whisperer, "MS_Whisperer_Whisper": whisperer_whisper, "MS_Whisperer_Shriek": whisperer_shriek,
+    "MS_Whisperer_Bite": whisperer_bite, "MS_Whisperer_Death": whisperer_death,
 }
 
 # ---------------------------------------------------------------- bank, attenuation, concurrency (data)
@@ -382,6 +544,26 @@ ENTRIES = [
     ("Hollow.Sound.Arc.Telegraph", "MS_Arc_Crackle", None, 1500.0, 0.7, 0.05, None),
     ("Hollow.Sound.Arc.Discharge", "MS_Arc_Discharge", "SCON_Impacts", 2500.0, 0.9, 0.08, None),
     ("Hollow.Sound.Altar.Purified", "MS_Core_Purified", None, 2000.0, 0.8, 0.0, None),
+    # GP-01 (ADR-0044): the shots as far as the AI hears them, a blow like a heavy impact; reload and dry fire players only.
+    ("Hollow.Noise.Weapon.Nailgun", "MS_Weapon_Nailgun", "SCON_Impacts", 0.0, 0.9, 0.06, None),
+    ("Hollow.Noise.Weapon.Shotgun", "MS_Weapon_Shotgun", "SCON_Impacts", 0.0, 1.0, 0.04, None),
+    ("Hollow.Noise.Impact.Melee", "MS_Impact_Metal", "SCON_Impacts", 0.0, 0.7, 0.12, None),
+    ("Hollow.Sound.Weapon.Reload", "MS_Weapon_Reload", None, 800.0, 0.6, 0.05, None),
+    ("Hollow.Sound.Weapon.DryFire", "MS_Weapon_DryFire", None, 400.0, 0.5, 0.05, None),
+    # GP-01b (ADR-0045): a crate as far as the AI hears it, a pickup players only.
+    ("Hollow.Noise.Impact.Crate", "MS_Crate_Break", "SCON_Impacts", 0.0, 0.9, 0.08, None),
+    ("Hollow.Sound.Loot.Pickup", "MS_Loot_Pickup", None, 600.0, 0.5, 0.08, None),
+    # GP-01c (ADR-0046): the hit marker's ticks in the shooter's helmet (barely carry past it).
+    ("Hollow.Sound.UI.HitMarker.Hit", "MS_UI_HitMarker_Hit", None, 200.0, 0.5, 0.04, None),
+    ("Hollow.Sound.UI.HitMarker.Armor", "MS_UI_HitMarker_Armor", None, 200.0, 0.5, 0.04, None),
+    ("Hollow.Sound.UI.HitMarker.Crit", "MS_UI_HitMarker_Crit", None, 200.0, 0.55, 0.02, None),
+    # GP-02 (ADR-0047): the Whisperers, players only (no AI hears enemies). The whisper loops on each living one, heard
+    # across a room in the dark; the shriek of one caught in a beam carries farther.
+    ("Hollow.Sound.Footstep.Whisperer", "MS_Footstep_Whisperer", "SCON_Footsteps", 800.0, 0.45, 0.12, None),
+    ("Hollow.Sound.Whisperer.Whisper", "MS_Whisperer_Whisper", None, 900.0, 0.35, 0.1, None),
+    ("Hollow.Sound.Whisperer.Shriek", "MS_Whisperer_Shriek", None, 2000.0, 0.8, 0.12, None),
+    ("Hollow.Sound.Whisperer.Bite", "MS_Whisperer_Bite", None, 1200.0, 0.7, 0.1, None),
+    ("Hollow.Sound.Whisperer.Death", "MS_Whisperer_Death", "SCON_Impacts", 1500.0, 0.8, 0.1, None),
 ]
 
 # ---------------------------------------------------------------- room acoustics (data)

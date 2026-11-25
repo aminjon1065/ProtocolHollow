@@ -15,8 +15,17 @@ namespace HollowCollision
 	 */
 	inline constexpr ECollisionChannel Debris = ECC_GameTraceChannel2;
 
+	/**
+	 * Trace channel "HollowWeapon" (GP-01, default Block): shots and melee blows. Walls, doors, pawns and props stop them;
+	 * cosmetic debris and a carried core ignore it.
+	 */
+	inline constexpr ECollisionChannel Weapon = ECC_GameTraceChannel3;
+
 	/** Collision profile of everything on the Debris channel. */
 	inline FName DebrisProfile() { return FName(TEXT("HollowDebris")); }
+
+	/** Profile of loot on the floor (GP-01b): a physics body that never pushes a pawn, focusable; shots pass through. */
+	inline FName PickupProfile() { return FName(TEXT("HollowPickup")); }
 
 	/** Profile of a free heavy carryable (Aether core): a physics body that blocks the world and pawns, focusable. */
 	inline FName CarryableProfile() { return FName(TEXT("HollowCarryable")); }

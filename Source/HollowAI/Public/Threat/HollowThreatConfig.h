@@ -87,8 +87,23 @@ struct FHollowDirectorTuning
 	float HeatCheckSeconds = 0.f;
 };
 
+/** The Whisperer swarms (UHollowSwarmSubsystem, GP-02). */
+USTRUCT(BlueprintType)
+struct FHollowSwarmTuning
+{
+	GENERATED_BODY()
+
+	/** How often the players' lights are checked against every Whisperer (and their effects renewed). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Swarm", meta = (ClampMin = "0.05", Units = "Seconds"))
+	float LightCheckSeconds = 0.f;
+
+	/** Whisperers that may bite one player at a time while it has a light (a frenzy knows no limit). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Swarm", meta = (ClampMin = "1"))
+	int32 MaxBitersPerPrey = 0;
+};
+
 /**
- * Tuning of the threat systems of a raid (ADR-0019): heat, vents and the director's leash. One data asset
+ * Tuning of the threat systems of a raid (ADR-0019): heat, vents and the director's leash; the swarms (GP-02). One data asset
  * (DA_ThreatConfig, chosen by UHollowAISettings::ThreatConfig), so the pacing is tuned without a rebuild.
  */
 UCLASS(BlueprintType)
@@ -108,4 +123,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Threat")
 	FHollowDirectorTuning Director;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Threat")
+	FHollowSwarmTuning Swarm;
 };

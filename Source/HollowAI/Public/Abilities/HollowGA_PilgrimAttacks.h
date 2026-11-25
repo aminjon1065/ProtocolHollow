@@ -43,3 +43,16 @@ class HOLLOWAI_API UHollowGA_StalkerAmbush : public UHollowGA_EnemyMelee
 public:
 	explicit UHollowGA_StalkerAmbush(const FObjectInitializer& ObjectInitializer);
 };
+
+/**
+ * Whisperer's bite (Hollow.Event.Enemy.Melee, GP-02 ADR-0047): the shared melee sweep with its own attack data, a short
+ * wind-up (the small glow of GCN_Whisperer_Windup, its chitter), little damage: the swarm bites many times.
+ */
+UCLASS()
+class HOLLOWAI_API UHollowGA_WhispererBite : public UHollowGA_EnemyMelee
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowGA_WhispererBite(const FObjectInitializer& ObjectInitializer);
+};

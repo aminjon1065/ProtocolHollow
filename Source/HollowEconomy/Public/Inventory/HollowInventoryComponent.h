@@ -40,6 +40,12 @@ public:
 	 */
 	void AddItem(UHollowItemDefinition* Item, int32 Count, bool bFromProfile = true);
 
+	/**
+	 * Server: Count of Item picked up in the raid (GP-01b, ADR-0045): held like the rest, and what of it is still held
+	 * at the end goes to the stash if the player extracts (GetFound).
+	 */
+	void AddFoundItem(UHollowItemDefinition* Item, int32 Count);
+
 	/** Server: empties the inventory and takes back what its items granted. */
 	void Clear();
 
@@ -49,6 +55,9 @@ public:
 
 	/** What was used up in the raid: taken minus held, per item. */
 	TArray<FHollowItemStack> GetSpent() const;
+
+	/** What of the found loot is still held (HollowLootRules::FoundHeld: the free items go first, then the found, then the own). */
+	TArray<FHollowItemStack> GetFound() const;
 
 	/** "DA_Item_PulseMine 1/2, ..." for dev dumps. */
 	FString Describe() const;

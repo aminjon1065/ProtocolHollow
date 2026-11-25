@@ -42,11 +42,7 @@ FGameplayTag UHollowGA_AetherLantern::GetCueTag() const
 TArray<AHollowEnemyCharacter*> UHollowGA_AetherLantern::FindLitEnemies(const UWorld& World, const APawn& Wielder, const FVector& Eyes,
 	const FVector& Direction, const UHollowLanternDefinition& Lantern)
 {
-	FHollowLightCone Cone;
-	Cone.Origin = Eyes;
-	Cone.Direction = Direction.GetSafeNormal();
-	Cone.HalfAngleDegrees = Lantern.ConeHalfAngleDegrees;
-	Cone.Range = Lantern.Range;
+	const FHollowLightCone Cone = MakeCone(Eyes, Direction, Lantern);
 
 	TArray<FOverlapResult> Overlaps;
 	const FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowLanternCone), /*bTraceComplex=*/false, &Wielder);
@@ -69,6 +65,41 @@ TArray<AHollowEnemyCharacter*> UHollowGA_AetherLantern::FindLitEnemies(const UWo
 	// Overlap order is the physics scene's: sort for logs and tests.
 	Lit.Sort([](const AHollowEnemyCharacter& A, const AHollowEnemyCharacter& B) { return A.GetName() < B.GetName(); });
 	return Lit;
+}
+
+FHollowLightCone UHollowGA_AetherLantern::MakeCone(const FVector& Eyes, const FVector& Direction, const UHollowLanternDefinition& Lantern)
+{
+	FHollowLightCone Cone;
+	Cone.Origin = Eyes;
+	Cone.Direction = Direction.GetSafeNormal();
+	Cone.HalfAngleDegrees = Lantern.ConeHalfAngleDegrees;
+	Cone.Range = Lantern.Range;
+	Cone.Kind = EHollowLightKind::Lantern;
+	return Cone;
+}
+
+bool UHollowGA_AetherLantern::FindBeamCone(const APawn& Wielder, FHollowLightCone& OutCone)
+{
+	const UAbilitySystemComponent* AbilitySystem = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(&Wielder);
+	if (!AbilitySystem)
+	{
+		return false;
+	}
+	for (const FGameplayAbilitySpec& Spec : AbilitySystem->GetActivatableAbilities())
+	{
+		const UHollowGA_AetherLantern* Lantern = Spec.IsActive() ? Cast<UHollowGA_AetherLantern>(Spec.GetPrimaryInstance()) : nullptr;
+		const UHollowLanternDefinition* Definition = Lantern ? Lantern->GetLanternDefinition() : nullptr;
+		if (Definition)
+		{
+			// Where the samples aim (UHollowGA_ContinuousTool): from the eyes along the view.
+			FVector Eyes;
+			FRotator View;
+			Wielder.GetActorEyesViewPoint(Eyes, View);
+			OutCone = MakeCone(Eyes, View.Vector(), *Definition);
+			return true;
+		}
+	}
+	return false;
 }
 
 TArray<APawn*> UHollowGA_AetherLantern::FindAuraPlayers(const UWorld& World, const APawn& Wielder, const UHollowLanternDefinition& Lantern)

@@ -4,7 +4,7 @@
 
 #include "HollowCarryEffects.generated.h"
 
-/** Shared structure of the heavy-carry effects: infinite while carried, a state tag, every tool blocked (both hands). */
+/** Shared structure of the heavy-carry effects: infinite while carried, a state tag, every tool and weapon blocked (both hands). */
 UCLASS(Abstract)
 class HOLLOWGAS_API UHollowCarryEffect : public UGameplayEffect
 {

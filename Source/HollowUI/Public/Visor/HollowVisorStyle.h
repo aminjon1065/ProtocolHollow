@@ -172,4 +172,47 @@ public:
 	/** The title without a key (no local player). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controls")
 	FText ControlsTitle;
+
+	/** GP-01c (ADR-0046): how long the hit marker stays after a hit. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker", meta = (ClampMin = "0", Units = "Seconds"))
+	float HitMarkerSeconds = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker")
+	FLinearColor HitColor = FLinearColor::White;
+
+	/** Armour took most of it: a dull, smaller mark. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker")
+	FLinearColor ArmorColor = FLinearColor::Gray;
+
+	/** An exposed target: a bright, larger mark. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker")
+	FLinearColor CritColor = FLinearColor::Yellow;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker", meta = (ClampMin = "0.1"))
+	float ArmorMarkerScale = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker", meta = (ClampMin = "0.1"))
+	float CritMarkerScale = 1.f;
+
+	/** GP-01c: the glass flashes at its edges as the player takes damage, fading over this long... */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "0", Units = "Seconds"))
+	float DamageFlashSeconds = 0.f;
+
+	/** ...at full strength once this share of its health went at once (less: weaker in proportion). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "0.01", ClampMax = "1"))
+	float DamageFullShare = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	FLinearColor DamageColor = FLinearColor::Red;
+
+	/** With reduced flashes (ADR-0029): no flash, a dim edge at most this strong fading slowly over ReducedDamageSeconds. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "0", ClampMax = "1"))
+	float ReducedDamageLevel = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "0", Units = "Seconds"))
+	float ReducedDamageSeconds = 0.f;
+
+	/** How often the fading edge is redrawn while it fades (a timer, not Tick). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "1", ClampMax = "60", Units = "Hertz"))
+	float DamageFadeRateHz = 30.f;
 };

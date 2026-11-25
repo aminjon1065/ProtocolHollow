@@ -4,6 +4,8 @@
 #include "Brain/HollowAIController.h"
 #include "Enemies/HollowEnemyCharacter.h"
 #include "Enemies/HollowEnemySpawning.h"
+#include "Enemies/HollowWhisperer.h"
+#include "Enemies/HollowWhispererNest.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -15,6 +17,7 @@
 #include "Noise/HollowNoiseSubsystem.h"
 #include "Tags/HollowGameplayTags.h"
 #include "Threat/HollowActivityHeatmapSubsystem.h"
+#include "Threat/HollowSwarmSubsystem.h"
 #include "Threat/HollowThreatDirectorSubsystem.h"
 #include "Threat/HollowVentNetworkSubsystem.h"
 
@@ -64,11 +67,16 @@ namespace HollowAIDevConsole
 		for (TActorIterator<AHollowEnemyCharacter> It(World); It; ++It)
 		{
 			const UAbilitySystemComponent* Abilities = It->GetAbilitySystemComponent();
-			UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Dump: enemy %s at %s, yaw %.0f, speed %.0f, health %.0f, winding up %d, stunned %d, in vent %d, hidden %d, dead %d"),
+			// GP-02: a Whisperer's replicated light state and what this machine played for it.
+			const AHollowWhisperer* Whisperer = Cast<AHollowWhisperer>(*It);
+			const FString Swarm = Whisperer ? FString::Printf(TEXT(", lit %d, frenzy %d, shrieks %d, whispering %d"),
+				Abilities && Abilities->HasMatchingGameplayTag(HollowTags::State_Lit), Abilities && Abilities->HasMatchingGameplayTag(HollowTags::State_Frenzy),
+				Whisperer->GetShriekCount(), Whisperer->GetWhisper() != nullptr) : FString();
+			UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Dump: enemy %s at %s, yaw %.0f, speed %.0f, health %.0f, winding up %d, stunned %d, in vent %d, hidden %d, dead %d%s"),
 				*It->GetName(), *It->GetActorLocation().ToCompactString(), It->GetActorRotation().Yaw, It->GetVelocity().Size2D(),
 				Abilities ? Abilities->GetNumericAttribute(UHollowHealthSet::GetHealthAttribute()) : 0.f,
 				Abilities && Abilities->HasMatchingGameplayTag(HollowTags::GameplayCue_Enemy_Windup), Abilities && Abilities->HasMatchingGameplayTag(HollowTags::State_Stunned),
-				It->IsInVent(), It->IsHidden(), It->IsDead());
+				It->IsInVent(), It->IsHidden(), It->IsDead(), *Swarm);
 		}
 		for (TActorIterator<AHollowAIController> It(World); It; ++It)
 		{
@@ -122,6 +130,53 @@ namespace HollowAIDevConsole
 		const FGameplayTag Tag = Args.Num() > 0 ? FGameplayTag::RequestGameplayTag(FName(*Args[0]), /*ErrorIfNotFound=*/false) : GetDefault<UHollowAISettings>()->DevNoiseTag;
 		const bool bReported = Noises->ReportNoise(FHollowNoiseEvent(Tag, Player->GetActorLocation(), Player));
 		UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Noise: %s at %s%s"), *Tag.ToString(), *Player->GetActorLocation().ToCompactString(), bReported ? TEXT("") : TEXT(" (not reported)"));
+	}
+
+	/** Usage: Hollow.AI.Nest [Distance] [Seed] */
+	void Nest(const TArray<FString>& Args, UWorld* World)
+	{
+		const UHollowAISettings* Settings = GetDefault<UHollowAISettings>();
+		APawn* Player = LocalPawn(World);
+		const TSubclassOf<AHollowWhispererNest> Class = Settings->DevNestClass.LoadSynchronous();
+		if (!IsServer(World, TEXT("Hollow.AI.Nest")) || !Player || !Class)
+		{
+			UE_LOG(LogHollowAI, Warning, TEXT("Hollow.AI.Nest: needs a local pawn and UHollowAISettings::DevNestClass."));
+			return;
+		}
+		const double Distance = Args.Num() > 0 ? FCString::Atod(*Args[0]) : Settings->DevSpawnDistance;
+		const int32 Seed = Args.Num() > 1 ? FCString::Atoi(*Args[1]) : 0;
+		// On the floor in front of the player (the nest's pivot is its base).
+		FVector Where = Player->GetActorLocation() + Player->GetActorForwardVector() * Distance;
+		FHitResult Floor;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowDevNest), /*bTraceComplex=*/false, Player);
+		if (World->LineTraceSingleByChannel(Floor, Where, Where - FVector(0.0, 0.0, 1000.0), ECC_Visibility, Params))
+		{
+			Where = Floor.ImpactPoint;
+		}
+		const FTransform Transform(FRotator::ZeroRotator, Where);
+		AHollowWhispererNest* Spawned = World->SpawnActorDeferred<AHollowWhispererNest>(Class, Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!Spawned)
+		{
+			return;
+		}
+		Spawned->SetSpawnSeed(Seed);
+		Spawned->FinishSpawning(Transform);
+		UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Nest: %s (seed %d, brood %d) at %s"), *Spawned->GetName(), Seed, Spawned->GetBroodSize(), *Where.ToCompactString());
+	}
+
+	/** Usage: Hollow.AI.Swarm [Check] */
+	void Swarm(const TArray<FString>& Args, UWorld* World)
+	{
+		UHollowSwarmSubsystem* Swarms = UHollowSwarmSubsystem::Get(World);
+		if (!IsServer(World, TEXT("Hollow.AI.Swarm")) || !Swarms)
+		{
+			return;
+		}
+		if (Args.Num() > 0 && Args[0].Equals(TEXT("Check"), ESearchCase::IgnoreCase))
+		{
+			Swarms->CheckLight();
+		}
+		UE_LOG(LogHollowAI, Display, TEXT("Hollow.AI.Swarm: %s"), *Swarms->Describe());
 	}
 
 	void Kill(UWorld* World)
@@ -212,6 +267,16 @@ namespace HollowAIDevConsole
 		TEXT("Hollow.AI.Director"),
 		TEXT("Host: prints the director's leash; Stalk, Hunt or Retreat forces a mode, Spawn brings the stalker now. Usage: Hollow.AI.Director [Stalk|Hunt|Retreat|Spawn]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Director));
+
+	FAutoConsoleCommandWithWorldAndArgs NestCommand(
+		TEXT("Hollow.AI.Nest"),
+		TEXT("Host: puts UHollowAISettings::DevNestClass on the floor Distance in front of the local pawn; its brood comes out the next tick. Usage: Hollow.AI.Nest [Distance] [Seed]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Nest));
+
+	FAutoConsoleCommandWithWorldAndArgs SwarmCommand(
+		TEXT("Hollow.AI.Swarm"),
+		TEXT("Host: prints the Whisperer swarms (lit, in a frenzy, biting); Check runs the light check now. Usage: Hollow.AI.Swarm [Check]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Swarm));
 
 	FAutoConsoleCommandWithWorld KillCommand(
 		TEXT("Hollow.AI.Kill"),

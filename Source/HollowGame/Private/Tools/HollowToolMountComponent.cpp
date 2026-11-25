@@ -5,6 +5,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Data/HollowToolDefinition.h"
+#include "Data/HollowWeaponDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StreamableManager.h"
@@ -144,41 +145,105 @@ void UHollowToolMountComponent::Show(const UHollowToolDefinition* Tool)
 		return;
 	}
 	ShownTool = Tool;
+	LoadAndApply();
+}
+
+void UHollowToolMountComponent::SetHeldWeapon(const UHollowWeaponDefinition* Weapon)
+{
+	if (HeldWeapon.Get() == Weapon)
+	{
+		return;
+	}
+	HeldWeapon = Weapon;
+	LoadAndApply();
+}
+
+void UHollowToolMountComponent::GetHeld(TSoftObjectPtr<UStaticMesh>& OutMesh, FTransform& OutTransform, FName& OutMuzzle,
+	const FTransform*& OutViewOffset) const
+{
+	OutViewOffset = nullptr;
+	if (const UHollowWeaponDefinition* Weapon = HeldWeapon.Get())
+	{
+		OutMesh = Weapon->HeldMesh;
+		OutTransform = Weapon->HeldTransform;
+		OutMuzzle = Weapon->MuzzleSocket;
+		OutViewOffset = Weapon->ViewOffset.Equals(FTransform::Identity) ? nullptr : &Weapon->ViewOffset;
+		return;
+	}
+	const UHollowToolDefinition* Tool = ShownTool.Get();
+	OutMesh = Tool ? Tool->HeldMesh : TSoftObjectPtr<UStaticMesh>();
+	OutTransform = Tool ? Tool->HeldTransform : FTransform::Identity;
+	OutMuzzle = Tool ? Tool->MuzzleSocket : NAME_None;
+}
+
+void UHollowToolMountComponent::LoadAndApply()
+{
 	if (Loading.IsValid())
 	{
 		Loading->CancelHandle();
 		Loading.Reset();
 	}
-	if (Tool && !Tool->HeldMesh.IsNull() && !Tool->HeldMesh.Get())
+	TSoftObjectPtr<UStaticMesh> Mesh;
+	FTransform Transform;
+	FName Muzzle;
+	const FTransform* ViewOffset = nullptr;
+	GetHeld(Mesh, Transform, Muzzle, ViewOffset);
+	ApplyMesh();   // at once: what is loaded (empty hands while the new mesh loads, never the old one)
+	if (!Mesh.IsNull() && !Mesh.Get())
 	{
-		Loading = UAssetManager::GetStreamableManager().RequestAsyncLoad(Tool->HeldMesh.ToSoftObjectPath(), FStreamableDelegate::CreateWeakLambda(this, [this]
+		Loading = UAssetManager::GetStreamableManager().RequestAsyncLoad(Mesh.ToSoftObjectPath(), FStreamableDelegate::CreateWeakLambda(this, [this]
 		{
 			Loading.Reset();
 			ApplyMesh();
 		}));
-		if (Loading.IsValid())
-		{
-			return;
-		}
 	}
-	ApplyMesh();
 }
 
 void UHollowToolMountComponent::ApplyMesh()
 {
-	const UHollowToolDefinition* Tool = ShownTool.Get();
-	UStaticMesh* Mesh = Tool ? Tool->HeldMesh.Get() : nullptr;
+	TSoftObjectPtr<UStaticMesh> HeldMesh;
+	FTransform HeldTransform;
+	FName Muzzle;
+	const FTransform* ViewOffset = nullptr;
+	GetHeld(HeldMesh, HeldTransform, Muzzle, ViewOffset);
+	UStaticMesh* Mesh = HeldMesh.Get();
 	for (UStaticMeshComponent* Component : {FirstPersonMesh.Get(), ThirdPersonMesh.Get()})
 	{
 		if (Component)
 		{
-			const bool bOnCamera = bFirstPersonOnCamera && Component == FirstPersonMesh.Get() && Component->GetAttachParent() == Camera.Get();
+			const bool bOnCamera = Component == FirstPersonMesh.Get() && IsFirstPersonOnCamera();
 			Component->SetStaticMesh(Mesh);
-			Component->SetRelativeTransform(bOnCamera ? FirstPersonViewOffset : Tool ? Tool->HeldTransform : FTransform::Identity);
+			if (bOnCamera)
+			{
+				ViewRest = ViewOffset ? *ViewOffset : FirstPersonViewOffset;
+			}
+			Component->SetRelativeTransform(bOnCamera ? WithViewFeel(ViewRest) : HeldTransform);
 			Component->SetVisibility(Mesh != nullptr);
 		}
 	}
-	UE_LOG(LogHollowGame, Verbose, TEXT("%s: holds %s (%s)"), *GetNameSafe(GetOwner()), *GetNameSafe(Tool), *GetNameSafe(Mesh));
+	UE_LOG(LogHollowGame, Verbose, TEXT("%s: holds %s (%s)"), *GetNameSafe(GetOwner()),
+		HeldWeapon.IsValid() ? *GetNameSafe(HeldWeapon.Get()) : *GetNameSafe(ShownTool.Get()), *GetNameSafe(Mesh));
+}
+
+void UHollowToolMountComponent::SetViewFeelOffset(const FTransform& Offset)
+{
+	ViewFeel = Offset;
+	if (UStaticMeshComponent* Mesh = FirstPersonMesh.Get(); Mesh && IsFirstPersonOnCamera())
+	{
+		Mesh->SetRelativeTransform(WithViewFeel(ViewRest));
+	}
+}
+
+FTransform UHollowToolMountComponent::WithViewFeel(const FTransform& Rest) const
+{
+	// Turned about the camera's own axes and moved in its space, so a kick is up and back whatever the rest pose.
+	return FTransform(ViewFeel.GetRotation() * Rest.GetRotation(), Rest.GetLocation() + ViewFeel.GetLocation(), Rest.GetScale3D());
+}
+
+bool UHollowToolMountComponent::IsFirstPersonOnCamera() const
+{
+	const UStaticMeshComponent* Mesh = FirstPersonMesh.Get();
+	return bFirstPersonOnCamera && Mesh && Camera.IsValid() && Mesh->GetAttachParent() == Camera.Get();
 }
 
 bool UHollowToolMountComponent::IsFirstPersonView() const
@@ -189,14 +254,18 @@ bool UHollowToolMountComponent::IsFirstPersonView() const
 
 bool UHollowToolMountComponent::GetMuzzleLocation(FVector& OutLocation) const
 {
-	const UHollowToolDefinition* Tool = ShownTool.Get();
+	TSoftObjectPtr<UStaticMesh> HeldMesh;
+	FTransform HeldTransform;
+	FName Muzzle;
+	const FTransform* ViewOffset = nullptr;
+	GetHeld(HeldMesh, HeldTransform, Muzzle, ViewOffset);
 	const bool bFirstPerson = IsFirstPersonView();
 	const UStaticMeshComponent* Mesh = bFirstPerson ? FirstPersonMesh.Get() : ThirdPersonMesh.Get();
-	if (!Tool || !Mesh || !Mesh->GetStaticMesh() || !Mesh->DoesSocketExist(Tool->MuzzleSocket))
+	if (Muzzle.IsNone() || !Mesh || !Mesh->GetStaticMesh() || !Mesh->DoesSocketExist(Muzzle))
 	{
 		return false;
 	}
-	OutLocation = Mesh->GetSocketLocation(Tool->MuzzleSocket);
+	OutLocation = Mesh->GetSocketLocation(Muzzle);
 	if (UCameraComponent* View = Camera.Get(); bFirstPerson && View)
 	{
 		// First-person rendering draws the hands with their own field of view: where the muzzle appears is not where it

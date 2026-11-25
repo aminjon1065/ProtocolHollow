@@ -6,6 +6,8 @@
 
 class UCameraComponent;
 class UHollowToolDefinition;
+class UHollowWeaponDefinition;
+class UStaticMesh;
 class UStaticMeshComponent;
 struct FStreamableHandle;
 
@@ -35,6 +37,13 @@ public:
 	/** Shows Tool's held mesh in both hands (none: empty hands): the tool in use. */
 	void ShowTool(const UHollowToolDefinition* Tool);
 
+	/**
+	 * GP-01: the weapon in hand instead of the tool (its held mesh, transform, muzzle and first-person view offset); none:
+	 * back to the tool shown before. UHollowHandsComponent calls it on every machine.
+	 */
+	void SetHeldWeapon(const UHollowWeaponDefinition* Weapon);
+	const UHollowWeaponDefinition* GetHeldWeapon() const { return HeldWeapon.Get(); }
+
 	/** Art-01: the class's own tool replaces DefaultTool as long as no other tool was used (the Occultist holds the lantern). */
 	void SetClassTool(const UHollowToolDefinition* Tool);
 
@@ -52,6 +61,13 @@ public:
 	 * mesh that has the tool's muzzle socket.
 	 */
 	bool GetMuzzleLocation(FVector& OutLocation) const;
+
+	/**
+	 * GP-01c (ADR-0046): the first-person tool off its rest pose by Offset in the camera's space (the view feel's sway,
+	 * recoil and dip, UHollowViewFeelModifier). Only while it rides the camera; the body's tool never moves.
+	 */
+	void SetViewFeelOffset(const FTransform& Offset);
+	const FTransform& GetViewFeelOffset() const { return ViewFeel; }
 
 	/** Whether this machine sees the owner in first person (its own local player). */
 	bool IsFirstPersonView() const;
@@ -89,6 +105,14 @@ protected:
 
 private:
 	void ApplyMesh();
+	/** Loads the held mesh of what is in hand (the weapon, else the shown tool), then applies it. */
+	void LoadAndApply();
+	/** The held item's mesh, transform relative to the hand, muzzle socket; the first-person view offset if it has its own. */
+	void GetHeld(TSoftObjectPtr<UStaticMesh>& OutMesh, FTransform& OutTransform, FName& OutMuzzle, const FTransform*& OutViewOffset) const;
+	/** The first-person tool's pose on the camera: Rest moved by the view feel. */
+	FTransform WithViewFeel(const FTransform& Rest) const;
+	bool IsFirstPersonOnCamera() const;
+
 	/** Shows the class's tool, else DefaultTool, until a tool is used. */
 	void ShowDefault();
 	void Show(const UHollowToolDefinition* Tool);
@@ -97,9 +121,13 @@ private:
 	TWeakObjectPtr<UStaticMeshComponent> ThirdPersonMesh;
 	TWeakObjectPtr<UCameraComponent> Camera;
 	TWeakObjectPtr<const UHollowToolDefinition> ShownTool;
+	TWeakObjectPtr<const UHollowWeaponDefinition> HeldWeapon;
 	TSharedPtr<FStreamableHandle> Loading;
 	TWeakObjectPtr<const UHollowToolDefinition> ClassTool;
 	/** No tool used yet: the hands show the default (the class's tool once it is known). */
 	bool bShowingDefault = true;
 	bool bFiringShown = false;
+	/** The view feel's offset, and the rest pose on the camera it moves the tool from. */
+	FTransform ViewFeel = FTransform::Identity;
+	FTransform ViewRest = FTransform::Identity;
 };

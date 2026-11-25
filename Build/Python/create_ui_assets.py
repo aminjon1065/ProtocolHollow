@@ -56,6 +56,8 @@ GLYPHS = [
     ("Gamepad_LeftShoulder", "LB"), ("Gamepad_RightShoulder", "RB"), ("Gamepad_LeftThumbstick", "LS"),
     ("Gamepad_RightThumbstick", "RS"), ("Gamepad_Special_Right", "Menu"), ("Gamepad_Special_Left", "View"),
     ("Gamepad_DPad_Up", "D-Up"), ("Gamepad_DPad_Down", "D-Down"), ("Gamepad_DPad_Left", "D-Left"), ("Gamepad_DPad_Right", "D-Right"),
+    # GP-01: the hands' keys (Q, R keep the engine's names); a word comes from the string table (key, English source).
+    ("MouseScrollUp", ("Glyph.MouseWheel", "Wheel")), ("MouseScrollDown", ("Glyph.MouseWheel", "Wheel")), ("One", "1"), ("Two", "2"),
 ]
 
 # Greybox look (data).
@@ -186,7 +188,12 @@ def ensure_glyphs():
             continue
         glyph = unreal.HollowKeyGlyph()
         glyph.set_editor_property("key", key)
-        glyph.set_editor_property("label", unreal.Text(label))
+        if isinstance(label, tuple):
+            table = unreal.HollowLocalizationAuthoring.find_or_create_string_table("/Game/Hollow/Localization", "ST_Gameplay")
+            glyph.set_editor_property("label", unreal.HollowLocalizationAuthoring.table_text(table, label[0], label[1]))
+            assets.save_loaded_asset(table, True)
+        else:
+            glyph.set_editor_property("label", unreal.Text(label))
         glyphs.append(glyph)
         added += 1
     if created or added:

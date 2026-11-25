@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Audio/HollowAudioSubsystem.h"
 #include "Algo/Count.h"
 #include "Attributes/HollowHealthSet.h"
 #include "Attributes/HollowResonanceSet.h"
@@ -43,6 +44,7 @@
 #include "ViewModels/HollowPromptModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "ViewModels/HollowVisorContext.h"
+#include "Visor/HollowHitMarkerWidget.h"
 #include "Visor/HollowLampIndicatorWidget.h"
 #include "Visor/HollowResonanceReadoutWidget.h"
 #include "Visor/HollowStatBarWidget.h"
@@ -52,6 +54,7 @@
 #include "Visor/HollowVoiceIndicatorWidget.h"
 #include "Voice/HollowVoiceSettings.h"
 #include "Voice/HollowVoiceTalker.h"
+#include "Weapons/HollowHandsComponent.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 namespace HollowUITests
@@ -656,6 +659,100 @@ bool FHollowUIVisorStyleTest::RunTest(const FString& Parameters)
 	FDataValidationContext BrokenValidation;
 	TestTrue(TEXT("A missing tier and a fast pulse are refused"), Broken->IsDataValid(BrokenValidation) == EDataValidationResult::Invalid && BrokenValidation.GetNumErrors() >= 2);
 #endif
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowUIVisorHitMarkerTest, "Hollow.UI.Visor.HitMarker",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowUIVisorHitMarkerTest::RunTest(const FString& Parameters)
+{
+	// GP-01c (ADR-0046): the hands' hit marker shows round the crosshair in its kind's look, ticks in the helmet, and
+	// goes after a moment; a hit with nothing to show shows nothing.
+	using namespace HollowUITests;
+	const UHollowVisorStyle* Style = GetDefault<UHollowUISettings>()->VisorStyle.LoadSynchronous();
+	const TSubclassOf<UHollowVisorElement> MarkerClass = LoadClass<UHollowVisorElement>(nullptr, TEXT("/Game/Hollow/UI/Visor/W_HitMarker.W_HitMarker_C"));
+	FPlayerRig Rig;
+	if (!TestNotNull(TEXT("DA_VisorStyle"), Style) || !TestNotNull(TEXT("W_HitMarker"), MarkerClass.Get()) || !BuildPlayer(*this, Rig))
+	{
+		return false;
+	}
+	UWorld* World = Rig.Character->GetWorld();
+	UHollowVisorContext* Context = NewObject<UHollowVisorContext>(GetTransientPackage());
+	Context->Initialize(Rig.Controller);
+	UHollowHitMarkerWidget* Marker = Cast<UHollowHitMarkerWidget>(CreateWidget<UHollowVisorElement>(World, MarkerClass));
+	UHollowHandsComponent* Hands = Rig.Character->GetHands();
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(World);
+	if (!TestTrue(TEXT("The marker, the hands, the audio"), Marker && Hands && Audio))
+	{
+		return false;
+	}
+	Marker->SetContext(Context);
+	TestFalse(TEXT("Nothing hit yet: hidden"), Marker->IsShowing());
+	Hands->ShowHitMarker(EHollowHitKind::None);
+	TestEqual(TEXT("Nothing to show: nothing"), Marker->GetShownCount(), 0);
+	Hands->ShowHitMarker(EHollowHitKind::Crit);
+	TestTrue(TEXT("A crit: shown"), Marker->IsShowing() && Marker->GetShown() == EHollowHitKind::Crit);
+	TestEqual(TEXT("...its tick in the helmet"), Audio->GetPlayCount(HollowTags::Sound_UI_HitMarker_Crit), 1);
+	Hands->ShowHitMarker(EHollowHitKind::Armor);
+	TestTrue(TEXT("Armour after it: the latest shows"), Marker->GetShown() == EHollowHitKind::Armor && Audio->GetPlayCount(HollowTags::Sound_UI_HitMarker_Armor) == 1);
+	Advance(Rig.World, Style->HitMarkerSeconds + 0.1f);
+	TestFalse(TEXT("...gone after its moment"), Marker->IsShowing());
+	TestEqual(TEXT("Two marks in all"), Marker->GetShownCount(), 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowUIVisorDamageFlashTest, "Hollow.UI.Visor.DamageFlash",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowUIVisorDamageFlashTest::RunTest(const FString& Parameters)
+{
+	// GP-01c: the glass's edges flash as the player loses health (full at the style's share), fading on a timer; with
+	// reduced flashes (ADR-0029) only a dim edge, fading slowly; healing shows nothing.
+	using namespace HollowUITests;
+	const UHollowVisorStyle* Style = GetDefault<UHollowUISettings>()->VisorStyle.LoadSynchronous();
+	const TSubclassOf<UHollowVisorElement> FrameClass = LoadClass<UHollowVisorElement>(nullptr, VisorFrameClass);
+	UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	FPlayerRig Rig;
+	if (!TestNotNull(TEXT("DA_VisorStyle"), Style) || !TestNotNull(TEXT("W_VisorFrame"), FrameClass.Get()) || !TestNotNull(TEXT("The game's settings"), Settings)
+		|| !BuildPlayer(*this, Rig))
+	{
+		return false;
+	}
+	UWorld* World = Rig.Character->GetWorld();
+	UHollowVisorContext* Context = NewObject<UHollowVisorContext>(GetTransientPackage());
+	Context->Initialize(Rig.Controller);
+	UHollowVisorFrameWidget* Frame = Cast<UHollowVisorFrameWidget>(CreateWidget<UHollowVisorElement>(World, FrameClass));
+	if (!TestNotNull(TEXT("The glass"), Frame))
+	{
+		return false;
+	}
+	const bool bReducedBefore = Settings->IsReducedFlashes();
+	Settings->SetReducedFlashes(false, /*bSave=*/false);
+	Frame->SetContext(Context);
+	UHollowAbilitySystemComponent& AbilitySystem = *Rig.AbilitySystem;
+	const float Max = AbilitySystem.GetNumericAttribute(UHollowHealthSet::GetMaxHealthAttribute());
+	TestEqual(TEXT("Bound at full health: no flash"), Frame->GetDamageLevel(), 0.f);
+
+	SetAttribute(AbilitySystem, UHollowHealthSet::GetHealthAttribute(), Max * (1.f - Style->DamageFullShare));
+	TestEqual(TEXT("Its full share at once: the full flash"), Frame->GetDamageLevel(), 1.f, 1.e-3f);
+	TestTrue(TEXT("...fading"), Frame->IsDamageFading() && !Frame->Describe().Contains(TEXT("no material")));
+	Advance(Rig.World, Style->DamageFlashSeconds * 0.5f);
+	const float Halfway = Frame->GetDamageLevel();
+	TestTrue(FString::Printf(TEXT("...half way: dimmer (%.2f)"), Halfway), Halfway > 0.f && Halfway < 0.5f);
+	Advance(Rig.World, Style->DamageFlashSeconds);
+	TestTrue(TEXT("...and gone"), Frame->GetDamageLevel() == 0.f && !Frame->IsDamageFading());
+	SetAttribute(AbilitySystem, UHollowHealthSet::GetHealthAttribute(), Max);
+	TestTrue(TEXT("Healing: nothing"), Frame->GetDamageLevel() == 0.f && !Frame->IsDamageFading());
+
+	Settings->SetReducedFlashes(true, /*bSave=*/false);
+	SetAttribute(AbilitySystem, UHollowHealthSet::GetHealthAttribute(), Max * (1.f - Style->DamageFullShare));
+	TestEqual(TEXT("Reduced flashes: a dim edge only"), Frame->GetDamageLevel(), Style->ReducedDamageLevel, 1.e-3f);
+	Advance(Rig.World, Style->DamageFlashSeconds);
+	TestTrue(TEXT("...fading slowly, still there when a flash is gone"), Frame->GetDamageLevel() > 0.f && Frame->IsDamageFading());
+	Advance(Rig.World, Style->ReducedDamageSeconds);
+	TestEqual(TEXT("...then gone"), Frame->GetDamageLevel(), 0.f);
+	Settings->SetReducedFlashes(bReducedBefore, /*bSave=*/false);
 	return true;
 }
 

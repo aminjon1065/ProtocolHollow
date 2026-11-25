@@ -4,7 +4,7 @@
   /Game/Hollow/GAS/Effects/GE_Cooldown_ToolRefuel     UHollowToolRefuelCooldownEffect: Hollow.Cooldown.Tool.Refuel
   /Game/Hollow/Tools/Refuel/GA_ToolRefuel             UHollowGA_ToolRefuel with those (costs one fuel cell per use)
   /Game/Hollow/Tools/Refuel/DA_AbilitySet_FuelCell    GA_ToolRefuel on Hollow.Input.Reload
-  IA_Reload (R, gamepad face button top) in IMC_Raid and DA_InputConfig_Raid (Hollow.Input.Reload)
+  IA_Reload (R; the gamepad's X tapped, GP-01) in IMC_Raid and DA_InputConfig_Raid (Hollow.Input.Reload, pressed on trigger)
   DA_Item_* AbilitySet                                what each item does in a raid: the welder, the plasma cutter, the pulse
                                                       mine and the fuel cell grant their sets; the Aether core nothing
 
@@ -33,8 +33,11 @@ SUIT_SET = "/Game/Hollow/Characters/ExoFrame/DA_AbilitySet_ExoFrame"
 ITEMS_DIR = "/Game/Hollow/Items"
 ATTRIBUTE_MODULE = "/Script/HollowGAS"
 
-# S5-01 clarification 1: R and the gamepad's top face button (both free in IMC_Raid).
-RELOAD_INPUT = ("IA_Reload", "Hollow.Input.Reload", ["R", "Gamepad_FaceButton_Top"])
+# S5-01 clarification 1: R. GP-01 (ADR-0044): the shooters' layout, R everywhere and the gamepad's X tapped (Y switches the
+# hands, holding X interacts: create_interaction_assets.py); pressed when the mapping triggers (bPressOnTrigger).
+RELOAD_INPUT = ("IA_Reload", "Hollow.Input.Reload", ["R", "Gamepad_FaceButton_Left"])
+RELOAD_TRIGGERS = {"R": ("InputTriggerPressed", {}), "Gamepad_FaceButton_Left": ("InputTriggerTap", {"tap_release_time_threshold": 0.25})}
+SHARED_KEYS = {"Gamepad_FaceButton_Left": "IA_Interact"}   # the one key the reload shares (a tap; the interaction holds it)
 FUEL_PER_CELL = 50.0         # half of the suit's tank (MaxToolFuel 100, GE_ExoFrame_InitAttributes)
 REFUEL_COOLDOWN_SECONDS = 1.0   # a held or repeated key burns no second cell
 CELLS_PER_USE = 1            # UHollowGA_ToolRefuel's item cost (its C++ default)
@@ -179,6 +182,27 @@ def mapped_keys(context, action):
     return [m.get_editor_property("key").export_text() for m in mappings if m.get_editor_property("action") == action]
 
 
+def trigger_matches(entry, spec):
+    """The mapping's triggers are exactly the spec's one, with its settings."""
+    class_name, settings = spec
+    triggers = list(entry.get_editor_property("triggers"))
+    if len(triggers) != 1 or triggers[0] is None or triggers[0].get_class().get_name() != class_name:
+        return False
+    return all(abs(float(triggers[0].get_editor_property(k)) - float(v)) < 1e-4 for k, v in settings.items())
+
+
+def make_trigger(context, spec):
+    class_name, settings = spec
+    trigger = unreal.new_object(getattr(unreal, class_name), outer=context)
+    for key, value in settings.items():
+        trigger.set_editor_property(key, value)
+    return trigger
+
+
+def key_name_of(entry):
+    return str(entry.get_editor_property("key").get_editor_property("key_name"))
+
+
 def ensure_input():
     action_name, tag_name, keys = RELOAD_INPUT
     path = ACTIONS_DIR + "/" + action_name
@@ -191,11 +215,14 @@ def ensure_input():
     context = load(IMC_PATH)
     data = context.get_editor_property("default_key_mappings")
     mappings = list(data.get_editor_property("mappings"))
-    if not any(m.get_editor_property("action") == action for m in mappings):
+    own = [m for m in mappings if m.get_editor_property("action") == action]
+    if sorted(key_name_of(m) for m in own) != sorted(keys) or not all(trigger_matches(m, RELOAD_TRIGGERS[key_name_of(m)]) for m in own):
+        mappings = [m for m in mappings if m.get_editor_property("action") != action]
         for key_name in keys:
             entry = unreal.EnhancedActionKeyMapping()
             entry.set_editor_property("action", action)
             entry.set_editor_property("key", make_key(key_name))
+            entry.set_editor_property("triggers", [make_trigger(context, RELOAD_TRIGGERS[key_name])])
             mappings.append(entry)
         data.set_editor_property("mappings", mappings)
         context.set_editor_property("default_key_mappings", data)
@@ -204,14 +231,17 @@ def ensure_input():
     config = load(INPUT_CONFIG_PATH)
     entries = list(config.get_editor_property("ability_actions"))
     tag = make_tag(tag_name)
-    if not any(same(e.get_editor_property("input_tag"), tag) for e in entries):
+    mine = [e for e in entries if same(e.get_editor_property("input_tag"), tag)]
+    if len(mine) != 1 or mine[0].get_editor_property("input_action") != action or not mine[0].get_editor_property("press_on_trigger"):
+        entries = [e for e in entries if not same(e.get_editor_property("input_tag"), tag)]
         entry = unreal.HollowInputAction()
         entry.set_editor_property("input_action", action)
         entry.set_editor_property("input_tag", tag)
+        entry.set_editor_property("press_on_trigger", True)   # its gamepad tap triggers on release
         entries.append(entry)
         config.set_editor_property("ability_actions", entries)
         save(config)
-        log("added %s to DA_InputConfig_Raid" % tag_name)
+        log("DA_InputConfig_Raid: %s pressed on trigger" % tag_name)
     return action
 
 
@@ -269,12 +299,17 @@ def validate(refuel_class, action):
     check(sorted(mapped_keys(context, action)) == sorted(make_key(k).export_text() for k in RELOAD_INPUT[2]), "IA_Reload keys")
     for key_name in RELOAD_INPUT[2]:
         key = make_key(key_name).export_text()
-        users = [m.get_editor_property("action").get_name() for m in context.get_editor_property("default_key_mappings").get_editor_property("mappings")
-                 if m.get_editor_property("key").export_text() == key]
-        check(users == [RELOAD_INPUT[0]], "%s belongs to the reload only in IMC_Raid (also: %s)" % (key_name, ", ".join(users)))
+        users = sorted(m.get_editor_property("action").get_name() for m in context.get_editor_property("default_key_mappings").get_editor_property("mappings")
+                       if m.get_editor_property("key").export_text() == key)
+        wanted = sorted([RELOAD_INPUT[0]] + ([SHARED_KEYS[key_name]] if key_name in SHARED_KEYS else []))
+        check(users == wanted, "%s belongs to %s in IMC_Raid (users: %s)" % (key_name, " and ".join(wanted), ", ".join(users)))
+    for m in context.get_editor_property("default_key_mappings").get_editor_property("mappings"):
+        if m.get_editor_property("action") == action:
+            check(trigger_matches(m, RELOAD_TRIGGERS[key_name_of(m)]), "IA_Reload on %s has its trigger" % key_name_of(m))
     config = load(INPUT_CONFIG_PATH)
     check(any(e.get_editor_property("input_action") == action and same(e.get_editor_property("input_tag"), make_tag(RELOAD_INPUT[1]))
-              for e in config.get_editor_property("ability_actions")), "DA_InputConfig_Raid routes the reload input")
+              and e.get_editor_property("press_on_trigger") for e in config.get_editor_property("ability_actions")),
+          "DA_InputConfig_Raid routes the reload input, pressed on trigger")
     log("validation passed")
 
 

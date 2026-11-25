@@ -22,6 +22,8 @@ UHollowGA_ContinuousTool::UHollowGA_ContinuousTool(const FObjectInitializer& Obj
 	ActivationPolicy = EHollowAbilityActivationPolicy::WhileInputActive;
 	ActivationBlockedTags.AddTag(HollowTags::State_Tool_Overheated);
 	ActivationBlockedTags.AddTag(HollowTags::State_Tool_Active);   // one at a time: two tools on one input, the first one granted wins
+	ActivationBlockedTags.AddTag(HollowTags::State_Hands_Weapon);   // GP-01: the weapon in hand takes the primary and secondary inputs
+	ActivationBlockedTags.AddTag(HollowTags::State_Hands_Swapping);
 	ActivationOwnedTags.AddTag(HollowTags::State_Tool_Active);   // local and immediate under prediction: the visor listens for it
 }
 

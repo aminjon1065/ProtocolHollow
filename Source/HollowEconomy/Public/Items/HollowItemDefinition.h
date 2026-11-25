@@ -6,6 +6,7 @@
 #include "HollowItemDefinition.generated.h"
 
 class UHollowAbilitySet;
+class UStaticMesh;
 
 /**
  * An item of the economy (Docs/Architecture/02 sec. 2.5): identity, type, value and insurance. Light by design: every
@@ -58,4 +59,8 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Raid")
 	TSoftObjectPtr<UHollowAbilitySet> AbilitySet;
+
+	/** How it lies on the floor when a loot crate spills it (GP-01b, AHollowLootPickup); none: the pickup's own mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Raid")
+	TSoftObjectPtr<UStaticMesh> PickupMesh;
 };

@@ -1,5 +1,7 @@
 #include "Extraction/HollowExtractionResolver.h"
 
+#include "Crafting/HollowCraftingRules.h"
+
 #include "Tags/HollowGameplayTags.h"
 
 namespace HollowExtractionPrivate
@@ -68,6 +70,29 @@ FHollowProfileDelta FHollowExtractionResolver::Resolve(const FHollowRaidContext&
 		{
 			AddStack(Delta.Sold, Stack.Item, Stack.Count);
 			Delta.Credits = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Delta.Credits) + ItemEarnings(Catalog, Stack.Item, Stack.Count, Context.CoreValuePercent), MAX_int32));
+		}
+	}
+	// GP-01b (ADR-0045): the found loot is the player's own: home into the stash, the rest of it sold; or left behind.
+	TArray<FHollowItemStack> Stash = Context.Stash;
+	for (const FHollowItemStack& Stack : Context.Found)
+	{
+		if (!KeepsLoot(Outcome))
+		{
+			AddStack(Delta.FoundLost, Stack.Item, Stack.Count);
+			continue;
+		}
+		const int32 MaxStack = Catalog.GetMaxStack(Stack.Item);
+		const int32 Fits = static_cast<int32>(FMath::Clamp<int64>(HollowCraftingRules::RoomInStash(Stash, Stack.Item, MaxStack, Context.StashSlots), 0, FMath::Max(Stack.Count, 0)));
+		if (Fits > 0 && HollowCraftingRules::AddToStash(Stash, Stack.Item, Fits, MaxStack, Context.StashSlots > 0 ? Context.StashSlots : MAX_int32))
+		{
+			AddStack(Delta.Found, Stack.Item, Fits);
+		}
+		const int32 Sold = FMath::Max(Stack.Count, 0) - Fits;
+		if (Sold > 0)
+		{
+			AddStack(Delta.FoundSold, Stack.Item, Sold);
+			const int64 Price = static_cast<int64>(Catalog.GetValue(Stack.Item)) * FMath::Max(Context.SellPercent, 0) / 100;
+			Delta.Credits = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Delta.Credits) + Price * Sold, MAX_int32));
 		}
 	}
 	return Delta;

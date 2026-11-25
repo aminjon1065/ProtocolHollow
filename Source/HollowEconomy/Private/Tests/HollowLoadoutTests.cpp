@@ -305,6 +305,10 @@ bool FHollowLoadoutSyncDataTest::RunTest(const FString& Parameters)
 	for (const FHollowItemStack& Item : Starting)
 	{
 		const UHollowItemDefinition* Definition = Cast<UHollowItemDefinition>(UAssetManager::Get().GetPrimaryAssetPath(Item.Item).TryLoad());
+		if (Definition && Definition->ItemType.MatchesTagExact(HollowTags::Item_Type_Ammo))
+		{
+			continue;   // GP-01: rounds do nothing themselves, their weapon's reload takes them
+		}
 		const UHollowAbilitySet* AbilitySet = Definition ? Definition->AbilitySet.LoadSynchronous() : nullptr;
 		TestTrue(Item.Item.ToString() + TEXT(" grants an ability in a raid"), AbilitySet && !AbilitySet->GrantedAbilities.IsEmpty() && AbilitySet->GrantedAbilities[0].Ability);
 	}

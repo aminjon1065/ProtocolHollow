@@ -3,6 +3,7 @@
 #include "Abilities/HollowAbilitySet.h"
 #include "Animation/AnimMontage.h"
 #include "NavFilters/NavigationQueryFilter.h"
+#include "Math/RandomStream.h"
 #include "StateTree.h"
 
 #if WITH_EDITOR
@@ -18,6 +19,11 @@ const FPrimaryAssetType UHollowEnemyDefinition::AssetType(TEXT("HollowEnemy"));
 FPrimaryAssetId UHollowEnemyDefinition::GetPrimaryAssetId() const
 {
 	return FPrimaryAssetId(AssetType, GetFName());
+}
+
+bool FHollowEnemyDrop::Rolls(const int32 Seed) const
+{
+	return IsSet() && FRandomStream(Seed).FRand() < Chance;
 }
 
 #if WITH_EDITOR
@@ -44,6 +50,10 @@ EDataValidationResult UHollowEnemyDefinition::IsDataValid(FDataValidationContext
 	if (!MeleeEvent.IsValid() || (CanBreach() && !BreachEvent.IsValid()))
 	{
 		Fail(LOCTEXT("Events", "MeleeEvent and BreachEvent must name the events of its attack abilities."));
+	}
+	if ((Drop.Count > 0 || Drop.Chance > 0.f) && !Drop.IsSet())
+	{
+		Fail(LOCTEXT("Drop", "A drop needs an item, a count, a chance and a pickup class."));
 	}
 	if (FootstepSound.IsValid() && (!FootstepCadence.IsValid() || FootstepCadence.MinSpeed > PatrolSpeed))
 	{

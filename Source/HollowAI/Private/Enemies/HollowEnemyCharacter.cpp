@@ -10,6 +10,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Enemies/HollowEnemyDefinition.h"
 #include "Enemies/HollowEnemyMontageComponent.h"
+#include "GameplayEffect.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
 #include "HollowAILog.h"
@@ -107,6 +108,12 @@ void AHollowEnemyCharacter::HandleOutOfHealth(AActor* EffectCauser, AActor* Effe
 	Die();
 }
 
+FOnHollowEnemyDied& AHollowEnemyCharacter::OnAnyEnemyDied()
+{
+	static FOnHollowEnemyDied Died;
+	return Died;
+}
+
 void AHollowEnemyCharacter::Die()
 {
 	if (!HasAuthority() || bDead)
@@ -125,6 +132,26 @@ void AHollowEnemyCharacter::Die()
 		SetLifeSpan(Definition->DeathLingerSeconds);
 	}
 	UE_LOG(LogHollowAI, Log, TEXT("%s died"), *GetName());
+	OnAnyEnemyDied().Broadcast(*this);
+}
+
+void AHollowEnemyCharacter::ReceiveImpulse(const FHollowImpulse& Impulse)
+{
+	if (!HasAuthority() || bDead || bInVent || !Definition || Definition->KnockbackScale <= 0.f)
+	{
+		return;
+	}
+	// Pushed along the ground (a shot from above does not drive it into the floor), lifted only by what it already does.
+	FVector Push = Impulse.Impulse * Definition->KnockbackScale;
+	Push.Z = FMath::Max(Push.Z, 0.f);
+	LaunchCharacter(Push, /*bXYOverride=*/false, /*bZOverride=*/false);
+	const float Strength = Push.Size2D();
+	UE_LOG(LogHollowAI, Verbose, TEXT("%s: pushed %.0f cm/s by %s"), *GetName(), Strength, *GetNameSafe(Impulse.Instigator.Get()));
+	if (Definition->StaggerImpulse > 0.f && Strength >= Definition->StaggerImpulse && Definition->StaggerEffect)
+	{
+		AbilitySystem->ApplyGameplayEffectToSelf(Definition->StaggerEffect.GetDefaultObject(), 1.f, AbilitySystem->MakeEffectContext());
+		UE_LOG(LogHollowAI, Log, TEXT("%s staggered (%.0f cm/s)"), *GetName(), Strength);
+	}
 }
 
 void AHollowEnemyCharacter::OnRep_Dead()
@@ -140,6 +167,7 @@ void AHollowEnemyCharacter::ApplyDeadPresentation()
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);   // the body never blocks the living
+	PresentDeath();
 }
 
 void AHollowEnemyCharacter::SetInVent(const bool bInside)

@@ -54,7 +54,7 @@ namespace HollowObjectiveTests
 	constexpr int32 BonusCoreCredits = 600;
 	constexpr int32 BonusPurifiedCredits = 1500;
 	constexpr int32 WaypointKinds = 6;
-	constexpr int32 ControlRows = 7;
+	constexpr int32 ControlRows = 9;   // GP-01: the hands and the melee blow
 
 	/** Test data. */
 	constexpr float TickSeconds = 1.f / 30.f;
@@ -466,7 +466,7 @@ bool FHollowVisorControlsHintTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestEqual(TEXT("Seven rows"), Rows->Rows.Num(), ControlRows);
+	TestEqual(TEXT("Nine rows"), Rows->Rows.Num(), ControlRows);
 	const FHollowControlsHintRow* Primary = Rows->Rows.FindByPredicate([](const FHollowControlsHintRow& Row) { return Row.Action.GetAssetName() == TEXT("IA_PrimaryUse"); });
 	const FHollowControlsHintRow* Secondary = Rows->Rows.FindByPredicate([](const FHollowControlsHintRow& Row) { return Row.Action.GetAssetName() == TEXT("IA_SecondaryUse"); });
 	if (!TestTrue(TEXT("The tool rows"), Primary && Secondary))

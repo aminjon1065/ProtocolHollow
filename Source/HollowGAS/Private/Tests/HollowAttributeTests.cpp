@@ -8,6 +8,7 @@
 #include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowSurvivalSet.h"
 #include "Attributes/HollowToolSet.h"
+#include "Attributes/HollowWeaponSet.h"
 #include "Net/UnrealNetwork.h"
 
 namespace HollowAttributeTests
@@ -143,6 +144,8 @@ bool FHollowAttributeReplicationTest::RunTest(const FString& Parameters)
 		{ UHollowMovementSet::StaticClass(), {}, COND_None, { TEXT("MoveSpeedMultiplier") } },
 		// S6-04: the gear's multipliers are the owner's (its carry speed is predicted there).
 		{ UHollowGearSet::StaticClass(), { TEXT("FootstepNoiseMultiplier"), TEXT("ToolWorkMultiplier"), TEXT("CarrySpeedMultiplier") }, COND_OwnerOnly, {} },
+		// GP-01: the weapon's magazine is the owner's (its shots predicted there).
+		{ UHollowWeaponSet::StaticClass(), { TEXT("Magazine"), TEXT("MaxMagazine") }, COND_OwnerOnly, {} },
 	};
 
 	for (const FExpectation& Expectation : Expectations)

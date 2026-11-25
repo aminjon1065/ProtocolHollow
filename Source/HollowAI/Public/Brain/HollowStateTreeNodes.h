@@ -120,6 +120,24 @@ protected:
 	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Retreat; }
 };
 
+USTRUCT(meta = (DisplayName = "Hollow Recoil From Light", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTTask_Recoil : public FHollowSTTask_Activity
+{
+	GENERATED_BODY()
+
+protected:
+	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Recoil; }
+};
+
+USTRUCT(meta = (DisplayName = "Hollow Flank Through The Dark", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTTask_Flank : public FHollowSTTask_Activity
+{
+	GENERATED_BODY()
+
+protected:
+	virtual EHollowAIActivity GetActivity() const override { return EHollowAIActivity::Flank; }
+};
+
 /** Base of the fact conditions: false without a Hollow AI controller as the tree's owner. */
 USTRUCT(meta = (Hidden))
 struct HOLLOWAI_API FHollowSTCondition_Fact : public FStateTreeConditionCommonBase
@@ -191,6 +209,36 @@ protected:
 
 USTRUCT(meta = (DisplayName = "Hollow Is Retreating (director)", Category = "Hollow|AI"))
 struct HOLLOWAI_API FHollowSTCond_IsRetreating : public FHollowSTCondition_Fact
+{
+	GENERATED_BODY()
+
+protected:
+	virtual bool Test(const AHollowAIController& Controller) const override;
+};
+
+/** Whisperer (GP-02): a beam caught it and it has not flinched from it yet. */
+USTRUCT(meta = (DisplayName = "Hollow Should Recoil (whisperer)", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTCond_ShouldRecoil : public FHollowSTCondition_Fact
+{
+	GENERATED_BODY()
+
+protected:
+	virtual bool Test(const AHollowAIController& Controller) const override;
+};
+
+/** Whisperer: its turn to bite (the swarm's bite slots); any other enemy may always strike. */
+USTRUCT(meta = (DisplayName = "Hollow Can Bite (whisperer)", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTCond_CanBite : public FHollowSTCondition_Fact
+{
+	GENERATED_BODY()
+
+protected:
+	virtual bool Test(const AHollowAIController& Controller) const override;
+};
+
+/** Whisperer: its prey has a light (no frenzy, no lunge under way), or it is not its turn to bite. */
+USTRUCT(meta = (DisplayName = "Hollow Should Flank (whisperer)", Category = "Hollow|AI"))
+struct HOLLOWAI_API FHollowSTCond_ShouldFlank : public FHollowSTCondition_Fact
 {
 	GENERATED_BODY()
 

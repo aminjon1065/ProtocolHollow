@@ -40,6 +40,8 @@ public class HollowGame : ModuleRules
 			"AudioGameplayVolume",
 			"Json",
 			"Niagara",   // the tool beam's sparks (Art-01)
+			"Chaos",
+			"GeometryCollectionEngine",   // the loot crates' cosmetic fracture (GP-01b)
 			"RHI",
 			"StateTreeModule",
 			"GameplayStateTreeModule"

@@ -5,12 +5,48 @@
 #include "GameplayTagContainer.h"
 
 #include "Enemies/HollowEnemyMontages.h"
+#include "UObject/PrimaryAssetId.h"
 
 #include "HollowEnemyDefinition.generated.h"
 
+class UGameplayEffect;
 class UHollowAbilitySet;
 class UNavigationQueryFilter;
 class UStateTree;
+
+/**
+ * What an enemy may leave when it dies (GP-02, ADR-0047): an item as a pickup, now and then. The AI only says so
+ * (AHollowEnemyCharacter::OnAnyEnemyDied); the game spawns the pickup (UHollowEnemyDropSubsystem).
+ */
+USTRUCT(BlueprintType)
+struct HOLLOWAI_API FHollowEnemyDrop
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drop", meta = (AllowedTypes = "HollowItem"))
+	FPrimaryAssetId Item;
+
+	/** How many of the item (0: never drops). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drop", meta = (ClampMin = "0"))
+	int32 Count = 0;
+
+	/** Share of deaths that drop it, rolled from the enemy's spawn seed (the same sector drops the same). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drop", meta = (ClampMin = "0", ClampMax = "1"))
+	float Chance = 0.f;
+
+	/** The pickup actor the game spawns (BP_LootPickup). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drop")
+	TSoftClassPtr<AActor> PickupClass;
+
+	/** How fast it pops out of the body (cm/s, up). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drop", meta = (ClampMin = "0", Units = "CentimetersPerSecond"))
+	float PopSpeed = 0.f;
+
+	bool IsSet() const { return Item.IsValid() && Count > 0 && Chance > 0.f && !PickupClass.IsNull(); }
+
+	/** Whether a death with Seed drops it (deterministic: FRandomStream of the seed). */
+	bool Rolls(int32 Seed) const;
+};
 
 /** Tuning of one enemy type, primary asset type HollowEnemy (Docs/Architecture/02 sec. 2.7, ADR-0017). */
 UCLASS(BlueprintType)
@@ -136,6 +172,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0.01", Units = "Seconds"))
 	float DeathLingerSeconds = 0.f;
 
+	/** Share of a shot's or blow's push it takes (GP-01, IHollowImpulseReceiver): 1 flies, 0.25 is the Pilgrim's mass. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
+	float KnockbackScale = 0.f;
+
+	/** A push at least this strong (after KnockbackScale) staggers it: StaggerEffect. 0: never staggered. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0", Units = "CentimetersPerSecond"))
+	float StaggerImpulse = 0.f;
+
+	/** A short stun (UHollowStunnedEffect child, GE_Status_Stagger): the brain stops, its attacks are blocked. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+	TSubclassOf<UGameplayEffect> StaggerEffect;
+
 	/** Optional montages of its moments (ADR-0027, art pass); empty slots keep the greybox behaviour. Never root motion. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	FHollowEnemyMontages Montages;
@@ -143,4 +191,8 @@ public:
 	/** Section of an attack montage where the blow lands: its start is fitted to the end of the wind-up. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
 	FName ImpactSection = TEXT("Impact");
+
+	/** What it may leave when it dies (GP-02). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+	FHollowEnemyDrop Drop;
 };

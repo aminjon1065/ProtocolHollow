@@ -1,6 +1,6 @@
 {
  "about": "Art-01 (ADR-0043): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Paths are under /Game/Fab/<Pack> in the staging.",
- "budget_mb": 50,
+ "budget_mb": 2000,
  "packs": [],
  "swaps": []
 }

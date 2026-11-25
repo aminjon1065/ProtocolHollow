@@ -96,6 +96,7 @@ float UHollowAudioSubsystem::RandomPitch(const FResolved& Entry) const
 UAudioComponent* UHollowAudioSubsystem::Play(const FGameplayTag& SoundTag, const FVector& Location, const float VolumeScale)
 {
 	const FResolved* Entry = Count(SoundTag);
+	OnSoundPlayed.Broadcast(SoundTag, Location, VolumeScale);
 	return Entry ? UGameplayStatics::SpawnSoundAtLocation(this, Entry->Sound, Location, FRotator::ZeroRotator, Entry->Volume * VolumeScale,
 		RandomPitch(*Entry), 0.f, Entry->Attenuation, Entry->Concurrency, /*bAutoDestroy=*/true) : nullptr;
 }

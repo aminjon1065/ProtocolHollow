@@ -31,10 +31,13 @@ INI_LINE = "EconomyConfig=/Game/Hollow/Economy/DA_EconomyConfig.DA_EconomyConfig
 ITEM_DIRS = {"DA_Item_Welder": "Tools", "DA_Item_PlasmaCutter": "Tools", "DA_Item_AetherLantern": "Tools", "DA_Item_FuelCell": "Consumables",
              "DA_Item_PulseMine": "Consumables", "DA_Item_OccultWard": "Consumables", "DA_Item_Scrap": "Materials", "DA_Item_AetherShard": "Materials",
              "DA_Item_Relic_RingOfSilence": "Relics", "DA_Item_Relic_ResonanceStabilizer": "Relics", "DA_Item_Relic_PlasmaCapacitor": "Relics",
-             "DA_Item_Relic_KineticBrace": "Relics"}
+             "DA_Item_Relic_KineticBrace": "Relics",
+             "DA_Item_Weapon_Nailgun": "Weapons", "DA_Item_Weapon_Shotgun": "Weapons", "DA_Item_Ammo_Nails": "Ammo", "DA_Item_Ammo_Shells": "Ammo"}
 # Clarification 4: tools and materials at their BaseValue; consumables only from the workbench.
 # S6-02 clarification 7: the Aether lantern (create_lantern_assets.py, value 300) is sold above its value, a class tool.
-OFFERS = [("DA_Item_Welder", 300), ("DA_Item_PlasmaCutter", 400), ("DA_Item_AetherLantern", 450), ("DA_Item_Scrap", 8), ("DA_Item_AetherShard", 20)]
+# GP-01 (ADR-0044): the weapons at their value; their rounds the one consumable the shop sells (by the ten, ShopBulkCount).
+OFFERS = [("DA_Item_Welder", 300), ("DA_Item_PlasmaCutter", 400), ("DA_Item_AetherLantern", 450), ("DA_Item_Scrap", 8), ("DA_Item_AetherShard", 20),
+          ("DA_Item_Weapon_Nailgun", 150), ("DA_Item_Weapon_Shotgun", 650), ("DA_Item_Ammo_Nails", 1), ("DA_Item_Ammo_Shells", 4)]
 CONFIG = {
     "sell_percent": 50,          # clarification 4: half the value back, rounded down
     "insurance_percent": 30,     # clarification 1: 30 % of the slot's value, rounded up, single-use
@@ -53,9 +56,15 @@ RECIPES = {
                                             "DA_Item_Relic_ResonanceStabilizer", 1),
     "DA_Recipe_Relic_PlasmaCapacitor": ("Plasma Capacitor", [("DA_Item_AetherShard", 1), ("DA_Item_Scrap", 6)], 60, "DA_Item_Relic_PlasmaCapacitor", 1),
     "DA_Recipe_Relic_KineticBrace": ("Kinetic Brace", [("DA_Item_AetherShard", 2), ("DA_Item_Scrap", 5)], 60, "DA_Item_Relic_KineticBrace", 1),
+    # GP-01: the shotgun from the raids' materials (426 cr of them, it sells for 325), its shells and the nails in bulk.
+    # Their names come from the string table (GP-01: every new player-facing text is localizable): (key, English source).
+    "DA_Recipe_Weapon_Shotgun": (("Recipe.Weapon.Shotgun.Name", "Heavy kinetic shotgun"), [("DA_Item_Scrap", 12), ("DA_Item_AetherShard", 4)], 250,
+                                 "DA_Item_Weapon_Shotgun", 1),
+    "DA_Recipe_Ammo_Nails": (("Recipe.Ammo.Nails.Name", "Nails x20"), [("DA_Item_Scrap", 2)], 4, "DA_Item_Ammo_Nails", 20),
+    "DA_Recipe_Ammo_Shells": (("Recipe.Ammo.Shells.Name", "Shells x8"), [("DA_Item_Scrap", 3), ("DA_Item_AetherShard", 1)], 6, "DA_Item_Ammo_Shells", 8),
 }
 CONSUMABLE = "Hollow.Item.Type.Consumable"
-CRAFTED_TYPES = [CONSUMABLE, "Hollow.Item.Type.Relic"]   # what the workbench makes (S6-04: relics too)
+CRAFTED_TYPES = [CONSUMABLE, "Hollow.Item.Type.Relic", "Hollow.Item.Type.Weapon", "Hollow.Item.Type.Ammo"]   # what the workbench makes (S6-04: relics; GP-01: weapons, rounds)
 # S5-03 clarifications 1-3: name -> (display name, description, price, extra insured slots, core value percent, raid items,
 # extra equip slots: (Hollow.Item.Slot.* child, count), S6-04).
 UPGRADES = {
@@ -153,16 +162,37 @@ def ensure_config():
     return config
 
 
+LOCALIZATION_DIR = "/Game/Hollow/Localization"
+STRING_TABLE = "ST_Gameplay"   # create_weapon_assets.py makes it
+
+
+def display_text(display):
+    """A plain text, or (key, source) from the string table (GP-01)."""
+    if isinstance(display, tuple):
+        table = unreal.HollowLocalizationAuthoring.find_or_create_string_table(LOCALIZATION_DIR, STRING_TABLE)
+        text = unreal.HollowLocalizationAuthoring.table_text(table, display[0], display[1])
+        assets.save_loaded_asset(table, True)
+        return text
+    return unreal.Text(display)
+
+
+def is_display(value, display):
+    if isinstance(display, tuple):
+        entry = unreal.HollowLocalizationAuthoring.get_table_entry(value)   # None for any other text
+        return entry is not None and str(entry[0]).endswith(STRING_TABLE) and str(entry[1]) == display[0] and str(value) == display[1]
+    return str(value) == display
+
+
 def ensure_recipe(name, spec):
     display, inputs, credits, output, output_count = spec
     recipe, created = data_asset(RECIPES_DIR + "/" + name, unreal.HollowCraftingRecipe)
     wanted_inputs = [stack(n, c) for n, c in inputs]
     wanted_output = stack(output, output_count)
-    if not created and str(recipe.get_editor_property("display_name")) == display \
+    if not created and is_display(recipe.get_editor_property("display_name"), display) \
             and texts(recipe.get_editor_property("inputs")) == texts(wanted_inputs) and recipe.get_editor_property("credits") == credits \
             and recipe.get_editor_property("output").export_text() == wanted_output.export_text():
         return recipe
-    recipe.set_editor_property("display_name", unreal.Text(display))
+    recipe.set_editor_property("display_name", display_text(display))
     recipe.set_editor_property("inputs", wanted_inputs)
     recipe.set_editor_property("credits", credits)
     recipe.set_editor_property("output", wanted_output)

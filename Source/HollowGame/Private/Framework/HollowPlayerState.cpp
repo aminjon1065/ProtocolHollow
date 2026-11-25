@@ -6,6 +6,7 @@
 #include "Attributes/HollowResonanceSet.h"
 #include "Attributes/HollowSurvivalSet.h"
 #include "Attributes/HollowToolSet.h"
+#include "Attributes/HollowWeaponSet.h"
 #include "Classes/HollowClassComponent.h"
 #include "Inventory/HollowInventoryComponent.h"
 #include "Session/HollowNetworkSettings.h"
@@ -25,6 +26,7 @@ AHollowPlayerState::AHollowPlayerState(const FObjectInitializer& ObjectInitializ
 	ResonanceSet = CreateDefaultSubobject<UHollowResonanceSet>(TEXT("ResonanceSet"));
 	ToolSet = CreateDefaultSubobject<UHollowToolSet>(TEXT("ToolSet"));
 	GearSet = CreateDefaultSubobject<UHollowGearSet>(TEXT("GearSet"));
+	WeaponSet = CreateDefaultSubobject<UHollowWeaponSet>(TEXT("WeaponSet"));
 	VoiceTalker = CreateDefaultSubobject<UHollowVoiceTalker>(TEXT("VoiceTalker"));
 	Inventory = CreateDefaultSubobject<UHollowInventoryComponent>(TEXT("Inventory"));
 	ClassComponent = CreateDefaultSubobject<UHollowClassComponent>(TEXT("Class"));

@@ -8,12 +8,14 @@
 
 namespace HollowBiomeTests
 {
-	FHollowSocketActorRule Rule(const FGameplayTag& Type, const int32 Max = 0, const EHollowSocketPick Pick = EHollowSocketPick::ManifestOrder)
+	FHollowSocketActorRule Rule(const FGameplayTag& Type, const int32 Max = 0, const EHollowSocketPick Pick = EHollowSocketPick::ManifestOrder,
+		const int32 MinRoomDistance = 0)
 	{
 		FHollowSocketActorRule Result;
 		Result.SocketType = Type;
 		Result.MaxPerSector = Max;
 		Result.Pick = Pick;
+		Result.MinRoomDistance = MinRoomDistance;
 		return Result;
 	}
 
@@ -54,6 +56,35 @@ bool FHollowBiomeSocketRulesTest::RunTest(const FString& Parameters)
 	const TArray<int32> FirstTwo = Biome->AssignSocketRules(Slots);
 	TestTrue(TEXT("Manifest order takes the first ones"), FirstTwo[0] == 0 && FirstTwo[2] == 0 && FirstTwo[3] == INDEX_NONE && FirstTwo[4] == INDEX_NONE);
 	TestEqual(TEXT("No rule, no actor"), FirstTwo[1], INDEX_NONE);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowBiomeMinRoomDistanceTest, "Hollow.PCG.Biome.MinRoomDistance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowBiomeMinRoomDistanceTest::RunTest(const FString& Parameters)
+{
+	// GP-02: the Pilgrim takes the farthest EnemySpawn socket, then up to two Whisperer nests the first sockets at
+	// least two rooms from Spawn; what is nearer, or left over, goes to the markers.
+	using namespace HollowBiomeTests;
+	UHollowBiomeDefinition* Biome = NewObject<UHollowBiomeDefinition>(GetTransientPackage());
+	const FGameplayTag Enemy = HollowTags::Socket_EnemySpawn;
+	Biome->SocketActors = {Rule(Enemy, 1, EHollowSocketPick::FarthestFromSpawn), Rule(Enemy, 2, EHollowSocketPick::ManifestOrder, 2), Rule(Enemy)};
+	constexpr int32 Pilgrim = 0, Nest = 1, Marker = 2;
+
+	const TArray<FHollowSocketSlot> Slots = {Slot(Enemy, 1), Slot(Enemy, 0), Slot(Enemy, 2), Slot(Enemy, 6), Slot(Enemy, INDEX_NONE), Slot(Enemy, 3)};
+	const TArray<int32> Assigned = Biome->AssignSocketRules(Slots);
+	TestEqual(TEXT("The farthest socket gets the Pilgrim"), Assigned[3], Pilgrim);
+	TestTrue(TEXT("Next to Spawn: no nest"), Assigned[0] == Marker && Assigned[1] == Marker);
+	TestEqual(TEXT("Two links away: a nest"), Assigned[2], Nest);
+	TestEqual(TEXT("No route from Spawn counts as far: a nest"), Assigned[4], Nest);
+	TestEqual(TEXT("Past MaxPerSector: the marker"), Assigned[5], Marker);
+	TestTrue(TEXT("Deterministic"), Biome->AssignSocketRules(Slots) == Assigned);
+
+	Biome->SocketActors = {Rule(Enemy, 0, EHollowSocketPick::ManifestOrder, 3)};
+	const TArray<int32> Every = Biome->AssignSocketRules(Slots);
+	TestTrue(TEXT("Without a maximum: every far enough socket"), Every[3] == 0 && Every[4] == 0 && Every[5] == 0);
+	TestTrue(TEXT("...and none nearer"), Every[0] == INDEX_NONE && Every[1] == INDEX_NONE && Every[2] == INDEX_NONE);
 	return true;
 }
 

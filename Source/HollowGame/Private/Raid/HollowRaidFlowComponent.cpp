@@ -366,12 +366,13 @@ void UHollowRaidFlowComponent::EndRaid(const TCHAR* Why)
 		if (const UHollowInventoryComponent* Inventory = UHollowInventoryComponent::Get(Player->PlayerState))
 		{
 			Result.Spent = Inventory->GetSpent();
+			Result.Found = Inventory->GetFound();   // GP-01b: the player's own, whatever the outcome (its resolver decides)
 		}
 		Result.RaidSeconds = RaidSeconds;
 		Result.SquadExtracted = SquadExtracted;
 		Result.SquadSize = SquadSize;
-		UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s -> %s, %d loot stack(s), spent %s"), *RaidId.ToString(), *Player->GetName(),
-			*HollowEnumToString(Result.Outcome), Result.Loot.Num(), *HollowLoadoutRules::Describe(Result.Spent));
+		UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s -> %s, %d loot stack(s), spent %s, found %s"), *RaidId.ToString(), *Player->GetName(),
+			*HollowEnumToString(Result.Outcome), Result.Loot.Num(), *HollowLoadoutRules::Describe(Result.Spent), *HollowLoadoutRules::Describe(Result.Found));
 		Player->Client_ReceiveRaidResult(Result);
 	}
 	UE_LOG(LogHollowGame, Log, TEXT("Raid %s over: %s; %d of %d extracted; back to the hub in %.0f s"), *RaidId.ToString(), Why, SquadExtracted,

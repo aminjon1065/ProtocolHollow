@@ -42,6 +42,7 @@ namespace HollowAudioGameTests
 	const TCHAR* const NoiseConfigPath = TEXT("/Game/Hollow/Core/DA_NoiseConfig.DA_NoiseConfig");
 	const TCHAR* const WorldSoundClass = TEXT("/Game/Hollow/Audio/SC_Hollow_World.SC_Hollow_World");
 	const TCHAR* const PilgrimDefinition = TEXT("/Game/Hollow/Characters/Enemies/IronPilgrim/DA_Enemy_IronPilgrim.DA_Enemy_IronPilgrim");
+	const TCHAR* const WhispererDefinition = TEXT("/Game/Hollow/Characters/Enemies/Whisperer/DA_Enemy_Whisperer.DA_Enemy_Whisperer");
 	const TCHAR* const StalkerDefinition = TEXT("/Game/Hollow/Characters/Enemies/EchoStalker/DA_Enemy_EchoStalker.DA_Enemy_EchoStalker");
 	const TCHAR* const StalkerClass = TEXT("/Game/Hollow/Characters/Enemies/EchoStalker/BP_EchoStalker.BP_EchoStalker_C");
 	const TCHAR* const CoreClass = TEXT("/Game/Hollow/Items/AetherCore/BP_AetherCore.BP_AetherCore_C");
@@ -85,7 +86,8 @@ namespace HollowAudioGameTests
 	/** Sounds that run until stopped (tools while used, the core's hum); every other one ends by itself. */
 	TArray<FGameplayTag> Loops()
 	{
-		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Noise_Tool_Lantern, HollowTags::Sound_Core_Hum, HollowTags::Sound_Ward_Hum};
+		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Noise_Tool_Lantern, HollowTags::Sound_Core_Hum, HollowTags::Sound_Ward_Hum,
+			HollowTags::Sound_Whisperer_Whisper};
 	}
 
 	/** Plays of Tag since the call before (counts per tag, UHollowAudioSubsystem). */
@@ -218,7 +220,12 @@ bool FHollowAudioConsistencyTest::RunTest(const FString& Parameters)
 		const UHollowToolDefinition* Tool = LoadObject<UHollowToolDefinition>(nullptr, Path);
 		TestTrue(FString::Printf(TEXT("%s: its noise has a sound"), Path), Tool && Bank->Find(Tool->NoiseTag));
 	}
-	for (const UHollowEnemyDefinition* Enemy : {Pilgrim, Stalker})
+	const UHollowEnemyDefinition* Whisperer = LoadObject<UHollowEnemyDefinition>(nullptr, WhispererDefinition);   // GP-02
+	if (!TestNotNull(TEXT("DA_Enemy_Whisperer"), Whisperer))
+	{
+		return false;
+	}
+	for (const UHollowEnemyDefinition* Enemy : {Pilgrim, Stalker, Whisperer})
 	{
 		TestTrue(FString::Printf(TEXT("%s: wind-up and footstep sounds in the bank"), *Enemy->GetName()), Bank->Find(Enemy->WindupSound) && Bank->Find(Enemy->FootstepSound));
 		TestTrue(FString::Printf(TEXT("%s: heard patrolling, loudest chasing"), *Enemy->GetName()), Enemy->FootstepCadence.VolumeAt(Enemy->PatrolSpeed) > 0.f

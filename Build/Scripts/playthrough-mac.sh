@@ -81,7 +81,22 @@
 #          profiles show what was spent.
 # Every log is scanned for errors, ensures and crashes. Output: Saved/Playthrough/<stamp>-<mode>/.
 #
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+#   weapons  GP-01 weapons (ADR-0044): host + 1 headless client behind --net. In the hub the host trades its nailgun for a
+#          shotgun and shells; in the raid the client takes its nailgun in hand (the hands' key), shoots a Pilgrim the host
+#          spawns six times, reloads with R and strikes; the host blasts it twice with the shotgun (staggered). Both dump
+#          the hands, magazines and rounds (the host: the client's hits it took and refused) and the Pilgrim; the client
+#          puts the weapon away and cuts. Both extract. GP-01c (ADR-0046): both dump the game feel they felt (their own
+#          shots, swaps and blow, the Pilgrim's steps) and the hit markers they saw.
+#   loot   GP-01b loot crates (ADR-0045): host + 1 headless client behind --net. In the Docks both machines dump the sector's
+#          crates (the host: their seeds and contents); the client shoots one open with its nailgun and picks its loot up
+#          (Interact on each pickup), the host breaks another with blows and picks it up, then dies (its found loot is left
+#          behind); the client extracts: its found loot is in its stash, the debrief says so.
+#   swarm  GP-02 Whisperers (ADR-0047): host + 1 headless client behind --net. Both dump the sector's own nests (the host:
+#          the swarm), then the host puts a nest (seed 15: four Whisperers, two of whom drop a shard) in front of itself and
+#          the client among them, its lamp on them: they flinch (lit, shrieks on both machines) and back off. Both put their
+#          lamps out: the frenzy (both machines). Lamps on again, the client shoots them down with its nailgun; both dump the
+#          swarm, the enemies, the shots (the host: the hits it took), the feel and the drops. Both extract.
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -90,7 +105,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide ]] || { sed -n '2,88p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm ]] || { sed -n '2,103p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -113,7 +128,7 @@ case "$NET" in
 	bad) NET_ARGS=(-PktEmulationProfile=Bad) ;;
 	*) echo "Unknown --net: $NET (0, 150 or bad)" >&2; exit 2 ;;
 esac
-if [[ ("$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes) && "$NET" == none ]]; then
+if [[ ("$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm) && "$NET" == none ]]; then
 	NET_ARGS=(-PktLag=150)   # the co-op smokes but coop and soak always run behind a slow network
 fi
 GAME="$APP/Contents/MacOS/ProtocolHollow"
@@ -406,6 +421,106 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 16 Hollow.Dev.Kill Others"                          # the client dies: only insured slots come home
 		h "Hollow.Dev.RunInRaid 18 Hollow.Dev.GoToExtraction"
 		h "Hollow.Dev.RunInRaid 60 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 61 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	weapons)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		# The host (an Engineer: welder 0, cutter 1, cells 2, mines 3, nailgun 4, nails 5) trades the nailgun for a shotgun.
+		h "Hollow.Dev.RunAfter 12 Hollow.Profile.Credits 2000"
+		h "Hollow.Dev.RunAfter 12.5 Hollow.Shop.Buy DA_Item_Weapon_Shotgun 1"; h "Hollow.Dev.RunAfter 13 Hollow.Shop.Buy DA_Item_Ammo_Shells 10"
+		h "Hollow.Dev.RunAfter 13.5 Hollow.Profile.Unequip 5"; h "Hollow.Dev.RunAfter 14 Hollow.Profile.Unequip 4"
+		h "Hollow.Dev.RunAfter 14.5 Hollow.Profile.Equip DA_Item_Weapon_Shotgun 1"; h "Hollow.Dev.RunAfter 15 Hollow.Profile.Equip DA_Item_Ammo_Shells 10"
+		h "Hollow.Dev.RunAfter 15.5 Hollow.Shop.Dump"
+		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"; h "Hollow.Dev.RunInRaid 2.2 Hollow.Dev.Invulnerable All"
+		h "Hollow.Dev.RunInRaid 2.5 Hollow.Inventory.Dump"; C+=("Hollow.Dev.RunInRaid 2.5 Hollow.Inventory.Dump")
+		# 1. The client's nailgun: six shots at a Pilgrim the host spawns, a reload (R), a blow.
+		h "Hollow.Dev.RunInRaid 3 Hollow.AI.Spawn 600"
+		h "Hollow.Dev.RunInRaid 4 Hollow.Dev.GoToNearestEnemy Others"
+		h "Hollow.Dev.RunInRaid 5 Hollow.AI.Dump"                                    # its health before
+		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Tool.Hold Hollow.Input.Hands.Weapon 0.05")
+		C1+=("Hollow.Dev.RunInRaid 6.6 Hollow.Weapon.Dump")
+		for ((s = 0; s < 6; s++)); do
+			C1+=("Hollow.Dev.RunInRaid $((7 + s)).0 Hollow.Dev.FaceNearestEnemy"); C1+=("Hollow.Dev.RunInRaid $((7 + s)).3 Hollow.Tool.Hold Hollow.Input.PrimaryUse 0.05")
+		done
+		C1+=("Hollow.Dev.RunInRaid 13.5 Hollow.Weapon.Dump"); h "Hollow.Dev.RunInRaid 14 Hollow.Weapon.Dump"; h "Hollow.Dev.RunInRaid 14 Hollow.AI.Dump"
+		C1+=("Hollow.Dev.RunInRaid 14.5 Hollow.Tool.Hold Hollow.Input.Reload 0.05")
+		C1+=("Hollow.Dev.RunInRaid 15 Hollow.Weapon.Dump")                         # reloading: its rounds in at once
+		C1+=("Hollow.Dev.RunInRaid 16.5 Hollow.Dev.FaceNearestEnemy"); C1+=("Hollow.Dev.RunInRaid 17 Hollow.Tool.Hold Hollow.Input.Melee 0.05")
+		h "Hollow.Dev.RunInRaid 17.8 Hollow.AI.Dump"
+		# 2. The host's shotgun: two blasts up close (each one staggers the Pilgrim).
+		h "Hollow.Dev.RunInRaid 18 Hollow.Dev.GoToNearestEnemy"
+		h "Hollow.Dev.RunInRaid 19 Hollow.Tool.Hold Hollow.Input.Hands.Weapon 0.05"
+		h "Hollow.Dev.RunInRaid 19.6 Hollow.Dev.FaceNearestEnemy"; h "Hollow.Dev.RunInRaid 19.8 Hollow.Tool.Hold Hollow.Input.PrimaryUse 0.05"
+		h "Hollow.Dev.RunInRaid 20 Hollow.AI.Dump"
+		h "Hollow.Dev.RunInRaid 21.2 Hollow.Dev.FaceNearestEnemy"; h "Hollow.Dev.RunInRaid 21.4 Hollow.Tool.Hold Hollow.Input.PrimaryUse 0.05"
+		h "Hollow.Dev.RunInRaid 21.6 Hollow.AI.Dump"; h "Hollow.Dev.RunInRaid 22 Hollow.Weapon.Dump"; C+=("Hollow.Dev.RunInRaid 22.5 Hollow.Weapon.Dump")
+		h "Hollow.Dev.RunInRaid 22.2 Hollow.Feel.Dump"; C+=("Hollow.Dev.RunInRaid 22.7 Hollow.Feel.Dump")   # GP-01c
+		# 3. The client puts the weapon away and cuts again.
+		C1+=("Hollow.Dev.RunInRaid 23 Hollow.Tool.Hold Hollow.Input.Hands.Tools 0.05")
+		C1+=("Hollow.Dev.RunInRaid 23.6 Hollow.Tool.Hold Hollow.Input.PrimaryUse 1"); C1+=("Hollow.Dev.RunInRaid 24 Hollow.Tool.Info")
+		C1+=("Hollow.Dev.RunInRaid 24.8 Hollow.Weapon.Dump")
+		h "Hollow.Dev.RunInRaid 25 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 26 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 70 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 71 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	loot)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"; h "Hollow.Dev.RunInRaid 2.2 Hollow.Dev.Invulnerable All"
+		h "Hollow.Dev.RunInRaid 3 Hollow.Loot.Dump"; C+=("Hollow.Dev.RunInRaid 3.5 Hollow.Loot.Dump")
+		# 1. The client shoots a crate open and picks its loot up.
+		h "Hollow.Dev.RunInRaid 4 Hollow.Dev.GoToNearestCrate Others"
+		C1+=("Hollow.Dev.RunInRaid 5 Hollow.Tool.Hold Hollow.Input.Hands.Weapon 0.05")
+		for ((s = 0; s < 5; s++)); do
+			C1+=("Hollow.Dev.RunInRaid $((6 + s)).0 Hollow.Dev.FaceNearestCrate"); C1+=("Hollow.Dev.RunInRaid $((6 + s)).3 Hollow.Tool.Hold Hollow.Input.PrimaryUse 0.05")
+		done
+		h "Hollow.Dev.RunInRaid 11.5 Hollow.Loot.Dump"; C+=("Hollow.Dev.RunInRaid 12 Hollow.Loot.Dump")
+		for ((p = 0; p < 3; p++)); do
+			C1+=("Hollow.Dev.RunInRaid $((13 + 2 * p)).0 Hollow.Dev.FaceNearestPickup"); C1+=("Hollow.Dev.RunInRaid $((13 + 2 * p)).6 Hollow.Interact")
+		done
+		C1+=("Hollow.Dev.RunInRaid 19.5 Hollow.Inventory.Dump")
+		# 2. The host breaks another with blows, takes its loot, dies.
+		h "Hollow.Dev.RunInRaid 20 Hollow.Dev.GoToNearestCrate"
+		for ((b = 0; b < 4; b++)); do
+			h "Hollow.Dev.RunInRaid $((21 + b)).0 Hollow.Dev.FaceNearestCrate"; h "Hollow.Dev.RunInRaid $((21 + b)).3 Hollow.Tool.Hold Hollow.Input.Melee 0.05"
+		done
+		for ((p = 0; p < 3; p++)); do
+			h "Hollow.Dev.RunInRaid $((26 + 2 * p)).0 Hollow.Dev.FaceNearestPickup"; h "Hollow.Dev.RunInRaid $((26 + 2 * p)).6 Hollow.Interact"
+		done
+		h "Hollow.Dev.RunInRaid 32 Hollow.Inventory.Dump"; h "Hollow.Dev.RunInRaid 32.5 Hollow.Loot.Dump"
+		h "Hollow.Dev.RunInRaid 33 Hollow.Dev.Kill"                                   # the host's found loot is left behind
+		h "Hollow.Dev.RunInRaid 35 Hollow.Dev.GoToExtraction Others"
+		h "Hollow.Dev.RunInRaid 80 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 81 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	swarm)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Swarm"; h "Hollow.Dev.RunInRaid 2.1 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 2.2 Hollow.AI.Dump")   # the sector's own nests
+		h "Hollow.Dev.RunInRaid 2.5 Hollow.AI.Kill"; h "Hollow.Dev.RunInRaid 2.7 Hollow.Dev.Invulnerable All"
+		# 1. A nest in front of the host, the client among its brood, its lamp on them: they flinch and back off.
+		h "Hollow.Dev.RunInRaid 3 Hollow.AI.Nest 700 15"
+		h "Hollow.Dev.RunInRaid 4 Hollow.Dev.GoToNearestEnemy Others"
+		C1+=("Hollow.Dev.RunInRaid 4.6 Hollow.Dev.FaceNearestEnemy")
+		h "Hollow.Dev.RunInRaid 5.2 Hollow.AI.Swarm"; h "Hollow.Dev.RunInRaid 5.4 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 5.6 Hollow.AI.Dump")
+		# 2. Both lamps out: the dark, a frenzy.
+		C1+=("Hollow.Dev.RunInRaid 6 Hollow.Lamp.Toggle"); h "Hollow.Dev.RunInRaid 6 Hollow.Lamp.Toggle"
+		h "Hollow.Dev.RunInRaid 7.4 Hollow.AI.Swarm"; h "Hollow.Dev.RunInRaid 7.6 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 7.8 Hollow.AI.Dump")
+		# 3. The lamps on again, the client's nailgun: it shoots them down.
+		C1+=("Hollow.Dev.RunInRaid 8.5 Hollow.Lamp.Toggle"); h "Hollow.Dev.RunInRaid 8.5 Hollow.Lamp.Toggle"
+		C1+=("Hollow.Dev.RunInRaid 9 Hollow.Tool.Hold Hollow.Input.Hands.Weapon 0.05")
+		for ((s = 0; s < 10; s++)); do
+			C1+=("Hollow.Dev.RunInRaid $((10 + s)).0 Hollow.Dev.FaceNearestEnemy"); C1+=("Hollow.Dev.RunInRaid $((10 + s)).3 Hollow.Tool.Hold Hollow.Input.PrimaryUse 0.05")
+		done
+		h "Hollow.Dev.RunInRaid 20.5 Hollow.AI.Swarm"; h "Hollow.Dev.RunInRaid 20.7 Hollow.AI.Dump"; C+=("Hollow.Dev.RunInRaid 20.9 Hollow.AI.Dump")
+		C1+=("Hollow.Dev.RunInRaid 21.2 Hollow.Weapon.Dump"); h "Hollow.Dev.RunInRaid 21.2 Hollow.Weapon.Dump"
+		C+=("Hollow.Dev.RunInRaid 21.4 Hollow.Feel.Dump"); h "Hollow.Dev.RunInRaid 21.6 Hollow.Feel.Dump"
+		h "Hollow.Dev.RunInRaid 22 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 22.6 Hollow.Loot.Dump"; C+=("Hollow.Dev.RunInRaid 22.8 Hollow.Loot.Dump")   # what they dropped
+		h "Hollow.Dev.RunInRaid 23.5 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 70 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 71 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	cathedral)
@@ -703,7 +818,7 @@ else
 	# "Control listening on port 1985" matched at the same moment; the game's driver listens a menu press later (RG-1).
 	wait_for "$OUT/Host.log" 'UI up for .*[(]main menu[)]' 240 || { echo "the host's menu never came up"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
@@ -735,7 +850,7 @@ SUMMARY_LINES=160
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role |Hollow.UI.Dump: (objective|tracker|waypoints|controls)|Objective of |Controls cheat sheet |Hollow.Art.Dump: " "$log" | grep -v "Command Line\|commandline" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role |Hollow.UI.Dump: (objective|tracker|waypoints|controls)|Objective of |Controls cheat sheet |Hollow.Art.Dump: |Hollow.Weapon.Dump: |Hollow.Feel.Dump: |in hand|carries DA_Weapon|reloads [0-9]|strikes |staggered|Hollow.Loot.Dump: |broken open|picks up|finds [0-9]|FaceNearest(Crate|Pickup): |GoToNearestCrate|found |Hollow.AI.(Swarm|Nest): |flinches in|a brood of|leaves [0-9]+ x|Swarm: " "$log" | grep -v "Command Line\|commandline\|metalmap" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
 done
 if [[ "$MODE" == lantern ]]; then
 	# Every player's Resonance in the host's four dumps (by name and pawn: local processes share a name): the carrier

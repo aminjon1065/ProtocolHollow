@@ -10,6 +10,8 @@
  * - Dead, MissingInAction, Abandoned: only insured slots of insurable items are kept, the loot is lost; the insurance
  *   of those slots is spent (InsuranceUsed, ADR-0031).
  * - SignalLost: the loadout is kept, the loot is lost.
+ * - GP-01b (ADR-0045): the player's found loot (Context.Found) goes into the stash when extracted, what it has no room
+ *   for is sold at SellPercent; in every other outcome it is left behind.
  * What was used up in the raid (Context.Spent, ADR-0030) is gone in every case, taken from the slots holding it in
  * order; the outcome then decides about the rest. Credits already in the profile are never touched; insurance is spent
  * only when it saves an item.

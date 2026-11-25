@@ -26,7 +26,8 @@ TArray<int32> UHollowBiomeDefinition::AssignSocketRules(const TConstArrayView<FH
 		TArray<int32> Free;
 		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
 		{
-			if (Assigned[Slot] == INDEX_NONE && Slots[Slot].SocketType == Rule.SocketType)
+			const bool bFarEnough = Rule.MinRoomDistance <= 0 || Slots[Slot].RoomDistance == INDEX_NONE || Slots[Slot].RoomDistance >= Rule.MinRoomDistance;
+			if (Assigned[Slot] == INDEX_NONE && Slots[Slot].SocketType == Rule.SocketType && bFarEnough)
 			{
 				Free.Add(Slot);
 			}

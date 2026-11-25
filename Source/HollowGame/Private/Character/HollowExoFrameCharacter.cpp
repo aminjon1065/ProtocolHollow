@@ -28,6 +28,7 @@
 #include "InputActionValue.h"
 #include "Interaction/HollowInteractionComponent.h"
 #include "Interfaces/HollowCarryReceiver.h"
+#include "Inventory/HollowInventoryComponent.h"
 #include "Movement/HollowCharacterMovementComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -35,8 +36,11 @@
 #include "Raid/HollowRaidSettings.h"
 #include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
+#include "Tools/HollowGA_AetherLantern.h"
+#include "Feel/HollowViewFeelComponent.h"
 #include "Tools/HollowToolMountComponent.h"
 #include "Voice/HollowVoiceTalker.h"
+#include "Weapons/HollowHandsComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowExoFrameCharacter)
 
@@ -78,6 +82,8 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	ToolMesh->SetupAttachment(GetRootComponent());
 	ToolMount = CreateDefaultSubobject<UHollowToolMountComponent>(TEXT("ToolMount"));
 	ToolMount->Setup(FirstPersonToolMesh, ToolMesh, FirstPersonCamera);
+	Hands = CreateDefaultSubobject<UHollowHandsComponent>(TEXT("Hands"));
+	ViewFeel = CreateDefaultSubobject<UHollowViewFeelComponent>(TEXT("ViewFeel"));
 
 	InteractionComponent = CreateDefaultSubobject<UHollowInteractionComponent>(TEXT("Interaction"));
 	CarrierComponent = CreateDefaultSubobject<UHollowCarrierComponent>(TEXT("Carrier"));
@@ -115,6 +121,7 @@ void AHollowExoFrameCharacter::PossessedBy(AController* NewController)
 void AHollowExoFrameCharacter::UnPossessed()
 {
 	UnbindHealth();
+	UnbindInventory();
 	GrantedAbilitySetHandles.TakeFromAbilitySystem(GetHollowAbilitySystemComponent());
 	UninitializeAbilitySystem();
 	Super::UnPossessed();
@@ -144,6 +151,12 @@ void AHollowExoFrameCharacter::InitializeFromPlayerState()
 	InitializeAbilitySystem(HollowPlayerState->GetHollowAbilitySystemComponent(), HollowPlayerState);
 	HollowPlayerState->GetVoiceTalker()->RefreshPlacement();   // the voice comes from this helmet now (S4-07)
 	BindClassLook(HollowPlayerState);
+	Hands->Sync();   // the weapon's tag on this ability system (GP-01)
+	ViewFeel->Refresh();   // its health on this ability system (GP-01c)
+	if (HasAuthority())
+	{
+		BindInventory(UHollowInventoryComponent::Get(HollowPlayerState));
+	}
 
 	// The server learns of death from the health set (on the player state); clients follow the replicated flag.
 	const UHollowAbilitySystemComponent* AbilitySystem = GetHollowAbilitySystemComponent();
@@ -207,6 +220,30 @@ void AHollowExoFrameCharacter::UnbindHealth()
 	}
 	BoundHealthSet = nullptr;
 	OutOfHealthHandle.Reset();
+}
+
+void AHollowExoFrameCharacter::BindInventory(UHollowInventoryComponent* Inventory)
+{
+	if (BoundInventory.Get() != Inventory)
+	{
+		UnbindInventory();
+		if (Inventory)
+		{
+			InventoryChangedHandle = Inventory->OnInventoryChanged.AddWeakLambda(this, [this] { Hands->RefreshWeapon(); });
+			BoundInventory = Inventory;
+		}
+	}
+	Hands->RefreshWeapon();
+}
+
+void AHollowExoFrameCharacter::UnbindInventory()
+{
+	if (UHollowInventoryComponent* Inventory = BoundInventory.Get())
+	{
+		Inventory->OnInventoryChanged.Remove(InventoryChangedHandle);
+	}
+	BoundInventory.Reset();
+	InventoryChangedHandle.Reset();
 }
 
 void AHollowExoFrameCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -303,7 +340,7 @@ void AHollowExoFrameCharacter::ApplyHelmetLamp(const bool bClick)
 	}
 }
 
-bool AHollowExoFrameCharacter::GetLightCone(FHollowLightCone& OutCone) const
+bool AHollowExoFrameCharacter::GetHelmetLampCone(FHollowLightCone& OutCone) const
 {
 	if (bDead || !bHelmetLampOn || HelmetLight->Intensity <= 0.f)
 	{
@@ -313,7 +350,21 @@ bool AHollowExoFrameCharacter::GetLightCone(FHollowLightCone& OutCone) const
 	OutCone.Direction = GetBaseAimRotation().Vector();
 	OutCone.HalfAngleDegrees = HelmetLight->OuterConeAngle;
 	OutCone.Range = HelmetLight->AttenuationRadius;
+	OutCone.Kind = EHollowLightKind::Lamp;
 	return true;
+}
+
+void AHollowExoFrameCharacter::GetLightCones(TArray<FHollowLightCone>& OutCones) const
+{
+	FHollowLightCone Cone;
+	if (GetHelmetLampCone(Cone))
+	{
+		OutCones.Add(Cone);
+	}
+	if (!bDead && UHollowGA_AetherLantern::FindBeamCone(*this, Cone))
+	{
+		OutCones.Add(Cone);
+	}
 }
 
 void AHollowExoFrameCharacter::ApplyHelmetShadows()
@@ -345,6 +396,7 @@ void AHollowExoFrameCharacter::NotifyControllerChanged()
 	// IsPlayerControlled() needs the player state, which a client may receive after the controller: check the controller type.
 	InteractionComponent->SetLocalFocusEnabled(IsLocallyControlled() && Cast<APlayerController>(GetController()) != nullptr);
 	ApplyHelmetShadows();
+	ViewFeel->Refresh();   // GP-01c: the view feel of the player that controls it now, if local
 
 	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
@@ -387,13 +439,15 @@ void AHollowExoFrameCharacter::SetupPlayerInputComponent(UInputComponent* Player
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Crouch, ETriggerEvent::Completed, this, &ThisClass::HandleCrouchCompleted);
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Sprint, ETriggerEvent::Started, this, &ThisClass::HandleSprintStarted);
 	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Sprint, ETriggerEvent::Completed, this, &ThisClass::HandleSprintCompleted);
-	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Interact, ETriggerEvent::Started, this, &ThisClass::HandleInteract);
+	// GP-01: when its mapping triggers (E on press, the gamepad's X when held: a tap of X reloads).
+	InputConfig->BindNativeAction(*EnhancedInput, HollowTags::Input_Interact, ETriggerEvent::Triggered, this, &ThisClass::HandleInteract);
 
 	for (const FHollowInputAction& Entry : InputConfig->AbilityActions)
 	{
 		if (Entry.InputAction && Entry.InputTag.IsValid())
 		{
-			EnhancedInput->BindAction(Entry.InputAction.Get(), ETriggerEvent::Started, this, &ThisClass::HandleAbilityInputPressed, Entry.InputTag);
+			const ETriggerEvent Press = Entry.bPressOnTrigger ? ETriggerEvent::Triggered : ETriggerEvent::Started;
+			EnhancedInput->BindAction(Entry.InputAction.Get(), Press, this, &ThisClass::HandleAbilityInputPressed, Entry.InputTag);
 			EnhancedInput->BindAction(Entry.InputAction.Get(), ETriggerEvent::Completed, this, &ThisClass::HandleAbilityInputReleased, Entry.InputTag);
 			EnhancedInput->BindAction(Entry.InputAction.Get(), ETriggerEvent::Canceled, this, &ThisClass::HandleAbilityInputReleased, Entry.InputTag);
 		}

@@ -2,7 +2,7 @@
 
 #include "Brain/HollowStalkerController.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
+#include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
 #include "GameFramework/Pawn.h"
@@ -77,14 +77,7 @@ void UHollowEnvQueryTest_OutOfLightCone::RunTest(FEnvQueryInstance& QueryInstanc
 	BoolValue.BindData(Owner, QueryInstance.QueryID);
 	const bool bWanted = BoolValue.GetValue();
 	TArray<TPair<FHollowLightCone, const AActor*>> Cones;
-	for (TActorIterator<APawn> It(World); It; ++It)
-	{
-		FHollowLightCone Cone;
-		if (const IHollowLightSource* Light = Cast<IHollowLightSource>(*It); Light && Light->GetLightCone(Cone))
-		{
-			Cones.Emplace(Cone, *It);
-		}
-	}
+	IHollowLightSource::GatherCones(World, Cones);   // lamps and burning lanterns alike (GP-02)
 	for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)
 	{
 		const FVector Body = GetItemLocation(QueryInstance, It.GetIndex()) + FVector(0.0, 0.0, PointHeight);
@@ -109,6 +102,16 @@ void UHollowEnvQueryTest_OutOfLightCone::RunTest(FEnvQueryInstance& QueryInstanc
 FText UHollowEnvQueryTest_OutOfLightCone::GetDescriptionTitle() const
 {
 	return LOCTEXT("Title", "Out of every lamp");
+}
+
+void UHollowEnvQueryContext_Target::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const
+{
+	const APawn* Querier = Cast<APawn>(QueryInstance.Owner.Get());
+	const AHollowAIController* Controller = Querier ? Cast<AHollowAIController>(Querier->GetController()) : nullptr;
+	if (const AActor* Target = Controller ? Controller->GetTarget() : nullptr)
+	{
+		UEnvQueryItemType_Actor::SetContextHelper(ContextData, Target);
+	}
 }
 
 void UHollowEnvQueryContext_FocusRoomHotPortal::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const

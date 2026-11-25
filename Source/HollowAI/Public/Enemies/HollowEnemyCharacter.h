@@ -2,6 +2,8 @@
 
 #include "Abilities/HollowAbilitySet.h"
 #include "Characters/HollowCharacterBase.h"
+#include "Interfaces/HollowImpulseReceiver.h"
+#include "Interfaces/HollowSeededActor.h"
 
 #include "HollowEnemyCharacter.generated.h"
 
@@ -11,6 +13,10 @@ class UHollowEnemyMontageComponent;
 class UHollowFootstepAudioComponent;
 class UHollowHealthSet;
 class UHollowMovementSet;
+class AHollowEnemyCharacter;
+
+/** Server: an enemy has just died (GP-02: the game drops its loot, UHollowEnemyDropSubsystem). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowEnemyDied, AHollowEnemyCharacter& /*Enemy*/);
 
 /**
  * Enemy pawn (Docs/Architecture/02 sec. 2.7, ADR-0017): its own ability system in Minimal replication (tags and cues
@@ -20,7 +26,7 @@ class UHollowMovementSet;
  * The Iron Pilgrim is BP_IronPilgrim: this class plus data.
  */
 UCLASS()
-class HOLLOWAI_API AHollowEnemyCharacter : public AHollowCharacterBase
+class HOLLOWAI_API AHollowEnemyCharacter : public AHollowCharacterBase, public IHollowImpulseReceiver, public IHollowSeededActor
 {
 	GENERATED_BODY()
 
@@ -35,6 +41,22 @@ public:
 	/** Server: stops the brain and abilities, freezes in place and goes away after the definition's linger time. */
 	void Die();
 
+	/** Every enemy's death on the server, in any world (listeners check the enemy's world). */
+	static FOnHollowEnemyDied& OnAnyEnemyDied();
+
+	/**
+	 * Server, before FinishSpawning or right after the spawn (GP-02): its seed, from the sector's (a socket's enemy) or
+	 * its nest's: what it rolls of its own (its drop) is the same for the same sector.
+	 */
+	virtual void SetSpawnSeed(int32 InSeed) override { SpawnSeed = InSeed; }
+	int32 GetSpawnSeed() const { return SpawnSeed; }
+
+	/**
+	 * Server (GP-01): a shot or a blow pushes it back by its definition's KnockbackScale, and a push stronger than
+	 * StaggerImpulse staggers it (StaggerEffect). The movement replicates as always; a dead enemy or one in a vent stays.
+	 */
+	virtual void ReceiveImpulse(const FHollowImpulse& Impulse) override;
+
 	/** In a vent shaft (ADR-0019): hidden, no collision, no movement, on every machine. Server sets it. */
 	bool IsInVent() const { return bInVent; }
 	void SetInVent(bool bInside);
@@ -47,6 +69,9 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/** It is dead on this machine (the server's Die, or the replicated flag): a child's own presentation. */
+	virtual void PresentDeath() {}
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Enemy")
 	TObjectPtr<UHollowAbilitySystemComponent> AbilitySystem;
@@ -102,6 +127,8 @@ private:
 	float VentExitServerTime = 0.f;
 
 	FHollowAbilitySetHandles GrantedAbilities;
+	/** Server only (SetSpawnSeed). */
+	int32 SpawnSeed = 0;
 	FDelegateHandle OutOfHealthHandle;
 	FTimerHandle VentHideTimer;
 };

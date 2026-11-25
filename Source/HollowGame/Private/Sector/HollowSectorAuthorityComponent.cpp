@@ -20,6 +20,7 @@
 #include "Generation/HollowSectorGraph.h"
 #include "Generation/HollowSectorTemplates.h"
 #include "HollowGameLog.h"
+#include "Interfaces/HollowSeededActor.h"
 #include "Hub/HollowContractDefinition.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/DateTime.h"
@@ -283,7 +284,9 @@ void UHollowSectorAuthorityComponent::SpawnSectorActors()
 	const ACharacter* PawnDefaults = GameMode && GameMode->DefaultPawnClass ? Cast<ACharacter>(GameMode->DefaultPawnClass->GetDefaultObject()) : nullptr;
 	const double StartLift = PawnDefaults ? PawnDefaults->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 0.0;
 
-	auto Spawn = [this, World](UClass* Class, const FTransform& Transform, const FName Label)
+	// GP-01b: a socket actor that rolls something of its own (a loot crate) gets a seed of the sector and its socket.
+	constexpr int32 SocketSeedSalt = 0x51C0;
+	auto Spawn = [this, World, &Manifest](UClass* Class, const FTransform& Transform, const FName Label, const int32 SeedKey = INDEX_NONE)
 	{
 		AActor* Actor = World->SpawnActorDeferred<AActor>(Class, Transform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 		if (!Actor)
@@ -293,6 +296,10 @@ void UHollowSectorAuthorityComponent::SpawnSectorActors()
 		if (AHollowSectorMarker* Marker = Cast<AHollowSectorMarker>(Actor))
 		{
 			Marker->SetLabel(Label);
+		}
+		if (IHollowSeededActor* Seeded = Cast<IHollowSeededActor>(Actor); Seeded && SeedKey != INDEX_NONE)
+		{
+			Seeded->SetSpawnSeed(static_cast<int32>(HollowRandom::DeriveSeed(Manifest.Seed, SocketSeedSalt + SeedKey) & 0x7FFFFFFF));
 		}
 		Actor->FinishSpawning(Transform);
 		SpawnedActors.Add(Actor);
@@ -334,7 +341,7 @@ void UHollowSectorAuthorityComponent::SpawnSectorActors()
 		{
 			Transform.AddToTranslation(FVector(0.0, 0.0, StartLift));
 		}
-		Spawn(Class, Transform, Socket.SocketType.GetTagName());
+		Spawn(Class, Transform, Socket.SocketType.GetTagName(), Slot);
 	}
 	for (int32 Index = 0; Index < Layout.Connections.Num(); ++Index)
 	{

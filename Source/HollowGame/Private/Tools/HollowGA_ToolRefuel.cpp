@@ -15,6 +15,8 @@ UHollowGA_ToolRefuel::UHollowGA_ToolRefuel(const FObjectInitializer& ObjectIniti
 	ItemCostPerUse = 1;   // one fuel cell (DA_Item_FuelCell grants this)
 	SetAssetTags(FGameplayTagContainer(HollowTags::Ability_Tool_Refuel));
 	ActivationBlockedTags.AddTag(HollowTags::State_Dead);
+	ActivationBlockedTags.AddTag(HollowTags::State_Hands_Weapon);   // GP-01: with the weapon in hand the reload input reloads it
+	ActivationBlockedTags.AddTag(HollowTags::State_Hands_Swapping);
 }
 
 bool UHollowGA_ToolRefuel::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

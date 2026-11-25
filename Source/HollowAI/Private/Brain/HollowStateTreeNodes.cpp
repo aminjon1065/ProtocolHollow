@@ -2,6 +2,7 @@
 
 #include "Brain/HollowAIController.h"
 #include "Brain/HollowStalkerController.h"
+#include "Brain/HollowWhispererController.h"
 #include "StateTreeAsyncExecutionContext.h"
 #include "StateTreeExecutionContext.h"
 
@@ -75,4 +76,22 @@ bool FHollowSTCond_IsRetreating::Test(const AHollowAIController& Controller) con
 {
 	const AHollowStalkerController* Stalker = Cast<AHollowStalkerController>(&Controller);
 	return Stalker && Stalker->IsRetreating();
+}
+
+bool FHollowSTCond_ShouldRecoil::Test(const AHollowAIController& Controller) const
+{
+	const AHollowWhispererController* Whisperer = Cast<AHollowWhispererController>(&Controller);
+	return Whisperer && Whisperer->ShouldRecoil();
+}
+
+bool FHollowSTCond_CanBite::Test(const AHollowAIController& Controller) const
+{
+	const AHollowWhispererController* Whisperer = Cast<AHollowWhispererController>(&Controller);
+	return !Whisperer || Whisperer->CanBite();
+}
+
+bool FHollowSTCond_ShouldFlank::Test(const AHollowAIController& Controller) const
+{
+	const AHollowWhispererController* Whisperer = Cast<AHollowWhispererController>(&Controller);
+	return Whisperer && Whisperer->ShouldFlank();
 }

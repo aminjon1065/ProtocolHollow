@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GameFramework/GameUserSettings.h"
+#include "Interfaces/HollowComfortSettings.h"
 #include "Settings/HollowGraphicsSettings.h"
 #include "Voice/HollowVoiceRules.h"
 
@@ -11,10 +12,11 @@ struct FDisplayMetrics;
 /**
  * The player's settings (GameUserSettings.ini) with the graphics preset (ADR-0023). The first launch on a machine picks
  * one (Steam Deck, else the hardware benchmark); -HollowPreset=Low|High overrides it for one run. Set as
- * GameUserSettingsClassName in DefaultEngine.ini.
+ * GameUserSettingsClassName in DefaultEngine.ini. The lower modules read the comfort choices through
+ * IHollowComfortSettings (GP-01c: game feel in HollowCore).
  */
 UCLASS(Config = GameUserSettings, ConfigDoNotCheckDefaults)
-class HOLLOWGAME_API UHollowGameUserSettings : public UGameUserSettings
+class HOLLOWGAME_API UHollowGameUserSettings : public UGameUserSettings, public IHollowComfortSettings
 {
 	GENERATED_BODY()
 
@@ -40,7 +42,7 @@ public:
 	 * Accessibility H-1 (ADR-0029): no fast flashes. The Resonance post-process, the emergency lights and the visor
 	 * glow then change smoothly (at most 2 Hz) or hold steady, on this machine only. Off unless the player chose it.
 	 */
-	bool IsReducedFlashes() const { return bReducedFlashes; }
+	virtual bool IsReducedFlashes() const override { return bReducedFlashes; }
 
 	/** Switches it now (OnReducedFlashesChanged); bSave keeps it for the next launch. */
 	void SetReducedFlashes(bool bReduced, bool bSave = true);

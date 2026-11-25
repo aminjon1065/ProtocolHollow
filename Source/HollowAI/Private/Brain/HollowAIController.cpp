@@ -20,6 +20,8 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "Perception/AISenseConfig_Damage.h"
+#include "Perception/AISense_Damage.h"
 #include "Perception/AISense_Hearing.h"
 #include "Perception/AISense_Sight.h"
 #include "Sector/HollowSectorTopologySubsystem.h"
@@ -49,8 +51,10 @@ AHollowAIController::AHollowAIController(const FObjectInitializer& ObjectInitial
 		Filter->bDetectNeutrals = true;
 		Filter->bDetectFriendlies = true;
 	}
+	DamageConfig = CreateDefaultSubobject<UAISenseConfig_Damage>(TEXT("DamageConfig"));
 	Perception->ConfigureSense(*SightConfig);
 	Perception->ConfigureSense(*HearingConfig);
+	Perception->ConfigureSense(*DamageConfig);
 	Perception->SetDominantSense(UAISense_Sight::StaticClass());
 	SetPerceptionComponent(*Perception);
 }
@@ -124,8 +128,10 @@ void AHollowAIController::ConfigureSenses(const UHollowEnemyDefinition& Definiti
 	SightConfig->SetMaxAge(Definition.StimulusMaxAge);
 	HearingConfig->HearingRange = Definition.HearingRange;
 	HearingConfig->SetMaxAge(Definition.StimulusMaxAge);
+	DamageConfig->SetMaxAge(Definition.StimulusMaxAge);
 	Perception->ConfigureSense(*SightConfig);
 	Perception->ConfigureSense(*HearingConfig);
+	Perception->ConfigureSense(*DamageConfig);
 }
 
 float AHollowAIController::GetHearingRange() const
@@ -247,19 +253,25 @@ APawn* AHollowAIController::GetTarget() const
 		return Current;
 	}
 	APawn* Closest = nullptr;
-	double ClosestDistance = TNumericLimits<double>::Max();
+	double ClosestCost = TNumericLimits<double>::Max();
 	for (const TWeakObjectPtr<APawn>& Weak : Seen)
 	{
 		APawn* Candidate = Weak.Get();
-		const double Distance = Candidate ? FVector::DistSquared(Candidate->GetActorLocation(), GetPawn()->GetActorLocation()) : 0.0;
-		if (Candidate && IsCandidate(Candidate) && Distance < ClosestDistance)
+		const double Cost = Candidate ? TargetCost(*Candidate) : 0.0;
+		if (Candidate && IsCandidate(Candidate) && Cost < ClosestCost)
 		{
 			Closest = Candidate;
-			ClosestDistance = Distance;
+			ClosestCost = Cost;
 		}
 	}
 	Target = Closest;
 	return Closest;
+}
+
+double AHollowAIController::TargetCost(const APawn& Candidate) const
+{
+	const APawn* Self = GetPawn();
+	return Self ? FVector::DistSquared(Candidate.GetActorLocation(), Self->GetActorLocation()) : 0.0;
 }
 
 double AHollowAIController::GapTo(const AActor* Other) const
@@ -312,6 +324,11 @@ void AHollowAIController::HandlePerception(AActor* Actor, const FAIStimulus Stim
 	{
 		ReportHeard(Stimulus.StimulusLocation);
 	}
+	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Damage>() && Stimulus.WasSuccessfullySensed())
+	{
+		// GP-01: shot or struck: it goes where the blow came from, as after a noise (walls do not muffle a hit).
+		ReportHeard(Stimulus.StimulusLocation);
+	}
 }
 
 bool AHollowAIController::IsAudibleFromItsRoom(const FAIStimulus& Stimulus) const
@@ -346,9 +363,10 @@ void AHollowAIController::ReportSeen(APawn* SeenPawn)
 	{
 		GetWorldTimerManager().ClearTimer(ForgetTargetTimer);   // back in sight before it was forgotten
 	}
-	if (!Before && GetTarget())
+	if (APawn* Found = !Before ? GetTarget() : nullptr)
 	{
 		UE_LOG(LogHollowAI, Log, TEXT("%s: sees %s"), *GetNameSafe(GetPawn()), *SeenPawn->GetName());
+		OnNewTarget(*Found);
 		if (ShouldReconsiderOnPerception())
 		{
 			Reconsider();

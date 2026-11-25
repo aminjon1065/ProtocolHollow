@@ -622,6 +622,24 @@ namespace HollowCraftingRules
 		return true;
 	}
 
+	int64 RoomInStash(const TConstArrayView<FHollowItemStack> Stash, const FPrimaryAssetId& Item, const int32 MaxStack, const int32 StashSlots)
+	{
+		if (MaxStack <= 0 || !Item.IsValid())
+		{
+			return 0;
+		}
+		if (StashSlots <= 0)
+		{
+			return MAX_int32;
+		}
+		int64 Room = 0;
+		for (const FHollowItemStack& Stack : Stash)
+		{
+			Room += Stack.Item == Item ? FMath::Max(MaxStack - Stack.Count, 0) : 0;
+		}
+		return Room + static_cast<int64>(FMath::Max(StashSlots - Stash.Num(), 0)) * MaxStack;
+	}
+
 	bool TakeFromStash(TArray<FHollowItemStack>& Stash, const FPrimaryAssetId& Item, const int32 Count)
 	{
 		if (Count < 0 || CountOf(Stash, Item) < Count)

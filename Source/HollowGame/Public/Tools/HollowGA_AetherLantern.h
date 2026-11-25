@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Interfaces/HollowLightSource.h"
 #include "Tools/HollowGA_ContinuousTool.h"
 
 #include "HollowGA_AetherLantern.generated.h"
@@ -32,6 +33,15 @@ public:
 
 	/** The living players within the lantern's aura around Wielder (Wielder too), by name. */
 	static TArray<APawn*> FindAuraPlayers(const UWorld& World, const APawn& Wielder, const UHollowLanternDefinition& Lantern);
+
+	/** The lantern's light cone from Eyes along Direction (Kind Lantern). */
+	static FHollowLightCone MakeCone(const FVector& Eyes, const FVector& Direction, const UHollowLanternDefinition& Lantern);
+
+	/**
+	 * The beam of Wielder's lantern while it burns, from where Wielder looks (GP-02: the AI's light, IHollowLightSource).
+	 * Where the ability runs: the server (the AI's truth) and the predicting owner.
+	 */
+	static bool FindBeamCone(const APawn& Wielder, FHollowLightCone& OutCone);
 
 protected:
 	virtual void ApplySample(APawn& Wielder, const FVector& Eyes, const FVector& Direction, float DeltaSeconds) override;

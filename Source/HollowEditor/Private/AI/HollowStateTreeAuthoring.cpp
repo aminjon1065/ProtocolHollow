@@ -62,6 +62,8 @@ namespace HollowStateTreeAuthoringPrivate
 			{ FHollowSTTask_Track::StaticStruct(), &AddTask<FHollowSTTask_Track> },
 			{ FHollowSTTask_Ambush::StaticStruct(), &AddTask<FHollowSTTask_Ambush> },
 			{ FHollowSTTask_Retreat::StaticStruct(), &AddTask<FHollowSTTask_Retreat> },
+			{ FHollowSTTask_Recoil::StaticStruct(), &AddTask<FHollowSTTask_Recoil> },
+			{ FHollowSTTask_Flank::StaticStruct(), &AddTask<FHollowSTTask_Flank> },
 		};
 		return Entries;
 	}
@@ -77,6 +79,9 @@ namespace HollowStateTreeAuthoringPrivate
 			{ FHollowSTCond_IsStunned::StaticStruct(), &AddCondition<FHollowSTCond_IsStunned> },
 			{ FHollowSTCond_IsHunting::StaticStruct(), &AddCondition<FHollowSTCond_IsHunting> },
 			{ FHollowSTCond_IsRetreating::StaticStruct(), &AddCondition<FHollowSTCond_IsRetreating> },
+			{ FHollowSTCond_ShouldRecoil::StaticStruct(), &AddCondition<FHollowSTCond_ShouldRecoil> },
+			{ FHollowSTCond_CanBite::StaticStruct(), &AddCondition<FHollowSTCond_CanBite> },
+			{ FHollowSTCond_ShouldFlank::StaticStruct(), &AddCondition<FHollowSTCond_ShouldFlank> },
 		};
 		return Entries;
 	}

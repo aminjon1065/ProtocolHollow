@@ -246,6 +246,8 @@ namespace HollowCraftingRules
 
 	/** Count of Item into Stash: partial stacks first, then new stacks of at most MaxStack; false (nothing added) beyond StashSlots. */
 	HOLLOWECONOMY_API bool AddToStash(TArray<FHollowItemStack>& Stash, const FPrimaryAssetId& Item, int32 Count, int32 MaxStack, int32 StashSlots);
+	/** How many of Item Stash still takes: room in its partial stacks and in free slots of MaxStack (StashSlots <= 0: no limit). */
+	HOLLOWECONOMY_API int64 RoomInStash(TConstArrayView<FHollowItemStack> Stash, const FPrimaryAssetId& Item, int32 MaxStack, int32 StashSlots);
 	/** Count of Item out of Stash, from its last stacks; false (nothing taken) if fewer are there. */
 	HOLLOWECONOMY_API bool TakeFromStash(TArray<FHollowItemStack>& Stash, const FPrimaryAssetId& Item, int32 Count);
 	HOLLOWECONOMY_API int32 CountOf(TConstArrayView<FHollowItemStack> Stacks, const FPrimaryAssetId& Item);

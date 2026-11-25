@@ -20,6 +20,13 @@ struct FHollowInputAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (Categories = "Hollow.Input"))
 	FGameplayTag InputTag;
+
+	/**
+	 * GP-01: an ability action is pressed when its mapping triggers (ETriggerEvent::Triggered), not when the key goes down.
+	 * For a key shared by a tap and a hold (the gamepad's X: tap reloads, hold interacts), each mapping with its own trigger.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	bool bPressOnTrigger = false;
 };
 
 /**

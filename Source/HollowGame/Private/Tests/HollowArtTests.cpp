@@ -12,6 +12,7 @@
 #include "Cosmetics/HollowCosmeticParts.h"
 #include "Data/HollowLanternDefinition.h"
 #include "Data/HollowToolDefinition.h"
+#include "Data/HollowWeaponDefinition.h"
 #include "Doors/HollowDoor.h"
 #include "Doors/HollowDoorStateComponent.h"
 #include "Engine/StaticMesh.h"
@@ -19,6 +20,7 @@
 #include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 #include "Settings/HollowGameUserSettings.h"
 #include "Tags/HollowGameplayTags.h"
 #include "Tools/HollowLanternCue.h"
@@ -48,7 +50,7 @@ namespace HollowArtTests
 	/** Budget (create_art_kit.py MAX_TRIANGLES, TEXTURE_MAX_SIZE). */
 	constexpr int32 MaxTriangles = 6000;
 	constexpr int32 MaxTextureSize = 1024;
-	constexpr int32 KitMeshes = 23;
+	constexpr int32 KitMeshes = 32;   // GP-01: the two weapons and five pickups; GP-02: the Whisperer and its nest
 	constexpr int32 CcTextures = 18;
 	/** Test data. */
 	constexpr float TickSeconds = 1.f / 30.f;
@@ -202,6 +204,52 @@ bool FHollowArtToolInHandTest::RunTest(const FString& Parameters)
 	const UClass* Cue = LoadClass<AHollowToolBeamCue>(nullptr, BeamCueClass);
 	const UNiagaraComponent* Sparks = Cue ? Cue->GetDefaultObject<AHollowToolBeamCue>()->FindComponentByClass<UNiagaraComponent>() : nullptr;
 	TestTrue(TEXT("The beam sparks (NS_Tool_BeamSparks)"), Sparks && Sparks->GetAsset() && !Sparks->bAutoActivate);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowArtWeaponInHandTest, "Hollow.Game.Art.WeaponInHand",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowArtWeaponInHandTest::RunTest(const FString& Parameters)
+{
+	// GP-01 (ADR-0044): a weapon in hand replaces the tool (its mesh, muzzle and view offset) and gives it back; its shot
+	// effects are Niagara systems (a test world has no FX scene to spawn them in: the cue stops each burst on a timer).
+	using namespace HollowArtTests;
+	FTestWorldWrapper TestWorld;
+	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
+	PreloadParts();
+	AHollowExoFrameCharacter* Character = World ? SpawnPlaying<AHollowExoFrameCharacter>(World, ExoFrameClass) : nullptr;
+	UHollowToolMountComponent* Mount = Character ? UHollowToolMountComponent::Get(Character) : nullptr;
+	const UHollowWeaponDefinition* Weapons[] = {
+		LoadObject<UHollowWeaponDefinition>(nullptr, TEXT("/Game/Hollow/Weapons/Nailgun/DA_Weapon_Nailgun.DA_Weapon_Nailgun")),
+		LoadObject<UHollowWeaponDefinition>(nullptr, TEXT("/Game/Hollow/Weapons/Shotgun/DA_Weapon_Shotgun.DA_Weapon_Shotgun"))};
+	if (!TestNotNull(TEXT("BP_ExoFrame's tool mount"), Mount) || !TestTrue(TEXT("The two weapons"), Weapons[0] && Weapons[1]))
+	{
+		return false;
+	}
+	const UHollowToolDefinition* Tool = Mount->GetShownTool();
+	if (Tool)
+	{
+		Tool->HeldMesh.LoadSynchronous();   // the tool comes back at once (an unloaded one shows empty hands while it loads)
+	}
+	for (const UHollowWeaponDefinition* Weapon : Weapons)
+	{
+		UStaticMesh* Mesh = Weapon->HeldMesh.LoadSynchronous();
+		TestTrue(Weapon->GetName() + TEXT(": a held mesh with its muzzle"), Mesh && Mesh->FindSocket(Weapon->MuzzleSocket) != nullptr);
+		Mount->SetHeldWeapon(Weapon);
+		TestTrue(Weapon->GetName() + TEXT(": in both hands"), Mount->GetFirstPersonMesh()->GetStaticMesh() == Mesh && Mount->GetThirdPersonMesh()->GetStaticMesh() == Mesh);
+		TestTrue(Weapon->GetName() + TEXT(": the first-person one at its view offset"),
+			Mount->GetFirstPersonMesh()->GetRelativeTransform().Equals(Weapon->ViewOffset, 0.01));
+		FVector Muzzle;
+		TestTrue(Weapon->GetName() + TEXT(": a muzzle to shoot from"), Mount->GetMuzzleLocation(Muzzle));
+		for (const TSoftObjectPtr<UFXSystemAsset>* Effect : {&Weapon->MuzzleFlash, &Weapon->Tracer, &Weapon->Impact})
+		{
+			TestNotNull(Weapon->GetName() + TEXT(": a Niagara shot effect"), Cast<UNiagaraSystem>(Effect->LoadSynchronous()));
+		}
+	}
+	Mount->SetHeldWeapon(nullptr);
+	TestTrue(TEXT("Put away: the tool again"), Mount->GetHeldWeapon() == nullptr && Mount->GetShownTool() == Tool
+		&& (!Tool || Mount->GetFirstPersonMesh()->GetStaticMesh() == Tool->HeldMesh.Get()));
 	return true;
 }
 

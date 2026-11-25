@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Classes/HollowClassDefinition.h"
+#include "Crafting/HollowEconomyConfig.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
 #include "HollowEconomyLog.h"
 #include "Inventory/HollowLoadoutRules.h"
@@ -102,8 +103,10 @@ void UHollowProfileSubsystem::ApplyRaidResult(const FHollowRaidResult& Result)
 {
 	FHollowProfileState& State = Save->State;
 	const int32 CoreValuePercent = HollowCraftingRules::SumEffects(State.Profile.Upgrades, UHollowShipUpgradeDefinition::LoadAllById()).CoreValuePercent;
+	const UHollowEconomyConfig* Economy = UHollowEconomyConfig::Get();   // GP-01b: the stash the found loot joins
 	const TOptional<FHollowRaidReport> Report = HollowProfileRules::ApplyResult(State, Result,
-		FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State, &Result)), CoreValuePercent);
+		FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State, &Result)), CoreValuePercent, Economy ? Economy->StashSlots : 0,
+		Economy ? Economy->SellPercent : 0);
 	UE_CLOG(!Report, LogHollowEconomy, Warning, TEXT("Profile: result for raid %s ignored (escrow %s)"), *Result.RaidId.ToString(),
 		*State.Escrow.RaidId.ToString());
 	HandleReport(Report, TEXT("host's result"));

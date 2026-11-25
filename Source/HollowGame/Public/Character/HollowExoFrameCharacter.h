@@ -12,13 +12,16 @@ class UCameraComponent;
 class AHollowPlayerState;
 class UHollowClassComponent;
 class UGameplayEffect;
+class UHollowHandsComponent;
 class UHollowHealthSet;
+class UHollowInventoryComponent;
 class UHollowCarrierComponent;
 class UHollowFootstepAudioComponent;
 class UHollowFootstepNoiseComponent;
 class UHollowCharacterMovementComponent;
 class UHollowInteractionComponent;
 class UHollowToolMountComponent;
+class UHollowViewFeelComponent;
 class UHollowInputConfig;
 class UInputMappingContext;
 class USkeletalMeshComponent;
@@ -54,9 +57,14 @@ public:
 	UHollowFootstepNoiseComponent* GetFootstepNoise() const { return FootstepNoise; }
 	USpotLightComponent* GetHelmetLight() const { return HelmetLight; }
 	UHollowToolMountComponent* GetToolMount() const { return ToolMount; }
+	UHollowHandsComponent* GetHands() const { return Hands; }
+	UHollowViewFeelComponent* GetViewFeel() const { return ViewFeel; }
 
 	/** The helmet lamp's cone from where the pawn looks while it is switched on and its wearer lives (any machine; the server's view drives the AI, ADR-0019). */
-	virtual bool GetLightCone(FHollowLightCone& OutCone) const override;
+	bool GetHelmetLampCone(FHollowLightCone& OutCone) const;
+
+	/** The AI's light (GP-02): the helmet lamp's cone and, while it burns, the Aether lantern's beam (where its ability runs). */
+	virtual void GetLightCones(TArray<FHollowLightCone>& OutCones) const override;
 
 	/** Whether the helmet lamp is switched on (a dead body's lamp stays dark whatever this says). */
 	bool IsHelmetLampOn() const { return bHelmetLampOn; }
@@ -103,6 +111,9 @@ private:
 
 	void HandleOutOfHealth(AActor* EffectCauser, AActor* EffectInstigator, float Damage);
 	void UnbindHealth();
+	/** Server: the hands follow the raid inventory's weapon (GP-01). */
+	void BindInventory(UHollowInventoryComponent* Inventory);
+	void UnbindInventory();
 	void BecomeSpectator();
 	/** Every machine: a dead body neither moves nor blocks the living. */
 	void ApplyDeadPresentation();
@@ -155,6 +166,14 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<UHollowToolMountComponent> ToolMount;
 
+	/** GP-01: tools or the weapon in hand (ADR-0044). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowHandsComponent> Hands;
+
+	/** GP-01c: its own player's view feel (the first-person tool's sway and recoil, the jolt of damage; ADR-0046). */
+	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
+	TObjectPtr<UHollowViewFeelComponent> ViewFeel;
+
 	/** The lamp's own data (BP_ExoFrame) before ApplyHelmetShadows. */
 	bool bHelmetLampCastsShadows = false;
 
@@ -206,6 +225,9 @@ private:
 	/** Push model, to everyone but the owner: the owner predicts its own lamp (GA_HelmetLamp). On at spawn. */
 	UPROPERTY(ReplicatedUsing = OnRep_HelmetLamp)
 	bool bHelmetLampOn = true;
+
+	TWeakObjectPtr<UHollowInventoryComponent> BoundInventory;
+	FDelegateHandle InventoryChangedHandle;
 
 	TWeakObjectPtr<const UHollowHealthSet> BoundHealthSet;
 	FDelegateHandle OutOfHealthHandle;
