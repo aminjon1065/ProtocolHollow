@@ -578,6 +578,52 @@ namespace HollowDevConsole
 		GoToNearest(Args, World, AHollowExtractionZone::StaticClass(), TEXT("Hollow.Dev.GoToExtraction"));
 	}
 
+	/** The local pawn stands at Local in Frame (its feet on Frame's floor), looking along Yaw and Pitch of Frame. */
+	void StandIn(APlayerController& Player, ACharacter& Character, const FTransform& Frame, const FVector2D& Local, const double Yaw, const double Pitch)
+	{
+		const FVector Stand = Frame.TransformPosition(FVector(Local.X, Local.Y, Character.GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
+		Character.SetActorLocation(Stand, /*bSweep=*/false, nullptr, ETeleportType::TeleportPhysics);
+		Player.SetControlRotation(FRotator(Pitch, Frame.GetRotation().Rotator().Yaw + Yaw, 0.0));
+	}
+
+	/**
+	 * Host: the local pawn into the first streamed room whose definition's name contains Name (World: the level itself,
+	 * the hub), at a room-local point, looking along a room-local yaw and a pitch: repeatable views for pictures (FAB-01).
+	 * Usage: Hollow.Dev.GoToRoom <Name|World> [LocalX LocalY Yaw [Pitch]]
+	 */
+	void GoToRoom(const TArray<FString>& Args, UWorld* World)
+	{
+		APlayerController* Player = World && World->GetNetMode() != NM_Client ? World->GetFirstPlayerController() : nullptr;
+		ACharacter* Character = Player ? Cast<ACharacter>(Player->GetPawn()) : nullptr;
+		const auto Number = [&Args](const int32 Index) { return Args.IsValidIndex(Index) ? FCString::Atod(*Args[Index]) : 0.0; };
+		if (!Args.IsEmpty() && Character && Args[0].Equals(TEXT("World"), ESearchCase::IgnoreCase))
+		{
+			StandIn(*Player, *Character, FTransform::Identity, FVector2D(Number(1), Number(2)), Number(3), Number(4));
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Dev.GoToRoom: at %s"), *Character->GetActorLocation().ToCompactString());
+			return;
+		}
+		const UHollowSectorAssemblySubsystem* Assembly = World ? World->GetSubsystem<UHollowSectorAssemblySubsystem>() : nullptr;
+		if (Args.IsEmpty() || !Character || !Assembly || !Assembly->IsAssembled())
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.GoToRoom runs on the host, in an assembled sector unless World. Usage: Hollow.Dev.GoToRoom <Name|World> [LocalX LocalY Yaw [Pitch]]"));
+			return;
+		}
+		const FHollowSectorManifest& Manifest = Assembly->GetManifest();
+		for (int32 Index = 0; Index < Manifest.Rooms.Num(); ++Index)
+		{
+			const UHollowRoomDefinition* Room = Manifest.Rooms[Index].Room;
+			const ULevelStreamingDynamic* Streamed = Assembly->GetRoomLevel(Index);
+			if (!Room || !Streamed || !Room->GetName().Contains(Args[0]))
+			{
+				continue;
+			}
+			StandIn(*Player, *Character, Streamed->LevelTransform, FVector2D(Number(1), Number(2)), Number(3), Number(4));
+			UE_LOG(LogHollowGame, Display, TEXT("Hollow.Dev.GoToRoom: room %d %s, at %s"), Index, *Room->GetName(), *Character->GetActorLocation().ToCompactString());
+			return;
+		}
+		UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.GoToRoom: no streamed room named like %s"), *Args[0]);
+	}
+
 	/** Usage: Hollow.Dev.GoToAltar [All|Others] (S7-02: in front of the nearest Purification Altar, facing it). */
 	void GoToAltar(const TArray<FString>& Args, UWorld* World)
 	{
@@ -1288,6 +1334,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.GoToExtraction"),
 		TEXT("Host: puts the local pawn (or every player's, with All) into the extraction zone. Usage: Hollow.Dev.GoToExtraction [All]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToExtraction));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToRoomCommand(
+		TEXT("Hollow.Dev.GoToRoom"),
+		TEXT("Host: puts the local pawn into the first streamed room named like Name (World: the level itself, the hub), at a room-local point, looking along a room-local yaw (pictures, FAB-01). Usage: Hollow.Dev.GoToRoom <Name|World> [LocalX LocalY Yaw [Pitch]]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToRoom));
 
 	FAutoConsoleCommandWithWorldAndArgs KillCommand(
 		TEXT("Hollow.Dev.Kill"),

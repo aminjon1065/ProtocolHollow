@@ -6,6 +6,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
@@ -13,6 +14,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Noise/HollowNoiseSubsystem.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Sector/HollowSectorTopologySubsystem.h"
 #include "Threat/HollowAIPlayers.h"
 #include "Threat/HollowActivityHeatmapSubsystem.h"
@@ -71,6 +73,7 @@ void AHollowRitualAltar::BeginPlay()
 		Pieces->AddInstance(Piece);
 	}
 	GlowIntensity = Glow->Intensity;
+	FxHandle = HollowFx::Preload({&Definition->RitualFx, &Definition->PurifiedFx}, FSimpleDelegate::CreateWeakLambda(this, [this] { ApplyRitualFx(); }));
 	ApplyState();   // a state replicated before BeginPlay (a late joiner)
 }
 
@@ -80,6 +83,9 @@ void AHollowRitualAltar::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		World->GetTimerManager().ClearAllTimersForObject(this);
 	}
+	HollowFx::Stop(RitualEffect);
+	RitualEffect = nullptr;
+	FxHandle.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -213,6 +219,11 @@ void AHollowRitualAltar::ApplyState()
 	{
 		Audio->Play(Definition->PurifiedSound, GetSeatTransform().GetLocation());   // S7-03: heard where it was seen
 	}
+	ApplyRitualFx();
+	if (bJustPurified)
+	{
+		HollowFx::PlayAt(Definition->PurifiedFx, GetWorld(), GetSeatTransform());   // FAB-01: seen where it ended, once
+	}
 	switch (AltarState.Phase)
 	{
 	case EHollowAltarPhase::Idle:
@@ -268,6 +279,20 @@ void AHollowRitualAltar::Toll()
 	if (At < Definition->RitualSeconds)
 	{
 		GetWorldTimerManager().SetTimer(TollTimer, this, &ThisClass::Toll, static_cast<float>(FMath::Max(At - Elapsed, UE_KINDA_SMALL_NUMBER)), /*bLoop=*/false);
+	}
+}
+
+void AHollowRitualAltar::ApplyRitualFx()
+{
+	if (!Definition || AltarState.Phase != EHollowAltarPhase::Ritual)
+	{
+		HollowFx::Stop(RitualEffect);
+		RitualEffect = nullptr;
+		return;
+	}
+	if (!RitualEffect)   // not yet, or its system was still loading (the preload calls back)
+	{
+		RitualEffect = HollowFx::PlayAttached(Definition->RitualFx, Root, Definition->Seat);
 	}
 }
 

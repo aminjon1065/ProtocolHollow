@@ -110,7 +110,14 @@
 #          hub, downloads both datapads of the Docks before the core (the visor's notice; the client gets each log too),
 #          extracts with the bonus while the client dies (its logs stay), then reads the Codex back in the hub, in Russian
 #          and in English. Both machines dump their archive (Hollow.Lore.Dump) and their profile.
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+#   fab    FAB-01 Fab props (ADR-0051): host + 1 headless client. The host views the hub's Fab props from fixed spots
+#          (Hollow.Dev.GoToRoom World), then in a Docks raid (AI removed) the CoreVault's pump station, the plain core's cyan
+#          aura, the airlock, the hangar, the two corridors and a junction (Fab_* shots; the raid's seed decides which rooms
+#          it has: a missing one is a warning); both dump the lights (DA_LightBudget kept).
+#   fabaltar  FAB-01 Niagara (ADR-0051): host + 1 headless client, Cathedral. The client carries the core (its cyan aura
+#          seen by the host), the client lays it on the altar, the host stands beside it: the violet ritual, the gold finale,
+#          the purified core's gold glow (FabAltar_* shots); both dump the altar.
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story|fab|fabaltar> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -119,7 +126,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story ]] || { sed -n '2,117p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar ]] || { sed -n '2,123p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -650,6 +657,56 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 100 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 101 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	fab)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		# The hub's Fab props from fixed spots (cabin: X ramp 0 .. cockpit 1600, Y port 0 .. starboard 800).
+		h "Hollow.Dev.RunAfter 16 Hollow.Dev.GoToRoom World 250 400 0 -4"; h "Hollow.Dev.RunAfter 17 Hollow.UI.Shot Fab_Hub_Fore"
+		h "Hollow.Dev.RunAfter 18 Hollow.Dev.GoToRoom World 1350 400 180 4"; h "Hollow.Dev.RunAfter 19 Hollow.UI.Shot Fab_Hub_Aft"
+		h "Hollow.Dev.RunAfter 20 Hollow.Dev.GoToRoom World 560 330 -90 -6"; h "Hollow.Dev.RunAfter 21 Hollow.UI.Shot Fab_Hub_Port"
+		h "Hollow.Dev.RunAfter 22 Hollow.Dev.GoToRoom World 520 470 90 -6"; h "Hollow.Dev.RunAfter 23 Hollow.UI.Shot Fab_Hub_Starboard"
+		h "Hollow.Dev.RunAfter 24 Hollow.Dev.GoToRoom World 1300 400 0 8"; h "Hollow.Dev.RunAfter 25 Hollow.UI.Shot Fab_Hub_Cockpit"
+		h "Hollow.Dev.RunAfter 36 Hollow.Hub.Select DA_Contract_Docks"
+		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"; h "Hollow.Dev.RunInRaid 1.5 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 2 Hollow.Light.Dump"; C+=("Hollow.Dev.RunInRaid 2.5 Hollow.Light.Dump")
+		# The Docks rooms (room-local spots, hollow_fab_layout.py): the hero CoreVault twice, the core, then the others.
+		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToRoom CoreVault 640 560 238 -12"; h "Hollow.Dev.RunInRaid 4 Hollow.UI.Shot Fab_CoreVault_Pump"
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.GoToRoom CoreVault 160 420 0 -4"; h "Hollow.Dev.RunInRaid 6 Hollow.UI.Shot Fab_CoreVault_North"
+		h "Hollow.Dev.RunInRaid 7 Hollow.Dev.GoToNearestCore"; h "Hollow.Dev.RunInRaid 7.5 Hollow.Dev.FaceCore"
+		h "Hollow.Dev.RunInRaid 8.5 Hollow.UI.Shot Fab_Core"
+		h "Hollow.Dev.RunInRaid 9.5 Hollow.Dev.GoToRoom Spawn 230 300 40 -6"; h "Hollow.Dev.RunInRaid 10.5 Hollow.UI.Shot Fab_Spawn"
+		h "Hollow.Dev.RunInRaid 11.5 Hollow.Dev.GoToRoom Hangar 900 820 215 -6"; h "Hollow.Dev.RunInRaid 12.5 Hollow.UI.Shot Fab_Hangar"
+		h "Hollow.Dev.RunInRaid 13.5 Hollow.Dev.GoToRoom Corridor_Straight 300 60 90 0"; h "Hollow.Dev.RunInRaid 14.5 Hollow.UI.Shot Fab_Corridor"
+		h "Hollow.Dev.RunInRaid 15.5 Hollow.Dev.GoToRoom Corridor_Corner 110 330 -55 -4"; h "Hollow.Dev.RunInRaid 16.5 Hollow.UI.Shot Fab_Corner"
+		h "Hollow.Dev.RunInRaid 17 Hollow.Dev.GoToRoom Junction 90 200 0 14"; h "Hollow.Dev.RunInRaid 17.8 Hollow.UI.Shot Fab_Junction"
+		h "Hollow.Dev.RunInRaid 18.5 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 60 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 61 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	fabaltar)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 36 Hollow.Hub.Select DA_Contract_Cathedral"
+		h "Hollow.Dev.RunAfter 40 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"; h "Hollow.Dev.RunInRaid 1.5 Hollow.AI.Kill"
+		# The client lifts the core; the host before it sees its cyan aura on the carrier's hands.
+		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore Others"
+		C1+=("Hollow.Dev.RunInRaid 3.5 Hollow.Dev.FaceCore"); C1+=("Hollow.Dev.RunInRaid 4 Hollow.Interact")
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.GoToNearestCore"; h "Hollow.Dev.RunInRaid 5.5 Hollow.Dev.FaceCore"
+		h "Hollow.Dev.RunInRaid 6 Hollow.UI.Shot FabAltar_Carried"
+		# Both before the altar; the client lays the core there: the ritual (20 s), its finale, the purified glow.
+		h "Hollow.Dev.RunInRaid 7 Hollow.Dev.GoToAltar Others"
+		C1+=("Hollow.Dev.RunInRaid 8.5 Hollow.Interact")
+		h "Hollow.Dev.RunInRaid 9.2 Hollow.Dev.GoToAltar"                           # the host beside it, facing the altar
+		h "Hollow.Dev.RunInRaid 9.5 Hollow.Altar.Dump"; C+=("Hollow.Dev.RunInRaid 10 Hollow.Altar.Dump")
+		h "Hollow.Dev.RunInRaid 11 Hollow.UI.Shot FabAltar_Ritual"; h "Hollow.Dev.RunInRaid 19 Hollow.UI.Shot FabAltar_Ritual2"
+		h "Hollow.Dev.RunInRaid 29.4 Hollow.UI.Shot FabAltar_Finale"
+		h "Hollow.Dev.RunInRaid 31 Hollow.Altar.Dump"; C+=("Hollow.Dev.RunInRaid 31.5 Hollow.Altar.Dump")
+		h "Hollow.Dev.RunInRaid 32 Hollow.UI.Shot FabAltar_Purified"
+		h "Hollow.Dev.RunInRaid 33 Hollow.Dev.FaceCore"; h "Hollow.Dev.RunInRaid 33.5 Hollow.UI.Shot FabAltar_PurifiedCore"
+		h "Hollow.Dev.RunInRaid 35 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 80 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 81 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
 	loc)
 		HOST_ARGS=(-culture=ru)                                                       # the host in Russian, this run only
 		h "Hollow.Dev.RunAfter 4 Hollow.UI.Language"; h "Hollow.Dev.RunAfter 5 Hollow.UI.Shot Loc_MainMenu"
@@ -911,7 +968,7 @@ else
 	# "Control listening on port 1985" matched at the same moment; the game's driver listens a menu press later (RG-1).
 	wait_for "$OUT/Host.log" 'UI up for .*[(]main menu[)]' 240 || { echo "the host's menu never came up"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})

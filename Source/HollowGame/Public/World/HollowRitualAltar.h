@@ -7,6 +7,8 @@
 #include "HollowRitualAltar.generated.h"
 
 class APawn;
+class UFXSystemComponent;
+struct FStreamableHandle;
 class UHollowCarryableComponent;
 class UHollowRitualAltarDefinition;
 class UInstancedStaticMeshComponent;
@@ -70,6 +72,9 @@ public:
 	/** One line for Hollow.Altar.Dump and the smoke logs. */
 	FString Describe() const;
 
+	/** This machine's ritual effect while it plays (FAB-01; tests). */
+	const UFXSystemComponent* GetRitualEffect() const { return RitualEffect; }
+
 	/** Every machine: the phase this machine shows changed (the visor's objective follows it, UX-01). */
 	FOnHollowAltarStateChanged OnAltarStateChanged;
 
@@ -112,6 +117,8 @@ private:
 	/** Every machine: a toll now (bell, flash; the server's noise), the next one on a timer. */
 	void Toll();
 	void EndFlash();
+	/** Every machine: the ritual's effect plays while the phase is Ritual (FAB-01), once its system is loaded. */
+	void ApplyRitualFx();
 
 	UFUNCTION()
 	void OnRep_AltarState();
@@ -131,4 +138,8 @@ private:
 	FTimerHandle TollTimer;
 	FTimerHandle FlashTimer;
 	FTimerHandle CompleteTimer;
+	UPROPERTY(Transient)
+	TObjectPtr<UFXSystemComponent> RitualEffect;
+	/** Keeps the altar's effects loaded while it stands. */
+	TSharedPtr<FStreamableHandle> FxHandle;
 };

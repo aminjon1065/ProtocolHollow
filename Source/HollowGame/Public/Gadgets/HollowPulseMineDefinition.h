@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
+#include "FX/HollowFx.h"
 #include "GameplayTagContainer.h"
 #include "Templates/SubclassOf.h"
 
@@ -50,6 +51,10 @@ public:
 	/** The flash stays this long, then the mine is gone. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mine", meta = (ClampMin = "0.01", Units = "Seconds"))
 	float FlashSeconds = 0.f;
+
+	/** FAB-01 (ADR-0051): the Aether collapsing where it went off, on every machine (none under Reduced Flashes). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mine")
+	FHollowFxSpec BlastFx;
 
 	/** It is laid on the floor found this far below the placer's feet, at the feet otherwise. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mine", meta = (ClampMin = "0", Units = "Centimeters"))

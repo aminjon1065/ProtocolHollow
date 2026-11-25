@@ -14,6 +14,11 @@
 #   --app PATH    run a packaged build (ProtocolHollow.app, BuildCookRun -platform=Mac) instead of the editor binary
 #   --contract NAME  the raid's contract DA_Contract_NAME (Docks by default, Cathedral): the host picks it in the hub
 #                 before the raid, the contract picks the sector (ADR-0041); the capture is named E9-PRESET-NAME
+#   --altar stand|ritual  FAB-01 (ADR-0051), with --contract Cathedral: the host carries the core to the altar and stands
+#                 there (stand), or lays it there (ritual: the 20 s ritual's Niagara plays from 9 s); the capture is
+#                 named ...-Altar-stand|ritual. For the two to compare, start the capture early: --warmup 1 --seconds 18
+#   --still       the host's view does not turn (with --altar: it faces the altar all along, the worst case; a
+#                 --profilegpu frame then sees the effect)
 set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
@@ -28,6 +33,8 @@ STRESS=0
 APP=""
 BUILD=1
 CONTRACT=
+ALTAR=
+STILL=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--preset) PRESET="$2"; shift 2 ;;
@@ -41,9 +48,12 @@ while [[ $# -gt 0 ]]; do
 		--app) APP="$2"; BUILD=0; shift 2 ;;
 		--no-build) BUILD=0; shift ;;
 		--contract) CONTRACT="$2"; shift 2 ;;
+		--altar) ALTAR="$2"; shift 2 ;;
+		--still) STILL=1; shift ;;
 		*) echo "Unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
+[[ -z "$ALTAR" || "$ALTAR" == stand || "$ALTAR" == ritual ]] || { echo "Unknown --altar: $ALTAR (stand or ritual)" >&2; exit 2; }
 if [[ "$BUILD" == 1 ]]; then
 	"$(dirname "$0")/build-editor-mac.sh"
 fi
@@ -95,8 +105,16 @@ fi
 [[ "$STRESS" != 0 ]] && r "$(awk -v w="$WARMUP" 'BEGIN { print 9 + w + 1 }')" "Hollow.Audio.Stress $STRESS $(awk -v s="$SECONDS_TO_CAPTURE" 'BEGIN { print s - 2 }')"
 [[ "$PROFILE" == 1 ]] && r "$(awk -v w="$WARMUP" -v s="$SECONDS_TO_CAPTURE" 'BEGIN { print 9 + w + s / 2 }')" "ProfileGPU"
 r 8 "Hollow.Graphics.Dump"
-r 9 "Hollow.Dev.LookAround $TOTAL 2"
-r 9 "Hollow.Perf.Capture E9-$PRESET${CONTRACT:+-$CONTRACT} $SECONDS_TO_CAPTURE $WARMUP"
+if [[ -n "$ALTAR" ]]; then   # FAB-01: the same spot and view, with the ritual's effects or without
+	r 7.8 "Hollow.Dev.GoToAltar"
+	[[ "$ALTAR" == ritual ]] && r 8.6 "Hollow.Interact"
+	[[ "$STILL" == 1 ]] || r 9 "Hollow.Dev.LookAround $TOTAL 1"
+elif [[ "$STILL" != 1 ]]; then
+	r 9 "Hollow.Dev.LookAround $TOTAL 2"
+fi
+NAME="E9-$PRESET${CONTRACT:+-$CONTRACT}${ALTAR:+-Altar-$ALTAR}"
+[[ "$STILL" == 1 ]] && NAME="$NAME-Still"
+r 9 "Hollow.Perf.Capture $NAME $SECONDS_TO_CAPTURE $WARMUP"
 W="Hollow.Dev.RunInRaid 8 Hollow.Tool.Hold Hollow.Input.SecondaryUse $TOTAL"
 
 TRACEARGS=()

@@ -8,6 +8,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSpriteRendererProperties.h"
@@ -20,13 +21,18 @@
 namespace HollowNiagaraAuthoringPrivate
 {
 	/** The scripts whose constants the stack edits: the system's (emitter spawn and update live there) and each emitter's. */
-	TArray<UNiagaraScript*> Scripts(UNiagaraSystem& System)
+	/** The system's scripts and its emitters'; with bEnabledOnly, not those of a switched-off emitter (never compiled). */
+	TArray<UNiagaraScript*> Scripts(UNiagaraSystem& System, const bool bEnabledOnly = false)
 	{
 		TArray<UNiagaraScript*> Found;
 		Found.Add(System.GetSystemSpawnScript());
 		Found.Add(System.GetSystemUpdateScript());
 		for (const FNiagaraEmitterHandle& Handle : System.GetEmitterHandles())
 		{
+			if (bEnabledOnly && !Handle.GetIsEnabled())
+			{
+				continue;
+			}
 			if (const FVersionedNiagaraEmitterData* Data = Handle.GetEmitterData())
 			{
 				Data->GetScripts(Found, /*bCompilableOnly=*/false);
@@ -224,6 +230,148 @@ int32 UHollowNiagaraAuthoring::SetSpriteRenderer(UNiagaraSystem* System, UMateri
 	return Set;
 }
 
+TArray<FString> UHollowNiagaraAuthoring::DescribeRenderers(UNiagaraSystem* System)
+{
+	TArray<FString> Lines;
+	if (!System)
+	{
+		return Lines;
+	}
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		Lines.Add(FString::Printf(TEXT("emitter %s %s"), *Handle.GetName().ToString(), Handle.GetIsEnabled() ? TEXT("on") : TEXT("off")));
+		const FVersionedNiagaraEmitterData* Data = Handle.GetEmitterData();
+		for (const UNiagaraRendererProperties* Renderer : Data ? Data->GetRenderers() : TArray<UNiagaraRendererProperties*>())
+		{
+			Lines.Add(FString::Printf(TEXT("renderer %s %s %s"), *Handle.GetName().ToString(), *Renderer->GetClass()->GetName(), Renderer->GetIsEnabled() ? TEXT("on") : TEXT("off")));
+		}
+	}
+	return Lines;
+}
+
+int32 UHollowNiagaraAuthoring::SetRendererEnabled(UNiagaraSystem* System, const FString& Emitter, const FString& RendererClass, const bool bEnabled)
+{
+	int32 Set = 0;
+	if (!System)
+	{
+		return Set;
+	}
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		if (!Emitter.IsEmpty() && Handle.GetName().ToString() != Emitter)
+		{
+			continue;
+		}
+		const FVersionedNiagaraEmitterData* Data = Handle.GetEmitterData();
+		for (UNiagaraRendererProperties* Renderer : Data ? Data->GetRenderers() : TArray<UNiagaraRendererProperties*>())
+		{
+			if (Renderer->GetClass()->GetName().Contains(RendererClass) && Renderer->GetIsEnabled() != bEnabled)
+			{
+				Renderer->Modify();
+				Renderer->SetIsEnabled(bEnabled);
+				++Set;
+			}
+		}
+	}
+	if (Set > 0)
+	{
+		System->MarkPackageDirty();
+	}
+	return Set;
+}
+
+int32 UHollowNiagaraAuthoring::SetRendererProperty(UNiagaraSystem* System, const FString& Emitter, const FString& RendererClass, const FString& PropertyName,
+	const FString& Value)
+{
+	int32 Set = 0;
+	if (!System)
+	{
+		return Set;
+	}
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		if (!Emitter.IsEmpty() && Handle.GetName().ToString() != Emitter)
+		{
+			continue;
+		}
+		const FVersionedNiagaraEmitterData* Data = Handle.GetEmitterData();
+		for (UNiagaraRendererProperties* Renderer : Data ? Data->GetRenderers() : TArray<UNiagaraRendererProperties*>())
+		{
+			const FProperty* Property = Renderer && Renderer->GetClass()->GetName().Contains(RendererClass) ? Renderer->GetClass()->FindPropertyByName(FName(*PropertyName)) : nullptr;
+			if (!Property)
+			{
+				continue;
+			}
+			void* Address = Property->ContainerPtrToValuePtr<void>(Renderer);
+			FString Before;
+			Property->ExportTextItem_Direct(Before, Address, nullptr, Renderer, PPF_None);
+			if (Before == Value)
+			{
+				continue;
+			}
+			Renderer->Modify();
+			if (Property->ImportText_Direct(*Value, Address, Renderer, PPF_None) == nullptr)
+			{
+				UE_LOG(LogHollowEditor, Error, TEXT("SetRendererProperty: %s of %s does not take '%s'."), *PropertyName, *Renderer->GetName(), *Value);
+				continue;
+			}
+			Renderer->PostEditChange();   // the renderer's cached layout follows its properties
+			++Set;
+		}
+	}
+	if (Set > 0)
+	{
+		System->MarkPackageDirty();
+	}
+	return Set;
+}
+
+bool UHollowNiagaraAuthoring::SetEmitterOnGPU(UNiagaraSystem* System, const FString& Emitter, const bool bGPU)
+{
+	if (!System)
+	{
+		return false;
+	}
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		FVersionedNiagaraEmitterData* Data = Handle.GetName().ToString() == Emitter ? Handle.GetEmitterData() : nullptr;
+		if (!Data)
+		{
+			continue;
+		}
+		const ENiagaraSimTarget Wanted = bGPU ? ENiagaraSimTarget::GPUComputeSim : ENiagaraSimTarget::CPUSim;
+		if (Data->SimTarget != Wanted)
+		{
+			const FVersionedNiagaraEmitter Instance = Handle.GetInstance();
+			Instance.Emitter->Modify();
+			Data->SimTarget = Wanted;
+			Instance.Emitter->MarkPackageDirty();
+			System->MarkPackageDirty();
+		}
+		return true;
+	}
+	return false;
+}
+
+bool UHollowNiagaraAuthoring::SetEmitterEnabled(UNiagaraSystem* System, const FString& Emitter, const bool bEnabled)
+{
+	if (!System)
+	{
+		return false;
+	}
+	for (FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		if (Handle.GetName().ToString() == Emitter)
+		{
+			System->Modify();
+			Handle.SetIsEnabled(bEnabled, *System, /*bRecompileIfChanged=*/false);
+			System->MarkPackageDirty();
+			return true;
+		}
+	}
+	return false;
+}
+
 bool UHollowNiagaraAuthoring::Compile(UNiagaraSystem* System)
 {
 	using namespace HollowNiagaraAuthoringPrivate;
@@ -234,7 +382,7 @@ bool UHollowNiagaraAuthoring::Compile(UNiagaraSystem* System)
 	System->RequestCompile(/*bForce=*/false);
 	System->WaitForCompilationComplete(/*bIncludingGPUShaders=*/true, /*bShowProgress=*/false);
 	bool bOk = true;
-	for (UNiagaraScript* Script : Scripts(*System))
+	for (UNiagaraScript* Script : Scripts(*System, /*bEnabledOnly=*/true))
 	{
 		if (Script->IsEmitterSpawnScript() || Script->IsEmitterUpdateScript())
 		{

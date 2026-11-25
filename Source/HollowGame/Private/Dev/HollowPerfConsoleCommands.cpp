@@ -1,6 +1,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "HollowGameLog.h"
 #include "Perf/HollowFrameStats.h"
@@ -86,6 +87,28 @@ namespace HollowPerfConsolePrivate
 		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Dev.LookAround: %.1f turn(s) in %.0f s"), Turns, Seconds);
 	}
 
+	/** Usage: Hollow.Dev.HideTagged <Tag> [1|0]: this machine hides (or shows again) the actors tagged Tag, for an A/B capture. */
+	void HideTagged(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || Args.IsEmpty())
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Usage: Hollow.Dev.HideTagged <Tag> [1|0]"));
+			return;
+		}
+		const FName Tag(*Args[0]);
+		const bool bHide = !Args.IsValidIndex(1) || Args[1].ToBool();
+		int32 Count = 0;
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (It->Tags.Contains(Tag))
+			{
+				It->SetActorHiddenInGame(bHide);
+				++Count;
+			}
+		}
+		UE_LOG(LogHollowGame, Display, TEXT("Hollow.Dev.HideTagged: %d actor(s) tagged %s %s"), Count, *Tag.ToString(), bHide ? TEXT("hidden") : TEXT("shown"));
+	}
+
 	/** Usage: Hollow.Audio.Stress <Copies> <Seconds> */
 	void AudioStress(const TArray<FString>& Args, UWorld* World)
 	{
@@ -117,6 +140,11 @@ namespace HollowPerfConsolePrivate
 		TEXT("Hollow.Dev.LookAround"),
 		TEXT("Turns the local player's view evenly round Turns times over Seconds (repeatable views for captures). Usage: Hollow.Dev.LookAround <Seconds> [Turns]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&LookAround));
+
+	FAutoConsoleCommandWithWorldAndArgs HideTaggedCommand(
+		TEXT("Hollow.Dev.HideTagged"),
+		TEXT("This machine hides (1, the default) or shows again (0) every actor tagged Tag in the loaded levels: an A/B capture of a dressing (FAB-01: HollowFab). Usage: Hollow.Dev.HideTagged <Tag> [1|0]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&HideTagged));
 
 	FAutoConsoleCommandWithWorldAndArgs AudioStressCommand(
 		TEXT("Hollow.Audio.Stress"),

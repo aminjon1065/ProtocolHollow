@@ -2,17 +2,23 @@
 
 Runs in two projects (Build/Scripts/run-editor-python.sh, --project for the first):
 
-  In the Fab staging (Build/Scripts/create-art-staging.sh, outside git), for every pack folder under /Game:
+  In the Fab staging (Build/Scripts/create-art-staging.sh, outside git), for every pack Build/Art/fab_manifest.json
+  names (/Game/Fab/<name>; FAB-01: the owner's other packs are left as they are):
     textures      cooked at most 2048, at most 1024 when every mesh using them is a small prop (under 1 m)
     small props   default collision NoCollision (decoration: the room levels' rule, ADR-0027)
     animations    no root motion (the server moves the bodies, ADR-0027)
     report        Saved/FabReport.json and the log: each pack's assets and its weight on disk (GitHub Free LFS)
   With HOLLOW_FAB_MIGRATE=1 it migrates what Build/Art/fab_manifest.json keeps (and what that needs) into the game's
-  Content/Fab, unless the game's Content/Fab would then weigh more than the manifest's budget_mb.
+  Content/Fab, unless the game's Content/Fab would then weigh more than the manifest's budget_mb. FAB-01 (ADR-0051):
+    a pack still at the staging's root (its "staged_at") is first moved to /Game/Fab/<Pack> by the editor (references
+    rewritten, the redirectors' referencers resaved, the redirectors dropped: a move on disk breaks them);
+    the migration refuses a kept asset that needs a sound, a map, a Blueprint, input or UI (Cathedral.Look stays green).
   With HOLLOW_FAB_SELFTEST=1 it checks itself on a fixture (a 4K texture, a small prop with collision), then deletes it.
 
-  In the game (Protocol: Hollow): checks /Game/Fab against the same rules and the budget, and applies the manifest's
-  swaps (a property of a project asset -> a Fab asset: a tool's held mesh, a material's texture...). Without packs
+  In the game (Protocol: Hollow): the migrated textures get their SOURCE downsized to their pack's texture_source_max
+  (more for the textures of its hero_texture_source_max meshes): a MaxTextureSize cap only limits the cook, the LFS
+  weight is the source's, and the staging keeps the full-size originals (FAB-01). Then it checks /Game/Fab against the
+  same rules and the budget, and applies the manifest's swaps (a property of a project asset -> a Fab asset: a tool's held mesh, a material's texture...). Without packs
   or swaps it changes nothing.
 """
 import json
@@ -36,6 +42,10 @@ FIXTURE_DIR = "/Game/HollowFabSelfTest"
 FIXTURE_TEXTURE_SIZE = 4096
 FIXTURE_MESH = os.path.join(GAME_PROJECT, "Intermediate", "HollowArt", "Kit", "SM_Hub_Crate.fbx")
 MEGABYTE = 1024.0 * 1024.0
+# FAB-01: what a migrated asset must never pull in (sounds: Hollow.Game.Cathedral.Look; maps, Blueprints, input, UI: the
+# pack's own game logic and demo content stay in the staging).
+FORBIDDEN_CLASSES = ("SoundWave", "SoundCue", "SoundAttenuation", "SoundClass", "MetaSoundSource", "World", "Blueprint", "WidgetBlueprint",
+                     "LevelSequence", "InputAction", "InputMappingContext", "UserDefinedStruct", "UserDefinedEnum", "DataTable")
 
 assets = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -156,12 +166,52 @@ def prepare_folder(folder, fix):
     return counts
 
 
+def stage_packs():
+    """FAB-01: packs the manifest names still at the staging's root move to /Game/Fab/<Pack>, by the editor."""
+    for pack in read_manifest().get("packs", []):
+        source = pack.get("staged_at")
+        target = FAB_ROOT + "/" + pack["name"]
+        if not source or not assets.does_directory_exist(source):
+            continue
+        if not assets.does_directory_exist(target):
+            log("moving %s to %s (references rewritten)" % (source, target))
+            if not assets.rename_directory(source, target):
+                raise RuntimeError("Could not move %s to %s" % (source, target))
+        drop_redirectors(source)
+
+
+def drop_redirectors(folder):
+    """What a move left behind: the redirectors' referencers are resaved (they then name the new paths), then the
+    redirectors go with the old folder. Anything but a redirector left there stops the run."""
+    left = registry.get_assets_by_path(folder, recursive=True)
+    others = [str(data.package_name) for data in left if str(data.asset_class_path.asset_name) != "ObjectRedirector"]
+    check(not others, "%s still holds assets after the move: %s" % (folder, ", ".join(others[:6])))
+    resaved = set()
+    for data in left:
+        for referencer in registry.get_referencers(str(data.package_name), unreal.AssetRegistryDependencyOptions()) or []:
+            referencer = str(referencer)
+            if referencer.startswith(folder + "/") or referencer in resaved:
+                continue
+            check(assets.save_asset(referencer, only_if_is_dirty=False), "%s: resaved after the move" % referencer)
+            resaved.add(referencer)
+    for data in left:
+        check(assets.delete_asset(str(data.package_name)), "%s: redirector deleted" % data.package_name)
+    assets.delete_directory(folder)
+    log("%s: %d redirectors dropped, %d referencers resaved" % (folder, len(left), len(resaved)))
+
+
 def staging():
     content = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir())
     report = {}
+    stage_packs()
     if not pack_folders():
         log("no packs here yet: add some with the Fab window (Window > Fab > Add to Project)")
+    # FAB-01: only the packs the manifest names are prepared; the owner's other packs are never changed.
+    named = [FAB_ROOT + "/" + pack["name"] for pack in read_manifest().get("packs", [])]
     for folder in pack_folders():
+        if folder not in named:
+            log("%s: not in the manifest, left as it is" % folder)
+    for folder in [f for f in pack_folders() if f in named]:
         counts = prepare_folder(folder, fix=True)
         names = sorted(set(p.split(".")[0] for p in assets.list_assets(folder, recursive=True, include_folder=False)))
         counts["megabytes"] = round(weight(content, names) / MEGABYTE, 2)
@@ -184,17 +234,9 @@ def migrate(content):
     for name in keep:
         check(name.startswith(FAB_ROOT + "/"), "%s: keep only assets under %s (move the pack there first)" % (name, FAB_ROOT))
         check(assets.does_asset_exist(name), name + " exists in the staging")
-    packages = set()
-    frontier = list(keep)
-    while frontier:   # the kept assets and what they need inside the project
-        name = frontier.pop()
-        if name in packages:
-            continue
-        packages.add(name)
-        for dependency in registry.get_dependencies(name, unreal.AssetRegistryDependencyOptions()) or []:
-            dependency = str(dependency)
-            if dependency.startswith("/Game/"):
-                frontier.append(dependency)
+    packages = closure(keep)
+    forbidden = sorted("%s (%s)" % (name, class_of(name)) for name in packages if class_of(name) in FORBIDDEN_CLASSES)
+    check(not forbidden, "kept assets need what never goes into the game: %s" % ", ".join(forbidden[:8]))
     adding = weight(content, packages)
     game_fab = os.path.join(GAME_PROJECT, "Content", "Fab")
     existing = folder_weight(game_fab) if os.path.isdir(game_fab) else 0
@@ -205,7 +247,60 @@ def migrate(content):
     options = unreal.MigrationOptions()
     options.set_editor_property("prompt", False)
     tools.migrate_packages(sorted(packages), os.path.join(GAME_PROJECT, "Content"), options)
-    log("migrated %d packages into %s" % (len(packages), os.path.join(GAME_PROJECT, "Content")))
+    log("migrated %d packages into %s (run this script in the game next: it downsizes their texture sources)"
+        % (len(packages), os.path.join(GAME_PROJECT, "Content")))
+
+
+def closure(names):
+    """The packages and what they need inside the project."""
+    packages = set()
+    frontier = list(name.split(".")[0] for name in names)
+    while frontier:
+        name = frontier.pop()
+        if name in packages:
+            continue
+        packages.add(name)
+        for dependency in registry.get_dependencies(name, unreal.AssetRegistryDependencyOptions()) or []:
+            dependency = str(dependency)
+            if dependency.startswith("/Game/"):
+                frontier.append(dependency)
+    return packages
+
+
+def class_of(package):
+    data = registry.get_assets_by_package_name(package)
+    return str(data[0].asset_class_path.asset_name) if data else ""
+
+
+def resize_sources(manifest, packages):
+    """FAB-01: the migrated textures' sources down to their pack's size (a hero mesh's textures to its own)."""
+    limits = {}
+    for pack in manifest.get("packs", []):
+        root = FAB_ROOT + "/" + pack["name"] + "/"
+        for name in packages:
+            if name.startswith(root):
+                limits[name] = pack.get("texture_source_max", MAX_TEXTURE)
+        heroes = pack.get("hero_texture_source_max", {})
+        for hero, size in heroes.items():   # only what no other kept asset shares: the pack's master textures stay small
+            shared = closure([k for p in manifest.get("packs", []) for k in p.get("keep", []) if k != hero and assets.does_asset_exist(k)])
+            for name in closure([hero]) - shared:
+                if name in limits:
+                    limits[name] = max(limits[name], size)
+    resized = 0
+    for name, limit in sorted(limits.items()):
+        if class_of(name) != "Texture2D":
+            continue
+        texture = unreal.load_asset(name)
+        if max(texture.blueprint_get_size_x(), texture.blueprint_get_size_y()) <= limit:
+            continue
+        result = unreal.TextureAssetActionsBlueprintFns.resize_texture_source(texture, limit)
+        check(result != unreal.TextureAssetActionsBlueprintReturn.ERROR, "%s: its source resizes to %d" % (name, limit))
+        if texture.get_editor_property("max_texture_size") > limit:
+            texture.set_editor_property("max_texture_size", limit)
+        if not assets.save_loaded_asset(texture, False):
+            raise RuntimeError("Could not save " + name)
+        resized += 1
+    log("sources: %d textures downsized (of %d migrated)" % (resized, sum(1 for name in limits if class_of(name) == "Texture2D")))
 
 
 def self_test():
@@ -260,6 +355,12 @@ def write_png(path, size):
 
 def game():
     manifest = read_manifest()
+    keep = [k for pack in manifest.get("packs", []) for k in pack.get("keep", []) if assets.does_asset_exist(k)]
+    if keep:
+        packages = closure(keep)
+        forbidden = sorted("%s (%s)" % (name, class_of(name)) for name in packages if class_of(name) in FORBIDDEN_CLASSES)
+        check(not forbidden, "the kept Fab assets need what never goes into the game: %s" % ", ".join(forbidden[:8]))
+        resize_sources(manifest, packages)
     if assets.does_directory_exist(FAB_ROOT):
         counts = prepare_folder(FAB_ROOT, fix=False)
         check(not counts["over_budget"], "Fab assets break the rules (run this in the staging first): %s" % counts["over_budget"][:10])

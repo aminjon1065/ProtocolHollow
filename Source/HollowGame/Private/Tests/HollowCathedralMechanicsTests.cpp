@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
+#include "Algo/Count.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Audio/HollowAudioSubsystem.h"
@@ -16,7 +17,16 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Level.h"
+#include "FX/HollowFx.h"
+#include "Gadgets/HollowPulseMineDefinition.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraLightRendererProperties.h"
+#include "NiagaraSystem.h"
+#include "Particles/ParticleSystem.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Misc/ScopeExit.h"
 #include "Sound/SoundWave.h"
 #include "Tests/HollowDocksTestRooms.h"
 #include "Data/HollowBiomeDefinition.h"
@@ -57,6 +67,7 @@ namespace HollowCathedralTests
 	const TCHAR* const PurifiedItem = TEXT("/Game/Hollow/Items/AetherCore/DA_Item_PurifiedCore.DA_Item_PurifiedCore");
 	const TCHAR* const CoreDefinition = TEXT("/Game/Hollow/Items/AetherCore/DA_Carryable_AetherCore.DA_Carryable_AetherCore");
 	const TCHAR* const NoiseConfig = TEXT("/Game/Hollow/Core/DA_NoiseConfig.DA_NoiseConfig");
+	const TCHAR* const MineData = TEXT("/Game/Hollow/Gadgets/PulseMine/DA_PulseMine.DA_PulseMine");
 	const FPrimaryAssetId PurifiedId(TEXT("HollowItem"), TEXT("DA_Item_PurifiedCore"));
 	// The Cathedral's look (S7-03, create_cathedral_look.py).
 	const TCHAR* const LookRoot = TEXT("/HollowSector_Cathedral/Look");
@@ -253,6 +264,22 @@ bool FHollowAltarRitualTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	UWorld* World = Rig.World.GetTestWorld();
+	// FAB-01: the effects this machine plays, in memory as the altar's preload leaves them before a ritual.
+	const UHollowRitualAltarDefinition* AltarDefinition = LoadObject<UHollowRitualAltarDefinition>(nullptr, AltarData);
+	if (!TestNotNull(TEXT("DA_RitualAltar"), AltarDefinition))
+	{
+		return false;
+	}
+	const TSoftObjectPtr<UFXSystemAsset> RitualFx = HollowFx::Chosen(AltarDefinition->RitualFx);
+	const TSoftObjectPtr<UFXSystemAsset> FinaleFx = HollowFx::Chosen(AltarDefinition->PurifiedFx);
+	RitualFx.LoadSynchronous();
+	FinaleFx.LoadSynchronous();
+	TArray<const FHollowFxSpec*> Played;   // what this machine starts (headless: Niagara renders nothing)
+	const FDelegateHandle FxListen = HollowFx::OnPlay().AddLambda([&Played](const FHollowFxSpec& Spec, const UFXSystemAsset*) { Played.Add(&Spec); });
+	ON_SCOPE_EXIT
+	{
+		HollowFx::OnPlay().Remove(FxListen);
+	};
 	AHollowRitualAltar* Altar = SpawnPlaying<AHollowRitualAltar>(World, AltarClass, FTransform(FRotator(0.0, 180.0, 0.0), FVector(AltarDistance, 0.0, 0.0)));
 	if (!TestNotNull(TEXT("BP_RitualAltar"), Altar) || !TestNotNull(TEXT("its definition"), Altar->GetDefinition()))
 	{
@@ -301,6 +328,8 @@ bool FHollowAltarRitualTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...held: nobody lifts it"), Rig.Carryable->IsHeld() && !Rig.Core->CanInteract(Rig.Character));
 	TestFalse(TEXT("No second core while it runs"), Altar->CanInteract(Rig.Character));
 	TestEqual(TEXT("The first toll at once"), Reports.Num(), 1);
+	TestTrue(TEXT("FAB-01 (ADR-0051): the violet Aether is drawn into the core while it runs"), Played.Contains(&AltarDefinition->RitualFx));
+	TestFalse(TEXT("...no finale yet"), Played.Contains(&AltarDefinition->PurifiedFx));
 	TestTrue(TEXT("Its room heats at once, by the burst at least (the toll's noise adds its own)"), Heatmap->GetRoomHeat(0) - HeatBefore >= HeatBurst);
 
 	Advance(Rig, RitualSeconds * 0.5f);
@@ -314,11 +343,117 @@ bool FHollowAltarRitualTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Done: the core is purified and free"), Rig.Carryable->GetLootItem() == PurifiedId && !Rig.Carryable->IsHeld()
 		&& Rig.Core->CanInteract(Rig.Character));
 	TestTrue(TEXT("The altar is spent: one ritual a raid"), Altar->GetAltarState().Phase == EHollowAltarPhase::Spent);
+	TestNull(TEXT("FAB-01: the ritual's effect is over"), Altar->GetRitualEffect());
+	TestEqual(TEXT("...the gold finale played once (nothing under Reduced Flashes)"),
+		static_cast<int32>(Algo::Count(Played, &AltarDefinition->PurifiedFx)), FinaleFx.IsNull() ? 0 : 1);
 	const UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(World);
 	TestTrue(TEXT("Its end is heard once (S7-03)"), Audio && Audio->GetPlayCount(HollowTags::Sound_Altar_Purified) == 1);
 	TestTrue(TEXT("...and every toll was a bell"), Audio && Audio->GetPlayCount(HollowTags::Noise_Ritual) == Tolls);
 	Rig.Core->Interact(Rig.Character);
 	TestFalse(TEXT("...a purified core is not taken again"), Altar->CanInteract(Rig.Character));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowFabCoreAuraTest, "Hollow.Game.Fab.CoreAura",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowFabCoreAuraTest::RunTest(const FString& Parameters)
+{
+	// FAB-01 (ADR-0051), the real BP_AetherCore: it wears the data's aura, the cyan pulse, and the gold glow once it counts
+	// as a purified core; under Reduced Flashes their dimmer variants. Then the steady glows have a dimmer variant and the
+	// flashes (the altar's finale, the mine's blast) none, so they play nothing.
+	using namespace HollowCathedralTests;
+	const UHollowCarryableDefinition* Core = LoadObject<UHollowCarryableDefinition>(nullptr, CoreDefinition);
+	const UHollowRitualAltarDefinition* Altar = LoadObject<UHollowRitualAltarDefinition>(nullptr, AltarData);
+	const UHollowPulseMineDefinition* Mine = LoadObject<UHollowPulseMineDefinition>(nullptr, MineData);
+	UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	if (!TestNotNull(TEXT("DA_Carryable_AetherCore"), Core) || !TestNotNull(TEXT("DA_RitualAltar"), Altar) || !TestNotNull(TEXT("DA_PulseMine"), Mine)
+		|| !TestNotNull(TEXT("The game's settings"), Settings))
+	{
+		return false;
+	}
+	const FHollowFxSpec* Plain = Core->FindAura(Core->LootItem);
+	const FHollowFxSpec* Purified = Core->FindAura(PurifiedId);
+	if (!TestTrue(TEXT("A plain and a purified aura"), Plain && Purified && Plain != Purified))
+	{
+		return false;
+	}
+	const auto IsSystem = [](const TSoftObjectPtr<UFXSystemAsset>& System) { return Cast<UNiagaraSystem>(System.LoadSynchronous()) != nullptr; };
+	TestTrue(TEXT("Every steady glow has its Niagara system and a dimmer one"), IsSystem(Plain->System) && IsSystem(Plain->ReducedFlashesSystem)
+		&& IsSystem(Purified->System) && IsSystem(Purified->ReducedFlashesSystem) && IsSystem(Altar->RitualFx.System) && IsSystem(Altar->RitualFx.ReducedFlashesSystem));
+	TestTrue(TEXT("...the flashes have theirs and none to dim"), IsSystem(Altar->PurifiedFx.System) && Altar->PurifiedFx.ReducedFlashesSystem.IsNull()
+		&& IsSystem(Mine->BlastFx.System) && Mine->BlastFx.ReducedFlashesSystem.IsNull());
+	TestTrue(TEXT("...and a one-shot stops on its own"), Altar->PurifiedFx.Seconds > 0.f && Mine->BlastFx.Seconds > 0.f);
+	// Our copies only, never the pack's own systems: no light on every particle, no haze, no GPU simulation (on Mac Low the
+	// pack's ritual seen up close cost 31 FPS against 61; its GPU sparks alone about 1 ms however few; ours 0.25 ms,
+	// create_fab_fx.py).
+	const auto IsLean = [](const TSoftObjectPtr<UFXSystemAsset>& Asset)
+	{
+		const UNiagaraSystem* System = Cast<UNiagaraSystem>(Asset.LoadSynchronous());
+		if (!System || !System->GetPathName().StartsWith(TEXT("/Game/Hollow/FX/Fab/")))
+		{
+			return Asset.IsNull();   // no system at all is lean
+		}
+		for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+		{
+			const FVersionedNiagaraEmitterData* Data = Handle.GetEmitterData();
+			if (!Handle.GetIsEnabled() || !Data)
+			{
+				continue;
+			}
+			if (Handle.GetName() == FName(TEXT("NE_Haze")) || Data->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			{
+				return false;
+			}
+			for (const UNiagaraRendererProperties* Renderer : Data->GetRenderers())
+			{
+				if (Renderer && Renderer->GetIsEnabled() && Renderer->IsA<UNiagaraLightRendererProperties>())
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	};
+	TestTrue(TEXT("Every effect plays our lean copy (no per-particle light, no haze, nothing simulated on the GPU)"), IsLean(Plain->System) && IsLean(Plain->ReducedFlashesSystem)
+		&& IsLean(Purified->System) && IsLean(Purified->ReducedFlashesSystem) && IsLean(Altar->RitualFx.System) && IsLean(Altar->RitualFx.ReducedFlashesSystem)
+		&& IsLean(Altar->PurifiedFx.System) && IsLean(Mine->BlastFx.System));
+
+	const bool bReducedBefore = Settings->IsReducedFlashes();
+	Settings->SetReducedFlashes(false, /*bSave=*/false);
+	const UFXSystemAsset* Last = nullptr;   // the last effect this machine started (headless: Niagara renders nothing)
+	int32 Plays = 0;
+	const FDelegateHandle FxListen = HollowFx::OnPlay().AddLambda([&Last, &Plays](const FHollowFxSpec&, const UFXSystemAsset* System)
+	{
+		Last = System;
+		++Plays;
+	});
+	ON_SCOPE_EXIT
+	{
+		HollowFx::OnPlay().Remove(FxListen);
+		Settings->SetReducedFlashes(bReducedBefore, /*bSave=*/false);
+	};
+	FRig Rig;
+	if (!Build(*this, Rig, /*bCore=*/true))
+	{
+		return false;
+	}
+	TestTrue(TEXT("The plain core pulses cyan"), Last == Plain->System.Get());
+	Rig.Carryable->SetLootItemOverride(PurifiedId);
+	TestTrue(TEXT("...purified: the gold glow"), Last == Purified->System.Get());
+	Settings->SetReducedFlashes(true, /*bSave=*/false);
+	Rig.Carryable->SetLootItemOverride(FPrimaryAssetId());
+	TestTrue(TEXT("Reduced Flashes: the dimmer pulse"), Last == Plain->ReducedFlashesSystem.Get());
+	Rig.Carryable->SetLootItemOverride(PurifiedId);
+	TestTrue(TEXT("...and the dimmer glow"), Last == Purified->ReducedFlashesSystem.Get());
+	UWorld* World = Rig.World.GetTestWorld();
+	const int32 Before = Plays;
+	HollowFx::PlayAt(Altar->PurifiedFx, World, FTransform::Identity);
+	HollowFx::PlayAt(Mine->BlastFx, World, FTransform::Identity);
+	TestEqual(TEXT("...no finale, no blast"), Plays, Before);
+	Settings->SetReducedFlashes(false, /*bSave=*/false);
+	HollowFx::PlayAt(Altar->PurifiedFx, World, FTransform::Identity);
+	TestTrue(TEXT("Full flashes: the finale plays"), Plays == Before + 1 && Last == Altar->PurifiedFx.System.Get());
 	return true;
 }
 

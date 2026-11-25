@@ -6,6 +6,7 @@
 
 class AHollowEnemyCharacter;
 class UHollowPulseMineDefinition;
+struct FStreamableHandle;
 class UPointLightComponent;
 class UStaticMeshComponent;
 
@@ -66,4 +67,6 @@ private:
 	bool bArmed = false;
 	FTimerHandle ArmTimer;
 	FTimerHandle CheckTimer;
+	/** Keeps the blast's effect loaded while the mine lies (FAB-01). */
+	TSharedPtr<FStreamableHandle> FxHandle;
 };

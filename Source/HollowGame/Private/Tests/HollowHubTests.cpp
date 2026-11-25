@@ -47,6 +47,8 @@ namespace HollowHubTests
 	constexpr double OutOfTheWay = 5000.0;
 	/** Blocking flushes before the streamed level must be visible. */
 	constexpr int32 StreamFlushes = 4;
+	const TCHAR* const TerminalClass = TEXT("/Game/Hollow/Hub/BP_HubTerminal.BP_HubTerminal_C");
+
 	/** Eyes of a player standing at a terminal's use spot (the ExoFrame's camera height over the floor). */
 	constexpr double EyeHeight = 160.0;
 	/** A capsule is swept and placed this far over the floor (no contact with it). */
@@ -256,6 +258,10 @@ bool FHollowHubSkiffTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	// The terminal's class (and its console mesh) loaded before the map streams it: first loaded with the streamed
+	// level, its cabinets' bodies never reach the test world's scene queries, and this test failed when run alone
+	// (in the whole suite an earlier test had loaded them). A game loads the hub as its map, not as a stream.
+	TestNotNull(TEXT("BP_HubTerminal"), LoadClass<AHollowHubTerminal>(nullptr, TerminalClass));
 	bool bLoaded = false;
 	ULevelStreamingDynamic* Level = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(World, TSoftObjectPtr<UWorld>(FSoftObjectPath(SkiffMap)),
 		FTransform::Identity, bLoaded, TEXT("SkiffTest"));

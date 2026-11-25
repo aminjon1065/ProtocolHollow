@@ -11,7 +11,9 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "GameplayTagAssetInterface.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Tags/HollowGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowAetherCore)
@@ -96,11 +98,42 @@ void AHollowAetherCore::BeginPlay()
 	}
 	DefaultMaterial = Visual->GetMaterial(0);
 	Carryable->OnLootItemChanged.AddUObject(this, &ThisClass::ApplyLook);
+	Carryable->OnCarryStateChanged.AddWeakLambda(this, [this](const FHollowCarryNetState&, const FHollowCarryNetState&) { ApplyAura(); });
+	if (const UHollowCarryableDefinition* Definition = Carryable->GetDefinition())
+	{
+		TArray<const FHollowFxSpec*> Auras = {&Definition->DefaultAura};
+		for (const FHollowCarryableLook& Look : Definition->Looks)
+		{
+			Auras.Add(&Look.Aura);
+		}
+		FxHandle = HollowFx::Preload(Auras, FSimpleDelegate::CreateWeakLambda(this, [this] { ApplyAura(); }));
+	}
 	ApplyLook();   // replicated before BeginPlay (a purified core seen by a late joiner)
+}
+
+void AHollowAetherCore::ApplyAura()
+{
+	const UHollowCarryableDefinition* Definition = Carryable->GetDefinition();
+	const FHollowFxSpec* Wanted = Definition ? Definition->FindAura(Carryable->GetLootItem()) : nullptr;
+	const UWorld* World = GetWorld();
+	const APlayerController* Local = World ? World->GetFirstPlayerController() : nullptr;
+	const APawn* LocalPawn = Local && Local->IsLocalController() ? Local->GetPawn() : nullptr;
+	if (LocalPawn && Carryable->GetCarryState().IsCarriedBy(LocalPawn))
+	{
+		Wanted = nullptr;   // the carrier's own first-person view: the core is right in front of the eyes
+	}
+	if (Wanted == ShownAura && (AuraEffect || !Wanted))
+	{
+		return;
+	}
+	HollowFx::Stop(AuraEffect);
+	AuraEffect = Wanted ? HollowFx::PlayAttached(*Wanted, Visual) : nullptr;
+	ShownAura = AuraEffect ? Wanted : nullptr;   // not loaded yet: the preload's callback tries again
 }
 
 void AHollowAetherCore::ApplyLook()
 {
+	ApplyAura();
 	const UHollowCarryableDefinition* Definition = Carryable->GetDefinition();
 	const FHollowCarryableLook* Look = Definition ? Definition->FindLook(Carryable->GetLootItem()) : nullptr;
 	if (!Look || Look->Material.IsNull())

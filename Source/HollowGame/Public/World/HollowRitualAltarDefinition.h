@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
+#include "FX/HollowFx.h"
 #include "GameplayTagContainer.h"
 #include "UObject/PrimaryAssetId.h"
 
@@ -68,4 +69,12 @@ public:
 	/** After the ritual the light stays at this fraction (the purified core rests on a lit altar). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look", meta = (ClampMin = "0", ClampMax = "1"))
 	float SpentGlow = 0.f;
+
+	/** FAB-01 (ADR-0051): the Aether drawn into the core while the ritual lasts, on the seat (its frame), every machine. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look")
+	FHollowFxSpec RitualFx;
+
+	/** FAB-01: the purification's finale, once on the seat when the ritual ends (none under Reduced Flashes). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Look")
+	FHollowFxSpec PurifiedFx;
 };

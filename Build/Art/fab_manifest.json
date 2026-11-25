@@ -1,6 +1,46 @@
 {
- "about": "Art-01 (ADR-0043): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Paths are under /Game/Fab/<Pack> in the staging.",
+ "about": "Art-01 (ADR-0043), FAB-01 (ADR-0051): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Kept paths are under /Game/Fab/<Pack> in the staging; a pack still at the staging's root (staged_at) is moved there first. texture_source_max: the migrated textures' sources are downsized to it (hero_texture_source_max: a hero mesh's own textures to more).",
  "budget_mb": 2000,
- "packs": [],
+ "packs": [
+  {
+   "name": "AbsorbtionFX",
+   "staged_at": "/Game/AbsorbtionFX",
+   "texture_source_max": 1024,
+   "keep": [
+    "/Game/Fab/AbsorbtionFX/FX/NS_Absorption_Teal",
+    "/Game/Fab/AbsorbtionFX/FX/NS_Absorption_Purple",
+    "/Game/Fab/AbsorbtionFX/FX/NS_Absorption_Yellow"
+   ]
+  },
+  {
+   "name": "OvergrownFactoryENV",
+   "staged_at": "/Game/OvergrownFactoryENV",
+   "texture_source_max": 1024,
+   "hero_texture_source_max": {
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_Industrial_PumpMotorSkid_01": 2048
+   },
+   "keep": [
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_SteelPipe_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_SteelPipe_02",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Architecture/SM_SteelBeam_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_ElectricalPanel_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_ElectricalPanel_01_Box",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_ElectricBox_02",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_ElectricWire_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_ElectricWire_02",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_ACVent_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_Air_Vents_02",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_AC_Unit_A_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_Industrial_PumpMotorSkid_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_WaterTank",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_Barrel_02",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_Wearhouse_Shelf_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_WoodenCableDrum_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_FluorescentLight_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Foliage/SM_Ivy_01",
+    "/Game/Fab/OvergrownFactoryENV/Meshes/Foliage/SM_IvyDecal_01"
+   ]
+  }
+ ],
  "swaps": []
 }

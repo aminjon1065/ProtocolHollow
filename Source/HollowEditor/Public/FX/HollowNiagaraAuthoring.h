@@ -44,6 +44,36 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
 	static int32 SetSpriteRenderer(UNiagaraSystem* System, UMaterialInterface* Material, bool bVelocityAligned);
 
+	/** FAB-01: every renderer of the emitters, "renderer <Emitter> <Class> on|off", and every emitter, "emitter <Name> on|off". */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
+	static TArray<FString> DescribeRenderers(UNiagaraSystem* System);
+
+	/**
+	 * FAB-01: switches the renderers whose class name contains RendererClass ("Light", "Sprite") on or off, in the emitter
+	 * named Emitter or in every emitter (empty). Returns how many it switched. Compile afterwards.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
+	static int32 SetRendererEnabled(UNiagaraSystem* System, const FString& Emitter, const FString& RendererClass, bool bEnabled);
+
+	/**
+	 * FAB-01: sets the property PropertyName of the renderers whose class name contains RendererClass (in the emitter
+	 * named Emitter, or every emitter: empty) to Value, read as the property's exported text ("Disabled", "0.5", "true").
+	 * Returns how many renderers it changed (0: no such renderer or property, or a bad value).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
+	static int32 SetRendererProperty(UNiagaraSystem* System, const FString& Emitter, const FString& RendererClass, const FString& PropertyName, const FString& Value);
+
+	/**
+	 * FAB-01: simulates the emitter named Emitter on the GPU or on the CPU. On Mac the GPU sparks of the Fab systems cost
+	 * about 1 ms a frame however few they were (the GPU simulation's own passes). Compile afterwards.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
+	static bool SetEmitterOnGPU(UNiagaraSystem* System, const FString& Emitter, bool bGPU);
+
+	/** FAB-01: switches the emitter named Emitter on or off (an off emitter neither simulates nor renders). Compile afterwards. */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
+	static bool SetEmitterEnabled(UNiagaraSystem* System, const FString& Emitter, bool bEnabled);
+
 	/** Compiles the system and waits for it; false if a script does not compile. */
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Niagara")
 	static bool Compile(UNiagaraSystem* System);

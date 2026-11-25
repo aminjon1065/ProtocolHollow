@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "UObject/SoftObjectPath.h"
 
 #include "HollowArtBudget.generated.h"
 
@@ -28,6 +29,10 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Rooms")
 	TArray<FString> DecorFolders;
+
+	/** FAB-01 (ADR-0051): levels outside the room definitions whose decoration is checked too (the hub). */
+	UPROPERTY(Config, EditAnywhere, Category = "Rooms", meta = (AllowedClasses = "/Script/Engine.World"))
+	TArray<FSoftObjectPath> DecorLevels;
 };
 
 namespace HollowArtBudget

@@ -2,6 +2,7 @@
 
 #include "Carry/HollowCarryCoop.h"
 #include "Engine/DataAsset.h"
+#include "FX/HollowFx.h"
 #include "UObject/PrimaryAssetId.h"
 #include "Templates/SubclassOf.h"
 
@@ -23,6 +24,10 @@ struct FHollowCarryableLook
 	/** Material of the visual's first slot. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction")
 	TSoftObjectPtr<UMaterialInterface> Material;
+
+	/** FAB-01 (ADR-0051): the glow around the visual while it counts as LootItem (DefaultAura when not set). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction")
+	FHollowFxSpec Aura;
 };
 
 /** Where a carried object's frame sits on a carrier component (its visual keeps its own offset in that frame). */
@@ -71,6 +76,20 @@ public:
 	/** Looks for the items it can come to count as instead (UHollowCarryableComponent::SetLootItemOverride). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction")
 	TArray<FHollowCarryableLook> Looks;
+
+	/**
+	 * FAB-01 (ADR-0051): the glow around the visual (a core's Aether pulse), on every machine but in its own carrier's
+	 * first-person view; a look's own Aura replaces it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Extraction")
+	FHollowFxSpec DefaultAura;
+
+	/** The aura it shows while it counts as Item (a look's, else the default; null when neither is set). */
+	const FHollowFxSpec* FindAura(const FPrimaryAssetId& Item) const
+	{
+		const FHollowCarryableLook* Look = FindLook(Item);
+		return Look && Look->Aura.IsSet() ? &Look->Aura : (DefaultAura.IsSet() ? &DefaultAura : nullptr);
+	}
 
 	const FHollowCarryableLook* FindLook(const FPrimaryAssetId& Item) const
 	{

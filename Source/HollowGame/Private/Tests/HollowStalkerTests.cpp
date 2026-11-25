@@ -25,6 +25,9 @@
 #include "Sector/HollowSectorTopologyBuilder.h"
 #include "Sector/HollowSectorTopologySubsystem.h"
 #include "Threat/HollowActivityHeatmapSubsystem.h"
+#include "FX/HollowFx.h"
+#include "Misc/ScopeExit.h"
+#include "Particles/ParticleSystem.h"
 #include "Threat/HollowThreatConfig.h"
 #include "Threat/HollowThreatDirectorSubsystem.h"
 #include "Threat/HollowVentNetworkSubsystem.h"
@@ -688,6 +691,17 @@ bool FHollowGadgetPulseMineTest::RunTest(const FString& Parameters)
 	}
 	AHollowPulseMine* First = Laid[0];
 	const UHollowPulseMineDefinition* Definition = First->GetDefinition();
+	const TSoftObjectPtr<UFXSystemAsset> Blast = HollowFx::Chosen(Definition->BlastFx);   // this machine's choice (none: Reduced Flashes)
+	Blast.LoadSynchronous();   // what the mines preload, in memory before one goes off
+	int32 Blasts = 0;   // what this machine starts (headless: Niagara renders nothing)
+	const FDelegateHandle FxListen = HollowFx::OnPlay().AddLambda([&Blasts, &Blast](const FHollowFxSpec&, const UFXSystemAsset* System)
+	{
+		Blasts += System == Blast.Get() ? 1 : 0;
+	});
+	ON_SCOPE_EXIT
+	{
+		HollowFx::OnPlay().Remove(FxListen);
+	};
 	constexpr double FloorSlack = 5.0;
 	TestTrue(TEXT("...on the floor at the feet"), FMath::Abs(First->GetActorLocation().Z) < FloorSlack
 		&& FVector::Dist2D(First->GetActorLocation(), Player->GetActorLocation()) < FloorSlack);
@@ -733,6 +747,9 @@ bool FHollowGadgetPulseMineTest::RunTest(const FString& Parameters)
 	Advance(Scene.TestWorld, Definition->CheckSeconds * 3.f, [Second] { return Second->HasDetonated(); });
 	TestTrue(TEXT("An enemy in reach sets it off"), Second->HasDetonated());
 	TestTrue(TEXT("...stunned"), Pilgrim->GetAbilitySystemComponent()->HasMatchingGameplayTag(HollowTags::State_Stunned));
+	TestTrue(TEXT("FAB-01 (ADR-0051): a blast effect in the data"), Definition->BlastFx.IsSet());
+	TestEqual(TEXT("...the gold Aether collapses where it went off, once (nothing under Reduced Flashes)"),
+		Blasts, Blast.IsNull() ? 0 : 1);
 	TestTrue(TEXT("The blast is the player's heavy noise"), Heard == Definition->BlastNoise && HeardFrom == Player);
 	UHollowNoiseSubsystem::Get(Scene.World)->OnNoiseReported.Remove(Listen);
 	Advance(Scene.TestWorld, Definition->FlashSeconds + TickSeconds * 4.f);

@@ -1,6 +1,6 @@
 using UnrealBuildTool;
 
-/** Layer 0: logging, native GameplayTags, cross-module interfaces, asset manager, noise entry point, net/RNG helpers. */
+/** Layer 0: logging, native GameplayTags, cross-module interfaces, asset manager, noise entry point, net/RNG helpers, data FX. */
 public class HollowCore : ModuleRules
 {
 	public HollowCore(ReadOnlyTargetRules Target) : base(Target)
@@ -20,7 +20,8 @@ public class HollowCore : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"AIModule",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"Niagara"   // FAB-01: HollowFx plays the data's Niagara effects (ADR-0051)
 		});
 	}
 }

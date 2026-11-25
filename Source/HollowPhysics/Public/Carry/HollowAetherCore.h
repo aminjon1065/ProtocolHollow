@@ -6,6 +6,9 @@
 #include "HollowAetherCore.generated.h"
 
 class UBoxComponent;
+class UFXSystemComponent;
+struct FHollowFxSpec;
+struct FStreamableHandle;
 class UHollowCarryableComponent;
 class UMaterialInterface;
 class UStaticMeshComponent;
@@ -28,6 +31,8 @@ public:
 	UBoxComponent* GetBody() const { return Body; }
 	UStaticMeshComponent* GetVisual() const { return Visual; }
 	UHollowCarryableComponent* GetCarryable() const { return Carryable; }
+	/** This machine's aura while it plays (FAB-01; tests). */
+	const UFXSystemComponent* GetAuraEffect() const { return AuraEffect; }
 
 	// IHollowInteractable
 	virtual FHollowInteractionInfo GetInteractionInfo(const AActor* Interactor) const override;
@@ -53,6 +58,21 @@ private:
 
 	/** Every machine: the visual's material for the item it counts as now (a definition look, else its own). */
 	void ApplyLook();
+
+	/**
+	 * Every machine: the aura for the item it counts as now (FAB-01), none in this machine's own first-person carry (it
+	 * would fill the view); tried again when its system has loaded.
+	 */
+	void ApplyAura();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UFXSystemComponent> AuraEffect;
+
+	/** The spec AuraEffect plays (in the definition, which outlives the core). */
+	const FHollowFxSpec* ShownAura = nullptr;
+
+	/** Keeps every aura of the definition loaded while the core exists. */
+	TSharedPtr<FStreamableHandle> FxHandle;
 
 	/** The visual's own material (the plain core). */
 	UPROPERTY(Transient)

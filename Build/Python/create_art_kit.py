@@ -1123,7 +1123,7 @@ HUB_DRESSING = [   # (label, mesh, location, yaw)
     ("Pipes_Starboard_Aft", "SM_Hub_PipeRun", (520.0, 755.0, 355.0), 180.0),
     ("Pipes_Starboard_Fore", "SM_Hub_PipeRun", (1080.0, 755.0, 355.0), 180.0),
 ]
-HUB_VERSION = 2
+HUB_VERSION = 3
 LABEL_HEIGHT = 175.0
 LABEL_SIZE = 18.0
 HUB_LABELS = [   # (label, text, the terminal's location and yaw: its X axis points at its user, create_hub_assets.py)
@@ -1151,8 +1151,10 @@ def ensure_hub_dressing():
         actors.destroy_actor(actor)
     for label, mesh_name, location, yaw in HUB_DRESSING:
         actor = actors.spawn_actor_from_class(unreal.StaticMeshActor, vec(location), unreal.Rotator(0.0, 0.0, yaw))
-        component = actor.get_editor_property("static_mesh_component")
-        component.set_editor_property("static_mesh", load(KIT_DIR + "/" + mesh_name))
+        component = actor.static_mesh_component
+        component.set_static_mesh(load(KIT_DIR + "/" + mesh_name))
+        # The profile last, through the component (FAB-01: a mesh set through its property re-took the kit's BlockAll
+        # when the hub loaded again, so the crates and the pilot seat collided; Hollow.Editor.ArtBudget checks the hub now).
         component.set_collision_profile_name("NoCollision")
         component.set_editor_property("can_ever_affect_navigation", False)
         actor.set_actor_label(label)

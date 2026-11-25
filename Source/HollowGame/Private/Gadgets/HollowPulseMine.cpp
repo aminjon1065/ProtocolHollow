@@ -7,6 +7,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Enemies/HollowEnemyCharacter.h"
 #include "Engine/OverlapResult.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Gadgets/HollowPulseMineDefinition.h"
 #include "HollowGameLog.h"
@@ -45,6 +46,10 @@ void AHollowPulseMine::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 void AHollowPulseMine::BeginPlay()
 {
 	Super::BeginPlay();
+	if (Definition)
+	{
+		FxHandle = HollowFx::Preload({&Definition->BlastFx}, FSimpleDelegate());   // loaded long before it goes off
+	}
 	if (!HasAuthority())
 	{
 		return;
@@ -169,6 +174,10 @@ void AHollowPulseMine::ApplyDetonatedPresentation()
 	if (Audio && bDetonated && HasActorBegunPlay())   // a first bunch of a spent mine is old news
 	{
 		Audio->Play(HollowTags::Sound_Mine_Blast, GetActorLocation());   // heard by the AI as Impact.Heavy, as far
+	}
+	if (Definition && bDetonated && HasActorBegunPlay())
+	{
+		HollowFx::PlayAt(Definition->BlastFx, GetWorld(), FTransform(GetActorLocation()));   // FAB-01: outlives the mine (pooled)
 	}
 }
 

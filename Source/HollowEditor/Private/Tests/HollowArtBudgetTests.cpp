@@ -131,7 +131,23 @@ bool FHollowArtBudgetTest::RunTest(const FString& Parameters)
 			}
 		}
 	}
-	AddInfo(FString::Printf(TEXT("%d texture(s) and %d room level(s) checked"), Textures.Num(), Rooms.Num()));
+	// FAB-01: the hub's decoration follows the same rule (its Fab props and its kit dressing).
+	TestTrue(TEXT("The hub is among the decor levels (DefaultEditor.ini)"), Settings->DecorLevels.ContainsByPredicate([](const FSoftObjectPath& Path)
+	{
+		return Path.GetLongPackageName() == TEXT("/Game/Hollow/Maps/L_Hub_Skiff");
+	}));
+	for (const FSoftObjectPath& Path : Settings->DecorLevels)
+	{
+		const UWorld* Level = Cast<UWorld>(Path.TryLoad());
+		if (TestNotNull(*FString::Printf(TEXT("%s loads"), *Path.ToString()), Level) && Level->PersistentLevel)
+		{
+			for (const FString& Problem : HollowArtBudget::CheckDecor(*Level->PersistentLevel, Settings->DecorFolders))
+			{
+				AddWarning(FString::Printf(TEXT("Art budget, %s: %s"), *Path.GetAssetName(), *Problem));
+			}
+		}
+	}
+	AddInfo(FString::Printf(TEXT("%d texture(s), %d room level(s) and %d other level(s) checked"), Textures.Num(), Rooms.Num(), Settings->DecorLevels.Num()));
 	return true;
 }
 
