@@ -53,6 +53,8 @@ TSubclassOf<UHollowHubScreenWidget> UHollowHubScreenRouter::ScreenClass(const EH
 		return Settings->WorkbenchScreenClass.LoadSynchronous();
 	case EHollowTerminalKind::Locker:
 		return Settings->LoadoutScreenClass.LoadSynchronous();
+	case EHollowTerminalKind::Codex:
+		return Settings->CodexScreenClass.LoadSynchronous();
 	}
 	return nullptr;
 }

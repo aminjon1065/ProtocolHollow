@@ -105,7 +105,9 @@ BLENDER_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_kit.py")
 COMBAT_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_combat_kit.py")
 # GP-02 (ADR-0047): the creature kit (the Whisperers and their nests), its own script for the same reason.
 CREATURE_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_creature_kit.py")
-SCRIPTS = {"kit": BLENDER_SCRIPT, "combat": COMBAT_SCRIPT, "creature": CREATURE_SCRIPT}
+# NAR-01b (ADR-0050): the story kit (the crew datapad), its own script for the same reason.
+STORY_SCRIPT = os.path.join(PROJECT, "Build", "Blender", "hollow_story_kit.py")
+SCRIPTS = {"kit": BLENDER_SCRIPT, "combat": COMBAT_SCRIPT, "creature": CREATURE_SCRIPT, "story": STORY_SCRIPT}
 WORK = os.path.join(PROJECT, "Intermediate", "HollowArt")
 CC0_MANIFEST = os.path.join(PROJECT, "Build", "Art", "cc0_textures.json")
 BLENDER = [os.environ.get("HOLLOW_BLENDER", ""), "/Applications/Blender.app/Contents/MacOS/Blender",
@@ -151,6 +153,8 @@ MESHES = {
     "SM_Pickup_FuelCell": {"kind": "pickup_fuelcell", "script": "combat"},
     "SM_Pickup_Nails": {"kind": "pickup_ammo", "script": "combat"},
     "SM_Pickup_Shells": {"kind": "pickup_ammo", "script": "combat", "tall": True},
+    # NAR-01b (ADR-0050): a crew datapad lying on the floor, its screen up.
+    "SM_Datapad": {"kind": "datapad", "script": "story"},
     # GP-02 (ADR-0047): a Whisperer (front along +X, origin on the floor) and its nest.
     "SM_Whisperer_Body": {"kind": "whisperer", "script": "creature"},
     "SM_Whisperer_Nest": {"kind": "whisperer_nest", "script": "creature"},
@@ -554,7 +558,8 @@ def mesh_specs():
     specs = {}
     kit = file_digest(BLENDER_SCRIPT)
     # The combat kit reads the art kit's primitives: its meshes follow both scripts; the art kit's only its own.
-    scripts = {"kit": kit, "combat": file_digest(COMBAT_SCRIPT) + kit, "creature": file_digest(CREATURE_SCRIPT) + kit}
+    scripts = {"kit": kit, "combat": file_digest(COMBAT_SCRIPT) + kit, "creature": file_digest(CREATURE_SCRIPT) + kit,
+               "story": file_digest(STORY_SCRIPT) + kit}
     for name, entry in MESHES.items():
         spec = dict(entry)
         if spec["kind"] == "door_leaf":
@@ -1125,6 +1130,7 @@ HUB_LABELS = [   # (label, text, the terminal's location and yaw: its X axis poi
     ("Label_Contracts", "CONTRACTS", (1490.0, 400.0, 0.0), 180.0, (255, 184, 90)),
     ("Label_Workbench", "WORKBENCH", (800.0, 765.0, 0.0), -90.0, (150, 225, 255)),
     ("Label_Locker", "LOCKER", (800.0, 35.0, 0.0), 90.0, (150, 225, 255)),
+    ("Label_Codex", "CREW ARCHIVE", (1200.0, 765.0, 0.0), -90.0, (150, 225, 255)),   # NAR-01b
 ]
 
 

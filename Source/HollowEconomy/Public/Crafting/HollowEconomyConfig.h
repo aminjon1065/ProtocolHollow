@@ -55,4 +55,8 @@ public:
 	/** Slots of the stash; each holds one item up to its MaxStack. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stash", meta = (ClampMin = "1"))
 	int32 StashSlots = 1;
+
+	/** NAR-01b (ADR-0050): credits for each crew log first found in a raid, paid when the player extracts. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lore", meta = (ClampMin = "0"))
+	int32 LoreBonusCredits = 0;
 };

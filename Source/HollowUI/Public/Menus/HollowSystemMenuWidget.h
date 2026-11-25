@@ -12,7 +12,8 @@ enum class EHollowVoiceMode : uint8;
  * overlay, start the raid, leave the session) and quit. A session button shows only where it applies
  * (HollowMenuRules::SystemMenuOptions). Never pauses the game, solo or co-op (parity, CLAUDE.md sec. 1). Back (Esc / B)
  * closes it; gamepad focus starts on Resume. The voice button cycles how the voice goes out (S4-07: push-to-talk,
- * open mic, muted), saved in the player's settings; the flashes button switches reduced flashes (H-1, ADR-0029).
+ * open mic, muted), saved in the player's settings; the flashes button switches reduced flashes (H-1, ADR-0029); the
+ * language button cycles English / Russian at once (LOC-01, ADR-0048).
  */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowSystemMenuWidget : public UHollowActivatableWidget
@@ -28,6 +29,7 @@ public:
 	UCommonButtonBase* GetLeaveButton() const { return LeaveButton; }
 	UCommonButtonBase* GetVoiceButton() const { return VoiceButton; }
 	UCommonButtonBase* GetFlashesButton() const { return FlashesButton; }
+	UCommonButtonBase* GetLanguageButton() const { return LanguageButton; }
 
 	/** The voice button's label for Mode ("Voice: Push-to-talk"...). */
 	static FText VoiceLabel(EHollowVoiceMode Mode);
@@ -67,6 +69,10 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UCommonButtonBase> FlashesButton;
 
+	/** Language toggle (LOC-01, ADR-0048; optional for the same reason). */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UCommonButtonBase> LanguageButton;
+
 private:
 	void Resume();
 	void Quit();
@@ -77,4 +83,5 @@ private:
 	void RefreshVoiceLabel();
 	void ToggleFlashes();
 	void RefreshFlashesLabel();
+	void CycleLanguage();
 };

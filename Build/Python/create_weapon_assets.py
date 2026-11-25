@@ -1,6 +1,6 @@
 """Creates the GP-01 weapons (idempotent, ADR-0010, ADR-0044).
 
-  /Game/Hollow/Localization/ST_Gameplay                  string table of the new player-facing data texts (LOCTABLE, RU + EN later)
+  /Game/Hollow/Localization/ST_Items                     the weapons' and rounds' names (LOC-01, hollow_loc.py)
   /Game/Hollow/GAS/Effects/GE_Weapon_Cost                instant: one round out of the magazine (the fire abilities' cost)
   /Game/Hollow/GAS/Effects/GE_Weapon_Load                instant: Hollow.Data.AmmoLoaded rounds into the magazine (the reloads)
   /Game/Hollow/GAS/Effects/GE_Hands_Swap                 UHollowHandsSwapEffect: the hands' busy moment (GA_SwapHands' cooldown)
@@ -27,14 +27,18 @@ when it differs from the spec below, then the whole chain is validated.
 Run after create_inventory_assets.py and create_relic_assets.py, before create_economy_assets.py and create_class_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_weapon_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
+
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
-LOCALIZATION_DIR = "/Game/Hollow/Localization"
-STRING_TABLE = "ST_Gameplay"
+STRING_TABLE = loc.ITEMS   # LOC-01: the weapons' and rounds' names
 EFFECTS_DIR = "/Game/Hollow/GAS/Effects"
 CUES_DIR = "/Game/Hollow/GAS/Cues"
 WEAPONS_DIR = "/Game/Hollow/Weapons"
@@ -171,7 +175,7 @@ def text_of(value):
     if isinstance(value, (list, tuple, unreal.Array)):
         return [text_of(v) for v in value]
     if isinstance(value, unreal.Text):
-        return str(value)
+        return [loc.entry(value), str(value)]   # LOC-01: a plain text is not the table's entry
     if hasattr(value, "export_text"):
         return value.export_text()
     if hasattr(value, "get_path_name"):
@@ -219,10 +223,7 @@ def set_by_caller(tag):
 # ---------------------------------------------------------------- texts
 
 def string_table():
-    table = localization.find_or_create_string_table(LOCALIZATION_DIR, STRING_TABLE)
-    if table is None:
-        raise RuntimeError("Could not make " + STRING_TABLE)
-    return table
+    return loc.table(STRING_TABLE)
 
 
 def table_text(table, entry):
@@ -488,8 +489,7 @@ def main():
     ensure_inputs()
     ensure_cue()
     ensure_enemies(stagger)
-    if not assets.save_loaded_asset(table, True):   # only if any text changed
-        raise RuntimeError("Could not save " + STRING_TABLE)
+    loc.save()   # only the tables whose texts changed
     validate(swap, melee)
     unreal.log(SUCCESS_MARKER)
 

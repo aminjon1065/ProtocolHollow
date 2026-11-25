@@ -17,7 +17,9 @@ enum class EHollowTerminalKind : uint8
 	/** The shop, the workbench and the ship's upgrades (ADR-0031): each player's own profile. */
 	Workbench,
 	/** The loadout locker: stash <-> loadout, insurance. */
-	Locker
+	Locker,
+	/** NAR-01b (ADR-0050): the crew archive, the Codex of the crew logs found: each player's own profile. */
+	Codex
 };
 
 /**

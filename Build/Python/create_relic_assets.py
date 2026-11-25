@@ -12,9 +12,14 @@ Every asset is created when missing and refreshed only when it differs from the 
 Run after create_ward_assets.py, before create_economy_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_relic_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -94,7 +99,7 @@ def text_of(value):
     if isinstance(value, (list, tuple, unreal.Array)):
         return [text_of(v) for v in value]
     if isinstance(value, unreal.Text):
-        return str(value)
+        return [loc.entry(value), str(value)]   # LOC-01: a plain text is not the table's entry
     if hasattr(value, "export_text"):
         return value.export_text()
     if hasattr(value, "get_path_name"):
@@ -149,7 +154,7 @@ def ensure_relic(name, spec):
         log("DA_AbilitySet_Relic_%s: its effect while carried" % name)
 
     item, created = data_asset("%s/DA_Item_Relic_%s" % (ITEMS_DIR, name), unreal.HollowItemDefinition)
-    wanted = dict(ITEM, display_name=unreal.Text(display), item_type=make_tag(RELIC_TYPE), equip_slot=make_tag(RELIC_SLOT))
+    wanted = dict(ITEM, display_name=loc.text(loc.ITEMS, "Item.Relic.%s.Name" % name, display), item_type=make_tag(RELIC_TYPE), equip_slot=make_tag(RELIC_SLOT))
     changed = refresh(item, wanted)
     if text_of(item.get_editor_property("ability_set")) != text_of(ability_set):
         item.set_editor_property("ability_set", ability_set)
@@ -184,6 +189,7 @@ def validate():
 def main():
     for name, spec in RELICS.items():
         ensure_relic(name, spec)
+    loc.save()
     validate()
     unreal.log(SUCCESS_MARKER)
 

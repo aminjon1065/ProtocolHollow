@@ -8,6 +8,7 @@
 #include "HollowGameUserSettings.generated.h"
 
 struct FDisplayMetrics;
+enum class EHollowLanguage : uint8;
 
 /**
  * The player's settings (GameUserSettings.ini) with the graphics preset (ADR-0023). The first launch on a machine picks
@@ -58,6 +59,30 @@ public:
 
 	FSimpleMulticastDelegate OnControlsHintChanged;
 
+	/**
+	 * LOC-01 (ADR-0048): the language of the player's texts, applied once after the engine starts. The first launch takes
+	 * the system's (Russian for any ru culture, English for any other) and keeps it; -culture=xx changes it for one run.
+	 */
+	void InitializeLanguage();
+
+	/** The language the texts show in now. */
+	EHollowLanguage GetLanguage() const;
+
+	/** Shows the texts in Language now (HollowLanguage::OnApplied); bSave keeps it for the next launch. */
+	void SetLanguage(EHollowLanguage Language, bool bSave = true);
+
+	/** The kept language's culture name ("en", "ru"), empty before the first launch chose one. */
+	const FString& GetSavedLanguage() const { return LanguageCulture; }
+
+	/** -culture=xx, if given, as one of the game's languages. */
+	static TOptional<EHollowLanguage> LanguageFromCommandLine();
+
+	/**
+	 * The language a start shows (InitializeLanguage): the command line's for this run, else the kept one, else the
+	 * system's (Russian for any ru culture, English otherwise). bOutKeep: whether it is the first choice, to keep.
+	 */
+	static EHollowLanguage ChooseLanguage(const TOptional<EHollowLanguage>& CommandLine, const FString& Saved, const FString& SystemCulture, bool& bOutKeep);
+
 	/** Only the preset's scalability and its console variables (what tests check: no window, no saving). */
 	static bool ApplyScalability(const FHollowGraphicsPresetSpec& Spec);
 
@@ -97,4 +122,8 @@ private:
 
 	UPROPERTY(Config)
 	bool bControlsHintShown = true;
+
+	/** The kept language ("en", "ru"); empty until the first launch chose one (LOC-01). */
+	UPROPERTY(Config)
+	FString LanguageCulture;
 };

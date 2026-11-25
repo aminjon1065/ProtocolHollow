@@ -9,6 +9,7 @@ class UCommonButtonBase;
 /**
  * The front-end menu (L_Boot, S4-06): play solo, host a co-op session (friends join through a Steam invite), quit.
  * Both play buttons take UHollowSessionSubsystem::HostSession, the same path as the console's Hollow.Session.Host.
+ * The language button (LOC-01, ADR-0048) cycles English / Russian at once and keeps the choice.
  */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowMainMenuWidget : public UHollowActivatableWidget
@@ -21,6 +22,7 @@ public:
 	UCommonButtonBase* GetSoloButton() const { return SoloButton; }
 	UCommonButtonBase* GetHostButton() const { return HostButton; }
 	UCommonButtonBase* GetQuitButton() const { return QuitButton; }
+	UCommonButtonBase* GetLanguageButton() const { return LanguageButton; }
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -35,7 +37,12 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCommonButtonBase> QuitButton;
 
+	/** Language toggle (LOC-01; optional so a tree from before it still compiles: create_ui_assets.py adds it). */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UCommonButtonBase> LanguageButton;
+
 private:
 	void Host(bool bOnline);
 	void Quit();
+	void CycleLanguage();
 };

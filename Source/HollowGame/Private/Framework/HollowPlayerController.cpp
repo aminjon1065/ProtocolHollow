@@ -142,6 +142,7 @@ void AHollowPlayerController::Client_RequestLoadout_Implementation(const FGuid& 
 		Loadout.Slots = Profile->GetLoadoutForRaid(RaidId);
 		Loadout.Upgrades = Profile->GetProfile().Upgrades;   // the ship's free items come on top (ADR-0032)
 		Loadout.ClassId = Profile->GetProfile().ClassId;     // the class played (ADR-0034)
+		Loadout.KnownLore = Profile->GetProfile().Lore;      // NAR-01b: which crew logs the squad's datapads hold
 	}
 	Server_SubmitLoadout(Loadout);
 }

@@ -13,9 +13,14 @@
 Creates or fills only what is missing, then validates.
 Run after create_carry_assets.py:  Build/Scripts/run-editor-python.sh Build/Python/create_raid_flow_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -114,15 +119,24 @@ def item_id(relative_path):
 
 # ---------------------------------------------------------------- items and effects
 
+def item_name_key(relative):
+    """LOC-01: the item's name in loc.ITEMS (Materials/DA_Item_AetherShard -> Item.AetherShard.Name)."""
+    return "Item.%s.Name" % relative.rsplit("/", 1)[1][len("DA_Item_"):]
+
+
 def ensure_items():
     for relative, name, item_type, value, insurable, max_stack in ITEMS:
         path = ITEMS_DIR + "/" + relative
         if assets.does_asset_exist(path):
+            item = load(path)
+            if loc.set_text(item, "display_name", loc.ITEMS, item_name_key(relative), name):   # made before the string tables
+                save(item)
+                log("%s: name into %s" % (relative.rsplit("/", 1)[1], loc.ITEMS))
             continue
         factory = unreal.DataAssetFactory()
         factory.set_editor_property("data_asset_class", unreal.HollowItemDefinition)
         item = create(path, unreal.HollowItemDefinition, factory)
-        item.set_editor_property("display_name", unreal.Text(name))
+        item.set_editor_property("display_name", loc.text(loc.ITEMS, item_name_key(relative), name))
         item.set_editor_property("item_type", make_tag(item_type))
         item.set_editor_property("base_value", value)
         item.set_editor_property("insurable", insurable)
@@ -278,6 +292,7 @@ def main():
     ensure_pad_look()
     ensure_zone()
     ensure_biome_rule()
+    loc.save()
     validate(dead_effect)
     unreal.log(SUCCESS_MARKER)
 

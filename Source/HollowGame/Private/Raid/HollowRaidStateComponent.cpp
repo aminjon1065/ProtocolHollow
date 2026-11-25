@@ -29,6 +29,39 @@ void UHollowRaidStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(UHollowRaidStateComponent, State, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UHollowRaidStateComponent, LoreFound, Params);
+}
+
+void UHollowRaidStateComponent::AddLoreFound(const FPrimaryAssetId& Entry)
+{
+	if (!GetOwner()->HasAuthority() || !Entry.IsValid() || LoreFound.Contains(Entry))
+	{
+		return;
+	}
+	LoreFound.Add(Entry);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UHollowRaidStateComponent, LoreFound, this);
+	GetOwner()->ForceNetUpdate();
+	HandleLoreFound(Entry);   // the host's own machine
+}
+
+void UHollowRaidStateComponent::OnRep_LoreFound(const TArray<FPrimaryAssetId>& OldLore)
+{
+	for (const FPrimaryAssetId& Entry : LoreFound)
+	{
+		if (!OldLore.Contains(Entry))
+		{
+			HandleLoreFound(Entry);
+		}
+	}
+}
+
+void UHollowRaidStateComponent::HandleLoreFound(const FPrimaryAssetId& Entry)
+{
+	UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(this);
+	const bool bNew = !Profile || Profile->AddLoreEntry(Entry);   // no profile (tests): every log is new
+	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: crew log %s downloaded (%s)"), *State.RaidId.ToString(), *Entry.ToString(),
+		bNew ? TEXT("new on this machine") : TEXT("already in its archive"));
+	OnLoreFound.Broadcast(Entry, bNew);
 }
 
 void UHollowRaidStateComponent::SetState(const FHollowRaidNetState& NewState)

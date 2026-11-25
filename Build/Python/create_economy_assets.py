@@ -12,10 +12,15 @@ the whole economy is validated: offers and recipe items exist, recipes make cons
 and selling earns credits, and a new profile's stash can craft. Run after create_inventory_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_economy_assets.py
 """
+import os
 import re
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -43,6 +48,7 @@ CONFIG = {
     "insurance_percent": 30,     # clarification 1: 30 % of the slot's value, rounded up, single-use
     "max_insured_slots": 2,      # clarification 1 (a ship upgrade adds one in S5-03)
     "stash_slots": 40,           # clarification 2
+    "lore_bonus_credits": 75,    # NAR-01b (ADR-0050): each crew log first found in a raid, paid on extraction
 }
 # Clarification 5: name -> (display name, inputs, credits, output, output count).
 RECIPES = {
@@ -162,29 +168,25 @@ def ensure_config():
     return config
 
 
-LOCALIZATION_DIR = "/Game/Hollow/Localization"
-STRING_TABLE = "ST_Gameplay"   # create_weapon_assets.py makes it
-
-
-def display_text(display):
-    """A plain text, or (key, source) from the string table (GP-01)."""
+def entry_of(prefix, name, field, display):
+    """(key, English source) in loc.ITEMS (LOC-01): given, or from the asset's name (DA_Recipe_Relic_KineticBrace ->
+    Recipe.Relic.KineticBrace.Name)."""
     if isinstance(display, tuple):
-        table = unreal.HollowLocalizationAuthoring.find_or_create_string_table(LOCALIZATION_DIR, STRING_TABLE)
-        text = unreal.HollowLocalizationAuthoring.table_text(table, display[0], display[1])
-        assets.save_loaded_asset(table, True)
-        return text
-    return unreal.Text(display)
+        return display
+    return "%s.%s.%s" % (prefix, name.split("_", 2)[2].replace("_", "."), field), display
 
 
-def is_display(value, display):
-    if isinstance(display, tuple):
-        entry = unreal.HollowLocalizationAuthoring.get_table_entry(value)   # None for any other text
-        return entry is not None and str(entry[0]).endswith(STRING_TABLE) and str(entry[1]) == display[0] and str(value) == display[1]
-    return str(value) == display
+def display_text(entry):
+    return loc.text(loc.ITEMS, entry[0], entry[1])
+
+
+def is_display(value, entry):
+    return loc.is_text(value, loc.ITEMS, entry[0]) and str(value) == entry[1]
 
 
 def ensure_recipe(name, spec):
     display, inputs, credits, output, output_count = spec
+    display = entry_of("Recipe", name, "Name", display)
     recipe, created = data_asset(RECIPES_DIR + "/" + name, unreal.HollowCraftingRecipe)
     wanted_inputs = [stack(n, c) for n, c in inputs]
     wanted_output = stack(output, output_count)
@@ -207,16 +209,17 @@ def equip_slot(slot, count):
 
 def ensure_upgrade(name, spec):
     display, description, price, slots, core_percent, raid_items, equip_slots = spec
+    display, description = entry_of("Upgrade", name, "Name", display), entry_of("Upgrade", name, "Description", description)
     upgrade, created = data_asset(UPGRADES_DIR + "/" + name, unreal.HollowShipUpgradeDefinition)
     wanted_items = [stack(n, c) for n, c in raid_items]
     wanted_slots = [equip_slot(s, c) for s, c in equip_slots]
     values = {"price": price, "extra_insured_slots": slots, "core_value_percent": core_percent}
-    if not created and str(upgrade.get_editor_property("display_name")) == display and str(upgrade.get_editor_property("description")) == description \
+    if not created and is_display(upgrade.get_editor_property("display_name"), display) and is_display(upgrade.get_editor_property("description"), description) \
             and all(upgrade.get_editor_property(k) == v for k, v in values.items()) and texts(upgrade.get_editor_property("raid_items")) == texts(wanted_items) \
             and texts(upgrade.get_editor_property("extra_equip_slots")) == texts(wanted_slots):
         return upgrade
-    upgrade.set_editor_property("display_name", unreal.Text(display))
-    upgrade.set_editor_property("description", unreal.Text(description))
+    upgrade.set_editor_property("display_name", display_text(display))
+    upgrade.set_editor_property("description", display_text(description))
     for key, value in values.items():
         upgrade.set_editor_property(key, value)
     upgrade.set_editor_property("raid_items", wanted_items)
@@ -273,6 +276,7 @@ def main():
         ensure_recipe(name, spec)
     for name, spec in UPGRADES.items():
         ensure_upgrade(name, spec)
+    loc.save()
     validate(config)
     unreal.log(SUCCESS_MARKER)
 

@@ -52,7 +52,9 @@ FText UHollowDebriefWidget::GetDetails() const
 	TwoDigits.SetMinimumIntegralDigits(2);
 	Args.Add(TEXT("Seconds"), FText::AsNumber(Seconds % 60, &TwoDigits));
 	Args.Add(TEXT("Sold"), DescribeItems(Report.Delta.Sold));
-	Args.Add(TEXT("Earned"), Report.Delta.Credits);
+	Args.Add(TEXT("Earned"), Report.Delta.Credits - Report.Delta.LoreCredits);   // what the loot brought
+	Args.Add(TEXT("Logs"), Report.Delta.Lore.Num());                             // NAR-01b: crew logs first found
+	Args.Add(TEXT("LogCredits"), Report.Delta.LoreCredits);
 	Args.Add(TEXT("Before"), Report.CreditsBefore);
 	Args.Add(TEXT("After"), Report.CreditsAfter);
 	Args.Add(TEXT("Kept"), DescribeItems(Report.Delta.Kept));
@@ -70,6 +72,7 @@ FText UHollowDebriefWidget::GetDetails() const
 		"Found, into the stash: {Found}\n"
 		"Found, sold (no room in the stash): {FoundSold}\n"
 		"Found, left behind: {FoundLost}\n"
+		"New crew logs: {Logs} (+{LogCredits} cr, paid only on extraction)\n"
 		"Insurance used: {Insured}\n"
 		"Used: {Used}\n"
 		"Lost: {Lost}"), Args);

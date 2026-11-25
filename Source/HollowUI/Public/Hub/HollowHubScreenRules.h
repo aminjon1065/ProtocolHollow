@@ -10,7 +10,9 @@ enum class EHollowHubCommand : uint8
 	/** Applies its profile transaction on this machine's profile (workbench, locker). */
 	Transaction,
 	/** Asks the server to make its contract the squad's (the host's contracts screen). */
-	SelectContract
+	SelectContract,
+	/** NAR-01b: shows its crew log in the Codex's reader (nothing changes). */
+	ReadLore
 };
 
 /** One button of a hub screen's row: what it does and whether it can now. */
@@ -22,6 +24,8 @@ struct HOLLOWUI_API FHollowHubAction
 	FHollowProfileTransaction Transaction;
 	/** SelectContract: which. */
 	FPrimaryAssetId Contract;
+	/** ReadLore: which crew log. */
+	FPrimaryAssetId Lore;
 	/** False: greyed out, still focusable so the reason shows. */
 	bool bAvailable = true;
 	/** Why not (what the rules would answer now). */

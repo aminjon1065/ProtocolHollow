@@ -94,7 +94,7 @@ FText UHollowRaidStatusWidget::GetStatus() const
 	case EHollowRaidPhase::Extraction:
 		return FText::Format(LOCTEXT("Extraction", "EVAC  {0}   |   ABOARD {1}/{2}   |   CORES {3}"), Left, Net.LivingInZone, Net.LivingPlayers, Net.CoresInZone);
 	case EHollowRaidPhase::Debrief:
-		return FText::Format(LOCTEXT("Debrief", "RAID OVER   |   SKIT  {0}"), Left);
+		return FText::Format(LOCTEXT("Debrief", "RAID OVER   |   SKIFF  {0}"), Left);
 	case EHollowRaidPhase::Assembling:
 	case EHollowRaidPhase::InRaid:
 		break;

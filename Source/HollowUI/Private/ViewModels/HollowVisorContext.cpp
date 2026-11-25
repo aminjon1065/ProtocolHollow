@@ -24,6 +24,7 @@
 #include "ViewModels/HollowInputGlyphSet.h"
 #include "ViewModels/HollowObjectiveModel.h"
 #include "ViewModels/HollowPromptModel.h"
+#include "ViewModels/HollowRadioModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "Visor/HollowVisorStyle.h"
 #include "Voice/HollowVoiceComponent.h"
@@ -68,10 +69,16 @@ void UHollowVisorContext::Initialize(APlayerController* InPlayer)
 	SetCharacter(Cast<AHollowExoFrameCharacter>(InPlayer->GetPawn()));
 	Objective = NewObject<UHollowObjectiveModel>(this);
 	Objective->Initialize(*this);   // after the character: it binds the ability system the context found
+	Radio = NewObject<UHollowRadioModel>(this);
+	Radio->Initialize(*this);   // after the objective: it listens to its facts
 }
 
 void UHollowVisorContext::Deinitialize()
 {
+	if (Radio)
+	{
+		Radio->Deinitialize();
+	}
 	if (Objective)
 	{
 		Objective->Deinitialize();

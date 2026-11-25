@@ -5,6 +5,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "HollowGameLog.h"
+#include "Localization/HollowLanguage.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -192,6 +193,54 @@ void UHollowGameUserSettings::SetControlsHintShown(const bool bShown, const bool
 	}
 	UE_LOG(LogHollowGame, Display, TEXT("Controls cheat sheet %s"), bShown ? TEXT("shown") : TEXT("folded"));
 	OnControlsHintChanged.Broadcast();
+}
+
+void UHollowGameUserSettings::InitializeLanguage()
+{
+	bool bKeep = false;
+	const EHollowLanguage Language = ChooseLanguage(LanguageFromCommandLine(), LanguageCulture, FPlatformMisc::GetDefaultLanguage(), bKeep);
+	SetLanguage(Language, bKeep);
+}
+
+EHollowLanguage UHollowGameUserSettings::ChooseLanguage(const TOptional<EHollowLanguage>& CommandLine, const FString& Saved,
+	const FString& SystemCulture, bool& bOutKeep)
+{
+	bOutKeep = false;
+	if (CommandLine.IsSet())
+	{
+		return CommandLine.GetValue();   // this run only (screenshots, tests)
+	}
+	if (const TOptional<EHollowLanguage> Kept = HollowLanguage::Parse(Saved))
+	{
+		return Kept.GetValue();
+	}
+	bOutKeep = true;   // the first launch: the system's, kept
+	return HollowLanguage::FromCulture(SystemCulture);
+}
+
+EHollowLanguage UHollowGameUserSettings::GetLanguage() const
+{
+	return HollowLanguage::GetApplied();
+}
+
+void UHollowGameUserSettings::SetLanguage(const EHollowLanguage Language, const bool bSave)
+{
+	if (bSave)
+	{
+		LanguageCulture = HollowLanguage::CultureName(Language);
+		SaveSettings();
+	}
+	HollowLanguage::Apply(Language);
+}
+
+TOptional<EHollowLanguage> UHollowGameUserSettings::LanguageFromCommandLine()
+{
+	FString Culture;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("-culture="), Culture) || Culture.IsEmpty())
+	{
+		return {};
+	}
+	return HollowLanguage::FromCulture(Culture);
 }
 
 void UHollowGameUserSettings::InitializePreset()

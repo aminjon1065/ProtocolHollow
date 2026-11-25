@@ -20,6 +20,10 @@ UX-01 (ADR-0042):
   /Game/Hollow/UI/Visor/W_ControlsHint        "[H] CONTROLS" and a line per action
   /Game/Hollow/UI/Visor/DA_ControlsHint       UHollowControlsHintSet: the cheat sheet's rows and class labels
   /Game/Hollow/UI/Input/IA_ControlsHint       folds the cheat sheet (H / View), mapped in IMC_UI
+NAR-01a (ADR-0049):
+  /Game/Hollow/UI/Visor/W_RadioSubtitle       the handler's radio: call sign over the line on the air, low in the middle
+NAR-01b (ADR-0050):
+  /Game/Hollow/UI/Visor/W_LoreNotice          "CREW LOG 3/12", the log's title, its bonus: under the objective a few seconds
 GP-01c (ADR-0046):
   /Game/Hollow/UI/Visor/M_UI_HitMarker        UI material: four diagonal ticks round the crosshair, tinted by the image
   /Game/Hollow/UI/Visor/W_HitMarker           the hit marker (hit / armour / crit: colour and size from DA_VisorStyle)
@@ -31,9 +35,14 @@ Run after create_ui_assets.py and create_lamp_assets.py:  Build/Scripts/run-edit
 """
 import hashlib
 import json
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -65,18 +74,20 @@ CONTROLS_KEYS = ["H", "Gamepad_Special_Left"]
 CONTROLS_PATH = VISOR_DIR + "/DA_ControlsHint"
 GAME_INPUT_DIR = "/Game/Hollow/Core/Input/Actions"
 ENGINEER, OCCULTIST = "Hollow.Class.Engineer", "Hollow.Class.Occultist"
-# (action, label, {class: own label, "" hides it}, raid only). The keys come from the mapping contexts at run time.
-# GP-01: new labels come from the string table (key, English source); the weapon in hand fires and aims on the tool's inputs.
+# (action, label, {class: own label, "" hides it}, raid only). The keys come from the mapping contexts at run time; the
+# weapon in hand fires and aims on the tool's inputs (GP-01). Labels are (key, English source) in loc.VISOR (LOC-01).
 CONTROLS_ROWS = [
-    ("IA_PrimaryUse", "Tool", {ENGINEER: "Plasma cutter", OCCULTIST: "Aether lantern"}, True),
-    ("IA_SecondaryUse", "Welder", {OCCULTIST: ""}, True),
+    ("IA_PrimaryUse", ("Controls.Tool", "Tool"),
+     {ENGINEER: ("Controls.Tool.Engineer", "Plasma cutter"), OCCULTIST: ("Controls.Tool.Occultist", "Aether lantern")}, True),
+    ("IA_SecondaryUse", ("Controls.Welder", "Welder"), {OCCULTIST: ""}, True),
     ("IA_HandsCycle", ("Controls.Hands", "Tools / weapon"), {}, True),
-    ("IA_Gadget", "Gadget", {ENGINEER: "Pulse mine", OCCULTIST: "Ritual ward"}, True),
+    ("IA_Gadget", ("Controls.Gadget", "Gadget"),
+     {ENGINEER: ("Controls.Gadget.Engineer", "Pulse mine"), OCCULTIST: ("Controls.Gadget.Occultist", "Ritual ward")}, True),
     ("IA_Reload", ("Controls.Reload", "Reload / refuel"), {}, True),
     ("IA_Melee", ("Controls.Melee", "Melee"), {}, True),
-    ("IA_HelmetLamp", "Helmet lamp", {}, False),
-    ("IA_PushToTalk", "Voice", {}, False),
-    ("IA_Interact", "Interact", {}, False),
+    ("IA_HelmetLamp", ("Controls.Lamp", "Helmet lamp"), {}, False),
+    ("IA_PushToTalk", ("Controls.Voice", "Voice"), {}, False),
+    ("IA_Interact", ("Controls.Interact", "Interact"), {}, False),
 ]
 
 # The glass (data). r is the distance from the centre in half-screens: 0 centre, 1 the middle of an edge, 1.41 a corner.
@@ -103,20 +114,25 @@ HIT_MARKER = {"version": 1, "ticks": [0.16, 0.44, 0.035, 0.015]}
 
 # The look per Resonance tier (S4-08 clarification 7): calm Low and Medium; High amber at 1 Hz; Critical red at 2 Hz with
 # interference. Every pulse stays at or under 3 Hz (UHollowVisorStyle::MaxPulseHz, photosensitivity).
+# Texts are (key, English source) in loc.VISOR (LOC-01, ADR-0048).
 TIERS = [
-    ("LOW", (0.55, 0.85, 1.0, 1.0), 0.0, 0.0, 0.0),
-    ("MEDIUM", (0.85, 0.9, 0.5, 1.0), 0.0, 0.0, 0.0),
-    ("HIGH", (1.0, 0.68, 0.25, 1.0), 0.35, 1.0, 0.0),
-    ("CRITICAL", (1.0, 0.36, 0.28, 1.0), 0.6, 2.0, 0.12),
+    (("Visor.Tier.Low", "LOW"), (0.55, 0.85, 1.0, 1.0), 0.0, 0.0, 0.0),
+    (("Visor.Tier.Medium", "MEDIUM"), (0.85, 0.9, 0.5, 1.0), 0.0, 0.0, 0.0),
+    (("Visor.Tier.High", "HIGH"), (1.0, 0.68, 0.25, 1.0), 0.35, 1.0, 0.0),
+    (("Visor.Tier.Critical", "CRITICAL"), (1.0, 0.36, 0.28, 1.0), 0.6, 2.0, 0.12),
 ]
 STYLE_TEXTS = {
-    "resonance_format": "RES {0}%",
-    "push_to_talk_label": "MIC  PTT", "open_mic_label": "MIC  OPEN", "muted_label": "MIC  MUTED",
-    "transmitting_format": "{0}  >> TX", "talking_format": "VOX  {0}",
-    "lamp_on_label": "LAMP ON", "lamp_off_label": "LAMP OFF", "lamp_format": "[{0}] {1}",
-    "supply_format": "{0} {1}", "supply_separator": "   ",
-    "objective_title": "OBJECTIVE", "waypoint_format": "{0}  {1} m",
-    "controls_title_format": "[{0}] CONTROLS", "controls_title": "CONTROLS",
+    "resonance_format": ("Visor.Resonance.Format", "RES {0}%"),
+    "push_to_talk_label": ("Visor.Voice.PushToTalk", "MIC  PTT"), "open_mic_label": ("Visor.Voice.OpenMic", "MIC  OPEN"),
+    "muted_label": ("Visor.Voice.Muted", "MIC  MUTED"),
+    "transmitting_format": ("Visor.Voice.Transmitting", "{0}  >> TX"), "talking_format": ("Visor.Voice.Talking", "VOX  {0}"),
+    "lamp_on_label": ("Visor.Lamp.On", "LAMP ON"), "lamp_off_label": ("Visor.Lamp.Off", "LAMP OFF"), "lamp_format": ("Visor.Lamp.Format", "[{0}] {1}"),
+    "supply_format": ("Visor.Supply.Format", "{0} {1}"), "supply_separator": ("Visor.Supply.Separator", "   "),
+    "objective_title": ("Visor.Objective.Title", "OBJECTIVE"), "waypoint_format": ("Visor.Waypoint.Format", "{0}  {1} m"),
+    "controls_title_format": ("Visor.Controls.TitleFormat", "[{0}] CONTROLS"), "controls_title": ("Visor.Controls.Title", "CONTROLS"),
+    # NAR-01b: a downloaded crew log.
+    "lore_notice_format": ("Visor.Lore.Format", "CREW LOG {0}/{1}"), "lore_notice_new": ("Visor.Lore.New", "+{0} cr on extraction"),
+    "lore_notice_known": ("Visor.Lore.Known", "Already in your archive"),
 }
 STYLE_COLORS = {
     "telemetry_color": (0.6, 0.88, 1.0, 0.9),
@@ -126,23 +142,29 @@ STYLE_COLORS = {
     # GP-01c: the hit marker white for a hit, steel for armour, amber for a crit; the damage edge red.
     "hit_color": (1.0, 1.0, 1.0, 0.95), "armor_color": (0.55, 0.62, 0.7, 0.85), "crit_color": (1.0, 0.72, 0.25, 1.0),
     "damage_color": (0.95, 0.1, 0.06, 1.0),
+    # NAR-01a: the radio's subtitle near white; the Echo-Stalker's corrupted transmissions a sick violet.
+    "radio_text_color": (0.94, 0.96, 1.0, 0.95), "radio_echo_color": (0.78, 0.45, 1.0, 0.95),
 }
 STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoint_edge_margin": 96.0,
                  # GP-01c: a marker for 0.18 s (armour smaller, a crit larger); the damage edge flashes over 0.45 s, full
                  # strength at a quarter of the health at once; reduced flashes: a dim edge fading over 1.2 s, no flash.
                  "hit_marker_seconds": 0.18, "armor_marker_scale": 0.8, "crit_marker_scale": 1.3,
                  "damage_flash_seconds": 0.45, "damage_full_share": 0.25, "reduced_damage_level": 0.35, "reduced_damage_seconds": 1.2,
-                 "damage_fade_rate_hz": 30.0}
+                 "damage_fade_rate_hz": 30.0,
+                 "lore_notice_seconds": 6.0}   # NAR-01b: a downloaded crew log's notice
 # Hub terminals pale cyan (the contracts console amber: it launches), extraction green, the vault aether cyan, the
 # altar ritual gold (Docs/Art bible palette).
 WAYPOINT_LOOKS = [
-    ("CONTRACTS", "CONTRACTS", (1.0, 0.72, 0.35, 1.0)),
-    ("WORKBENCH", "WORKBENCH", (0.6, 0.88, 1.0, 1.0)),
-    ("LOCKER", "LOCKER", (0.6, 0.88, 1.0, 1.0)),
-    ("EXTRACTION", "EVAC", (0.45, 1.0, 0.55, 1.0)),
-    ("VAULT", "VAULT", (0.32, 0.85, 0.84, 1.0)),
-    ("ALTAR", "ALTAR", (0.95, 0.8, 0.45, 1.0)),
+    ("CONTRACTS", ("Visor.Waypoint.Contracts", "CONTRACTS"), (1.0, 0.72, 0.35, 1.0)),
+    ("WORKBENCH", ("Visor.Waypoint.Workbench", "WORKBENCH"), (0.6, 0.88, 1.0, 1.0)),
+    ("LOCKER", ("Visor.Waypoint.Locker", "LOCKER"), (0.6, 0.88, 1.0, 1.0)),
+    ("EXTRACTION", ("Visor.Waypoint.Evac", "EVAC"), (0.45, 1.0, 0.55, 1.0)),
+    ("VAULT", ("Visor.Waypoint.Vault", "VAULT"), (0.32, 0.85, 0.84, 1.0)),
+    ("ALTAR", ("Visor.Waypoint.Altar", "ALTAR"), (0.95, 0.8, 0.45, 1.0)),
 ]
+# The visor's health and tool bars (W_Visor): bar -> (key, English source) in loc.VISOR.
+BAR_LABELS = {"HealthBar": ("Visor.Bar.Health", "Health"), "StaminaBar": ("Visor.Bar.Stamina", "Stamina"),
+              "ToolFuelBar": ("Visor.Bar.Fuel", "Fuel"), "ToolHeatBar": ("Visor.Bar.Heat", "Heat")}
 
 # Telemetry widgets (data).
 TELEMETRY_TEXT = 16
@@ -164,11 +186,14 @@ WIDGETS = {
     "W_VisorWaypoints": {"version": 1},
     "W_ControlsHint": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_SMALL, "gap": GAP},
     "W_HitMarker": {"version": 1, "size": 44.0},
+    # NAR-01a: the subtitle in the UI's reading font (Roboto), wrapped short enough to stay clear of the bars at the bottom.
+    "W_RadioSubtitle": {"version": 1, "speaker": TELEMETRY_SMALL, "text": 20, "wrap": 860.0, "gap": GAP},
+    "W_LoreNotice": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_TEXT, "wrap": 620.0, "gap": GAP},   # NAR-01b
 }
 
 # W_Visor layout (data): distances from the screen edges, inside the glass's rim.
 LAYOUT = {
-    "version": 6,
+    "version": 8,
     "edge": 48.0,
     "crosshair": 6.0,
     "hit_marker": 44.0,                       # GP-01c: round the crosshair
@@ -181,6 +206,8 @@ LAYOUT = {
     "lamp_below_voice": 64.0,
     "objective_below_voice": 108.0,           # UX-01: under the lamp line
     "controls_below_readout": 76.0,           # UX-01: under the Resonance readout
+    "subtitle_above_bottom": 120.0,           # NAR-01a: the radio's subtitle, over the bars' line
+    "notice_below_objective": 84.0,           # NAR-01b: a crew log's notice, under the objective's two lines
     "colors": {"health": (0.75, 0.15, 0.15, 1.0), "stamina": (0.35, 0.85, 0.55, 1.0), "fuel": (0.2, 0.6, 1.0, 1.0),
                "heat": (1.0, 0.55, 0.1, 1.0), "alert": (1.0, 0.1, 0.05, 1.0), "crosshair": (1.0, 1.0, 1.0, 1.0)},
 }
@@ -390,15 +417,15 @@ def ensure_style():
     looks = []
     for label, rgba, alert, pulse_hz, interference in TIERS:
         look = unreal.HollowVisorTierLook()
-        look.set_editor_property("label", unreal.Text(label))
+        look.set_editor_property("label", loc.text(loc.VISOR, label[0], label[1]))
         look.set_editor_property("color", color(rgba))
         look.set_editor_property("alert", alert)
         look.set_editor_property("pulse_hz", pulse_hz)
         look.set_editor_property("interference", interference)
         looks.append(look)
     style.set_editor_property("tiers", looks)
-    for name, value in STYLE_TEXTS.items():
-        style.set_editor_property(name, unreal.Text(value))
+    for name, (key, value) in STYLE_TEXTS.items():
+        style.set_editor_property(name, loc.text(loc.VISOR, key, value))
     for name, rgba in STYLE_COLORS.items():
         style.set_editor_property(name, color(rgba))
     for name, value in STYLE_SCALARS.items():
@@ -407,7 +434,7 @@ def ensure_style():
     for kind, label, rgba in WAYPOINT_LOOKS:
         look = unreal.HollowWaypointLook()
         look.set_editor_property("kind", getattr(unreal.HollowWaypointKind, kind))
-        look.set_editor_property("label", unreal.Text(label))
+        look.set_editor_property("label", loc.text(loc.VISOR, label[0], label[1]))
         look.set_editor_property("color", color(rgba))
         waypoints.append(look)
     style.set_editor_property("waypoints", waypoints)
@@ -578,18 +605,9 @@ def ensure_controls_input():
         log("IMC_UI: %d cheat sheet key(s) mapped" % added)
 
 
-LOCALIZATION_DIR = "/Game/Hollow/Localization"
-STRING_TABLE = "ST_Gameplay"   # create_weapon_assets.py makes it
-
-
 def label_text(label):
-    """A plain text, or (key, source) from the string table (GP-01)."""
-    if isinstance(label, tuple):
-        table = unreal.HollowLocalizationAuthoring.find_or_create_string_table(LOCALIZATION_DIR, STRING_TABLE)
-        text = unreal.HollowLocalizationAuthoring.table_text(table, label[0], label[1])
-        assets.save_loaded_asset(table, True)
-        return text
-    return unreal.Text(label)
+    """(key, English source) in loc.VISOR; "" hides a row for a class."""
+    return loc.text(loc.VISOR, label[0], label[1]) if label else unreal.Text("")
 
 
 def ensure_controls_rows():
@@ -608,7 +626,7 @@ def ensure_controls_rows():
         for class_tag, class_label in sorted(class_labels.items()):
             entry = unreal.HollowControlsClassLabel()
             entry.set_editor_property("class_tag", make_tag(class_tag))
-            entry.set_editor_property("label", unreal.Text(class_label))
+            entry.set_editor_property("label", label_text(class_label))
             own.append(entry)
         row.set_editor_property("class_labels", own)
         row.set_editor_property("raid_only", raid_only)
@@ -854,8 +872,50 @@ def ensure_controls():
     finish(blueprint, spec)
 
 
-def configure_bar(bar, label, set_name, attribute, max_attribute, fill_color, alert_tag=None):
-    bar.set_editor_property("label", unreal.Text(label))
+def ensure_radio_subtitle():
+    spec = WIDGETS["W_RadioSubtitle"]
+    blueprint = widget_blueprint("W_RadioSubtitle", unreal.HollowRadioSubtitleWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.VerticalBox, "Root")
+    speaker = add(blueprint, unreal.TextBlock, "SpeakerText", "Root")
+    telemetry_text(speaker, spec["speaker"], unreal.TextJustify.CENTER)
+    box_slot(speaker, H.H_ALIGN_CENTER, V.V_ALIGN_TOP)
+    line = add(blueprint, unreal.TextBlock, "LineText", "Root")
+    line.set_editor_property("text", unreal.Text(""))
+    font = line.get_editor_property("font")   # the default UI font (Roboto: every Cyrillic glyph, LOC-01)
+    font.set_editor_property("size", spec["text"])
+    line.set_editor_property("font", font)
+    line.set_editor_property("justification", unreal.TextJustify.CENTER)
+    line.set_editor_property("wrap_text_at", spec["wrap"])
+    line.set_editor_property("shadow_offset", unreal.Vector2D(*TEXT_SHADOW))
+    line.set_editor_property("shadow_color_and_opacity", color(SHADOW_COLOR))
+    box_slot(line, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, spec["gap"], 0.0, 0.0))
+    finish(blueprint, spec)
+
+
+def ensure_lore_notice():
+    spec = WIDGETS["W_LoreNotice"]
+    blueprint = widget_blueprint("W_LoreNotice", unreal.HollowLoreNoticeWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.VerticalBox, "Root")
+    title = add(blueprint, unreal.TextBlock, "TitleText", "Root")
+    telemetry_text(title, spec["title"])
+    box_slot(title, H.H_ALIGN_LEFT, V.V_ALIGN_TOP)
+    entry = add(blueprint, unreal.TextBlock, "EntryText", "Root")
+    telemetry_text(entry, spec["text"])
+    entry.set_editor_property("wrap_text_at", spec["wrap"])
+    box_slot(entry, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(0.0, spec["gap"], 0.0, 0.0))
+    detail = add(blueprint, unreal.TextBlock, "DetailText", "Root")
+    telemetry_text(detail, spec["title"])
+    box_slot(detail, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(0.0, spec["gap"], 0.0, 0.0))
+    finish(blueprint, spec)
+
+
+def configure_bar(bar, set_name, attribute, max_attribute, fill_color, alert_tag=None):
+    key, label = BAR_LABELS[bar.get_name()]
+    bar.set_editor_property("label", loc.text(loc.VISOR, key, label))
     bar.set_editor_property("attribute", make_attribute(set_name, attribute))
     bar.set_editor_property("max_attribute", make_attribute(set_name, max_attribute))
     bar.set_editor_property("fill_color", color(fill_color))
@@ -865,7 +925,7 @@ def configure_bar(bar, label, set_name, attribute, max_attribute, fill_color, al
 
 
 def visor_spec():
-    return {"layout": LAYOUT, "widgets": sorted(WIDGETS), "waypoint": "W_VisorWaypoint"}
+    return {"layout": LAYOUT, "widgets": sorted(WIDGETS), "waypoint": "W_VisorWaypoint", "bars": BAR_LABELS}
 
 
 def ensure_visor():
@@ -914,16 +974,16 @@ def ensure_visor():
     bar_class = cls("W_StatBar")
     colors = L["colors"]
     health = add(blueprint, bar_class, "HealthBar", "Root")
-    configure_bar(health, "Health", "HollowHealthSet", "Health", "MaxHealth", colors["health"])
+    configure_bar(health, "HollowHealthSet", "Health", "MaxHealth", colors["health"])
     canvas_slot(health, bottom_left, bottom_left, unreal.Vector2D(edge, -edge - L["bar_gap"]), unreal.Vector2D(*L["health"]))
     stamina = add(blueprint, bar_class, "StaminaBar", "Root")
-    configure_bar(stamina, "Stamina", "HollowSurvivalSet", "Stamina", "MaxStamina", colors["stamina"])
+    configure_bar(stamina, "HollowSurvivalSet", "Stamina", "MaxStamina", colors["stamina"])
     canvas_slot(stamina, bottom_left, bottom_left, unreal.Vector2D(edge, -edge), unreal.Vector2D(*L["stamina"]))
     fuel = add(blueprint, bar_class, "ToolFuelBar", "Root")
-    configure_bar(fuel, "Fuel", "HollowToolSet", "ToolFuel", "MaxToolFuel", colors["fuel"])
+    configure_bar(fuel, "HollowToolSet", "ToolFuel", "MaxToolFuel", colors["fuel"])
     canvas_slot(fuel, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge - L["tool_gap"]), unreal.Vector2D(*L["tool_bar"]))
     heat = add(blueprint, bar_class, "ToolHeatBar", "Root")
-    configure_bar(heat, "Heat", "HollowToolSet", "ToolHeat", "MaxToolHeat", colors["heat"], OVERHEATED_TAG)
+    configure_bar(heat, "HollowToolSet", "ToolHeat", "MaxToolHeat", colors["heat"], OVERHEATED_TAG)
     canvas_slot(heat, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge), unreal.Vector2D(*L["tool_bar"]))
     supply = add(blueprint, cls("W_SupplyReadout"), "SupplyReadout", "Root")
     canvas_slot(supply, bottom_right, bottom_right, unreal.Vector2D(-edge, -edge - L["supply_above_tools"]), auto_size=True)
@@ -945,6 +1005,15 @@ def ensure_visor():
     canvas_slot(objective, top_left, top_left, unreal.Vector2D(edge, edge + L["objective_below_voice"]), auto_size=True)
     controls = add(blueprint, cls("W_ControlsHint"), "ControlsHint", "Root")
     canvas_slot(controls, top_right, top_right, unreal.Vector2D(-edge, edge + L["controls_below_readout"]), auto_size=True)
+
+    # NAR-01b: a downloaded crew log's notice under the objective.
+    notice = add(blueprint, cls("W_LoreNotice"), "LoreNotice", "Root")
+    canvas_slot(notice, top_left, top_left, unreal.Vector2D(edge, edge + L["objective_below_voice"] + L["notice_below_objective"]), auto_size=True)
+
+    # NAR-01a: the radio's subtitle low in the middle, its bottom over the bars' line.
+    subtitle = add(blueprint, cls("W_RadioSubtitle"), "RadioSubtitle", "Root")
+    bottom_centre = unreal.Vector2D(0.5, 1.0)
+    canvas_slot(subtitle, bottom_centre, bottom_centre, unreal.Vector2D(0.0, -edge - L["subtitle_above_bottom"]), auto_size=True)
     finish(blueprint, spec)
 
 
@@ -971,7 +1040,9 @@ def validate():
                          ("W_SupplyReadout", unreal.HollowSupplyReadoutWidget), ("W_VisorObjective", unreal.HollowObjectiveWidget),
                          ("W_WeaponReadout", unreal.HollowWeaponReadoutWidget), ("W_HitMarker", unreal.HollowHitMarkerWidget),
                          ("W_VisorWaypoint", unreal.HollowWaypointMarkerWidget), ("W_VisorWaypoints", unreal.HollowWaypointLayerWidget),
-                         ("W_ControlsHint", unreal.HollowControlsHintWidget), ("W_Visor", unreal.HollowVisorWidget)):
+                         ("W_ControlsHint", unreal.HollowControlsHintWidget), ("W_RadioSubtitle", unreal.HollowRadioSubtitleWidget),
+                         ("W_LoreNotice", unreal.HollowLoreNoticeWidget),
+                         ("W_Visor", unreal.HollowVisorWidget)):
         blueprint = load(VISOR_DIR + "/" + path)
         generated = blueprint.generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
@@ -984,7 +1055,7 @@ def validate():
     visor = load(VISOR_DIR + "/W_Visor")
     for name in ("Layers", "VisorFrame", "Root", "Crosshair", "TargetStatus", "InteractionPrompt", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar",
                  "VoiceIndicator", "LampIndicator", "SupplyReadout", "WeaponReadout", "RaidStatus", "ResonanceReadout", "Waypoints", "Objective",
-                 "ControlsHint", "HitMarker"):
+                 "ControlsHint", "HitMarker", "RadioSubtitle", "LoreNotice"):
         check(author.find_widget(visor, name) is not None, "W_Visor shows " + name)
     hit_marker = load(HIT_MARKER_PATH)
     check(hit_marker.get_editor_property("material_domain") == unreal.MaterialDomain.MD_UI and up_to_date(hit_marker, digest(HIT_MARKER)), "M_UI_HitMarker")
@@ -1035,7 +1106,10 @@ def main():
     ensure_waypoint(instances)
     ensure_waypoint_layer()
     ensure_controls()
+    ensure_radio_subtitle()
+    ensure_lore_notice()
     ensure_visor()
+    loc.save()
     validate()
     unreal.log(SUCCESS_MARKER)
 

@@ -22,14 +22,17 @@
 #include "Sector/HollowSectorTopologySubsystem.h"
 #include "Settings/HollowGameUserSettings.h"
 #include "Tags/HollowGameplayTags.h"
+#include "Tests/HollowLocalizationTestUtils.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "ViewModels/HollowObjectiveModel.h"
+#include "ViewModels/HollowRadioModel.h"
 #include "ViewModels/HollowVisorContext.h"
 #include "Visor/HollowControlsHintSet.h"
 #include "Visor/HollowControlsHintWidget.h"
 #include "Visor/HollowObjectiveRules.h"
 #include "Visor/HollowObjectiveWidget.h"
+#include "Visor/HollowVisorElement.h"
 #include "Visor/HollowVisorStyle.h"
 #include "Visor/HollowWaypointLayerWidget.h"
 #include "World/HollowRitualAltar.h"
@@ -496,6 +499,93 @@ bool FHollowVisorControlsHintTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Folded: the title only"), !Hint->IsUnfolded() && Hint->GetListText().IsEmpty() && Hint->Describe().Contains(TEXT("folded")));
 	Settings->SetControlsHintShown(bShownBefore, /*bSave=*/false);
 	Hint->SetContext(nullptr);
+	Rig.Context->Deinitialize();
+	return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLocalizationVisorTest, "Hollow.UI.Localization.Visor",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowLocalizationVisorTest::RunTest(const FString& Parameters)
+{
+	// LOC-01 (ADR-0048): the real W_Visor bound to a player in the hub reads Russian at once when the language changes
+	// (bars, telemetry, objective, cheat sheet: its padded list is built again; NAR-01a: the radio's subtitle with the
+	// briefing on the air), holds the longer words on a 1080p screen, and English comes back the same. Key names stay
+	// as the keyboard writes them.
+	using namespace HollowObjectiveTests;
+	using namespace HollowLocalizationTests;
+	const FVector2D View(1920.0, 1080.0);
+	FRig Rig;
+	UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	const TSubclassOf<UUserWidget> VisorClass = LoadClass<UUserWidget>(nullptr, VisorPath);
+	if (!TestTrue(TEXT("Slate measures text here"), CanMeasureText()) || !TestNotNull(TEXT("W_Visor"), VisorClass.Get())
+		|| !TestNotNull(TEXT("The game's settings class"), Settings) || !Build(*this, Rig))
+	{
+		return false;
+	}
+	const bool bShownBefore = Settings->IsControlsHintShown();
+	Settings->SetControlsHintShown(true, /*bSave=*/false);
+	UUserWidget* Visor = CreateWidget<UUserWidget>(Rig.World.GetTestWorld(), VisorClass);
+	TArray<UHollowVisorElement*> Elements;
+	Visor->WidgetTree->ForEachWidget([&Elements](UWidget* Widget)
+	{
+		if (UHollowVisorElement* Element = Cast<UHollowVisorElement>(Widget))
+		{
+			Elements.Add(Element);
+		}
+	});
+	for (UHollowVisorElement* Element : Elements)
+	{
+		Element->SetContext(Rig.Context);
+	}
+	UHollowRadioModel* Radio = Rig.Context->GetRadio();
+	TestTrue(TEXT("The briefing on the radio"), Radio && Radio->Fire(HollowTags::Radio_Hub_Arrival, /*bForce=*/true) && Radio->GetSubtitle().bShown);
+	// A word of three Latin letters or more is a word to translate; shorter ones are key names (E, H, LT...).
+	const auto HasWord = [](const FString& Text)
+	{
+		int32 Run = 0;
+		for (const TCHAR Character : Text)
+		{
+			Run = FChar::IsAlpha(Character) && Character < 0x80 ? Run + 1 : 0;
+			if (Run >= 3)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+	for (const FString& Overflow : FindOverflows(*Visor, View))   // lays it out first: every label is set
+	{
+		AddError(TEXT("Cut in English: ") + Overflow);
+	}
+	const TMap<FString, FString> English = ReadTexts(*Visor);
+	TestTrue(TEXT("The visor has texts to read"), English.Num() > 5);
+	{
+		const FScopedLanguage Russian(EHollowLanguage::Russian);
+		const TMap<FString, FString> Now = ReadTexts(*Visor);
+		for (const TPair<FString, FString>& Text : English)
+		{
+			const FString* Shown = Now.Find(Text.Key);
+			if (HasWord(Text.Value) && !(Shown && HasCyrillic(*Shown)))
+			{
+				AddError(FString::Printf(TEXT("%s \"%s\" reads \"%s\" in Russian"), *Text.Key, *Text.Value, Shown ? **Shown : TEXT("-")));
+			}
+		}
+		for (const FString& Overflow : FindOverflows(*Visor, View))
+		{
+			AddError(TEXT("Cut in Russian: ") + Overflow);
+		}
+	}
+	for (const FString& Change : Differences(English, ReadTexts(*Visor)))
+	{
+		AddError(TEXT("Not back in English: ") + Change);
+	}
+	for (UHollowVisorElement* Element : Elements)
+	{
+		Element->SetContext(nullptr);
+	}
+	Settings->SetControlsHintShown(bShownBefore, /*bSave=*/false);
 	Rig.Context->Deinitialize();
 	return true;
 }

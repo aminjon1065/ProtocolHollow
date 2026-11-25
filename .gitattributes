@@ -16,6 +16,14 @@
 *.sh       text eol=lf
 *.py       text eol=lf
 
+# LOC-01 (ADR-0048): the localization target. The PO files are UTF-8 text (the translation, reviewed in diffs); the
+# engine writes the manifest and archives as UTF-16 and the locres/locmeta as binary: kept as written, small, not LFS.
+*.po       text eol=lf
+*.manifest -text
+*.archive  -text
+*.locres   -text
+*.locmeta  -text
+
 # Windows entry points
 *.bat      text eol=crlf
 *.cmd      text eol=crlf

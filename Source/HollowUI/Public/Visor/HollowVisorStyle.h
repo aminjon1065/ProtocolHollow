@@ -215,4 +215,28 @@ public:
 	/** How often the fading edge is redrawn while it fades (a timer, not Tick). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (ClampMin = "1", ClampMax = "60", Units = "Hertz"))
 	float DamageFadeRateHz = 30.f;
+
+	/** NAR-01a (ADR-0049): the radio's subtitle; the handler's call sign takes the telemetry colour. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Radio")
+	FLinearColor RadioTextColor = FLinearColor::White;
+
+	/** The Echo-Stalker's corrupted transmissions: its call sign and words. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Radio")
+	FLinearColor RadioEchoColor = FLinearColor::Red;
+
+	/** NAR-01b (ADR-0050): a downloaded crew log's notice. {0} = logs in the archive now, {1} = all of them. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lore")
+	FText LoreNoticeFormat;
+
+	/** A log new to this player: {0} = the bonus it pays on extraction. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lore")
+	FText LoreNoticeNew;
+
+	/** A log this player had already. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lore")
+	FText LoreNoticeKnown;
+
+	/** How long the notice stays. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lore", meta = (ClampMin = "0", Units = "Seconds"))
+	float LoreNoticeSeconds = 0.f;
 };

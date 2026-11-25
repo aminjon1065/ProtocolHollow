@@ -59,7 +59,7 @@ namespace HollowProfileRules
 	namespace Private
 	{
 		FHollowRaidReport Resolve(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
-			const int32 CoreValuePercent = 0, const int32 StashSlots = 0, const int32 SellPercent = 0)
+			const int32 CoreValuePercent = 0, const int32 StashSlots = 0, const int32 SellPercent = 0, const int32 LoreBonus = 0)
 		{
 			FHollowRaidContext Context;
 			Context.CoreValuePercent = CoreValuePercent;
@@ -73,6 +73,13 @@ namespace HollowProfileRules
 			FHollowRaidReport Report;
 			Report.Result = Result;
 			Report.Delta = FHollowExtractionResolver::Resolve(Context, Result.Outcome, Catalog);
+			// NAR-01b: the crew logs stay found whatever the end; their bonus only comes home with the player.
+			Report.Delta.Lore = State.Escrow.NewLore;
+			if (Result.Outcome == EHollowRaidOutcome::Extracted)
+			{
+				Report.Delta.LoreCredits = FMath::Max(LoreBonus, 0) * State.Escrow.NewLore.Num();
+				Report.Delta.Credits += Report.Delta.LoreCredits;
+			}
 			Report.CreditsBefore = State.Profile.Credits;
 			Apply(State.Profile, Report.Delta, Result.Outcome, &Catalog);
 			Report.CreditsAfter = State.Profile.Credits;
@@ -97,13 +104,13 @@ namespace HollowProfileRules
 	}
 
 	TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
-		const int32 CoreValuePercent, const int32 StashSlots, const int32 SellPercent)
+		const int32 CoreValuePercent, const int32 StashSlots, const int32 SellPercent, const int32 LoreBonus)
 	{
 		if (!State.Escrow.IsActive() || Result.RaidId != State.Escrow.RaidId || Result.Outcome == EHollowRaidOutcome::None)
 		{
 			return TOptional<FHollowRaidReport>();
 		}
-		return Private::Resolve(State, Result, Catalog, CoreValuePercent, StashSlots, SellPercent);
+		return Private::Resolve(State, Result, Catalog, CoreValuePercent, StashSlots, SellPercent, LoreBonus);
 	}
 
 	TOptional<FHollowRaidReport> ResolveEscrow(FHollowProfileState& State, const EHollowRaidOutcome Outcome, const FDateTime& NowUtc,
@@ -118,6 +125,30 @@ namespace HollowProfileRules
 		Result.Outcome = Outcome;
 		Result.RaidSeconds = static_cast<float>(FMath::Max((NowUtc - State.Escrow.StartedUtc).GetTotalSeconds(), 0.0));
 		return Private::Resolve(State, Result, Catalog);
+	}
+
+	bool AddLore(FHollowProfileState& State, const FPrimaryAssetId& Entry)
+	{
+		if (!Entry.IsValid() || State.Profile.Lore.Contains(Entry))
+		{
+			return false;
+		}
+		State.Profile.Lore.Add(Entry);
+		if (State.Escrow.IsActive())
+		{
+			State.Escrow.NewLore.AddUnique(Entry);
+		}
+		return true;
+	}
+
+	bool MarkRadioHeard(FHollowProfile& Profile, const FName CueId)
+	{
+		if (CueId.IsNone() || Profile.RadioHeard.Contains(CueId))
+		{
+			return false;
+		}
+		Profile.RadioHeard.Add(CueId);
+		return true;
 	}
 
 	TArray<FPrimaryAssetId> ItemsToCatalog(const FHollowProfileState& State, const FHollowRaidResult* Result)

@@ -10,6 +10,7 @@ class UHollowInputGlyphSet;
 class UHollowDebriefWidget;
 class UHollowHubScreenWidget;
 class UHollowPrimaryLayout;
+class UHollowRadioScript;
 class UHollowVisorStyle;
 class UInputAction;
 class UInputMappingContext;
@@ -48,6 +49,10 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Hub")
 	TSoftClassPtr<UHollowHubScreenWidget> ContractScreenClass;
+
+	/** NAR-01b (ADR-0050): the crew archive's Codex. */
+	UPROPERTY(Config, EditAnywhere, Category = "Hub")
+	TSoftClassPtr<UHollowHubScreenWidget> CodexScreenClass;
 
 	/** The shop's second buy button: Buy this many at once. */
 	UPROPERTY(Config, EditAnywhere, Category = "Hub", meta = (ClampMin = "2"))
@@ -97,4 +102,8 @@ public:
 	/** The target bar stays this long after the tool stops or leaves the target. */
 	UPROPERTY(Config, EditAnywhere, Category = "Visor", meta = (ClampMin = "0", Units = "Seconds"))
 	float TargetLingerSeconds = 0.f;
+
+	/** NAR-01a (ADR-0049): the handler's radio, its cues and subtitles (DA_RadioScript, create_story_assets.py). */
+	UPROPERTY(Config, EditAnywhere, Category = "Radio")
+	TSoftObjectPtr<UHollowRadioScript> RadioScript;
 };

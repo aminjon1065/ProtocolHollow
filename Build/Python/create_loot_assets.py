@@ -4,7 +4,8 @@
   /Game/Hollow/World/Loot/GC_LootCrate                     geometry collection: the crate in Voronoi pieces (cosmetic debris)
   /Game/Hollow/World/Loot/BP_LootPickup                    AHollowLootPickup: loot on the floor (the item's mesh, else this)
   /Game/Hollow/World/Loot/BP_LootCrate_Docks, _Cathedral   AHollowLootCrate: the hub's kit crate, its health, its table
-  DA_Biome_Docks / DA_Biome_Cathedral                      their Loot sockets spawn the sector's crate (first rule of the type)
+  DA_Biome_Docks / DA_Biome_Cathedral                      their Loot sockets spawn the sector's crate (every socket the rules
+                                                            taking a few before it leave: NAR-01b's datapads)
 
 The pickups' meshes are create_art_kit.py's (UHollowItemDefinition::PickupMesh), the break's noise rule
 create_noise_assets.py's, its sounds create_audio_assets.py's. Every asset is created when missing and refreshed only
@@ -230,13 +231,16 @@ def ensure_biome_rule(sector, crate_class):
                 save(biome)
                 log("DA_Biome_%s: the crates' offset" % sector)
                 return
-            break   # the first Loot rule is another's: ours goes in front of it
+            if rule.get_editor_property("max_per_sector") == 0:
+                break   # a rule taking every Loot socket is another's: ours goes in front of it
     rule = unreal.HollowSocketActorRule()
     rule.set_editor_property("socket_type", make_tag(LOOT_SOCKET))
     rule.set_editor_property("actor_class", crate_class)
     rule.set_editor_property("spawn_offset", offset)
-    rule.set_editor_property("max_per_sector", 0)   # every Loot socket: the markers behind it get none
-    index = next((i for i, r in enumerate(rules) if r.get_editor_property("socket_type").export_text() == loot), len(rules))
+    rule.set_editor_property("max_per_sector", 0)   # every Loot socket left: the markers behind it get none
+    # NAR-01b: after the rules that take a few Loot sockets (the crew datapads), in front of any that takes every one.
+    index = next((i for i, r in enumerate(rules) if r.get_editor_property("socket_type").export_text() == loot
+                  and r.get_editor_property("max_per_sector") == 0), len(rules))
     rules.insert(index, rule)
     biome.set_editor_property("socket_actors", rules)
     save(biome)
@@ -256,9 +260,12 @@ def validate():
         check(crate.get_editor_property("loot_table") == table, sector + " crate holds its table")
         check(crate.get_editor_property("pickup_class") == load(PICKUP_BP).generated_class(), sector + " crate spills BP_LootPickup")
         check(crate.get_editor_property("fracture") is not None, sector + " crate breaks into GC_LootCrate")
-        first = [r for r in load(BIOMES[sector]).get_editor_property("socket_actors")
-                 if r.get_editor_property("socket_type").export_text() == make_tag(LOOT_SOCKET).export_text()]
-        check(first and first[0].get_editor_property("actor_class") == crate_class, "DA_Biome_%s: the first Loot rule spawns the crate" % sector)
+        loot_rules = [r for r in load(BIOMES[sector]).get_editor_property("socket_actors")
+                      if r.get_editor_property("socket_type").export_text() == make_tag(LOOT_SOCKET).export_text()]
+        crates = [i for i, r in enumerate(loot_rules) if r.get_editor_property("actor_class") == crate_class]
+        check(len(crates) == 1 and loot_rules[crates[0]].get_editor_property("max_per_sector") == 0
+              and all(r.get_editor_property("max_per_sector") > 0 for r in loot_rules[:crates[0]]),
+              "DA_Biome_%s: the crates take every Loot socket the few-socket rules before them leave" % sector)
     log("validation passed")
 
 

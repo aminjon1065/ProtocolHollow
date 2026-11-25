@@ -4,6 +4,7 @@
   /Game/Hollow/UI/Hub/BP_ButtonStyle_Tab|BP_ButtonStyle_Row, W_TabButton, W_RowButton   tab and row buttons
   /Game/Hollow/UI/Hub/W_HubTabList, W_HubRow           the workbench's tab bar, one line of a screen's list
   /Game/Hollow/UI/Hub/W_Workbench, W_Loadout, W_ContractTerminal   the three terminals' screens (Menu layer)
+  /Game/Hollow/UI/Hub/W_Codex                                      NAR-01b (ADR-0050): the crew archive's Codex (list + reader)
   W_Loadout's class list (S6-01, ADR-0034), added to a locker from before it
 
 The screens' classes and the shop's bulk count are config (DefaultGame.ini, Hollow UI settings), checked here.
@@ -11,9 +12,14 @@ Widget trees are composed through UHollowWidgetAuthoring (HollowEditor). Creates
 widget is kept as is), then validates. Run after create_ui_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_hub_ui_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -35,6 +41,7 @@ INI_LINES = [
     "WorkbenchScreenClass=" + HUB_DIR + "/W_Workbench.W_Workbench_C",
     "LoadoutScreenClass=" + HUB_DIR + "/W_Loadout.W_Loadout_C",
     "ContractScreenClass=" + HUB_DIR + "/W_ContractTerminal.W_ContractTerminal_C",
+    "CodexScreenClass=" + HUB_DIR + "/W_Codex.W_Codex_C",
     "ShopBulkCount=10",
 ]
 
@@ -42,6 +49,7 @@ INI_LINES = [
 TITLE_SIZE = 32
 SECTION_SIZE = 20
 ROW_NAME_SIZE = 18
+ROW_NAME_FIT = "NameFit"   # LOC-01: the scale box around a row's name
 ROW_DETAIL_SIZE = 14
 ROW_BUTTON_TEXT_SIZE = 16
 TAB_TEXT_SIZE = 20
@@ -51,6 +59,12 @@ PANEL_WIDTH = 1200.0
 LIST_HEIGHT = 420.0
 CONTRACT_LIST_HEIGHT = 300.0
 CLASS_LIST_HEIGHT = 120.0   # S6-01: two classes in sight; more scroll
+CODEX_LIST_WIDTH = 560.0    # NAR-01b: the logs by sector, beside the reader
+CODEX_READER_WIDTH = 620.0
+CODEX_READER_MARGIN = 24.0  # the reader's scroll bar
+CODEX_HEIGHT = 520.0        # a whole log reads without scrolling at 1080p (Hollow.UI.Codex.Screen)
+READER_TITLE_SIZE = 22
+READER_BODY_SIZE = 16
 STASH_WIDTH = 480.0
 LOADOUT_WIDTH = 704.0
 ROW_BUTTON_MIN_WIDTH = 120
@@ -189,8 +203,33 @@ def box_slot(widget, h=H.H_ALIGN_FILL, v=V.V_ALIGN_FILL, padding=NO_PADDING, fil
         raise RuntimeError("No box slot on " + widget.get_name())
 
 
+# LOC-01 (ADR-0048): the screens' own texts, (widget, key, English source) in loc.HUB; the rest is filled at run time.
+HUB_TEXTS = {
+    "W_Workbench": [("Title", "Hub.Workbench.Title", "WORKBENCH"), ("CloseButton", "Hub.Close", "Close")],
+    "W_Loadout": [("Title", "Hub.Locker.Title", "LOCKER"), ("ClassTitle", "Hub.Locker.Class", "CLASS"),
+                  ("StashColumnTitle", "Hub.Locker.Stash", "STASH"), ("LoadoutColumnTitle", "Hub.Locker.Loadout", "LOADOUT"),
+                  ("CloseButton", "Hub.Close", "Close")],
+    "W_ContractTerminal": [("Title", "Hub.Contracts.Title", "CONTRACTS"), ("LaunchButton", "Hub.Contracts.Launch", "Launch the raid"),
+                           ("CloseButton", "Hub.Close", "Close")],
+    "W_Codex": [("Title", "Hub.Codex.Title", "CREW ARCHIVE"), ("CloseButton", "Hub.Close", "Close")],   # NAR-01b
+}
+
+
+def hub_text(screen, widget_name):
+    """The loc.HUB text of a screen's own widget (HUB_TEXTS)."""
+    for name, key, source in HUB_TEXTS[screen]:
+        if name == widget_name:
+            return loc.text(loc.HUB, key, source)
+    raise KeyError("%s has no text for %s" % (screen, widget_name))
+
+
 def text(widget, value, size, justification=unreal.TextJustify.LEFT, tint=None):
-    widget.set_editor_property("text", unreal.Text(value))
+    """Value: an FText (hub_text) or "" (filled at run time)."""
+    if isinstance(value, str):
+        if value:
+            raise ValueError("a player text comes from loc.HUB, not a plain string: %r" % value)
+        value = unreal.Text("")
+    widget.set_editor_property("text", value)
     font = widget.get_editor_property("font")
     font.set_editor_property("size", size)
     widget.set_editor_property("font", font)
@@ -267,15 +306,27 @@ def style_button(button, style_path, min_width):
 
 
 def ensure_row():
-    blueprint = new_widget_blueprint(HUB_DIR + "/W_HubRow", unreal.HollowHubRowWidget)
+    path = HUB_DIR + "/W_HubRow"
+    blueprint = new_widget_blueprint(path, unreal.HollowHubRowWidget)
     if blueprint is None:
-        return
+        blueprint = load(path)
+        if author.find_widget(blueprint, ROW_NAME_FIT) is not None:
+            return
+        # LOC-01 (ADR-0048): a row from before the name's scale box is built again (the same bound widgets).
+        if not author.clear_widgets(blueprint):
+            raise RuntimeError("Could not clear W_HubRow")
+        log("W_HubRow: rebuilt with %s" % ROW_NAME_FIT)
     add(blueprint, unreal.HorizontalBox, "Root")
     column = add(blueprint, unreal.VerticalBox, "TextColumn", "Root")
     box_slot(column, H.H_ALIGN_FILL, V.V_ALIGN_CENTER, unreal.Margin(PANEL_PADDING, PANEL_PADDING / 2.0, PANEL_PADDING, PANEL_PADDING / 2.0), fill=1.0)
-    name = add(blueprint, unreal.TextBlock, "NameText", "TextColumn")
+    # The name keeps one line in a narrow column: a longer one (a Russian name, LOC-01) shrinks to fit, never grows.
+    fit = add(blueprint, unreal.ScaleBox, ROW_NAME_FIT, "TextColumn")
+    fit.set_editor_property("stretch", unreal.Stretch.SCALE_TO_FIT)
+    fit.set_editor_property("stretch_direction", unreal.StretchDirection.DOWN_ONLY)
+    box_slot(fit, H.H_ALIGN_FILL, V.V_ALIGN_TOP)
+    name = add(blueprint, unreal.TextBlock, "NameText", ROW_NAME_FIT)
     text(name, "", ROW_NAME_SIZE)
-    box_slot(name, H.H_ALIGN_LEFT, V.V_ALIGN_TOP)
+    name.get_editor_property("slot").set_editor_property("horizontal_alignment", H.H_ALIGN_LEFT)
     detail = add(blueprint, unreal.TextBlock, "DetailText", "TextColumn")
     text(detail, "", ROW_DETAIL_SIZE, tint=DETAIL_COLOR)
     detail.set_editor_property("auto_wrap_text", True)
@@ -294,7 +345,7 @@ def ensure_row():
 
 
 def screen_frame(blueprint, title):
-    """Backdrop and the centred panel with its title; returns nothing (the panel is "Panel")."""
+    """Backdrop and the centred panel with its title (the screen's hub_text); returns nothing (the panel is "Panel")."""
     add(blueprint, unreal.Overlay, "Root")
     backdrop(blueprint)
     panel = add(blueprint, unreal.VerticalBox, "Panel", "Root")
@@ -317,6 +368,7 @@ def scrolled_list(blueprint, parent, prefix, list_name, width, height):
 
 def screen_footer(blueprint):
     """The message line, then the status line with Close."""
+    screen = blueprint.get_name()
     message = add(blueprint, unreal.TextBlock, "MessageText", "Panel")
     text(message, "", LINE_SIZE, tint=MESSAGE_COLOR)
     box_slot(message, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(PANEL_PADDING, PANEL_PADDING, 0.0, PANEL_PADDING))
@@ -326,7 +378,7 @@ def screen_footer(blueprint):
     text(status, "", LINE_SIZE)
     box_slot(status, H.H_ALIGN_LEFT, V.V_ALIGN_CENTER, unreal.Margin(PANEL_PADDING, 0.0, PANEL_PADDING, 0.0), fill=1.0)
     close = add(blueprint, load(MENU_BUTTON).generated_class(), "CloseButton", "Footer")
-    close.set_editor_property("label", unreal.Text("Close"))
+    close.set_editor_property("label", hub_text(screen, "CloseButton"))
     box_slot(close, H.H_ALIGN_RIGHT, V.V_ALIGN_CENTER)
 
 
@@ -340,7 +392,7 @@ def ensure_workbench():
     blueprint = new_widget_blueprint(HUB_DIR + "/W_Workbench", unreal.HollowWorkbenchWidget)
     if blueprint is None:
         return
-    screen_frame(blueprint, "WORKBENCH")
+    screen_frame(blueprint, hub_text("W_Workbench", "Title"))
     tabs = add(blueprint, load(HUB_DIR + "/W_HubTabList").generated_class(), "Tabs", "Panel")
     tabs.set_editor_property("tab_button_class", load(HUB_DIR + "/W_TabButton").generated_class())
     tabs.set_editor_property("previous_tab_enhanced_input_action", load(INPUT_DIR + "/IA_UI_TabPrev"))
@@ -365,10 +417,10 @@ def ensure_loadout():
     blueprint = new_widget_blueprint(HUB_DIR + "/W_Loadout", unreal.HollowLoadoutWidget)
     if blueprint is None:
         return
-    screen_frame(blueprint, "LOCKER")
+    screen_frame(blueprint, hub_text("W_Loadout", "Title"))
     box_slot(add(blueprint, unreal.HorizontalBox, "Columns", "Panel"), H.H_ALIGN_CENTER, V.V_ALIGN_TOP)
-    column(blueprint, "StashColumn", "STASH", "StashList", STASH_WIDTH)
-    column(blueprint, "LoadoutColumn", "LOADOUT", "LoadoutList", LOADOUT_WIDTH)
+    column(blueprint, "StashColumn", hub_text("W_Loadout", "StashColumnTitle"), "StashList", STASH_WIDTH)
+    column(blueprint, "LoadoutColumn", hub_text("W_Loadout", "LoadoutColumnTitle"), "LoadoutList", LOADOUT_WIDTH)
     screen_footer(blueprint)
     compile_and_save(blueprint)
     set_row_class(blueprint)
@@ -383,7 +435,7 @@ def ensure_locker_classes():
     box = author.insert_widget(blueprint, unreal.SizeBox, "ClassBox", "Panel", 2)
     if heading is None or box is None:
         raise RuntimeError("Could not add the class list to W_Loadout")
-    text(heading, "CLASS", SECTION_SIZE, tint=HEADER_COLOR)
+    text(heading, hub_text("W_Loadout", "ClassTitle"), SECTION_SIZE, tint=HEADER_COLOR)
     box_slot(heading, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(PANEL_PADDING, 0.0, 0.0, 0.0))
     box.set_width_override(STASH_WIDTH + LOADOUT_WIDTH + PANEL_PADDING * 4.0)
     box.set_height_override(CLASS_LIST_HEIGHT)
@@ -401,18 +453,69 @@ def ensure_contract_terminal():
     blueprint = new_widget_blueprint(HUB_DIR + "/W_ContractTerminal", unreal.HollowContractTerminalWidget)
     if blueprint is None:
         return
-    screen_frame(blueprint, "CONTRACTS")
+    screen_frame(blueprint, hub_text("W_ContractTerminal", "Title"))
     role = add(blueprint, unreal.TextBlock, "RoleText", "Panel")
     text(role, "", LINE_SIZE, unreal.TextJustify.CENTER, DETAIL_COLOR)
     box_slot(role, H.H_ALIGN_CENTER, V.V_ALIGN_TOP)
     scrolled_list(blueprint, "Panel", "List", "RowList", PANEL_WIDTH, CONTRACT_LIST_HEIGHT)
     launch = add(blueprint, load(MENU_BUTTON).generated_class(), "LaunchButton", "Panel")
-    launch.set_editor_property("label", unreal.Text("Launch the raid"))
+    launch.set_editor_property("label", hub_text("W_ContractTerminal", "LaunchButton"))
     # Full width: the D-pad reaches it from any row's buttons above and Close below (Slate navigates by overlap).
     box_slot(launch, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
     screen_footer(blueprint)
     compile_and_save(blueprint)
     set_row_class(blueprint)
+
+
+def wrapped(blueprint, name, parent, size, tint, padding):
+    """A reader text wrapped at the reader's width (a fixed width: its height is known before the first frame)."""
+    block = add(blueprint, unreal.TextBlock, name, parent)
+    text(block, "", size, tint=tint)
+    block.set_editor_property("wrap_text_at", CODEX_READER_WIDTH - CODEX_READER_MARGIN)
+    box_slot(block, H.H_ALIGN_FILL, V.V_ALIGN_TOP, padding)
+    return block
+
+
+def ensure_codex():
+    """NAR-01b (ADR-0050): the crew logs by sector on the left (W_HubRow, Read), the reader on the right."""
+    blueprint = new_widget_blueprint(HUB_DIR + "/W_Codex", unreal.HollowCodexWidget)
+    if blueprint is None:
+        return
+    screen_frame(blueprint, hub_text("W_Codex", "Title"))
+    columns = add(blueprint, unreal.HorizontalBox, "Columns", "Panel")
+    box_slot(columns, H.H_ALIGN_FILL, V.V_ALIGN_TOP)
+    scrolled_list(blueprint, "Columns", "List", "EntryList", CODEX_LIST_WIDTH, CODEX_HEIGHT)
+    reader_box = add(blueprint, unreal.SizeBox, "ReaderBox", "Columns")
+    reader_box.set_width_override(CODEX_READER_WIDTH)
+    reader_box.set_height_override(CODEX_HEIGHT)
+    box_slot(reader_box, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(PANEL_PADDING * 2.0, PANEL_PADDING, 0.0, PANEL_PADDING))
+    add(blueprint, unreal.ScrollBox, "ReaderScroll", "ReaderBox")
+    add(blueprint, unreal.VerticalBox, "Reader", "ReaderScroll")
+    wrapped(blueprint, "ReaderTitle", "Reader", READER_TITLE_SIZE, HIGHLIGHT_COLOR, NO_PADDING)
+    wrapped(blueprint, "ReaderMeta", "Reader", ROW_DETAIL_SIZE, DETAIL_COLOR, unreal.Margin(0.0, PANEL_PADDING * 0.5, 0.0, 0.0))
+    wrapped(blueprint, "ReaderBody", "Reader", READER_BODY_SIZE, NAME_COLOR, unreal.Margin(0.0, PANEL_PADDING * 2.0, 0.0, 0.0))
+    screen_footer(blueprint)
+    compile_and_save(blueprint)
+    set_row_class(blueprint)
+
+
+def localize_screens():
+    """LOC-01 (ADR-0048): the screens' texts made before the string tables point at their entries now."""
+    for screen, entries in sorted(HUB_TEXTS.items()):
+        blueprint = load(HUB_DIR + "/" + screen)
+        changed = []
+        for name, key, source in entries:
+            widget = author.find_widget(blueprint, name)
+            if widget is None:
+                raise RuntimeError("%s has no %s" % (screen, name))
+            prop = "text" if isinstance(widget, unreal.TextBlock) else "label"
+            if loc.set_text(widget, prop, loc.HUB, key, source):
+                changed.append(name)
+        if changed:
+            if not author.compile(blueprint):
+                raise RuntimeError(screen + " does not compile")
+            save(blueprint)
+            log("%s: %s into %s" % (screen, ", ".join(changed), loc.HUB))
 
 
 # ---------------------------------------------------------------- validation
@@ -433,8 +536,9 @@ def validate():
     for path, parent in ((HUB_DIR + "/W_TabButton", unreal.HollowButton), (HUB_DIR + "/W_RowButton", unreal.HollowButton),
                          (HUB_DIR + "/W_HubTabList", unreal.HollowTabListWidget), (HUB_DIR + "/W_HubRow", unreal.HollowHubRowWidget),
                          (HUB_DIR + "/W_Workbench", unreal.HollowWorkbenchWidget), (HUB_DIR + "/W_Loadout", unreal.HollowLoadoutWidget),
-                         (HUB_DIR + "/W_ContractTerminal", unreal.HollowContractTerminalWidget)):
+                         (HUB_DIR + "/W_ContractTerminal", unreal.HollowContractTerminalWidget), (HUB_DIR + "/W_Codex", unreal.HollowCodexWidget)):
         check(derives(path, parent), path + " derives from " + parent.__name__)
+    check(author.find_widget(load(HUB_DIR + "/W_HubRow"), ROW_NAME_FIT) is not None, "W_HubRow shrinks a long name to fit (LOC-01)")
     row_class = load(HUB_DIR + "/W_HubRow").generated_class()
     check(author.find_widget(load(HUB_DIR + "/W_Loadout"), "ClassList") is not None, "W_Loadout lists the classes (S6-01)")
     row_style = load(HUB_DIR + "/BP_ButtonStyle_Row").generated_class()
@@ -442,7 +546,7 @@ def validate():
         button = author.find_widget(load(HUB_DIR + "/W_HubRow"), slot_name)
         check(button is not None and button.get_editor_property("style") == row_style
               and button.get_editor_property("min_width") == ROW_BUTTON_MIN_WIDTH, "W_HubRow " + slot_name + " style")
-    for name in ("W_Workbench", "W_Loadout", "W_ContractTerminal"):
+    for name in ("W_Workbench", "W_Loadout", "W_ContractTerminal", "W_Codex"):
         screen = unreal.get_default_object(load(HUB_DIR + "/" + name).generated_class())
         check(screen.get_editor_property("row_class") == row_class, name + " rows are W_HubRow")
     tab_list = unreal.get_default_object(load(HUB_DIR + "/W_HubTabList").generated_class())
@@ -471,6 +575,9 @@ def main():
     ensure_loadout()
     ensure_locker_classes()
     ensure_contract_terminal()
+    ensure_codex()
+    localize_screens()
+    loc.save()
     validate()
     unreal.log(SUCCESS_MARKER)
 

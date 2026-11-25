@@ -50,7 +50,7 @@ namespace HollowArtTests
 	/** Budget (create_art_kit.py MAX_TRIANGLES, TEXTURE_MAX_SIZE). */
 	constexpr int32 MaxTriangles = 6000;
 	constexpr int32 MaxTextureSize = 1024;
-	constexpr int32 KitMeshes = 32;   // GP-01: the two weapons and five pickups; GP-02: the Whisperer and its nest
+	constexpr int32 KitMeshes = 33;   // GP-01: the two weapons and five pickups; GP-02: the Whisperer and its nest; NAR-01b: the datapad
 	constexpr int32 CcTextures = 18;
 	/** Test data. */
 	constexpr float TickSeconds = 1.f / 30.f;

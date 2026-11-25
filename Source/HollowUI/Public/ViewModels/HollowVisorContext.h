@@ -15,6 +15,7 @@ class UHollowClassComponent;
 class UHollowClassDefinition;
 class UHollowObjectiveModel;
 class UHollowPromptModel;
+class UHollowRadioModel;
 class UHollowSquadResonanceComponent;
 class UHollowToolTargetModel;
 class UHollowVisorStyle;
@@ -55,6 +56,9 @@ public:
 
 	/** What the player should do now and the places to mark (UX-01, ADR-0042). */
 	UHollowObjectiveModel* GetObjective() const { return Objective; }
+
+	/** The handler's radio: subtitles and clicks from this machine's own events (NAR-01a, ADR-0049). */
+	UHollowRadioModel* GetRadio() const { return Radio; }
 
 	/**
 	 * The player's voice (S4-07): OnVoiceActivityChanged drives the microphone indicator (drawn by the S4-08 visor);
@@ -115,6 +119,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHollowObjectiveModel> Objective;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHollowRadioModel> Radio;
 
 	UPROPERTY(Transient)
 	TObjectPtr<const UHollowVisorStyle> Style;

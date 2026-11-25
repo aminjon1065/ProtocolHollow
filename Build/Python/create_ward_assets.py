@@ -20,9 +20,14 @@ Run after create_lantern_assets.py, before create_economy_assets.py and create_c
 """
 import hashlib
 import json
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -130,7 +135,7 @@ def text_of(value):
     if isinstance(value, (list, tuple, unreal.Array)):
         return [text_of(v) for v in value]
     if isinstance(value, unreal.Text):
-        return str(value)
+        return [loc.entry(value), str(value)]   # LOC-01: a plain text is not the table's entry
     if hasattr(value, "export_text"):
         return value.export_text()
     if hasattr(value, "get_path_name"):
@@ -367,7 +372,7 @@ def ensure_ability_set(ability_class):
 
 def ensure_item(ability_set):
     item, created = data_asset(ITEM_PATH, unreal.HollowItemDefinition)
-    changed = refresh(item, dict(ITEM, display_name=unreal.Text(ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]),
+    changed = refresh(item, dict(ITEM, display_name=loc.text(loc.ITEMS, "Item.OccultWard.Name", ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]),
                                  equip_slot=make_tag(ITEM["equip_slot"])))
     if text_of(item.get_editor_property("ability_set")) != text_of(ability_set):
         item.set_editor_property("ability_set", ability_set)
@@ -410,6 +415,7 @@ def main():
     material = ensure_material()
     definition = ensure_definition(bind, calm, drain)
     ensure_item(ensure_ability_set(ensure_ability(ensure_ward(definition, material), cooldown)))
+    loc.save()
     validate()
     unreal.log(SUCCESS_MARKER)
 

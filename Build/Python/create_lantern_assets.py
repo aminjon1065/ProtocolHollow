@@ -16,9 +16,14 @@ Every asset is created when missing and refreshed only when it differs from the 
 Run after create_inventory_assets.py, before create_economy_assets.py and create_class_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_lantern_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -136,7 +141,7 @@ def text_of(value):
     if isinstance(value, (list, tuple, unreal.Array)):
         return [text_of(v) for v in value]
     if isinstance(value, unreal.Text):
-        return str(value)
+        return [loc.entry(value), str(value)]   # LOC-01: a plain text is not the table's entry
     if hasattr(value, "export_text"):
         return value.export_text()
     if hasattr(value, "get_path_name"):
@@ -204,7 +209,7 @@ def stalker_traits_ready():
 def ensure_definition(expose, aura):
     definition, created = data_asset(DEFINITION_PATH, unreal.HollowLanternDefinition)
     wanted = {key: value for key, value in LANTERN.items() if key not in ("action_label", "beam_color")}
-    wanted["action_label"] = unreal.Text(LANTERN["action_label"])
+    wanted["action_label"] = loc.text(loc.ITEMS, "Tool.AetherLantern.Action", LANTERN["action_label"])
     wanted["beam_color"] = unreal.LinearColor(*LANTERN["beam_color"])
     wanted["tool_tag"] = make_tag(TOOL_TAG)
     wanted["noise_tag"] = make_tag(NOISE_TAG)
@@ -240,7 +245,7 @@ def ensure_ability_set(ability_class):
 
 def ensure_item(ability_set):
     item, created = data_asset(ITEM_PATH, unreal.HollowItemDefinition)
-    wanted = dict(ITEM, display_name=unreal.Text(ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]), equip_slot=make_tag(ITEM["equip_slot"]))
+    wanted = dict(ITEM, display_name=loc.text(loc.ITEMS, "Item.AetherLantern.Name", ITEM["display_name"]), item_type=make_tag(ITEM["item_type"]), equip_slot=make_tag(ITEM["equip_slot"]))
     changed = refresh(item, wanted)
     if text_of(item.get_editor_property("ability_set")) != text_of(ability_set):
         item.set_editor_property("ability_set", ability_set)
@@ -307,6 +312,7 @@ def main():
     definition = ensure_definition(expose, aura)
     ensure_item(ensure_ability_set(ensure_ability(definition)))
     ensure_cues()
+    loc.save()
     validate()
     unreal.log(SUCCESS_MARKER)
 

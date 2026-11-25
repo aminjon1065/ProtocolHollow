@@ -7,9 +7,14 @@
 Creates or adds only what is missing (never overwrites tuning done in the editor), then validates.
 Run: Build/Scripts/run-editor-python.sh Build/Python/create_interaction_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -34,6 +39,7 @@ LAMP_INTENSITY = 800.0
 LAMP_RADIUS = 250.0
 PROMPT_ON = "Turn on"
 PROMPT_OFF = "Turn off"
+PROMPT_KEYS = (("prompt_turn_on", "World.Switch.On", PROMPT_ON), ("prompt_turn_off", "World.Switch.Off", PROMPT_OFF))   # loc.WORLD (LOC-01)
 
 # Placement in L_Hub_Dev: in reach and at eye level for whoever spawns at each PlayerStart.
 SWITCH_FORWARD = 150.0          # uu in front of the start (interaction range is 250)
@@ -157,14 +163,19 @@ def ensure_config_entry():
 
 def ensure_switch_blueprint():
     if assets.does_asset_exist(SWITCH_BP_PATH):
-        log("BP_Switch exists, kept as is")
+        blueprint = load(SWITCH_BP_PATH)   # kept as is, but its prompts point at loc.WORLD (LOC-01, from before the tables)
+        switch = unreal.get_default_object(blueprint.generated_class())
+        changed = [prop for prop, key, source in PROMPT_KEYS if loc.set_text(switch, prop, loc.WORLD, key, source)]
+        if changed:
+            save(blueprint)
+            log("BP_Switch: %s into %s" % (", ".join(changed), loc.WORLD))
         return
     factory = unreal.BlueprintFactory()
     factory.set_editor_property("parent_class", unreal.HollowSwitch)
     blueprint = create(SWITCH_BP_PATH, unreal.Blueprint, factory)
     switch = unreal.get_default_object(blueprint.generated_class())
-    switch.set_editor_property("prompt_turn_on", PROMPT_ON)
-    switch.set_editor_property("prompt_turn_off", PROMPT_OFF)
+    for prop, key, source in PROMPT_KEYS:
+        switch.set_editor_property(prop, loc.text(loc.WORLD, key, source))
 
     mesh = switch.get_editor_property("mesh")
     mesh.set_editor_property("static_mesh", load(CUBE_MESH))
@@ -237,6 +248,7 @@ def main():
     ensure_mappings()
     ensure_config_entry()
     ensure_switch_blueprint()
+    loc.save()
     validate(ensure_hub_switches())
     unreal.log(SUCCESS_MARKER)
 

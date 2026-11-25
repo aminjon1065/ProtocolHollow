@@ -23,16 +23,20 @@
 #include "Hub/HollowHubScreenWidget.h"
 #include "Hub/HollowWorkbenchWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
+#include "Localization/HollowLanguage.h"
 #include "Misc/Paths.h"
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "Util/HollowEnumUtils.h"
 #include "ViewModels/HollowObjectiveModel.h"
+#include "Profile/HollowProfileSubsystem.h"
 #include "ViewModels/HollowPromptModel.h"
+#include "ViewModels/HollowRadioModel.h"
 #include "ViewModels/HollowToolTargetModel.h"
 #include "ViewModels/HollowVisorContext.h"
 #include "Voice/HollowVoiceComponent.h"
 #include "Raid/HollowRaidStatusWidget.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Visor/HollowStatBarWidget.h"
 #include "Visor/HollowVisorElement.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
@@ -154,6 +158,10 @@ namespace HollowUIDevConsole
 		{
 			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: %s"), *Objective->Describe());   // UX-01, also when the tracker is hidden
 		}
+		if (const UHollowRadioModel* Radio = Context->GetRadio())
+		{
+			UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: %s"), *Radio->Describe());   // NAR-01a
+		}
 		const UHollowPromptModel* Prompt = Context->GetPrompt();
 		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Dump: prompt %d [%s] %s (%s)"), Prompt->IsVisible(), *Prompt->GetKeyLabel().ToString(),
 			*Prompt->GetPrompt().ToString(), *GetNameSafe(Prompt->GetFocus()));
@@ -244,6 +252,80 @@ namespace HollowUIDevConsole
 		FScreenshotRequest::RequestScreenshot(File, /*bInShowUI=*/true, /*bAddFilenameSuffix=*/true);
 		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Shot: %s"), *File);
 	}
+
+	/** LOC-01 (ADR-0048): prints or switches the language of the texts. Usage: Hollow.UI.Language [en|ru] [Keep] */
+	void Language(const TArray<FString>& Args)
+	{
+		if (Args.Num() > 0)
+		{
+			const TOptional<EHollowLanguage> Wanted = HollowLanguage::Parse(Args[0]);
+			if (!Wanted.IsSet())
+			{
+				UE_LOG(LogHollowUI, Warning, TEXT("Hollow.UI.Language: '%s' is not a language (en, ru)."), *Args[0]);
+				return;
+			}
+			const bool bKeep = Args.Num() > 1 && Args[1].Equals(TEXT("Keep"), ESearchCase::IgnoreCase);
+			if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+			{
+				Settings->SetLanguage(Wanted.GetValue(), bKeep);
+			}
+			else
+			{
+				HollowLanguage::Apply(Wanted.GetValue());
+			}
+		}
+		const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Language: %s (%s), kept '%s'"), LexToString(HollowLanguage::GetApplied()),
+			HollowLanguage::CultureName(HollowLanguage::GetApplied()), Settings ? *Settings->GetSavedLanguage() : TEXT("-"));
+	}
+
+	/** NAR-01a (ADR-0049): fires a radio trigger on this machine. Usage: Hollow.Radio.Fire <Trigger> [Force] */
+	void RadioFire(const TArray<FString>& Args, UWorld* World)
+	{
+		const UHollowVisorContext* Context = UHollowVisorContext::Get(LocalPlayer(World));
+		UHollowRadioModel* Radio = Context ? Context->GetRadio() : nullptr;
+		const FString Name = Args.Num() > 0 ? (Args[0].StartsWith(TEXT("Hollow.")) ? Args[0] : TEXT("Hollow.Radio.") + Args[0]) : FString();
+		const FGameplayTag Trigger = FGameplayTag::RequestGameplayTag(FName(*Name), /*ErrorIfNotFound=*/false);
+		if (!Radio || !Trigger.IsValid())
+		{
+			UE_LOG(LogHollowUI, Warning, TEXT("Hollow.Radio.Fire <Trigger> [Force]: no visor here, or '%s' is no Hollow.Radio.* trigger."), *Name);
+			return;
+		}
+		const bool bForce = Args.Num() > 1 && Args[1].Equals(TEXT("Force"), ESearchCase::IgnoreCase);
+		const bool bQueued = Radio->Fire(Trigger, bForce);
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.Radio.Fire %s%s: %s; %s"), *Trigger.ToString(), bForce ? TEXT(" (forced)") : TEXT(""),
+			bQueued ? TEXT("queued") : TEXT("nothing to say"), *Radio->Describe());
+	}
+
+	/** NAR-01a: forgets every radio cue heard (the profile's and this raid's), so the briefing plays again. */
+	void RadioReset(UWorld* World)
+	{
+		if (UHollowProfileSubsystem* Profile = UHollowProfileSubsystem::Get(World))
+		{
+			Profile->ForgetRadio();
+		}
+		const UHollowVisorContext* Context = UHollowVisorContext::Get(LocalPlayer(World));
+		if (UHollowRadioModel* Radio = Context ? Context->GetRadio() : nullptr)
+		{
+			Radio->Forget();
+		}
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.Radio.Reset: every radio cue forgotten"));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs RadioFireCommand(
+		TEXT("Hollow.Radio.Fire"),
+		TEXT("Fires a radio trigger on this machine (Force ignores whether it was heard). Usage: Hollow.Radio.Fire <Core.Lifted|Hollow.Radio.*> [Force]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RadioFire));
+
+	FAutoConsoleCommandWithWorld RadioResetCommand(
+		TEXT("Hollow.Radio.Reset"),
+		TEXT("Forgets every radio cue heard: the profile's (the briefing plays again) and this raid's."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&RadioReset));
+
+	FAutoConsoleCommand LanguageCommand(
+		TEXT("Hollow.UI.Language"),
+		TEXT("Prints or switches the language of the texts at once (Keep also saves it). Usage: Hollow.UI.Language [en|ru] [Keep]"),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Language));
 
 	FAutoConsoleCommand ShotCommand(
 		TEXT("Hollow.UI.Shot"),

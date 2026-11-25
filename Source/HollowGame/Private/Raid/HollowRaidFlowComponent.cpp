@@ -13,6 +13,7 @@
 #include "Crafting/HollowShipUpgradeDefinition.h"
 #include "Inventory/HollowInventoryComponent.h"
 #include "Inventory/HollowLoadoutRules.h"
+#include "Lore/HollowLoreSubsystem.h"
 #include "Profile/HollowEconomySettings.h"
 #include "Raid/HollowExtractionZone.h"
 #include "Raid/HollowRaidLauncher.h"
@@ -108,6 +109,11 @@ bool UHollowRaidFlowComponent::AcceptLoadout(AController* Player, const FHollowL
 	if (Class && !Class->SetClass(Loadout.ClassId.IsValid() ? Loadout.ClassId : DefaultClass))
 	{
 		Class->SetClass(DefaultClass);
+	}
+	// NAR-01b: which crew logs this player has found, so the squad's datapads give the ones the fewest of them know.
+	if (UHollowLoreSubsystem* Lore = UHollowLoreSubsystem::Get(GetWorld()))
+	{
+		Lore->SetKnownLore(Player, Loadout.KnownLore);
 	}
 	UE_LOG(LogHollowGame, Log, TEXT("Raid %s: %s as %s takes %s (the ship adds %s)"), *RaidId.ToString(), *Player->GetName(),
 		Class ? *Class->Describe() : TEXT("no class"), *Inventory->Describe(), *HollowLoadoutRules::Describe(Ship.RaidItems));

@@ -18,9 +18,14 @@ validation keeps it within the task's numbers). Creates or fills only what is mi
 Run after create_cathedral_greybox.py (last in the order):
   Build/Scripts/run-editor-python.sh Build/Python/create_cathedral_mechanics.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -101,6 +106,10 @@ ARC_BREAKER = unreal.Transform(location=unreal.Vector(-250.0, -172.0, 120.0), ro
 ARC_LIGHT = {"relative_location": unreal.Vector(0.0, 0.0, 200.0), "intensity": 8000.0, "attenuation_radius": 500.0,
              "light_color": unreal.Color(r=150, g=205, b=255, a=255)}
 BREAKER = {"prompt_turn_on": "Restore the power", "prompt_turn_off": "Cut the power", "is_on": True}
+# LOC-01 (ADR-0048): the player texts above as entries of loc.ITEMS / loc.WORLD.
+PURIFIED_NAME_KEY = "Item.PurifiedCore.Name"
+ALTAR_PROMPT_KEY = "World.Altar.Place"
+BREAKER_PROMPT_KEYS = (("prompt_turn_on", "World.Breaker.On"), ("prompt_turn_off", "World.Breaker.Off"))
 BREAKER_SCALE = unreal.Vector(0.15, 0.4, 0.6)      # a 15 x 40 x 60 cm box on the wall (engine cube)
 BREAKER_LAMP = {"relative_location": unreal.Vector(80.0, 0.0, 60.0), "intensity": 400.0, "attenuation_radius": 150.0,
                 "light_color": unreal.Color(r=255, g=60, b=40, a=255), "cast_shadows": False}
@@ -215,7 +224,7 @@ def ensure_purified_item():
     if not created:
         return
     core = load(CORE_ITEM)
-    item.set_editor_property("display_name", unreal.Text(PURIFIED_NAME))
+    item.set_editor_property("display_name", loc.text(loc.ITEMS, PURIFIED_NAME_KEY, PURIFIED_NAME))
     item.set_editor_property("item_type", make_tag(CORE_TYPE))
     item.set_editor_property("base_value", int(round(core.get_editor_property("base_value") * PURIFIED_VALUE_FACTOR)))
     item.set_editor_property("insurable", False)
@@ -262,7 +271,7 @@ def ensure_altar():
         definition.set_editor_property("accepted_item", item_id(CORE_ITEM))
         definition.set_editor_property("result_item", item_id(PURIFIED_ITEM))
         definition.set_editor_property("noise_tag", make_tag(ALTAR["noise_tag"]))
-        definition.set_editor_property("place_prompt", unreal.Text(ALTAR["place_prompt"]))
+        definition.set_editor_property("place_prompt", loc.text(loc.WORLD, ALTAR_PROMPT_KEY, ALTAR["place_prompt"]))
         for key in ("ritual_seconds", "pulse_seconds", "heat_burst", "ritual_glow", "flash_seconds", "spent_glow"):
             definition.set_editor_property(key, ALTAR[key])
         definition.set_editor_property("seat", ALTAR_SEAT)
@@ -290,8 +299,8 @@ def ensure_breaker():
     breaker_bp, created = blueprint(BREAKER_BP, unreal.HollowSwitch)
     if created:
         breaker = unreal.get_default_object(breaker_bp.generated_class())
-        breaker.set_editor_property("prompt_turn_on", unreal.Text(BREAKER["prompt_turn_on"]))
-        breaker.set_editor_property("prompt_turn_off", unreal.Text(BREAKER["prompt_turn_off"]))
+        for prop, key in BREAKER_PROMPT_KEYS:
+            breaker.set_editor_property(prop, loc.text(loc.WORLD, key, BREAKER[prop]))
         breaker.set_editor_property("is_on", BREAKER["is_on"])
         mesh = breaker.get_editor_property("mesh")
         mesh.set_editor_property("static_mesh", load(CUBE_MESH))
@@ -403,6 +412,24 @@ def validate(electric_class):
     log("validation passed (altar 20 s, arcs 6 s, purified core %d cr)" % purified.get_editor_property("base_value"))
 
 
+def localize():
+    """LOC-01: the texts of assets made before the string tables point at their entries now."""
+    item = load(PURIFIED_ITEM)
+    if loc.set_text(item, "display_name", loc.ITEMS, PURIFIED_NAME_KEY, PURIFIED_NAME):
+        save(item)
+        log("DA_Item_PurifiedCore: name into " + loc.ITEMS)
+    altar = load(ALTAR_DATA)
+    if loc.set_text(altar, "place_prompt", loc.WORLD, ALTAR_PROMPT_KEY, ALTAR["place_prompt"]):
+        save(altar)
+        log("DA_RitualAltar: prompt into " + loc.WORLD)
+    breaker_bp = load(BREAKER_BP)
+    breaker = unreal.get_default_object(breaker_bp.generated_class())
+    changed = [prop for prop, key in BREAKER_PROMPT_KEYS if loc.set_text(breaker, prop, loc.WORLD, key, BREAKER[prop])]
+    if changed:
+        save(breaker_bp)
+        log("BP_ArcBreaker: %s into %s" % (", ".join(changed), loc.WORLD))
+
+
 def main():
     ensure_instances()
     ensure_purified_item()
@@ -412,6 +439,8 @@ def main():
     breaker_bp = ensure_breaker()
     ensure_arc(electric_class, breaker_bp)
     ensure_socket_rules()
+    localize()
+    loc.save()
     validate(electric_class)
     unreal.log(SUCCESS_MARKER)
 

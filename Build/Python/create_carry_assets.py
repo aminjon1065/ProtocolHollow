@@ -19,9 +19,14 @@ Creates or fills only what is missing, then validates.
 Run after create_exoframe_assets.py, create_gas_assets.py and create_raid_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_carry_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -62,6 +67,7 @@ DORMANCY_DELAY = 0.5                # s asleep before it settles (clients conver
 MAX_AWAKE = 6.0                     # s: a dropped core sleeps by then at the latest
 PROMPT = "Lift the Aether core"
 JOIN_PROMPT = "Take the other side"
+PROMPT_KEYS = (("pickup_prompt", "World.Core.Lift", PROMPT), ("join_prompt", "World.Core.Join", JOIN_PROMPT))   # loc.WORLD (LOC-01)
 
 # Grip: in front of the capsule at hand height (capsule space); the own view holds it low in front of the camera.
 GRIP_GAP = 10.0                     # cm between the capsule and the core
@@ -294,7 +300,7 @@ def ensure_definition(carry_effect):
     factory.set_editor_property("data_asset_class", unreal.HollowCarryableDefinition)
     definition = create(CORE_DEFINITION, unreal.HollowCarryableDefinition, factory)
     grip = grip_offset()
-    definition.set_editor_property("pickup_prompt", PROMPT)
+    definition.set_editor_property("pickup_prompt", loc.text(loc.WORLD, "World.Core.Lift", PROMPT))
     definition.set_editor_property("grip_offset", grip)
     definition.set_editor_property("first_person", make_attach(unreal.Transform(location=FIRST_PERSON_OFFSET)))
     definition.set_editor_property("third_person", make_attach(third_person_offset(grip)))
@@ -324,14 +330,23 @@ def coop_tuning():
     return tuning
 
 
+def localize_prompts():
+    """LOC-01 (ADR-0048): the core's prompts from before the string tables point at their entries now."""
+    definition = load(CORE_DEFINITION)
+    changed = [prop for prop, key, source in PROMPT_KEYS if loc.set_text(definition, prop, loc.WORLD, key, source)]
+    if changed:
+        save(definition)
+        log("DA_Carryable_AetherCore: %s into %s" % (", ".join(changed), loc.WORLD))
+
+
 def ensure_coop(coop_effect):
     """S3-06: a definition from before co-op carry gets its join prompt, effect and tether."""
     definition = load(CORE_DEFINITION)
     wanted = coop_tuning()
-    if (str(definition.get_editor_property("join_prompt")) == JOIN_PROMPT and definition.get_editor_property("coop_effect") == coop_effect
+    if (loc.is_text(definition.get_editor_property("join_prompt"), loc.WORLD, "World.Core.Join") and definition.get_editor_property("coop_effect") == coop_effect
             and definition.get_editor_property("coop").export_text() == wanted.export_text()):
         return
-    definition.set_editor_property("join_prompt", JOIN_PROMPT)
+    definition.set_editor_property("join_prompt", loc.text(loc.WORLD, "World.Core.Join", JOIN_PROMPT))
     definition.set_editor_property("coop_effect", coop_effect)
     definition.set_editor_property("coop", wanted)
     save(definition)
@@ -428,6 +443,8 @@ def main():
     ensure_coop(coop_effect)
     ensure_blueprint()
     ensure_biome_rule()
+    localize_prompts()
+    loc.save()
     validate(carry_effect, coop_effect, recovery)
     unreal.log(SUCCESS_MARKER)
 

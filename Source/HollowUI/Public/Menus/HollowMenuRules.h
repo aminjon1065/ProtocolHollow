@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 
+enum class EHollowLanguage : uint8;
+
 class UWorld;
 
 /** Where the local player stands when a menu opens (S4-06). */
@@ -35,4 +37,11 @@ namespace HollowMenuRules
 
 	/** Whether World is the front-end map (UHollowNetworkSettings::FrontEndMap): the main menu instead of the visor. */
 	HOLLOWUI_API bool IsFrontEnd(const UWorld* World);
+
+	/**
+	 * The language button of the main and the system menu (LOC-01, ADR-0048): shows the texts in the next language now
+	 * and keeps it in the player's settings; returns it. The button's label needs no refresh: it is the string table
+	 * entry Menu.Language, whose every translation names its own language ("Language: English" in English).
+	 */
+	HOLLOWUI_API EHollowLanguage CycleLanguage();
 }

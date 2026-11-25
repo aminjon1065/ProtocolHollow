@@ -8,6 +8,8 @@
   /Game/Hollow/Audio/Reverb/RE_*         reverb presets (Vault, Hangar, Corridor)
   Every Docks room level                 an Audio Gameplay Volume over the room (reverb + muffled outside) and a room tone
   DA_Enemy_IronPilgrim / EchoStalker     WindupSound, FootstepSound and FootstepCadence
+  /Game/Hollow/Audio/MetaSounds/MS_Radio_* NAR-01a (ADR-0049): the handler's radio opening and closing a transmission, in
+                                          the listener's helmet, through the comms bus (SC_Hollow_Voice + SEC_Hollow_Radio)
 
 MetaSounds and levels keep a hash of their spec (asset metadata, or a marker actor in a level): a MetaSound is rebuilt and
 a level re-saved only when its spec changes - every save is a new LFS object.
@@ -30,6 +32,8 @@ REVERB_DIR = AUDIO_DIR + "/Reverb"
 BANK = AUDIO_DIR + "/DA_SoundBank"
 ATTENUATION = AUDIO_DIR + "/ATT_Hollow_World"
 SOUND_CLASS = AUDIO_DIR + "/SC_Hollow_World"   # create_resonance_assets.py (low-pass on CB_Resonance)
+VOICE_SOUND_CLASS = AUDIO_DIR + "/Voice/SC_Hollow_Voice"   # create_voice_assets.py: the comms bus
+RADIO_CHAIN = AUDIO_DIR + "/Voice/SEC_Hollow_Radio"         # create_voice_assets.py: the radio's band and grit
 ROOM_DATA_DIR = "/HollowSector_Docks/Data"
 # Enemy voices and steps. Cadence: a step every interval (s) faster than min_speed, full volume at reference_speed (its
 # chase): the Pilgrim's slow heavy tread is heard from its 180 patrol on, the stalker skitters (cm/s).
@@ -497,6 +501,36 @@ def room_tone_vault():
     return g.mix("mix", [("air_lp", "Out", 0.22), ("swelling", "Out", 0.08), ("mains", "Audio", 0.03)]).out("mix").spec
 
 
+def radio_open():
+    """NAR-01a: a transmission opens: a crackle through the radio's band, then two rising beeps."""
+    g = Graph(one_shot=True)
+    g.node("hiss", NOISE, {"Type": WHITE}).node("band", SVF, {"Cutoff Frequency": 2200.0, "Resonance": 2.5}).link("hiss", "Audio", "band", "In")
+    g.burst("crackle", "band", BAND_PASS, 0.002, 0.09)
+    g.node("low", SINE, {"Frequency": 1650.0}).burst("beep", "low", "Audio", 0.001, 0.035)
+    g.node("second", DELAY, {"Delay Time": 0.045}).link("@play", "On Play", "second", "In")
+    g.node("high", SINE, {"Frequency": 2200.0}).burst("beep_high", "high", "Audio", 0.001, 0.03, trigger=("second", "Out"))
+    g.node("end", DELAY, {"Delay Time": 0.18}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("crackle", "Out", 0.5), ("beep", "Out", 0.22), ("beep_high", "Out", 0.22)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.45}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def radio_close():
+    """NAR-01a: a transmission closes: two falling beeps, then the carrier's hiss dying away."""
+    g = Graph(one_shot=True)
+    g.node("high", SINE, {"Frequency": 2200.0}).burst("beep_high", "high", "Audio", 0.001, 0.03)
+    g.node("second", DELAY, {"Delay Time": 0.04}).link("@play", "On Play", "second", "In")
+    g.node("low", SINE, {"Frequency": 1500.0}).burst("beep", "low", "Audio", 0.001, 0.035, trigger=("second", "Out"))
+    g.node("tail_at", DELAY, {"Delay Time": 0.07}).link("@play", "On Play", "tail_at", "In")
+    g.node("hiss", NOISE, {"Type": WHITE}).node("band", SVF, {"Cutoff Frequency": 1800.0, "Resonance": 2.0}).link("hiss", "Audio", "band", "In")
+    g.burst("tail", "band", BAND_PASS, 0.004, 0.12, trigger=("tail_at", "Out"))
+    g.node("end", DELAY, {"Delay Time": 0.26}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("beep_high", "Out", 0.22), ("beep", "Out", 0.22), ("tail", "Out", 0.45)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.45}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+# NAR-01a: the radio's clicks go through the comms bus, not the world's (no room muffles the helmet's radio).
+RADIO_METASOUNDS = {"MS_Radio_Open": radio_open, "MS_Radio_Close": radio_close}
+
 METASOUNDS = {
     "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter, "MS_Tool_Lantern": lantern,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
@@ -564,6 +598,9 @@ ENTRIES = [
     ("Hollow.Sound.Whisperer.Shriek", "MS_Whisperer_Shriek", None, 2000.0, 0.8, 0.12, None),
     ("Hollow.Sound.Whisperer.Bite", "MS_Whisperer_Bite", None, 1200.0, 0.7, 0.1, None),
     ("Hollow.Sound.Whisperer.Death", "MS_Whisperer_Death", "SCON_Impacts", 1500.0, 0.8, 0.1, None),
+    # NAR-01a (ADR-0049): the handler's radio in the listener's helmet (each machine plays its own).
+    ("Hollow.Sound.Radio.Open", "MS_Radio_Open", None, 200.0, 0.5, 0.0, None),
+    ("Hollow.Sound.Radio.Close", "MS_Radio_Close", None, 200.0, 0.5, 0.0, None),
 ]
 
 # ---------------------------------------------------------------- room acoustics (data)
@@ -684,12 +721,13 @@ def build_graph(name, spec):
     return builder
 
 
-def ensure_metasound(name, spec, sound_class):
+def ensure_metasound(name, spec, sound_class, chain=None):
     path = MS_DIR + "/" + name
     wanted = digest(spec)
     if assets.does_asset_exist(path):
         existing = load(path)
-        if assets.get_metadata_tag(existing, SPEC_TAG) == wanted and existing.get_editor_property("sound_class_object") == sound_class:
+        if assets.get_metadata_tag(existing, SPEC_TAG) == wanted and existing.get_editor_property("sound_class_object") == sound_class \
+                and existing.get_editor_property("source_effect_chain") == chain:
             return existing, False
         if not assets.delete_asset(path):   # the spec changed: rebuild (the bank refers to it by path)
             raise RuntimeError("Could not replace " + path)
@@ -707,6 +745,7 @@ def ensure_metasound(name, spec, sound_class):
         raise RuntimeError("Could not build " + path)
     asset = load(path)
     asset.set_editor_property("sound_class_object", sound_class)
+    asset.set_editor_property("source_effect_chain", chain)
     assets.set_metadata_tag(asset, SPEC_TAG, wanted)
     save(asset)
     log("%s built (%d nodes)" % (name, len(spec["nodes"])))
@@ -719,6 +758,10 @@ def ensure_metasounds():
     built = 0
     for name in sorted(METASOUNDS):
         made[name], fresh = ensure_metasound(name, METASOUNDS[name](), sound_class)
+        built += int(fresh)
+    voice, chain = load(VOICE_SOUND_CLASS), load(RADIO_CHAIN)
+    for name in sorted(RADIO_METASOUNDS):
+        made[name], fresh = ensure_metasound(name, RADIO_METASOUNDS[name](), voice, chain)
         built += int(fresh)
     return made, built
 
@@ -947,7 +990,13 @@ def validate(rooms, sounds):
     result = validator.is_object_valid(load(BANK), unreal.DataValidationUsecase.SCRIPT)
     check(result[0] != unreal.DataValidationResult.INVALID, "DA_SoundBank matches the noise rules: %s" % [str(e) for e in result[1]])
     sound_class = load(SOUND_CLASS)
+    voice, chain = load(VOICE_SOUND_CLASS), load(RADIO_CHAIN)
     for name, sound in sorted(sounds.items()):
+        if name in RADIO_METASOUNDS:
+            check(sound.get_editor_property("sound_class_object") == voice and sound.get_editor_property("source_effect_chain") == chain,
+                  name + " plays through the comms bus (SC_Hollow_Voice, SEC_Hollow_Radio)")
+            check(assets.get_metadata_tag(sound, SPEC_TAG) == digest(RADIO_METASOUNDS[name]()), name + " matches its spec")
+            continue
         check(sound.get_editor_property("sound_class_object") == sound_class, name + " plays through SC_Hollow_World")
         check(assets.get_metadata_tag(sound, SPEC_TAG) == digest(METASOUNDS[name]()), name + " matches its spec")
     check(sound_class.get_editor_property("properties").get_editor_property("apply_ambient_volumes"), "room volumes apply to SC_Hollow_World")

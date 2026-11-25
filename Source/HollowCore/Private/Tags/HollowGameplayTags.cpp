@@ -121,6 +121,21 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_UI_HitMarker_Hit, "Hollow.Sound.UI.HitMarker.Hit", "The visor's tick for a hit (GP-01c; the shooter only).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_UI_HitMarker_Armor, "Hollow.Sound.UI.HitMarker.Armor", "The visor's dull clank: armour took most of it (GP-01c; the shooter only).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_UI_HitMarker_Crit, "Hollow.Sound.UI.HitMarker.Crit", "The visor's bright ping: a hit on an exposed target (GP-01c; the shooter only).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Radio_Open, "Hollow.Sound.Radio.Open", "The handler's radio opens a transmission (NAR-01a; in the listener's helmet).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Radio_Close, "Hollow.Sound.Radio.Close", "The handler's radio closes a transmission (NAR-01a; in the listener's helmet).");
+
+	// The handler's radio (NAR-01a)
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio, "Hollow.Radio", "What starts a radio transmission on one machine (NAR-01a, DA_RadioScript).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Hub_Arrival, "Hollow.Radio.Hub.Arrival", "The player stands in the hub with a body.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Raid_Sortie, "Hollow.Radio.Raid.Sortie", "The squad comes down into a sector (a cue may name the sector).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Core_Sighted, "Hollow.Radio.Core.Sighted", "An Aether core still in its vault comes into the player's view.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Core_Lifted, "Hollow.Radio.Core.Lifted", "A core of this raid was lifted for the first time.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Altar_Started, "Hollow.Radio.Altar.Started", "A purification ritual started on an altar.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Stalker_Contact, "Hollow.Radio.Stalker.Contact", "The Echo-Stalker comes into the player's view.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Resonance_Critical, "Hollow.Radio.Resonance.Critical", "The player's Resonance tier reached Critical.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Extraction_Started, "Hollow.Radio.Extraction.Started", "The shuttle started its departure countdown.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Squad_Loss, "Hollow.Radio.Squad.Loss", "A squad mate died while the player lives.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Radio_Lore_Found, "Hollow.Radio.Lore.Found", "A crew log new to this player reached its archive (NAR-01b).");
 
 	// Game feel (GP-01c)
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Feel, "Hollow.Feel", "Game feel one player feels: shake, rumble, view kick (GP-01c, DA_FeelConfig).");

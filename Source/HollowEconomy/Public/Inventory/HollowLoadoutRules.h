@@ -27,6 +27,13 @@ struct HOLLOWECONOMY_API FHollowLoadoutSnapshot
 	/** The class the player plays (ADR-0034): the host gives it to the player state, a class it does not know: the default. */
 	UPROPERTY(BlueprintReadOnly, Category = "Loadout")
 	FPrimaryAssetId ClassId;
+
+	/**
+	 * NAR-01b (ADR-0050): the crew logs the player has found: the host gives the squad's datapads the logs the fewest of
+	 * them know. Trusted like the rest (the player's own profile); it only decides which log a datapad holds.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Loadout")
+	TArray<FPrimaryAssetId> KnownLore;
 };
 
 /** Why a slot of a loadout was dropped or cut down (log and tests). */

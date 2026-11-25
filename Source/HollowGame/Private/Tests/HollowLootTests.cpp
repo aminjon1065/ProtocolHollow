@@ -69,8 +69,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLootDataTest, "Hollow.Game.Loot.Data",
 
 bool FHollowLootDataTest::RunTest(const FString& Parameters)
 {
-	// GP-01b (ADR-0045): both sectors' Loot sockets spawn their crate first; every item a crate holds lies on the floor
-	// as its own mesh.
+	// GP-01b (ADR-0045): both sectors' Loot sockets spawn their crate (every socket the few-socket rules before it
+	// leave, NAR-01b); every item a crate holds lies on the floor as its own mesh.
 	using namespace HollowLootGameTests;
 	for (const TPair<const TCHAR*, const TCHAR*>& Sector : {TPair<const TCHAR*, const TCHAR*>(DocksBiome, DocksCrate),
 		TPair<const TCHAR*, const TCHAR*>(CathedralBiome, CathedralCrate)})
@@ -81,11 +81,12 @@ bool FHollowLootDataTest::RunTest(const FString& Parameters)
 		{
 			continue;
 		}
-		const FHollowSocketActorRule* First = Biome->SocketActors.FindByPredicate([](const FHollowSocketActorRule& Rule)
+		// NAR-01b: rules taking a few Loot sockets (the crew datapads) go first; the crates take every one they leave.
+		const FHollowSocketActorRule* Every = Biome->SocketActors.FindByPredicate([](const FHollowSocketActorRule& Rule)
 		{
-			return Rule.SocketType == HollowTags::Socket_Loot;
+			return Rule.SocketType == HollowTags::Socket_Loot && Rule.MaxPerSector == 0;
 		});
-		TestTrue(FString(Sector.Key) + TEXT(": its Loot sockets spawn its crates"), First && First->ActorClass.LoadSynchronous() == Crate && First->MaxPerSector == 0);
+		TestTrue(FString(Sector.Key) + TEXT(": its Loot sockets spawn its crates"), Every && Every->ActorClass.LoadSynchronous() == Crate);
 	}
 	// Every item the tables roll is real and has its pickup mesh.
 	TArray<FPrimaryAssetId> Rolled;

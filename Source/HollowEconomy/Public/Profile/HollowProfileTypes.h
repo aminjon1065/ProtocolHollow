@@ -75,6 +75,20 @@ struct HOLLOWECONOMY_API FHollowProfile
 
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	FHollowRaidStats Stats;
+
+	/**
+	 * Radio cues heard once for good (NAR-01a, ADR-0049: the hub briefing, the first sortie into each sector), by the
+	 * cue's id in DA_RadioScript. Profiles from before NAR-01 have none: the player hears the briefing once more.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FName> RadioHeard;
+
+	/**
+	 * Crew logs found for good (NAR-01b, ADR-0050: HollowLore ids, in the order found), saved the moment a datapad is
+	 * downloaded whatever the raid's end. Profiles from before NAR-01 have none.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FPrimaryAssetId> Lore;
 };
 
 /** Written before a raid so leaving it without a result is never free (ADR-0005): a snapshot of the loadout taken. */
@@ -91,6 +105,10 @@ struct HOLLOWECONOMY_API FHollowRaidEscrow
 
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
 	FDateTime StartedUtc;
+
+	/** NAR-01b: crew logs first found in this raid; their bonus is paid only if the player extracts. */
+	UPROPERTY(BlueprintReadOnly, Category = "Profile")
+	TArray<FPrimaryAssetId> NewLore;
 
 	bool IsActive() const { return RaidId.IsValid(); }
 };
@@ -157,14 +175,24 @@ namespace HollowProfileRules
 	/**
 	 * Resolves the escrow with the host's result; a result for another raid (or without escrow) is ignored.
 	 * CoreValuePercent: the owned ship upgrades' bonus on sold Aether cores (ADR-0032). StashSlots and SellPercent: the
-	 * economy's (GP-01b: found loot without room in the stash is sold; 0 slots: no limit).
+	 * economy's (GP-01b: found loot without room in the stash is sold; 0 slots: no limit). LoreBonus: credits for each
+	 * crew log first found in the raid, paid only if the player extracted (NAR-01b).
 	 */
 	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ApplyResult(FHollowProfileState& State, const FHollowRaidResult& Result, const FHollowItemCatalog& Catalog,
-		int32 CoreValuePercent = 0, int32 StashSlots = 0, int32 SellPercent = 0);
+		int32 CoreValuePercent = 0, int32 StashSlots = 0, int32 SellPercent = 0, int32 LoreBonus = 0);
 
 	/** Resolves the escrow without a host (SignalLost, Abandoned): no loot. */
 	HOLLOWECONOMY_API TOptional<FHollowRaidReport> ResolveEscrow(FHollowProfileState& State, EHollowRaidOutcome Outcome, const FDateTime& NowUtc,
 		const FHollowItemCatalog& Catalog);
+
+	/**
+	 * NAR-01b: crew log Entry downloaded. New: kept for good, and if a raid is in escrow, its bonus waits for the raid's
+	 * end (ApplyResult). False if the profile has it already or Entry names nothing.
+	 */
+	HOLLOWECONOMY_API bool AddLore(FHollowProfileState& State, const FPrimaryAssetId& Entry);
+
+	/** Remembers radio cue CueId (NAR-01a); false if it was heard before or names nothing. */
+	HOLLOWECONOMY_API bool MarkRadioHeard(FHollowProfile& Profile, FName CueId);
 
 	/** Items whose catalog the rules need for this state and result. */
 	HOLLOWECONOMY_API TArray<FPrimaryAssetId> ItemsToCatalog(const FHollowProfileState& State, const FHollowRaidResult* Result = nullptr);

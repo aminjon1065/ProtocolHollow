@@ -6,7 +6,7 @@
 
 DEFINE_LOG_CATEGORY(LogHollowGame);
 
-/** The game module: once the engine is up, a game (not the editor, a commandlet or a dedicated server) applies its graphics preset. */
+/** The game module: once the engine is up, a game (not the editor, a commandlet or a dedicated server) applies its language and graphics preset. */
 class FHollowGameModule : public FDefaultGameModuleImpl
 {
 public:
@@ -20,6 +20,7 @@ public:
 			}
 			if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
 			{
+				Settings->InitializeLanguage();   // before any screen shows a text (LOC-01)
 				Settings->InitializePreset();
 			}
 		});

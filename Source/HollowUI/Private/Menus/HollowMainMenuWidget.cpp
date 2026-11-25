@@ -4,6 +4,8 @@
 #include "Engine/GameInstance.h"
 #include "HollowUILog.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Localization/HollowLanguage.h"
+#include "Menus/HollowMenuRules.h"
 #include "Session/HollowSessionSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowMainMenuWidget)
@@ -20,6 +22,10 @@ void UHollowMainMenuWidget::NativeOnInitialized()
 	SoloButton->OnClicked().AddUObject(this, &ThisClass::Host, false);
 	HostButton->OnClicked().AddUObject(this, &ThisClass::Host, true);
 	QuitButton->OnClicked().AddUObject(this, &ThisClass::Quit);
+	if (LanguageButton)
+	{
+		LanguageButton->OnClicked().AddUObject(this, &ThisClass::CycleLanguage);
+	}
 }
 
 UWidget* UHollowMainMenuWidget::NativeGetDesiredFocusTarget() const
@@ -40,4 +46,10 @@ void UHollowMainMenuWidget::Quit()
 {
 	UE_LOG(LogHollowUI, Log, TEXT("%s: quit requested"), *GetName());
 	UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, /*bIgnorePlatformRestrictions=*/false);
+}
+
+void UHollowMainMenuWidget::CycleLanguage()
+{
+	const EHollowLanguage Language = HollowMenuRules::CycleLanguage();
+	UE_LOG(LogHollowUI, Log, TEXT("%s: language %s"), *GetName(), LexToString(Language));
 }

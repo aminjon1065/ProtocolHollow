@@ -11,9 +11,14 @@ created when missing; the classes are filled or refreshed when they differ from 
 create_inventory_assets.py, create_lantern_assets.py, create_ward_assets.py and create_economy_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_class_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -159,6 +164,11 @@ def kit(spec):
     return slots
 
 
+def class_key(name):
+    """LOC-01: the class's texts in loc.WORLD (DA_Class_Engineer -> Class.Engineer.*)."""
+    return "Class." + name[len("DA_Class_"):]
+
+
 def ensure_class(name, spec, effect, ability_set):
     path = CLASSES_DIR + "/" + name
     created = not assets.does_asset_exist(path)
@@ -169,8 +179,8 @@ def ensure_class(name, spec, effect, ability_set):
     else:
         definition = load(path)
     wanted = {
-        "display_name": unreal.Text(spec["display"]),
-        "description": unreal.Text(spec["description"]),
+        "display_name": loc.text(loc.WORLD, class_key(name) + ".Name", spec["display"]),
+        "description": loc.text(loc.WORLD, class_key(name) + ".Description", spec["description"]),
         "class_tag": make_tag(spec["tag"]),
         "ability_set": ability_set,
         "attribute_effect": effect.generated_class(),
@@ -184,7 +194,7 @@ def ensure_class(name, spec, effect, ability_set):
         if hasattr(value, "export_text"):
             return value.export_text()
         if isinstance(value, unreal.Text):
-            return str(value)
+            return [loc.entry(value), str(value)]   # LOC-01: a plain text is not the table's entry
         return value.get_path_name() if hasattr(value, "get_path_name") else value
 
     changed = created or any(text_of(definition.get_editor_property(k)) != text_of(v) for k, v in wanted.items())
@@ -230,6 +240,7 @@ def main():
     for name, spec in CLASSES.items():
         effect_name, modifiers = spec["effect"]
         ensure_class(name, spec, ensure_effect(effect_name, modifiers), ensure_ability_set(spec["ability_set"]))
+    loc.save()
     validate()
     unreal.log(SUCCESS_MARKER)
 

@@ -106,7 +106,7 @@ void UHollowProfileSubsystem::ApplyRaidResult(const FHollowRaidResult& Result)
 	const UHollowEconomyConfig* Economy = UHollowEconomyConfig::Get();   // GP-01b: the stash the found loot joins
 	const TOptional<FHollowRaidReport> Report = HollowProfileRules::ApplyResult(State, Result,
 		FHollowItemCatalog::Load(HollowProfileRules::ItemsToCatalog(State, &Result)), CoreValuePercent, Economy ? Economy->StashSlots : 0,
-		Economy ? Economy->SellPercent : 0);
+		Economy ? Economy->SellPercent : 0, Economy ? Economy->LoreBonusCredits : 0);
 	UE_CLOG(!Report, LogHollowEconomy, Warning, TEXT("Profile: result for raid %s ignored (escrow %s)"), *Result.RaidId.ToString(),
 		*State.Escrow.RaidId.ToString());
 	HandleReport(Report, TEXT("host's result"));
@@ -197,6 +197,57 @@ bool UHollowProfileSubsystem::AddCredits(const int32 Amount)
 	Persist();
 	OnProfileChanged.Broadcast();
 	return true;
+}
+
+bool UHollowProfileSubsystem::AddLoreEntry(const FPrimaryAssetId& Entry)
+{
+	if (!Save || !HollowProfileRules::AddLore(Save->State, Entry))
+	{
+		return false;
+	}
+	UE_LOG(LogHollowEconomy, Log, TEXT("Profile: crew log %s found (%d in the archive%s)"), *Entry.ToString(), Save->State.Profile.Lore.Num(),
+		Save->State.Escrow.IsActive() ? TEXT(", its bonus waits for the raid's end") : TEXT(""));
+	Persist();
+	OnProfileChanged.Broadcast();
+	return true;
+}
+
+bool UHollowProfileSubsystem::HasLore(const FPrimaryAssetId& Entry) const
+{
+	return Save && Save->State.Profile.Lore.Contains(Entry);
+}
+
+void UHollowProfileSubsystem::ForgetLore()
+{
+	if (Save)
+	{
+		Save->State.Profile.Lore.Reset();
+		Save->State.Escrow.NewLore.Reset();
+		Persist();
+		OnProfileChanged.Broadcast();
+	}
+}
+
+bool UHollowProfileSubsystem::HasHeardRadio(const FName CueId) const
+{
+	return Save && Save->State.Profile.RadioHeard.Contains(CueId);
+}
+
+void UHollowProfileSubsystem::MarkRadioHeard(const FName CueId)
+{
+	if (Save && HollowProfileRules::MarkRadioHeard(Save->State.Profile, CueId))
+	{
+		Persist();   // what was said stays said, whatever the raid's result (it is no item of the escrow)
+	}
+}
+
+void UHollowProfileSubsystem::ForgetRadio()
+{
+	if (Save && !Save->State.Profile.RadioHeard.IsEmpty())
+	{
+		Save->State.Profile.RadioHeard.Reset();
+		Persist();
+	}
 }
 
 void UHollowProfileSubsystem::ResetProfile()

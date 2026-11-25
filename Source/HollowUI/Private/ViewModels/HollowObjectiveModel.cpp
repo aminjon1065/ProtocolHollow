@@ -51,7 +51,8 @@ namespace HollowObjectiveModelPrivate
 		return Best;
 	}
 
-	EHollowWaypointKind KindOf(const EHollowTerminalKind Kind)
+	/** The waypoint a terminal is marked with; none for the crew archive (NAR-01b: never part of the objective). */
+	TOptional<EHollowWaypointKind> KindOf(const EHollowTerminalKind Kind)
 	{
 		switch (Kind)
 		{
@@ -60,9 +61,11 @@ namespace HollowObjectiveModelPrivate
 		case EHollowTerminalKind::Workbench:
 			return EHollowWaypointKind::Workbench;
 		case EHollowTerminalKind::Locker:
+			return EHollowWaypointKind::Locker;
+		case EHollowTerminalKind::Codex:
 			break;
 		}
-		return EHollowWaypointKind::Locker;
+		return {};
 	}
 }
 
@@ -257,7 +260,7 @@ void UHollowObjectiveModel::HandleTerminalOpened(APlayerController* Player, AHol
 		return;
 	}
 	bScreenOpen = true;
-	bPrepared |= Terminal && Terminal->GetKind() != EHollowTerminalKind::Contracts;
+	bPrepared |= Terminal && (Terminal->GetKind() == EHollowTerminalKind::Workbench || Terminal->GetKind() == EHollowTerminalKind::Locker);
 	Refresh();
 }
 
@@ -404,7 +407,7 @@ void UHollowObjectiveModel::GetWaypoints(const FVector& From, TArray<FHollowWayp
 		case EHollowWaypointKind::Contracts:
 		case EHollowWaypointKind::Workbench:
 		case EHollowWaypointKind::Locker:
-			if (const AHollowHubTerminal* Terminal = Nearest<AHollowHubTerminal>(Terminals, From, [Kind](const AHollowHubTerminal& Candidate) { return KindOf(Candidate.GetKind()) == Kind; }))
+			if (const AHollowHubTerminal* Terminal = Nearest<AHollowHubTerminal>(Terminals, From, [Kind](const AHollowHubTerminal& Candidate) { return KindOf(Candidate.GetKind()) == TOptional<EHollowWaypointKind>(Kind); }))
 			{
 				Location = Terminal->GetActorLocation();
 			}

@@ -1,0 +1,2591 @@
+﻿# Game Russian translation.
+# Copyright (c) 2026 Protocol: Hollow
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: Game\n"
+"POT-Creation-Date: 2026-11-25 09:48\n"
+"PO-Revision-Date: 2026-11-25 09:48\n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#. Key:	Hub.Close
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Close"
+msgid "Close"
+msgstr "Закрыть"
+
+#. Key:	Hub.Codex.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Codex.Title"
+msgid "CREW ARCHIVE"
+msgstr "АРХИВ ЭКИПАЖА"
+
+#. Key:	Hub.Contracts.Launch
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Contracts.Launch"
+msgid "Launch the raid"
+msgstr "Начать рейд"
+
+#. Key:	Hub.Contracts.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Contracts.Title"
+msgid "CONTRACTS"
+msgstr "КОНТРАКТЫ"
+
+#. Key:	Hub.Locker.Class
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Locker.Class"
+msgid "CLASS"
+msgstr "КЛАСС"
+
+#. Key:	Hub.Locker.Loadout
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Locker.Loadout"
+msgid "LOADOUT"
+msgstr "СНАРЯЖЕНИЕ"
+
+#. Key:	Hub.Locker.Stash
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Locker.Stash"
+msgid "STASH"
+msgstr "СКЛАД"
+
+#. Key:	Hub.Locker.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Locker.Title"
+msgid "LOCKER"
+msgstr "ШКАФЧИК"
+
+#. Key:	Hub.Terminal.Codex
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Terminal.Codex"
+msgid "Crew archive"
+msgstr "Архив экипажа"
+
+#. Key:	Hub.Terminal.Contracts
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Terminal.Contracts"
+msgid "Contracts"
+msgstr "Контракты"
+
+#. Key:	Hub.Terminal.Contracts.Guest
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Terminal.Contracts.Guest"
+msgid "Contracts (host decides)"
+msgstr "Контракты (решает хост)"
+
+#. Key:	Hub.Terminal.Locker
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Terminal.Locker"
+msgid "Locker"
+msgstr "Шкафчик"
+
+#. Key:	Hub.Terminal.Workbench
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Terminal.Workbench"
+msgid "Workbench"
+msgstr "Верстак"
+
+#. Key:	Hub.Workbench.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Hub.ST_Hub
+#: /Game/Hollow/Localization/ST_Hub.ST_Hub
+msgctxt "ST_Hub,Hub.Workbench.Title"
+msgid "WORKBENCH"
+msgstr "ВЕРСТАК"
+
+#. Key:	Item.AetherCore.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.AetherCore.Name"
+msgid "Aether core"
+msgstr "Эфирное ядро"
+
+#. Key:	Item.AetherLantern.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.AetherLantern.Name"
+msgid "Aether lantern"
+msgstr "Эфирный фонарь"
+
+#. Key:	Item.AetherShard.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.AetherShard.Name"
+msgid "Aether shard"
+msgstr "Осколок эфира"
+
+#. Key:	Item.Ammo.Nails.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Ammo.Nails.Name"
+msgid "Nails"
+msgstr "Гвозди"
+
+#. Key:	Item.Ammo.Shells.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Ammo.Shells.Name"
+msgid "Shells"
+msgstr "Патроны"
+
+#. Key:	Item.FuelCell.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.FuelCell.Name"
+msgid "Fuel cell"
+msgstr "Топливная ячейка"
+
+#. Key:	Item.OccultWard.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.OccultWard.Name"
+msgid "Ritual ward"
+msgstr "Ритуальный оберег"
+
+#. Key:	Item.PlasmaCutter.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.PlasmaCutter.Name"
+msgid "Plasma cutter"
+msgstr "Плазменный резак"
+
+#. Key:	Item.PulseMine.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.PulseMine.Name"
+msgid "Pulse mine"
+msgstr "Импульсная мина"
+
+#. Key:	Item.PurifiedCore.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.PurifiedCore.Name"
+msgid "Purified Aether core"
+msgstr "Очищенное эфирное ядро"
+
+#. Key:	Item.Relic.KineticBrace.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Relic.KineticBrace.Name"
+msgid "Kinetic Brace"
+msgstr "Кинетический фиксатор"
+
+#. Key:	Item.Relic.PlasmaCapacitor.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Relic.PlasmaCapacitor.Name"
+msgid "Plasma Capacitor"
+msgstr "Плазменный конденсатор"
+
+#. Key:	Item.Relic.ResonanceStabilizer.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Relic.ResonanceStabilizer.Name"
+msgid "Resonance Stabilizer"
+msgstr "Стабилизатор резонанса"
+
+#. Key:	Item.Relic.RingOfSilence.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Relic.RingOfSilence.Name"
+msgid "Ring of Silence"
+msgstr "Кольцо безмолвия"
+
+#. Key:	Item.Scrap.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Scrap.Name"
+msgid "Scrap"
+msgstr "Металлолом"
+
+#. Key:	Item.Welder.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Item.Welder.Name"
+msgid "Welder"
+msgstr "Сварочный аппарат"
+
+#. Key:	Recipe.Ammo.Nails.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Ammo.Nails.Name"
+msgid "Nails x20"
+msgstr "Гвозди ×20"
+
+#. Key:	Recipe.Ammo.Shells.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Ammo.Shells.Name"
+msgid "Shells x8"
+msgstr "Патроны ×8"
+
+#. Key:	Recipe.FuelCell.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.FuelCell.Name"
+msgid "Fuel cell"
+msgstr "Топливная ячейка"
+
+#. Key:	Recipe.OccultWard.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.OccultWard.Name"
+msgid "Ritual ward"
+msgstr "Ритуальный оберег"
+
+#. Key:	Recipe.PulseMine.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.PulseMine.Name"
+msgid "Pulse mine"
+msgstr "Импульсная мина"
+
+#. Key:	Recipe.Relic.KineticBrace.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Relic.KineticBrace.Name"
+msgid "Kinetic Brace"
+msgstr "Кинетический фиксатор"
+
+#. Key:	Recipe.Relic.PlasmaCapacitor.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Relic.PlasmaCapacitor.Name"
+msgid "Plasma Capacitor"
+msgstr "Плазменный конденсатор"
+
+#. Key:	Recipe.Relic.ResonanceStabilizer.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Relic.ResonanceStabilizer.Name"
+msgid "Resonance Stabilizer"
+msgstr "Стабилизатор резонанса"
+
+#. Key:	Recipe.Relic.RingOfSilence.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Relic.RingOfSilence.Name"
+msgid "Ring of Silence"
+msgstr "Кольцо безмолвия"
+
+#. Key:	Recipe.Weapon.Shotgun.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Recipe.Weapon.Shotgun.Name"
+msgid "Heavy kinetic shotgun"
+msgstr "Тяжёлый кинетический дробовик"
+
+#. Key:	Tool.AetherLantern.Action
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Tool.AetherLantern.Action"
+msgid "Exposing"
+msgstr "Высвечивание"
+
+#. Key:	Tool.PlasmaCutter.Action
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Tool.PlasmaCutter.Action"
+msgid "Cutting"
+msgstr "Резка"
+
+#. Key:	Tool.Welder.Action
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Tool.Welder.Action"
+msgid "Welding"
+msgstr "Сварка"
+
+#. Key:	Upgrade.CoreBonus.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.CoreBonus.Description"
+msgid "The corporation pays 20 % more for every Aether core brought out."
+msgstr "Корпорация платит на 20 % больше за каждое вынесенное эфирное ядро."
+
+#. Key:	Upgrade.CoreBonus.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.CoreBonus.Name"
+msgid "Core contract"
+msgstr "Контракт на ядра"
+
+#. Key:	Upgrade.FuelReserve.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.FuelReserve.Description"
+msgid "The Skiff stocks two fuel cells for every raid: used first, never from your stash."
+msgstr "«Скит» берёт в каждый рейд две топливные ячейки: они тратятся первыми, ваш склад не трогается."
+
+#. Key:	Upgrade.FuelReserve.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.FuelReserve.Name"
+msgid "Fuel reserve"
+msgstr "Запас топлива"
+
+#. Key:	Upgrade.InsuranceSlot.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.InsuranceSlot.Description"
+msgid "One more loadout slot can be insured at a time."
+msgstr "Можно застраховать ещё один слот снаряжения."
+
+#. Key:	Upgrade.InsuranceSlot.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.InsuranceSlot.Name"
+msgid "Insurance rider"
+msgstr "Расширенная страховка"
+
+#. Key:	Upgrade.Reliquary.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.Reliquary.Description"
+msgid "A warded case in the Skiff's hold: a second relic goes into the loadout."
+msgstr "Защищённый ларец в трюме «Скита»: в снаряжение берётся вторая реликвия."
+
+#. Key:	Upgrade.Reliquary.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Upgrade.Reliquary.Name"
+msgid "Reliquary"
+msgstr "Реликварий"
+
+#. Key:	Weapon.Nailgun.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Weapon.Nailgun.Name"
+msgid "Nailgun"
+msgstr "Гвоздомёт"
+
+#. Key:	Weapon.Shotgun.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_Items.ST_Items
+#: /Game/Hollow/Localization/ST_Items.ST_Items
+msgctxt "ST_Items,Weapon.Shotgun.Name"
+msgid "Shotgun"
+msgstr "Дробовик"
+
+#. Key:	Lore.01.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.01.Author"
+msgid "Teodor Liss, dock master"
+msgstr "Теодор Лисс, начальник доков"
+
+#. Key:	Lore.01.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.01.Body"
+msgid "Jump day. Forty thousand colonists asleep in the holds, and the docks so quiet you can hear the Aether drive breathe through the hull. The Helios-Nadir observers came aboard at six with sealed orders and took the keys to the core vault themselves. Not one of my crew is cleared to open it any more. Captain Rhein says it is a formality. Formalities do not usually carry sidearms. At 11:40 the drive folds us past the edge of the Aether and out under a new sky. I have signed the last manifest. If anyone reads this: the docks were clean, the airlocks were green, and we were proud."
+msgstr "День прыжка. Сорок тысяч колонистов спят в трюмах, а в доках так тихо, что сквозь обшивку слышно, как дышит Эфирный двигатель. Наблюдатели «Гелиос-Надир» поднялись на борт в шесть утра с запечатанными приказами и лично забрали ключи от хранилища ядер. Никому из моих людей больше не положено его открывать. Капитан Рейн говорит, это формальность. Обычно формальности не носят оружие. В 11:40 двигатель вынесет нас за грань Эфира, под новое небо. Последний манифест я подписал. Если кто-то это читает: доки были чистыми, шлюзы — зелёными, и мы гордились собой."
+
+#. Key:	Lore.01.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.01.Stamp"
+msgid "Dock master's log, jump day"
+msgstr "Журнал начальника доков, день прыжка"
+
+#. Key:	Lore.01.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.01.Title"
+msgid "Day Zero"
+msgstr "День ноль"
+
+#. Key:	Lore.02.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.02.Author"
+msgid "Mara Okafor, deck C technician"
+msgstr "Мара Окафор, техник палубы С"
+
+#. Key:	Lore.02.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.02.Body"
+msgid "Third day since the jump and nobody on deck C has slept. Not won't. Can't. There is a hum under everything, as if the ship were thinking out loud. Petrov says it said his name in the ventilation shaft. Then I heard mine. This morning Kessler's eyes had gone white, milky, like frost on glass, and he kept working the welder as if he could still see. He said the light hurts now. He said the dark is warm. He whispered the rest and I couldn't hear it, but the others nodded. All of them at once."
+msgstr "Третий день после прыжка, и на палубе С никто не спал. Не «не хочет» — не может. Подо всем идёт гул, будто корабль думает вслух. Петров говорит, гул назвал его по имени из вентиляционной шахты. Потом я услышала своё. Утром у Кесслера побелели глаза — молочные, как изморозь на стекле, — а он продолжал варить, будто всё ещё видит. Сказал, что свет теперь режет. Сказал, что в темноте тепло. Остальное он прошептал, я не расслышала, но остальные кивнули. Все разом."
+
+#. Key:	Lore.02.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.02.Stamp"
+msgid "Personal log, day 3 after the jump"
+msgstr "Личный журнал, третий день после прыжка"
+
+#. Key:	Lore.02.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.02.Title"
+msgid "Whispers in the Vents"
+msgstr "Шёпот в вентиляции"
+
+#. Key:	Lore.03.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.03.Author"
+msgid "Lt. Jonas Brandt, ship's security"
+msgstr "лейтенант Йонас Брандт, служба безопасности"
+
+#. Key:	Lore.03.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.03.Body"
+msgid "By order of the captain, docks A to F are sealed. No one passes the inner airlocks, crew or colonist, without a security escort. Anyone with white eyes, whispering or shying from light is to be held, not reasoned with. From this shift on, security wears reactor suits: the shielding keeps the hum out, or so Engineering says. Suits stay on for any reason. To eat. To sleep. We hold the locks until relieved. Brandt. P.S. The suits no longer come off easily. Ignore the rumours. Hold the locks."
+msgstr "По приказу капитана доки с А по Е запечатаны. Никто — ни экипаж, ни колонисты — не проходит внутренние шлюзы без сопровождения охраны. Тех, у кого белые глаза, кто шепчет или шарахается от света, задерживать, а не уговаривать. С этой смены охрана носит реакторные скафандры: экранирование не пропускает гул — так говорят инженеры. Скафандры не снимать ни под каким предлогом. Ни чтобы поесть. Ни чтобы поспать. Держим шлюзы до смены. Брандт. Приписка: скафандры больше не снимаются так просто. Слухам не верить. Держать шлюзы."
+
+#. Key:	Lore.03.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.03.Stamp"
+msgid "Security order, day 9"
+msgstr "Приказ службы безопасности, день 9"
+
+#. Key:	Lore.03.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.03.Title"
+msgid "Lockdown Order No. 7"
+msgstr "Приказ о блокаде № 7"
+
+#. Key:	Lore.04.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.04.Author"
+msgid "Dr Ilse Varr, docks medical bay"
+msgstr "д-р Ильза Варр, медблок доков"
+
+#. Key:	Lore.04.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.04.Body"
+msgid "Forty-one admitted, forty-one blind. I have stopped writing names: they don't answer to them. They move together now, in clusters, through the service ducts, and when one of them flinches from my lamp, all of them do. The service biomass from the hydroponic vats is growing into them, or they into it; I can no longer tell which. They are not in pain. That is what frightens me. They whisper in their sleep, all of them the same words, and this morning I caught myself whispering along. Keep the lights on. Keep the lights on. Keep the"
+msgstr "Поступил сорок один, ослепли сорок один. Имена я больше не записываю: на них не откликаются. Теперь они ходят вместе, стайками, по служебным каналам, и если один шарахается от моего фонаря, шарахаются все. Сервисная биомасса из гидропонных чанов прорастает в них — или они в неё, я уже не различаю. Им не больно. Вот что меня пугает. Во сне они шепчут, все одни и те же слова, и сегодня утром я поймала себя на том, что шепчу вместе с ними. Не гасите свет. Не гасите свет. Не гасите"
+
+#. Key:	Lore.04.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.04.Stamp"
+msgid "Medical log, day 14"
+msgstr "Медицинский журнал, день 14"
+
+#. Key:	Lore.04.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.04.Title"
+msgid "Triage"
+msgstr "Сортировка"
+
+#. Key:	Lore.05.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.05.Author"
+msgid "Cargo intelligence QUARTERMASTER"
+msgstr "грузовой интеллект КВАРТИРМЕЙСТЕР"
+
+#. Key:	Lore.05.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.05.Body"
+msgid "DISCREPANCY: hold 7, Aether cores, 12 units. Mass at loading: 4.8 t. Mass now: 6.1 t, rising. The cores are growing. Recommended action: jettison. Action REJECTED by Helios-Nadir directive HN-0: 'The cores are the mission. Crew and colonists are secondary assets. Preserve the cores at all costs.' Query: who holds authority aboard, the captain or the directive? Answer: the directive. Query logged. Query logged. Note: crew requests to enter hold 7 are denied. Note: the crew no longer requests."
+msgstr "РАСХОЖДЕНИЕ: трюм 7, Эфирные ядра, 12 единиц. Масса при погрузке: 4,8 т. Масса сейчас: 6,1 т, растёт. Ядра растут. Рекомендуемое действие: сброс. Действие ОТКЛОНЕНО директивой «Гелиос-Надир» ГН-0: «Ядра — это миссия. Экипаж и колонисты — второстепенные активы. Сохранить ядра любой ценой». Запрос: у кого власть на борту — у капитана или у директивы? Ответ: у директивы. Запрос записан. Запрос записан. Примечание: запросы экипажа на доступ в трюм 7 отклоняются. Примечание: экипаж больше не запрашивает."
+
+#. Key:	Lore.05.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.05.Stamp"
+msgid "Automated report 4471, day 30"
+msgstr "Автоматический отчёт 4471, день 30"
+
+#. Key:	Lore.05.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.05.Title"
+msgid "Manifest Discrepancy"
+msgstr "Расхождение в манифесте"
+
+#. Key:	Lore.06.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.06.Author"
+msgid "Lina, 9, colonist"
+msgstr "Лина, 9 лет, колонистка"
+
+#. Key:	Lore.06.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.06.Body"
+msgid "Mum, it's Lina. The man in the big suit said to stay in the cabin and I did, I stayed so long. The lights went off and on and off. Mum, I heard you. You were in the air vent and you said my name the way you do when it's time for school, only softer. You said come closer, sweetheart. I didn't, because you always say never crawl in the vents, so I knew you'd be cross. You kept saying it all night. Your voice sounded tired. Is it really you? Knock three times, like always. Please."
+msgstr "Мама, это Лина. Дядя в большом скафандре сказал сидеть в каюте, и я сидела, сидела очень долго. Свет выключался, включался и опять выключался. Мама, я тебя слышала. Ты была в вентиляции и звала меня по имени, как когда пора в школу, только тише. Ты сказала: иди ко мне, солнышко. Я не пошла, потому что ты всегда говоришь, что в вентиляцию лазить нельзя, и я знала, что ты рассердишься. Ты звала всю ночь. Голос у тебя был усталый. Это правда ты? Постучи три раза, как всегда. Пожалуйста."
+
+#. Key:	Lore.06.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.06.Stamp"
+msgid "Voice message, undated"
+msgstr "Голосовое сообщение, без даты"
+
+#. Key:	Lore.06.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.06.Title"
+msgid "For Mum"
+msgstr "Маме"
+
+#. Key:	Lore.07.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.07.Author"
+msgid "Rafael Onyango, chief engineer"
+msgstr "Рафаэль Оньянго, главный инженер"
+
+#. Key:	Lore.07.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.07.Body"
+msgid "They call it the Cathedral, and I let them. Forty metres of steel arches, every one a waveguide for the Aether flow, and the core chamber at the heart, where the nave would be. The purification altar is no altar: it is a filter. Lay a raw core in the cradle, the field strips the instability out of it, and you have clean power for a year. Simple physics. But the crew kneel when they load it, and the old hands say a word over each core before the ritual. I have stopped correcting them. If a prayer keeps a hand steady at the cradle, I'll take it."
+msgstr "Его называют Собором, и я не спорю. Сорок метров стальных арок, каждая — волновод для потока Эфира, и камера ядра в сердце, там, где был бы неф. Алтарь очищения никакой не алтарь: это фильтр. Кладёшь сырое ядро в ложемент, поле вытягивает из него нестабильность — и у тебя чистая энергия на год. Простая физика. Но экипаж встаёт на колени, когда загружает ядро, а старики шепчут над каждым слово перед ритуалом. Я перестал их поправлять. Если молитва помогает руке не дрожать у ложемента, пусть молятся."
+
+#. Key:	Lore.07.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.07.Stamp"
+msgid "Engineering log, commissioning day"
+msgstr "Инженерный журнал, день ввода в строй"
+
+#. Key:	Lore.07.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.07.Title"
+msgid "Consecration of the Reactor"
+msgstr "Освящение реактора"
+
+#. Key:	Lore.08.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.08.Author"
+msgid "Father Cassian, chaplain technician"
+msgstr "отец Кассиан, капеллан-техник"
+
+#. Key:	Lore.08.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.08.Body"
+msgid "Brothers and sisters of the watch: the hum is not a fault. The hum is a voice. Since the jump the reactor sings in a key no instrument has, and when we sing with it, the needles hold steady. When we stop, they don't. So we will not stop. Three shifts, three choirs, the altar never cold. The blind in the docks hear it better than we do; that is why they whisper. Do not fear them. Do not answer them either. Some voices in the hum are not the reactor's. Learn the difference. Learn it quickly."
+msgstr "Братья и сёстры вахты: гул — не неисправность. Гул — это голос. После прыжка реактор поёт в тональности, которой нет ни у одного инструмента, и когда мы поём вместе с ним, стрелки стоят ровно. Когда замолкаем — нет. Значит, мы не замолчим. Три смены, три хора, алтарь никогда не остывает. Слепые в доках слышат его лучше нас — потому и шепчут. Не бойтесь их. Но и не отвечайте им. Не все голоса в гуле принадлежат реактору. Научитесь различать. Научитесь быстро."
+
+#. Key:	Lore.08.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.08.Stamp"
+msgid "Sermon notes, day 22"
+msgstr "Записи к проповеди, день 22"
+
+#. Key:	Lore.08.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.08.Title"
+msgid "Sermon of the Hum"
+msgstr "Проповедь гула"
+
+#. Key:	Lore.09.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.09.Author"
+msgid "Captain Ezra Holt, chief of security"
+msgstr "капитан Эзра Холт, начальник службы безопасности"
+
+#. Key:	Lore.09.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.09.Body"
+msgid "Day one thousand two hundred and something. My men stopped eating in the first year. The suits feed us now, the way roots feed a tree. My hands are part of the gauntlets; I don't remember which joints are mine. We don't sleep. We don't need to. We walk the locks, we check the seals, we turn back anyone who comes, even the ones who were ours. Brandt asked me what we are guarding the airlocks from. I had no answer. Then I understood: from anyone leaving. That is the order. That is the order."
+msgstr "День тысяча двести какой-то. Мои люди перестали есть ещё в первый год. Теперь нас кормят скафандры, как корни кормят дерево. Руки срослись с перчатками; я не помню, какие суставы мои. Мы не спим. Нам не нужно. Мы обходим шлюзы, проверяем пломбы, разворачиваем всякого, кто идёт, даже тех, кто был нашим. Брандт спросил, от чего мы охраняем шлюзы. Я не нашёл ответа. Потом понял: от того, чтобы кто-то ушёл. Таков приказ. Таков приказ."
+
+#. Key:	Lore.09.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.09.Stamp"
+msgid "Security log, day 1,203"
+msgstr "Журнал службы безопасности, день 1203"
+
+#. Key:	Lore.09.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.09.Title"
+msgid "The Last Watch"
+msgstr "Последний пост"
+
+#. Key:	Lore.10.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.10.Author"
+msgid "Dr Niko Auer, drive physicist"
+msgstr "д-р Нико Ауэр, физик двигателя"
+
+#. Key:	Lore.10.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.10.Body"
+msgid "The drive didn't fold space. It tore it. For eleven seconds the field opened onto something beyond the Aether, and something on the other side was listening. I have been through every recording since. There is a second signal in the reactor's harmonics, and it rises whenever our Resonance does. It hunts the hum. And it learns. Last night it played the comm logs back to us: the captain's voice, a child crying, a technician's last report, stitched into sentences nobody ever said. If someone you trust calls you from the dark, you are already being hunted."
+msgstr "Двигатель не свернул пространство. Он его порвал. На одиннадцать секунд поле открылось во что-то за гранью Эфира, и с той стороны кто-то слушал. С тех пор я переслушал все записи. В гармониках реактора есть второй сигнал, и он растёт, когда растёт наш Резонанс. Он охотится на гул. И он учится. Прошлой ночью он прокрутил нам журналы связи: голос капитана, детский плач, последний доклад техника — сшитые во фразы, которых никто никогда не произносил. Если из темноты вас зовёт тот, кому вы доверяете, на вас уже охотятся."
+
+#. Key:	Lore.10.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.10.Stamp"
+msgid "Research log, day 61"
+msgstr "Исследовательский журнал, день 61"
+
+#. Key:	Lore.10.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.10.Title"
+msgid "The Edge of the Aether"
+msgstr "Край Эфира"
+
+#. Key:	Lore.11.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.11.Author"
+msgid "Captain Salome Rhein"
+msgstr "капитан Саломея Рейн"
+
+#. Key:	Lore.11.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.11.Body"
+msgid "Year forty. The drive has spun down at last, and navigation says we are falling home, back the way we came. I am the last who remembers how the old sky looked. The crew are still at their posts. The watch still walks the locks. The choir still sings. None of them are alive, not the way you mean it. If anyone from Helios-Nadir comes aboard: I know what you want. The cores are still in the hold, still growing, still humming. Do not take them home. Whatever came through with us lives in that hum. Leave them. Leave us."
+msgstr "Год сороковой. Двигатель наконец остановился, и навигация говорит, что мы падаем домой — назад, тем же путём. Я последняя, кто помнит, каким было старое небо. Экипаж по-прежнему на постах. Вахта по-прежнему обходит шлюзы. Хор по-прежнему поёт. Никто из них не жив — по крайней мере, не в вашем смысле. Если на борт поднимется кто-то из «Гелиос-Надир»: я знаю, чего вы хотите. Ядра всё ещё в трюме, всё ещё растут, всё ещё гудят. Не везите их домой. То, что пришло вместе с нами, живёт в этом гуле. Оставьте их. Оставьте нас."
+
+#. Key:	Lore.11.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.11.Stamp"
+msgid "Captain's log, year 40"
+msgstr "Журнал капитана, год 40"
+
+#. Key:	Lore.11.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.11.Title"
+msgid "Year Forty"
+msgstr "Год сороковой"
+
+#. Key:	Lore.12.Author
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.12.Author"
+msgid "Helios-Nadir, asset department"
+msgstr "«Гелиос-Надир», отдел активов"
+
+#. Key:	Lore.12.Body
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.12.Body"
+msgid "To orbital control. Subject: recovery of Ark Hollow assets. The Ark's return was projected within a four per cent margin. Priority: Aether cores, intact. Crew records and anomalous tissue: secondary assets. Handlers Vector-1 to Vector-8 have been decommissioned after prolonged exposure to Ark transmissions (see incident file: voices on the handler channel). Vector-9 is to address contractors in text only. Contractor losses within projected figures are acceptable and need not be reported. This memo is not to be shared with contractors."
+msgstr "Орбитальному контролю. Тема: возврат активов ковчега «Пустота». Возвращение ковчега прогнозировалось с точностью до четырёх процентов. Приоритет: Эфирные ядра, целые. Записи экипажа и аномальные ткани — второстепенные активы. Операторы с Вектор-1 по Вектор-8 списаны после длительного воздействия передач ковчега (см. дело об инциденте: голоса на канале оператора). Вектору-9 обращаться к контракторам только текстом. Потери контракторов в пределах прогнозных значений допустимы и отчёта не требуют. Записку контракторам не показывать."
+
+#. Key:	Lore.12.Stamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.12.Stamp"
+msgid "Internal memo, restricted"
+msgstr "Служебная записка, для служебного пользования"
+
+#. Key:	Lore.12.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
+#: /Game/Hollow/Localization/ST_Lore.ST_Lore
+msgctxt "ST_Lore,Lore.12.Title"
+msgid "Programme VECTOR"
+msgstr "Программа ВЕКТОР"
+
+#. Key:	Menu.Debrief.Continue
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Debrief.Continue"
+msgid "Continue"
+msgstr "Продолжить"
+
+#. Key:	Menu.Language
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Language"
+msgid "Language: English"
+msgstr "Язык: Русский"
+
+#. Key:	Menu.Main.Host
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Main.Host"
+msgid "Host co-op"
+msgstr "Создать кооп-игру"
+
+#. Key:	Menu.Main.Solo
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Main.Solo"
+msgid "Play solo"
+msgstr "Играть одному"
+
+#. Key:	Menu.Main.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Main.Title"
+msgid "PROTOCOL: HOLLOW"
+msgstr "PROTOCOL: HOLLOW"
+
+#. Key:	Menu.Quit
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Quit"
+msgid "Quit"
+msgstr "Выход"
+
+#. Key:	Menu.System.Flashes
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.Flashes"
+msgid "Flashes: Full"
+msgstr "Вспышки: полные"
+
+#. Key:	Menu.System.Invite
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.Invite"
+msgid "Invite friends"
+msgstr "Пригласить друзей"
+
+#. Key:	Menu.System.Leave
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.Leave"
+msgid "Leave session"
+msgstr "Покинуть сессию"
+
+#. Key:	Menu.System.Resume
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.Resume"
+msgid "Resume"
+msgstr "Продолжить"
+
+#. Key:	Menu.System.StartRaid
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.StartRaid"
+msgid "Start raid"
+msgstr "Начать рейд"
+
+#. Key:	Menu.System.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.Title"
+msgid "SYSTEM"
+msgstr "СИСТЕМА"
+
+#. Key:	Menu.System.Voice
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.System.Voice"
+msgid "Voice: Push-to-talk"
+msgstr "Голос: по кнопке"
+
+#. Key:	Altar.Started.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Altar.Started.1.1"
+msgid "Ritual's running. The whole cathedral heard that. Hold the altar."
+msgstr "Ритуал пошёл. Это слышал весь собор. Держите алтарь."
+
+#. Key:	Altar.Started.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Altar.Started.2.1"
+msgid "Purification started. Keep them off the altar until the hum settles."
+msgstr "Очищение началось. Не подпускайте их к алтарю, пока гул не стихнет."
+
+#. Key:	Core.Lifted.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Core.Lifted.1.1"
+msgid "Core is moving. From here on, every step you take costs the company money. Make them count."
+msgstr "Ядро в движении. Теперь каждый ваш шаг стоит компании денег. Шагайте с толком."
+
+#. Key:	Core.Lifted.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Core.Lifted.2.1"
+msgid "You've got it. Slow and steady to extraction. Drop it and I'll hear about it. So will they."
+msgstr "Ядро у вас. Медленно и ровно к эвакуации. Уроните — я услышу. Они тоже."
+
+#. Key:	Core.Lifted.3.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Core.Lifted.3.1"
+msgid "Core lifted. Your Resonance will climb. That's not a malfunction, that's the job."
+msgstr "Ядро поднято. Резонанс пойдёт вверх. Это не сбой, это работа."
+
+#. Key:	Core.Sighted.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Core.Sighted.1.1"
+msgid "Core signature confirmed. That's the one Helios-Nadir is paying for."
+msgstr "Сигнатура ядра подтверждена. Именно за него «Гелиос-Надир» и платит."
+
+#. Key:	Core.Sighted.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Core.Sighted.2.1"
+msgid "I see the core on your helmet feed. Beautiful. Don't scratch it."
+msgstr "Вижу ядро в камере вашего шлема. Красавец. Не поцарапайте."
+
+#. Key:	Core.Sighted.3.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Core.Sighted.3.1"
+msgid "Aether core in sight. It's heavy and it hums. Things down there like the hum."
+msgstr "Эфирное ядро в поле зрения. Оно тяжёлое и гудит. А тамошние твари любят гул."
+
+#. Key:	Extraction.Started.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Extraction.Started.1.1"
+msgid "The Skiff is counting down. Everyone into the zone, cores aboard. I don't pay for stragglers."
+msgstr "«Скит» начал отсчёт. Все в зону, ядра на борт. За отставших я не плачу."
+
+#. Key:	Extraction.Started.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Extraction.Started.2.1"
+msgid "Extraction is live. The Skiff leaves on time, with or without you."
+msgstr "Эвакуация открыта. «Скит» улетит вовремя — с вами или без вас."
+
+#. Key:	Extraction.Started.3.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Extraction.Started.3.1"
+msgid "Countdown's running. Whatever's in the zone at zero flies home. Whatever isn't, stays."
+msgstr "Отсчёт пошёл. Всё, что будет в зоне к нулю, полетит домой. Остальное останется."
+
+#. Key:	Hub.Briefing.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Hub.Briefing.1.1"
+msgid "Contractor, this is Vector-9, Helios-Nadir orbital control. Your contract is in force as of now."
+msgstr "Контрактор, на связи Вектор-9, орбитальный контроль «Гелиос-Надир». Ваш контракт вступил в силу."
+
+#. Key:	Hub.Briefing.1.2
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Hub.Briefing.1.2"
+msgid "Below you is the Ark Hollow. Gone for forty years, back without a living soul. Its Aether cores are still warm."
+msgstr "Под вами ковчег «Пустота». Сорок лет его не было, вернулся без единой живой души. Эфирные ядра ещё тёплые."
+
+#. Key:	Hub.Briefing.1.3
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Hub.Briefing.1.3"
+msgid "Take a contract at the cockpit console. The workbench and the locker are along the hull. Insure what you can't lose."
+msgstr "Контракт берите у консоли в кабине. Верстак и шкафчик — у бортов. Страхуйте то, что не можете потерять."
+
+#. Key:	Hub.Briefing.1.4
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Hub.Briefing.1.4"
+msgid "Bring the cores aboard the Skiff. The contract covers your life. It does not cover the cores."
+msgstr "Доставьте ядра на борт «Скита». Контракт страхует вашу жизнь. Ядра он не страхует."
+
+#. Key:	Lore.First.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Lore.First.1.1"
+msgid "Crew records? Helios-Nadir pays for those too. Extract, and the bonus is yours."
+msgstr "Записи экипажа? «Гелиос-Надир» платит и за них. Эвакуируйтесь — и премия ваша."
+
+#. Key:	Resonance.Critical.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Resonance.Critical.1.1"
+msgid "Your Resonance is critical. You're a beacon now. Everything down there knows where you are."
+msgstr "Резонанс критический. Теперь вы маяк. Всё, что там внизу, знает, где вы."
+
+#. Key:	Resonance.Critical.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Resonance.Critical.2.1"
+msgid "Resonance off the scale, and your feed is breaking up. Shed the noise, or shed the core."
+msgstr "Резонанс зашкаливает, ваш канал рассыпается. Сбросьте шум — или сбросьте ядро."
+
+#. Key:	Resonance.Critical.3.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Resonance.Critical.3.1"
+msgid "Critical Resonance. Your contract has a clause for this. You won't like it."
+msgstr "Критический Резонанс. В контракте есть пункт на этот случай. Он вам не понравится."
+
+#. Key:	Sortie.Cathedral.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Sortie.Cathedral.1.1"
+msgid "Reactor Cathedral, sector two. The crew prayed to the reactor here. Judging by the readings, something answered."
+msgstr "Собор Реактора, сектор второй. Здесь экипаж молился реактору. Судя по показаниям, кто-то ответил."
+
+#. Key:	Sortie.Cathedral.1.2
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Sortie.Cathedral.1.2"
+msgid "The altar purifies a core, and a pure one pays more. The ritual is loud. Hold the altar until it's done."
+msgstr "Алтарь очищает ядро, а чистое стоит дороже. Ритуал шумный. Держите алтарь, пока он не закончится."
+
+#. Key:	Sortie.Docks.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Sortie.Docks.1.1"
+msgid "Orbital Docks, sector one. The airlocks were sealed from the inside. Whoever sealed them may still be on watch."
+msgstr "Орбитальные доки, сектор первый. Шлюзы запечатаны изнутри. Тот, кто их запечатал, может до сих пор нести вахту."
+
+#. Key:	Sortie.Docks.1.2
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Sortie.Docks.1.2"
+msgid "Find the vault, take the core, get back to the extraction zone. Keep the chatter down: the ship listens."
+msgstr "Найдите хранилище, заберите ядро, возвращайтесь в зону эвакуации. Меньше болтовни: корабль слушает."
+
+#. Key:	Speaker.Echo
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Speaker.Echo"
+msgid "VECT-R-9"
+msgstr "ВЕКТ-Р-9"
+
+#. Key:	Speaker.Handler
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Speaker.Handler"
+msgid "VECTOR-9"
+msgstr "ВЕКТОР-9"
+
+#. Key:	Squad.Loss.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Squad.Loss.1.1"
+msgid "Lost a vital sign. Minus one. The contract remains in force."
+msgstr "Пропал один пульс. Минус один. Контракт остаётся в силе."
+
+#. Key:	Squad.Loss.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Squad.Loss.2.1"
+msgid "Contractor down. Their share is noted. Keep moving."
+msgstr "Контрактор погиб. Его доля учтена. Двигайтесь дальше."
+
+#. Key:	Squad.Loss.3.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Squad.Loss.3.1"
+msgid "One signal has gone dark. I'll file the paperwork. You keep the core."
+msgstr "Один сигнал погас. Бумаги я оформлю. Ядро — на вас."
+
+#. Key:	Stalker.Contact.1.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Stalker.Contact.1.1"
+msgid "Contractor... this is Vector... come back to the airlock... come back..."
+msgstr "Контрактор… это Вектор… вернитесь к шлюзу… вернитесь…"
+
+#. Key:	Stalker.Contact.1.2
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Stalker.Contact.1.2"
+msgid "That wasn't me. It learned my voice from your channel. Don't answer it."
+msgstr "Это был не я. Оно выучило мой голос по вашему каналу. Не отвечайте ему."
+
+#. Key:	Stalker.Contact.2.1
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Stalker.Contact.2.1"
+msgid "Help me... please... I can hear you humming..."
+msgstr "Помогите… пожалуйста… я слышу, как вы гудите…"
+
+#. Key:	Stalker.Contact.2.2
+#. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
+#: /Game/Hollow/Localization/ST_Radio.ST_Radio
+msgctxt "ST_Radio,Stalker.Contact.2.2"
+msgid "Echo signature, close. It hunts Resonance. Keep your lamps on and your voices down."
+msgstr "Эхо-сигнатура рядом. Оно охотится на Резонанс. Лампы не гасить, голоса ниже."
+
+#. Key:	Controls.Gadget
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Gadget"
+msgid "Gadget"
+msgstr "Гаджет"
+
+#. Key:	Controls.Gadget.Engineer
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Gadget.Engineer"
+msgid "Pulse mine"
+msgstr "Импульсная мина"
+
+#. Key:	Controls.Gadget.Occultist
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Gadget.Occultist"
+msgid "Ritual ward"
+msgstr "Ритуальный оберег"
+
+#. Key:	Controls.Hands
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Hands"
+msgid "Tools / weapon"
+msgstr "Инструменты / оружие"
+
+#. Key:	Controls.Interact
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Interact"
+msgid "Interact"
+msgstr "Взаимодействие"
+
+#. Key:	Controls.Lamp
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Lamp"
+msgid "Helmet lamp"
+msgstr "Лампа шлема"
+
+#. Key:	Controls.Melee
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Melee"
+msgid "Melee"
+msgstr "Ближний бой"
+
+#. Key:	Controls.Reload
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Reload"
+msgid "Reload / refuel"
+msgstr "Перезарядка / заправка"
+
+#. Key:	Controls.Tool
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Tool"
+msgid "Tool"
+msgstr "Инструмент"
+
+#. Key:	Controls.Tool.Engineer
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Tool.Engineer"
+msgid "Plasma cutter"
+msgstr "Плазменный резак"
+
+#. Key:	Controls.Tool.Occultist
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Tool.Occultist"
+msgid "Aether lantern"
+msgstr "Эфирный фонарь"
+
+#. Key:	Controls.Voice
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Voice"
+msgid "Voice"
+msgstr "Голос"
+
+#. Key:	Controls.Welder
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Controls.Welder"
+msgid "Welder"
+msgstr "Сварка"
+
+#. Key:	Glyph.E
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.E"
+msgid "E"
+msgstr "E"
+
+#. Key:	Glyph.Enter
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Enter"
+msgid "Enter"
+msgstr "Enter"
+
+#. Key:	Glyph.Escape
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Escape"
+msgid "Esc"
+msgstr "Esc"
+
+#. Key:	Glyph.F
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.F"
+msgid "F"
+msgstr "F"
+
+#. Key:	Glyph.Gamepad_DPad_Down
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_DPad_Down"
+msgid "D-Down"
+msgstr "D-Down"
+
+#. Key:	Glyph.Gamepad_DPad_Left
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_DPad_Left"
+msgid "D-Left"
+msgstr "D-Left"
+
+#. Key:	Glyph.Gamepad_DPad_Right
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_DPad_Right"
+msgid "D-Right"
+msgstr "D-Right"
+
+#. Key:	Glyph.Gamepad_DPad_Up
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_DPad_Up"
+msgid "D-Up"
+msgstr "D-Up"
+
+#. Key:	Glyph.Gamepad_FaceButton_Bottom
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_FaceButton_Bottom"
+msgid "A"
+msgstr "A"
+
+#. Key:	Glyph.Gamepad_FaceButton_Left
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_FaceButton_Left"
+msgid "X"
+msgstr "X"
+
+#. Key:	Glyph.Gamepad_FaceButton_Right
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_FaceButton_Right"
+msgid "B"
+msgstr "B"
+
+#. Key:	Glyph.Gamepad_FaceButton_Top
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_FaceButton_Top"
+msgid "Y"
+msgstr "Y"
+
+#. Key:	Glyph.Gamepad_LeftShoulder
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_LeftShoulder"
+msgid "LB"
+msgstr "LB"
+
+#. Key:	Glyph.Gamepad_LeftThumbstick
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_LeftThumbstick"
+msgid "LS"
+msgstr "LS"
+
+#. Key:	Glyph.Gamepad_LeftTrigger
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_LeftTrigger"
+msgid "LT"
+msgstr "LT"
+
+#. Key:	Glyph.Gamepad_RightShoulder
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_RightShoulder"
+msgid "RB"
+msgstr "RB"
+
+#. Key:	Glyph.Gamepad_RightThumbstick
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_RightThumbstick"
+msgid "RS"
+msgstr "RS"
+
+#. Key:	Glyph.Gamepad_RightTrigger
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_RightTrigger"
+msgid "RT"
+msgstr "RT"
+
+#. Key:	Glyph.Gamepad_Special_Left
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_Special_Left"
+msgid "View"
+msgstr "View"
+
+#. Key:	Glyph.Gamepad_Special_Right
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Gamepad_Special_Right"
+msgid "Menu"
+msgstr "Menu"
+
+#. Key:	Glyph.LeftControl
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.LeftControl"
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#. Key:	Glyph.LeftMouseButton
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.LeftMouseButton"
+msgid "LMB"
+msgstr "ЛКМ"
+
+#. Key:	Glyph.LeftShift
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.LeftShift"
+msgid "Shift"
+msgstr "Shift"
+
+#. Key:	Glyph.MouseWheel
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.MouseWheel"
+msgid "Wheel"
+msgstr "Колесо"
+
+#. Key:	Glyph.One
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.One"
+msgid "1"
+msgstr "1"
+
+#. Key:	Glyph.RightMouseButton
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.RightMouseButton"
+msgid "RMB"
+msgstr "ПКМ"
+
+#. Key:	Glyph.SpaceBar
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.SpaceBar"
+msgid "Space"
+msgstr "Пробел"
+
+#. Key:	Glyph.Two
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Glyph.Two"
+msgid "2"
+msgstr "2"
+
+#. Key:	Visor.Bar.Fuel
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Bar.Fuel"
+msgid "Fuel"
+msgstr "Топливо"
+
+#. Key:	Visor.Bar.Health
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Bar.Health"
+msgid "Health"
+msgstr "Здоровье"
+
+#. Key:	Visor.Bar.Heat
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Bar.Heat"
+msgid "Heat"
+msgstr "Нагрев"
+
+#. Key:	Visor.Bar.Stamina
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Bar.Stamina"
+msgid "Stamina"
+msgstr "Выносливость"
+
+#. Key:	Visor.Controls.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Controls.Title"
+msgid "CONTROLS"
+msgstr "УПРАВЛЕНИЕ"
+
+#. Key:	Visor.Controls.TitleFormat
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Controls.TitleFormat"
+msgid "[{0}] CONTROLS"
+msgstr "[{0}] УПРАВЛЕНИЕ"
+
+#. Key:	Visor.Lamp.Format
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Lamp.Format"
+msgid "[{0}] {1}"
+msgstr "[{0}] {1}"
+
+#. Key:	Visor.Lamp.Off
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Lamp.Off"
+msgid "LAMP OFF"
+msgstr "ЛАМПА ВЫКЛ"
+
+#. Key:	Visor.Lamp.On
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Lamp.On"
+msgid "LAMP ON"
+msgstr "ЛАМПА ВКЛ"
+
+#. Key:	Visor.Lore.Format
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Lore.Format"
+msgid "CREW LOG {0}/{1}"
+msgstr "ЗАПИСЬ ЭКИПАЖА {0}/{1}"
+
+#. Key:	Visor.Lore.Known
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Lore.Known"
+msgid "Already in your archive"
+msgstr "Уже в вашем архиве"
+
+#. Key:	Visor.Lore.New
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Lore.New"
+msgid "+{0} cr on extraction"
+msgstr "+{0} кр при эвакуации"
+
+#. Key:	Visor.Objective.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Objective.Title"
+msgid "OBJECTIVE"
+msgstr "ЦЕЛЬ"
+
+#. Key:	Visor.Resonance.Format
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Resonance.Format"
+msgid "RES {0}%"
+msgstr "РЕЗ {0}%"
+
+#. Key:	Visor.Supply.Format
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Supply.Format"
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#. Key:	Visor.Supply.Separator
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Supply.Separator"
+msgid "   "
+msgstr "   "
+
+#. Key:	Visor.Tier.Critical
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Tier.Critical"
+msgid "CRITICAL"
+msgstr "КРИТИЧЕСКИЙ"
+
+#. Key:	Visor.Tier.High
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Tier.High"
+msgid "HIGH"
+msgstr "ВЫСОКИЙ"
+
+#. Key:	Visor.Tier.Low
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Tier.Low"
+msgid "LOW"
+msgstr "НИЗКИЙ"
+
+#. Key:	Visor.Tier.Medium
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Tier.Medium"
+msgid "MEDIUM"
+msgstr "СРЕДНИЙ"
+
+#. Key:	Visor.Voice.Muted
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Voice.Muted"
+msgid "MIC  MUTED"
+msgstr "МИК  ВЫКЛ"
+
+#. Key:	Visor.Voice.OpenMic
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Voice.OpenMic"
+msgid "MIC  OPEN"
+msgstr "МИК  ОТКРЫТ"
+
+#. Key:	Visor.Voice.PushToTalk
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Voice.PushToTalk"
+msgid "MIC  PTT"
+msgstr "МИК  КНОПКА"
+
+#. Key:	Visor.Voice.Talking
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Voice.Talking"
+msgid "VOX  {0}"
+msgstr "ГОЛОС  {0}"
+
+#. Key:	Visor.Voice.Transmitting
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Voice.Transmitting"
+msgid "{0}  >> TX"
+msgstr "{0}  >> ПЕРЕДАЧА"
+
+#. Key:	Visor.Waypoint.Altar
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Altar"
+msgid "ALTAR"
+msgstr "АЛТАРЬ"
+
+#. Key:	Visor.Waypoint.Contracts
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Contracts"
+msgid "CONTRACTS"
+msgstr "КОНТРАКТЫ"
+
+#. Key:	Visor.Waypoint.Evac
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Evac"
+msgid "EVAC"
+msgstr "ЭВАКУАЦИЯ"
+
+#. Key:	Visor.Waypoint.Format
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Format"
+msgid "{0}  {1} m"
+msgstr "{0}  {1} м"
+
+#. Key:	Visor.Waypoint.Locker
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Locker"
+msgid "LOCKER"
+msgstr "ШКАФЧИК"
+
+#. Key:	Visor.Waypoint.Vault
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Vault"
+msgid "VAULT"
+msgstr "ХРАНИЛИЩЕ"
+
+#. Key:	Visor.Waypoint.Workbench
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Waypoint.Workbench"
+msgid "WORKBENCH"
+msgstr "ВЕРСТАК"
+
+#. Key:	Class.Engineer.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Class.Engineer.Description"
+msgid "Cuts, welds and mines the squad's way through the wreck. Tools run hotter before they overheat; heavier plating."
+msgstr "Режет, варит и минирует отряду путь сквозь обломки. Инструменты дольше греются до перегрева; броня тяжелее."
+
+#. Key:	Class.Engineer.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Class.Engineer.Name"
+msgid "Engineer"
+msgstr "Инженер"
+
+#. Key:	Class.Occultist.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Class.Occultist.Description"
+msgid "Reads the Aether and keeps it quiet: Resonance builds slower. The Aether lantern exposes what hunts the squad and dampens its Resonance; the ritual ward holds a doorway and calms whoever stands in it."
+msgstr "Читает Эфир и не даёт ему шуметь: Резонанс растёт медленнее. Эфирный фонарь высвечивает тех, кто охотится на отряд, и гасит их Резонанс; ритуальный оберег держит проход и успокаивает всех, кто в нём стоит."
+
+#. Key:	Class.Occultist.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Class.Occultist.Name"
+msgid "Techno-Occultist"
+msgstr "Техно-оккультист"
+
+#. Key:	Contract.Cathedral.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Contract.Cathedral.Description"
+msgid "Carry the Aether core to the Purification Altar, hold out through the ritual and bring the purified core home."
+msgstr "Донесите эфирное ядро до Алтаря очищения, выстойте до конца ритуала и доставьте очищенное ядро домой."
+
+#. Key:	Contract.Cathedral.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Contract.Cathedral.Name"
+msgid "Reactor Cathedral purification"
+msgstr "Очищение в Соборе Реактора"
+
+#. Key:	Contract.Cathedral.Sector
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Contract.Cathedral.Sector"
+msgid "Sector II - Reactor Cathedral"
+msgstr "Сектор II — Собор Реактора"
+
+#. Key:	Contract.Docks.Description
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Contract.Docks.Description"
+msgid "Recover an Aether core from the derelict docks and bring it to the extraction shuttle."
+msgstr "Добудьте эфирное ядро в заброшенных доках и доставьте его к эвакуационному челноку."
+
+#. Key:	Contract.Docks.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Contract.Docks.Name"
+msgid "Orbital Docks salvage"
+msgstr "Добыча в Орбитальных доках"
+
+#. Key:	Contract.Docks.Sector
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Contract.Docks.Sector"
+msgid "Sector I - Orbital Docks"
+msgstr "Сектор I — Орбитальные доки"
+
+#. Key:	Sector.Cathedral.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Sector.Cathedral.Name"
+msgid "Reactor Cathedral"
+msgstr "Собор Реактора"
+
+#. Key:	Sector.Docks.Name
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,Sector.Docks.Name"
+msgid "Orbital Docks"
+msgstr "Орбитальные доки"
+
+#. Key:	World.Altar.Place
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Altar.Place"
+msgid "Lay the core on the altar"
+msgstr "Положить ядро на алтарь"
+
+#. Key:	World.Breaker.Off
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Breaker.Off"
+msgid "Cut the power"
+msgstr "Отключить питание"
+
+#. Key:	World.Breaker.On
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Breaker.On"
+msgid "Restore the power"
+msgstr "Восстановить питание"
+
+#. Key:	World.Core.Join
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Core.Join"
+msgid "Take the other side"
+msgstr "Взяться с другой стороны"
+
+#. Key:	World.Core.Lift
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Core.Lift"
+msgid "Lift the Aether core"
+msgstr "Поднять эфирное ядро"
+
+#. Key:	World.Datapad.Download
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Datapad.Download"
+msgid "Download crew log"
+msgstr "Скачать запись экипажа"
+
+#. Key:	World.Door.Close
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Door.Close"
+msgid "Close"
+msgstr "Закрыть"
+
+#. Key:	World.Door.Open
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Door.Open"
+msgid "Open"
+msgstr "Открыть"
+
+#. Key:	World.Switch.Off
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Switch.Off"
+msgid "Turn off"
+msgstr "Выключить"
+
+#. Key:	World.Switch.On
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Switch.On"
+msgid "Turn on"
+msgstr "Включить"
+
+#. Key:	Desync
+#. SourceLocation:	Source/HollowGame/Private/Sector/HollowSectorAuthorityComponent.cpp(411)
+#: Source/HollowGame/Private/Sector/HollowSectorAuthorityComponent.cpp(411)
+msgctxt "HollowSectorAuthority,Desync"
+msgid "Your sector does not match the host's (content mismatch)."
+msgstr "Ваш сектор не совпадает с сектором хоста (разные данные игры)."
+
+#. Key:	Timeout
+#. SourceLocation:	Source/HollowGame/Private/Sector/HollowSectorAuthorityComponent.cpp(469)
+#: Source/HollowGame/Private/Sector/HollowSectorAuthorityComponent.cpp(469)
+msgctxt "HollowSectorAuthority,Timeout"
+msgid "Loading the sector took too long."
+msgstr "Загрузка сектора заняла слишком много времени."
+
+#. Key:	PickUp
+#. SourceLocation:	Source/HollowGame/Private/World/HollowLootPickup.cpp(133)
+#: Source/HollowGame/Private/World/HollowLootPickup.cpp(133)
+msgctxt "HollowLootPickup,PickUp"
+msgid "Pick up {0} x{1}"
+msgstr "Подобрать: {0} ×{1}"
+
+#. Key:	EmptyTitle
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(127)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(127)
+msgctxt "HollowCodex,EmptyTitle"
+msgid "CREW ARCHIVE"
+msgstr "АРХИВ ЭКИПАЖА"
+
+#. Key:	Meta
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(135)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(135)
+msgctxt "HollowCodex,Meta"
+msgid "{0}   |   {1}"
+msgstr "{0}   |   {1}"
+
+#. Key:	EmptyBody
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(143)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(143)
+msgctxt "HollowCodex,EmptyBody"
+msgid "No crew logs yet. Datapads lie in the Ark's rooms: download one (E) and the whole squad keeps its log. A new log pays a bonus when you extract."
+msgstr "Записей экипажа пока нет. Датапады лежат в отсеках ковчега: скачайте один (E) — и запись получит весь отряд. За новую запись при эвакуации платят премию."
+
+#. Key:	EncryptedBody
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(145)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(145)
+msgctxt "HollowCodex,EncryptedBody"
+msgid "Find this datapad in {0} to decrypt the log."
+msgstr "Найдите этот датапад в секторе «{0}», чтобы расшифровать запись."
+
+#. Key:	Encrypted
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(16)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(16)
+msgctxt "HollowCodex,Encrypted"
+msgid "[DATA ENCRYPTED - {0}]"
+msgstr "[ДАННЫЕ ЗАШИФРОВАНЫ — {0}]"
+
+#. Key:	Sector
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(70)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(70)
+msgctxt "HollowCodex,Sector"
+msgid "{0}   {1}/{2}"
+msgstr "{0}   {1}/{2}"
+
+#. Key:	Read
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(77)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(77)
+msgctxt "HollowCodex,Read"
+msgid "Read"
+msgstr "Читать"
+
+#. Key:	NotFound
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(81)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(81)
+msgctxt "HollowCodex,NotFound"
+msgid "not found yet"
+msgstr "ещё не найдена"
+
+#. Key:	Status
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(84)
+#: Source/HollowUI/Private/Hub/HollowCodexWidget.cpp(84)
+msgctxt "HollowCodex,Status"
+msgid "Crew logs found: {0}/{1}"
+msgstr "Найдено записей экипажа: {0}/{1}"
+
+#. Key:	Chose
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowContractTerminalWidget.cpp(114)
+#: Source/HollowUI/Private/Hub/HollowContractTerminalWidget.cpp(114)
+msgctxt "HollowHubScreens,Chose"
+msgid "Contract: {0}"
+msgstr "Контракт: {0}"
+
+#. Key:	HostLaunches
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowContractTerminalWidget.cpp(123)
+#: Source/HollowUI/Private/Hub/HollowContractTerminalWidget.cpp(123)
+msgctxt "HollowHubScreens,HostLaunches"
+msgid "Only the host launches the raid."
+msgstr "Рейд начинает только хост."
+
+#. Key:	AlreadyApplied
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(154)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(154)
+msgctxt "HollowHubScreens,AlreadyApplied"
+msgid "Already done"
+msgstr "Уже сделано"
+
+#. Key:	InRaid
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(156)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(156)
+msgctxt "HollowHubScreens,InRaid"
+msgid "A raid is under way: the profile waits for its result"
+msgstr "Идёт рейд: профиль ждёт его итогов"
+
+#. Key:	BadRequest
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(158)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(158)
+msgctxt "HollowHubScreens,BadRequest"
+msgid "Not possible"
+msgstr "Невозможно"
+
+#. Key:	UnknownItem
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(160)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(160)
+msgctxt "HollowHubScreens,UnknownItem"
+msgid "Unknown item"
+msgstr "Неизвестный предмет"
+
+#. Key:	UnknownRecipe
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(162)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(162)
+msgctxt "HollowHubScreens,UnknownRecipe"
+msgid "Unknown recipe"
+msgstr "Неизвестный рецепт"
+
+#. Key:	NotForSale
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(164)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(164)
+msgctxt "HollowHubScreens,NotForSale"
+msgid "The shop does not sell it"
+msgstr "Магазин это не продаёт"
+
+#. Key:	NotEnoughCredits
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(166)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(166)
+msgctxt "HollowHubScreens,NotEnoughCredits"
+msgid "Not enough credits"
+msgstr "Не хватает кредитов"
+
+#. Key:	NotEnoughItems
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(168)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(168)
+msgctxt "HollowHubScreens,NotEnoughItems"
+msgid "Not enough in the stash"
+msgstr "Не хватает на складе"
+
+#. Key:	StashFull
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(170)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(170)
+msgctxt "HollowHubScreens,StashFull"
+msgid "The stash is full"
+msgstr "Склад полон"
+
+#. Key:	LoadoutFull
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(172)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(172)
+msgctxt "HollowHubScreens,LoadoutFull"
+msgid "The loadout is full"
+msgstr "Снаряжение заполнено"
+
+#. Key:	NotForRaids
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(174)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(174)
+msgctxt "HollowHubScreens,NotForRaids"
+msgid "Not taken into raids"
+msgstr "В рейды не берётся"
+
+#. Key:	NotInsurable
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(176)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(176)
+msgctxt "HollowHubScreens,NotInsurable"
+msgid "Cannot be insured"
+msgstr "Нельзя застраховать"
+
+#. Key:	AlreadyInsured
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(178)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(178)
+msgctxt "HollowHubScreens,AlreadyInsured"
+msgid "Already insured"
+msgstr "Уже застраховано"
+
+#. Key:	InsuranceLimit
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(180)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(180)
+msgctxt "HollowHubScreens,InsuranceLimit"
+msgid "No insurance slot left"
+msgstr "Нет свободного страхового слота"
+
+#. Key:	UnknownUpgrade
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(182)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(182)
+msgctxt "HollowHubScreens,UnknownUpgrade"
+msgid "Unknown upgrade"
+msgstr "Неизвестный апгрейд"
+
+#. Key:	AlreadyOwned
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(184)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(184)
+msgctxt "HollowHubScreens,AlreadyOwned"
+msgid "The ship has it already"
+msgstr "Уже есть на челноке"
+
+#. Key:	UnknownClass
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(186)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(186)
+msgctxt "HollowHubScreens,UnknownClass"
+msgid "Unknown class"
+msgstr "Неизвестный класс"
+
+#. Key:	AlreadySelected
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(188)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(188)
+msgctxt "HollowHubScreens,AlreadySelected"
+msgid "The class you play"
+msgstr "Ваш текущий класс"
+
+#. Key:	SlotTaken
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(190)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(190)
+msgctxt "HollowHubScreens,SlotTaken"
+msgid "Its slot is taken: one tool a hand, one gadget, the relic slots"
+msgstr "Слот занят: по инструменту в каждую руку, один гаджет и слоты реликвий"
+
+#. Key:	Unknown
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(192)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(192)
+msgctxt "HollowHubScreens,Unknown"
+msgid "Not possible"
+msgstr "Невозможно"
+
+#. Key:	Stack
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(263)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(263)
+msgctxt "HollowHubScreens,Stack"
+msgid "{0} x{1}"
+msgstr "{0} ×{1}"
+
+#. Key:	Input
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(275)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(275)
+msgctxt "HollowHubScreens,Input"
+msgid "{0} ({1} in stash)"
+msgstr "{0} (на складе {1})"
+
+#. Key:	Credits
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(280)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(280)
+msgctxt "HollowHubScreens,Credits"
+msgid "{0} cr"
+msgstr "{0} кр"
+
+#. Key:	Plus
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(284)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(284)
+msgctxt "HollowHubScreens,Plus"
+msgid " + "
+msgstr " + "
+
+#. Key:	Recipe
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(284)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(284)
+msgctxt "HollowHubScreens,Recipe"
+msgid "{0} -> {1}"
+msgstr "{0} -> {1}"
+
+#. Key:	Craft
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(286)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(286)
+msgctxt "HollowHubScreens,Craft"
+msgid "Craft"
+msgstr "Создать"
+
+#. Key:	CraftMax
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(288)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(288)
+msgctxt "HollowHubScreens,CraftMax"
+msgid "Craft max ({0})"
+msgstr "Создать все ({0})"
+
+#. Key:	NoRecipes
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(293)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(293)
+msgctxt "HollowHubScreens,NoRecipes"
+msgid "No recipes"
+msgstr "Нет рецептов"
+
+#. Key:	Buy
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(301)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(301)
+msgctxt "HollowHubScreens,Buy"
+msgid "BUY"
+msgstr "ПОКУПКА"
+
+#. Key:	Offer
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(306)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(306)
+msgctxt "HollowHubScreens,Offer"
+msgid "{0} cr each, {1} in stash"
+msgstr "{0} кр за шт., на складе {1}"
+
+#. Key:	BuyOne
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(308)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(308)
+msgctxt "HollowHubScreens,BuyOne"
+msgid "Buy 1"
+msgstr "Купить 1"
+
+#. Key:	BuyMany
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(309)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(309)
+msgctxt "HollowHubScreens,BuyMany"
+msgid "Buy {0}"
+msgstr "Купить {0}"
+
+#. Key:	Sell
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(311)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(311)
+msgctxt "HollowHubScreens,Sell"
+msgid "SELL"
+msgstr "ПРОДАЖА"
+
+#. Key:	Sale
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(319)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(319)
+msgctxt "HollowHubScreens,Sale"
+msgid "{0} in stash, {1} cr each"
+msgstr "на складе {0}, {1} кр за шт."
+
+#. Key:	SellOne
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(320)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(320)
+msgctxt "HollowHubScreens,SellOne"
+msgid "Sell 1"
+msgstr "Продать 1"
+
+#. Key:	SellAll
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(321)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(321)
+msgctxt "HollowHubScreens,SellAll"
+msgid "Sell all (+{0} cr)"
+msgstr "Продать все (+{0} кр)"
+
+#. Key:	NothingToSell
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(326)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(326)
+msgctxt "HollowHubScreens,NothingToSell"
+msgid "The stash is empty"
+msgstr "Склад пуст"
+
+#. Key:	BuyUpgrade
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
+msgctxt "HollowHubScreens,BuyUpgrade"
+msgid "Buy ({0} cr)"
+msgstr "Купить ({0} кр)"
+
+#. Key:	Owned
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
+msgctxt "HollowHubScreens,Owned"
+msgid "Owned"
+msgstr "Куплено"
+
+#. Key:	NoUpgrades
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
+msgctxt "HollowHubScreens,NoUpgrades"
+msgid "No ship upgrades"
+msgstr "Нет апгрейдов челнока"
+
+#. Key:	InStash
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(360)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(360)
+msgctxt "HollowHubScreens,InStash"
+msgid "{0} in stash"
+msgstr "на складе {0}"
+
+#. Key:	TakeOne
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(361)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(361)
+msgctxt "HollowHubScreens,TakeOne"
+msgid "Take 1"
+msgstr "Взять 1"
+
+#. Key:	TakeAll
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(362)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(362)
+msgctxt "HollowHubScreens,TakeAll"
+msgid "Take all"
+msgstr "Взять все"
+
+#. Key:	EmptyStash
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(366)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(366)
+msgctxt "HollowHubScreens,EmptyStash"
+msgid "The stash is empty"
+msgstr "Склад пуст"
+
+#. Key:	Insured
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(382)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(382)
+msgctxt "HollowHubScreens,Insured"
+msgid "Insured: kept if you die"
+msgstr "Застраховано: останется при гибели"
+
+#. Key:	Uninsurable
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
+msgctxt "HollowHubScreens,Uninsurable"
+msgid "Cannot be insured"
+msgstr "Нельзя застраховать"
+
+#. Key:	Uninsured
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
+msgctxt "HollowHubScreens,Uninsured"
+msgid "Not insured (insurance {0} cr)"
+msgstr "Не застраховано (страховка {0} кр)"
+
+#. Key:	ReturnOne
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(387)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(387)
+msgctxt "HollowHubScreens,ReturnOne"
+msgid "Return 1"
+msgstr "Вернуть 1"
+
+#. Key:	ReturnAll
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(389)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(389)
+msgctxt "HollowHubScreens,ReturnAll"
+msgid "Return all"
+msgstr "Вернуть все"
+
+#. Key:	IsInsured
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(390)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(390)
+msgctxt "HollowHubScreens,IsInsured"
+msgid "Insured"
+msgstr "Застраховано"
+
+#. Key:	Insure
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
+msgctxt "HollowHubScreens,Insure"
+msgid "Insure ({0} cr)"
+msgstr "Застраховать ({0} кр)"
+
+#. Key:	InsureNot
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
+msgctxt "HollowHubScreens,InsureNot"
+msgid "Insure"
+msgstr "Застраховать"
+
+#. Key:	EmptyLoadout
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(396)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(396)
+msgctxt "HollowHubScreens,EmptyLoadout"
+msgid "The loadout is empty"
+msgstr "Снаряжение пусто"
+
+#. Key:	ChooseClass
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
+msgctxt "HollowHubScreens,ChooseClass"
+msgid "Choose"
+msgstr "Выбрать"
+
+#. Key:	Playing
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
+msgctxt "HollowHubScreens,Playing"
+msgid "Playing"
+msgstr "Текущий"
+
+#. Key:	NoClasses
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(417)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(417)
+msgctxt "HollowHubScreens,NoClasses"
+msgid "No classes"
+msgstr "Нет классов"
+
+#. Key:	RewardItem
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(427)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(427)
+msgctxt "HollowHubScreens,RewardItem"
+msgid "{0} {1} cr"
+msgstr "{0} {1} кр"
+
+#. Key:	NoSector
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(429)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(429)
+msgctxt "HollowHubScreens,NoSector"
+msgid "Unknown sector"
+msgstr "Неизвестный сектор"
+
+#. Key:	ContractOffer
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(430)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(430)
+msgctxt "HollowHubScreens,ContractOffer"
+msgid "{0}. Reward: {1}"
+msgstr "{0}. Награда: {1}"
+
+#. Key:	GuestRole
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
+msgctxt "HollowHubScreens,GuestRole"
+msgid "The host chooses the contract and launches."
+msgstr "Контракт выбирает и запускает хост."
+
+#. Key:	HostRole
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
+msgctxt "HollowHubScreens,HostRole"
+msgid "Choose the squad's contract, then launch."
+msgstr "Выберите контракт отряда и начните рейд."
+
+#. Key:	GuestChosen
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
+msgctxt "HollowHubScreens,GuestChosen"
+msgid "{0}\nThe host chose: {1} - {2}"
+msgstr "{0}\nХост выбрал: {1} — {2}"
+
+#. Key:	HostChosen
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
+msgctxt "HollowHubScreens,HostChosen"
+msgid "{0}\nNow: {1} - {2}"
+msgstr "{0}\nСейчас: {1} — {2}"
+
+#. Key:	OfferDetail
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(464)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(464)
+msgctxt "HollowHubScreens,OfferDetail"
+msgid "{0}. {1}"
+msgstr "{0}. {1}"
+
+#. Key:	Choose
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
+msgctxt "HollowHubScreens,Choose"
+msgid "Choose"
+msgstr "Выбрать"
+
+#. Key:	Chosen
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
+msgctxt "HollowHubScreens,Chosen"
+msgid "Chosen"
+msgstr "Выбран"
+
+#. Key:	AlreadyChosen
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(473)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(473)
+msgctxt "HollowHubScreens,AlreadyChosen"
+msgid "The squad's contract already"
+msgstr "Уже выбран отрядом"
+
+#. Key:	HostsChoice
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(477)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(477)
+msgctxt "HollowHubScreens,HostsChoice"
+msgid "The host's choice. {0}"
+msgstr "Выбор хоста. {0}"
+
+#. Key:	NoContracts
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(482)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(482)
+msgctxt "HollowHubScreens,NoContracts"
+msgid "No contracts"
+msgstr "Нет контрактов"
+
+#. Key:	Status
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(499)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(499)
+msgctxt "HollowHubScreens,Status"
+msgid "Credits {Credits}    Stash {Stash}/{StashSlots}    Loadout {Loadout}/{LoadoutSlots}    Insured {Insured}/{InsuredLimit}"
+msgstr "Кредиты {Credits}    Склад {Stash}/{StashSlots}    Снаряжение {Loadout}/{LoadoutSlots}    Страховка {Insured}/{InsuredLimit}"
+
+#. Key:	StatusInRaid
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(500)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(500)
+msgctxt "HollowHubScreens,StatusInRaid"
+msgid "{0}    {1}"
+msgstr "{0}    {1}"
+
+#. Key:	Refused
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(267)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(267)
+msgctxt "HollowHubScreens,Refused"
+msgid "{0}: {1}"
+msgstr "{0}: {1}"
+
+#. Key:	Done
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(283)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(283)
+msgctxt "HollowHubScreens,Done"
+msgid "{0}: {1} - done"
+msgstr "{0}: {1} — готово"
+
+#. Key:	Failed
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(284)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(284)
+msgctxt "HollowHubScreens,Failed"
+msgid "{0}: {1} - {2}"
+msgstr "{0}: {1} — {2}"
+
+#. Key:	Why
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(298)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(298)
+msgctxt "HollowHubScreens,Why"
+msgid "{0}: {1}"
+msgstr "{0}: {1}"
+
+#. Key:	CraftTab
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowWorkbenchWidget.cpp(22)
+#: Source/HollowUI/Private/Hub/HollowWorkbenchWidget.cpp(22)
+msgctxt "HollowHubScreens,CraftTab"
+msgid "Craft"
+msgstr "Создание"
+
+#. Key:	ShopTab
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowWorkbenchWidget.cpp(24)
+#: Source/HollowUI/Private/Hub/HollowWorkbenchWidget.cpp(24)
+msgctxt "HollowHubScreens,ShopTab"
+msgid "Shop"
+msgstr "Магазин"
+
+#. Key:	UpgradesTab
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowWorkbenchWidget.cpp(26)
+#: Source/HollowUI/Private/Hub/HollowWorkbenchWidget.cpp(26)
+msgctxt "HollowHubScreens,UpgradesTab"
+msgid "Ship upgrades"
+msgstr "Апгрейды челнока"
+
+#. Key:	VoiceOpenMic
+#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(131)
+#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(131)
+msgctxt "HollowSystemMenu,VoiceOpenMic"
+msgid "Voice: Open mic"
+msgstr "Голос: открытый микрофон"
+
+#. Key:	VoiceMuted
+#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(132)
+#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(132)
+msgctxt "HollowSystemMenu,VoiceMuted"
+msgid "Voice: Muted"
+msgstr "Голос: выключен"
+
+#. Key:	VoicePushToTalk
+#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(133)
+#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(133)
+msgctxt "HollowSystemMenu,VoicePushToTalk"
+msgid "Voice: Push-to-talk"
+msgstr "Голос: по кнопке"
+
+#. Key:	FlashesFull
+#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
+#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
+msgctxt "HollowSystemMenu,FlashesFull"
+msgid "Flashes: Full"
+msgstr "Вспышки: полные"
+
+#. Key:	FlashesReduced
+#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
+#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
+msgctxt "HollowSystemMenu,FlashesReduced"
+msgid "Flashes: Reduced"
+msgstr "Вспышки: смягчённые"
+
+#. Key:	Stack
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(110)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(110)
+msgctxt "HollowDebrief,Stack"
+msgid "{0} x{1}"
+msgstr "{0} ×{1}"
+
+#. Key:	Nothing
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(112)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(112)
+msgctxt "HollowDebrief,Nothing"
+msgid "nothing"
+msgstr "ничего"
+
+#. Key:	Separator
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(112)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(112)
+msgctxt "HollowDebrief,Separator"
+msgid ", "
+msgstr ", "
+
+#. Key:	Details
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(67)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(67)
+msgctxt "HollowDebrief,Details"
+msgid "Aboard the shuttle: {Aboard} of {Squad}    Raid time: {Minutes}:{Seconds}\nDelivered: {Sold} (+{Earned} cr)\nCredits: {Before} -> {After}\nKept: {Kept}\nFound, into the stash: {Found}\nFound, sold (no room in the stash): {FoundSold}\nFound, left behind: {FoundLost}\nNew crew logs: {Logs} (+{LogCredits} cr, paid only on extraction)\nInsurance used: {Insured}\nUsed: {Used}\nLost: {Lost}"
+msgstr "На борту челнока: {Aboard} из {Squad}    Время рейда: {Minutes}:{Seconds}\nСдано: {Sold} (+{Earned} кр)\nКредиты: {Before} -> {After}\nСохранено: {Kept}\nНайдено, на склад: {Found}\nНайдено, продано (склад полон): {FoundSold}\nНайдено, брошено: {FoundLost}\nНовых записей экипажа: {Logs} (+{LogCredits} кр, только при эвакуации)\nСработала страховка: {Insured}\nИзрасходовано: {Used}\nПотеряно: {Lost}"
+
+#. Key:	Extracted
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(86)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(86)
+msgctxt "HollowDebrief,Extracted"
+msgid "EXTRACTED"
+msgstr "ЭВАКУИРОВАН"
+
+#. Key:	Dead
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(88)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(88)
+msgctxt "HollowDebrief,Dead"
+msgid "KILLED IN ACTION"
+msgstr "ПОГИБ В БОЮ"
+
+#. Key:	MissingInAction
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(90)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(90)
+msgctxt "HollowDebrief,MissingInAction"
+msgid "LEFT BEHIND"
+msgstr "ОСТАВЛЕН"
+
+#. Key:	SignalLost
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(92)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(92)
+msgctxt "HollowDebrief,SignalLost"
+msgid "SIGNAL LOST"
+msgstr "СВЯЗЬ ПОТЕРЯНА"
+
+#. Key:	Abandoned
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(94)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(94)
+msgctxt "HollowDebrief,Abandoned"
+msgid "RAID ABANDONED"
+msgstr "РЕЙД ПРЕРВАН"
+
+#. Key:	None
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(98)
+#: Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(98)
+msgctxt "HollowDebrief,None"
+msgid "RAID OVER"
+msgstr "РЕЙД ОКОНЧЕН"
+
+#. Key:	Deploying
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowRaidStatusWidget.cpp(93)
+#: Source/HollowUI/Private/Raid/HollowRaidStatusWidget.cpp(93)
+msgctxt "HollowRaidStatus,Deploying"
+msgid "DEPLOY  {0}"
+msgstr "ВЫСАДКА  {0}"
+
+#. Key:	Extraction
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowRaidStatusWidget.cpp(95)
+#: Source/HollowUI/Private/Raid/HollowRaidStatusWidget.cpp(95)
+msgctxt "HollowRaidStatus,Extraction"
+msgid "EVAC  {0}   |   ABOARD {1}/{2}   |   CORES {3}"
+msgstr "ЭВАКУАЦИЯ  {0}   |   НА БОРТУ {1}/{2}   |   ЯДРА {3}"
+
+#. Key:	Debrief
+#. SourceLocation:	Source/HollowUI/Private/Raid/HollowRaidStatusWidget.cpp(97)
+#: Source/HollowUI/Private/Raid/HollowRaidStatusWidget.cpp(97)
+msgctxt "HollowRaidStatus,Debrief"
+msgid "RAID OVER   |   SKIFF  {0}"
+msgstr "РЕЙД ОКОНЧЕН   |   СКИТ  {0}"
+
+#. Key:	HoldKey
+#. SourceLocation:	Source/HollowUI/Private/ViewModels/HollowVisorContext.cpp(165)
+#: Source/HollowUI/Private/ViewModels/HollowVisorContext.cpp(165)
+msgctxt "HollowVisorContext,HoldKey"
+msgid "Hold {0}"
+msgstr "Удерживать {0}"
+
+#. Key:	PromptKeyFormat
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowInteractionPromptWidget.cpp(12)
+#: Source/HollowUI/Private/Visor/HollowInteractionPromptWidget.cpp(12)
+msgctxt "HollowUI,PromptKeyFormat"
+msgid "[{0}]"
+msgstr "[{0}]"
+
+#. Key:	Deploying
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(101)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(101)
+msgctxt "HollowObjective,Deploying"
+msgid "Deploying..."
+msgstr "Высадка..."
+
+#. Key:	FindCore
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(103)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(103)
+msgctxt "HollowObjective,FindCore"
+msgid "Find the Aether core in the vault"
+msgstr "Найдите эфирное ядро в хранилище"
+
+#. Key:	PurifyOrExtract
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(105)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(105)
+msgctxt "HollowObjective,PurifyOrExtract"
+msgid "Purify the core at the Altar ({0}) or carry it to extraction ({1})"
+msgstr "Очистите ядро на алтаре ({0}) или донесите его до эвакуации ({1})"
+
+#. Key:	GuardRitual
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(108)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(108)
+msgctxt "HollowObjective,GuardRitual"
+msgid "Guard the Altar until the ritual ends"
+msgstr "Охраняйте алтарь до конца ритуала"
+
+#. Key:	DeliverCore
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(110)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(110)
+msgctxt "HollowObjective,DeliverCore"
+msgid "Deliver the core to the extraction zone"
+msgstr "Доставьте ядро в зону эвакуации"
+
+#. Key:	HoldZone
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(112)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(112)
+msgctxt "HollowObjective,HoldZone"
+msgid "Hold the zone until departure  {0}"
+msgstr "Удерживайте зону до отлёта  {0}"
+
+#. Key:	Down
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(114)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(114)
+msgctxt "HollowObjective,Down"
+msgid "You are down: the squad can still extract"
+msgstr "Вы выведены из строя: отряд ещё может эвакуироваться"
+
+#. Key:	RaidOver
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(116)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(116)
+msgctxt "HollowObjective,RaidOver"
+msgid "Raid over"
+msgstr "Рейд окончен"
+
+#. Key:	Credits
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(146)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(146)
+msgctxt "HollowObjective,Credits"
+msgid "{0} cr"
+msgstr "{0} кр"
+
+#. Key:	HubPrepare
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(95)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(95)
+msgctxt "HollowObjective,HubPrepare"
+msgid "1/2  Check the workbench or the locker"
+msgstr "1/2  Загляните к верстаку или в шкафчик"
+
+#. Key:	HubLaunch
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(97)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(97)
+msgctxt "HollowObjective,HubLaunch"
+msgid "2/2  Go to the contracts console in the cockpit to launch the raid"
+msgstr "2/2  Идите к консоли контрактов в кабине, чтобы начать рейд"
+
+#. Key:	HubWaitHost
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(99)
+#: Source/HollowUI/Private/Visor/HollowObjectiveRules.cpp(99)
+msgctxt "HollowObjective,HubWaitHost"
+msgid "2/2  Go to the contracts console: the host launches the raid"
+msgstr "2/2  Идите к консоли контрактов: рейд начинает хост"
+
+#. Key:	TargetStatusFormat
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowTargetStatusWidget.cpp(31)
+#: Source/HollowUI/Private/Visor/HollowTargetStatusWidget.cpp(31)
+msgctxt "HollowUI,TargetStatusFormat"
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#. Key:	Magazine
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowWeaponReadoutWidget.cpp(100)
+#: Source/HollowUI/Private/Visor/HollowWeaponReadoutWidget.cpp(100)
+msgctxt "HollowWeaponReadout,Magazine"
+msgid "{0}  {1}/{2}  [{3}]"
+msgstr "{0}  {1}/{2}  [{3}]"
+
+#. Key:	Reloading
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowWeaponReadoutWidget.cpp(96)
+#: Source/HollowUI/Private/Visor/HollowWeaponReadoutWidget.cpp(96)
+msgctxt "HollowWeaponReadout,Reloading"
+msgid "{0}  RELOADING"
+msgstr "{0}  ПЕРЕЗАРЯДКА"
+

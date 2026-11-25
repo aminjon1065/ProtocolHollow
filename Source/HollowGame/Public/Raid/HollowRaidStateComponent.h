@@ -2,6 +2,7 @@
 
 #include "Components/GameStateComponent.h"
 #include "Raid/HollowRaidStateTypes.h"
+#include "UObject/PrimaryAssetId.h"
 
 #include "HollowRaidStateComponent.generated.h"
 
@@ -17,6 +18,8 @@ class HOLLOWGAME_API UHollowRaidStateComponent : public UGameStateComponent
 
 public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHollowRaidStateChanged, const FHollowRaidNetState& /*Old*/, const FHollowRaidNetState& /*New*/);
+	/** NAR-01b: a crew log reached this machine; bNew: this machine's profile did not have it (its bonus waits for the raid's end). */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHollowLoreFound, const FPrimaryAssetId& /*Entry*/, bool /*bNew*/);
 
 	explicit UHollowRaidStateComponent(const FObjectInitializer& ObjectInitializer);
 
@@ -34,6 +37,17 @@ public:
 
 	FOnHollowRaidStateChanged OnStateChanged;
 
+	/** NAR-01b (ADR-0050): the crew logs the squad's datapads gave this raid, in order (a handful of ids). */
+	const TArray<FPrimaryAssetId>& GetLoreFound() const { return LoreFound; }
+
+	/**
+	 * Server only (UHollowLoreSubsystem): a datapad gave the squad Entry. Every machine keeps it in its own profile as it
+	 * arrives (ADR-0005: the profile is the player's) and tells OnLoreFound.
+	 */
+	void AddLoreFound(const FPrimaryAssetId& Entry);
+
+	FOnHollowLoreFound OnLoreFound;
+
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -43,6 +57,16 @@ private:
 
 	void HandleChanged(const FHollowRaidNetState& OldState);
 
+	UFUNCTION()
+	void OnRep_LoreFound(const TArray<FPrimaryAssetId>& OldLore);
+
+	/** Keeps Entry in this machine's profile and tells OnLoreFound. */
+	void HandleLoreFound(const FPrimaryAssetId& Entry);
+
 	UPROPERTY(ReplicatedUsing = OnRep_State)
 	FHollowRaidNetState State;
+
+	/** NAR-01b: replicated to the whole squad (the logs are shared), push model. */
+	UPROPERTY(ReplicatedUsing = OnRep_LoreFound)
+	TArray<FPrimaryAssetId> LoreFound;
 };

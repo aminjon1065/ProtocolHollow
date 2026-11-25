@@ -96,7 +96,21 @@
 #          the client among them, its lamp on them: they flinch (lit, shrieks on both machines) and back off. Both put their
 #          lamps out: the frenzy (both machines). Lamps on again, the client shoots them down with its nailgun; both dump the
 #          swarm, the enemies, the shots (the host: the hits it took), the feel and the drops. Both extract.
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+#   loc    LOC-01 English + Russian (ADR-0048): host (-culture=ru, this run only) + 1 headless client in English. The host
+#          shoots every screen in Russian (Hollow.UI.Shot Loc_*): main menu, hub with its objective, waypoints and cheat
+#          sheet, the workbench's three tabs, the locker, the system menu (switched to English and back at once with
+#          Hollow.UI.Language, no restart), the contracts; in the raid the visor, the core's prompt, the visor in English
+#          again for a moment, the extraction and the debrief. Both machines dump their UI: each in its own language.
+#   story  NAR-01a handler's radio (ADR-0049): host (-culture=ru, this run only) + 1 headless client in English, both with
+#          the radio forgotten (Hollow.Radio.Reset). The hub briefing plays on arrival on each machine in its own language
+#          (shots in Russian, in English for a moment, Russian again); the first sortie into the Docks, the core seen and
+#          lifted, the Echo-Stalker's mimicry and a critical Resonance (forced: the AI is killed), the client's death (the
+#          host hears the loss), the extraction's countdown. Both machines dump their radio (Story_* shots on the host).
+#          NAR-01b (ADR-0050): both archives forgotten too (Hollow.Lore.Reset); the host opens the empty crew archive in the
+#          hub, downloads both datapads of the Docks before the core (the visor's notice; the client gets each log too),
+#          extracts with the bonus while the client dies (its logs stay), then reads the Codex back in the hub, in Russian
+#          and in English. Both machines dump their archive (Hollow.Lore.Dump) and their profile.
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -105,7 +119,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm ]] || { sed -n '2,103p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story ]] || { sed -n '2,117p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -636,6 +650,85 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 100 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 101 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	loc)
+		HOST_ARGS=(-culture=ru)                                                       # the host in Russian, this run only
+		h "Hollow.Dev.RunAfter 4 Hollow.UI.Language"; h "Hollow.Dev.RunAfter 5 Hollow.UI.Shot Loc_MainMenu"
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 15 Hollow.UI.Dump"; h "Hollow.Dev.RunAfter 15.5 Hollow.UI.Shot Loc_Hub"
+		h "Hollow.Dev.RunAfter 17 Hollow.Dev.GoToTerminal Workbench"; h "Hollow.Dev.RunAfter 18 Hollow.Interact"
+		h "Hollow.Dev.RunAfter 19.5 Hollow.UI.Shot Loc_Craft"
+		h "$(key 20 E)"; h "Hollow.Dev.RunAfter 21 Hollow.UI.Shot Loc_Shop"           # E: the next tab
+		h "$(key 22 E)"; h "Hollow.Dev.RunAfter 23 Hollow.UI.Shot Loc_Upgrades"
+		h "$(key 24 Escape)"
+		h "Hollow.Dev.RunAfter 25 Hollow.Dev.GoToTerminal Locker"; h "Hollow.Dev.RunAfter 26 Hollow.Interact"
+		h "Hollow.Dev.RunAfter 27.5 Hollow.UI.Shot Loc_Locker"; h "$(key 28 Escape)"
+		h "$(key 29.5 Escape)"; h "Hollow.Dev.RunAfter 31 Hollow.UI.Shot Loc_SystemMenu"   # the system menu, its language button
+		h "Hollow.Dev.RunAfter 32 Hollow.UI.Language en"; h "Hollow.Dev.RunAfter 33 Hollow.UI.Shot Loc_SystemMenu_EN"   # at once
+		h "Hollow.Dev.RunAfter 34 Hollow.UI.Language ru"; h "Hollow.Dev.RunAfter 35 Hollow.UI.Shot Loc_SystemMenu_RU"
+		h "$(key 36 Escape)"
+		h "Hollow.Dev.RunAfter 37 Hollow.Dev.GoToTerminal Contracts"; h "Hollow.Dev.RunAfter 38 Hollow.Interact"
+		h "Hollow.Dev.RunAfter 39.5 Hollow.UI.Shot Loc_Contracts"; h "$(key 40.5 Escape)"
+		C1+=("Hollow.Dev.RunAfter 18 Hollow.UI.Language"); C1+=("Hollow.Dev.RunAfter 18.5 Hollow.UI.Dump")   # the guest: English
+		C1+=("Hollow.Dev.RunAfter 20 Hollow.Hub.Open Locker"); C1+=("Hollow.Dev.RunAfter 21 Hollow.UI.Dump"); C1+=("Hollow.Dev.RunAfter 22 Hollow.Hub.Close")
+		h "Hollow.Dev.RunAfter 45 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"; h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 4 Hollow.UI.Dump"; C+=("Hollow.Dev.RunInRaid 4.5 Hollow.UI.Dump")
+		h "Hollow.Dev.RunInRaid 4.2 Hollow.UI.Shot Loc_Raid"
+		h "Hollow.Dev.RunInRaid 5 Hollow.Dev.GoToNearestCore"; h "Hollow.Dev.RunInRaid 6 Hollow.Dev.FaceCore"
+		h "Hollow.Dev.RunInRaid 6.8 Hollow.UI.Shot Loc_Prompt"; h "Hollow.Dev.RunInRaid 7 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 7.5 Hollow.Interact"                                  # the host lifts the core
+		h "Hollow.Dev.RunInRaid 9 Hollow.UI.Language en"; h "Hollow.Dev.RunInRaid 10 Hollow.UI.Shot Loc_Raid_EN"
+		h "Hollow.Dev.RunInRaid 11 Hollow.UI.Language ru"; h "Hollow.Dev.RunInRaid 12 Hollow.UI.Shot Loc_Raid_RU"
+		h "Hollow.Dev.RunInRaid 13 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 17 Hollow.UI.Shot Loc_Extraction"; h "Hollow.Dev.RunInRaid 17.5 Hollow.UI.Dump"
+		for t in 55 70 85; do h "Hollow.Dev.RunInRaid $t Hollow.UI.Shot Loc_After_$t"; done   # the debrief (raid over, then the hub)
+		h "Hollow.Dev.RunInRaid 95 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 100 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 101 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
+	story)
+		HOST_ARGS=(-culture=ru)                                                       # the host in Russian, this run only
+		h "Hollow.Dev.RunAfter 3 Hollow.Radio.Reset"; C1+=("Hollow.Dev.RunAfter 3 Hollow.Radio.Reset")   # the briefing unheard
+		h "Hollow.Dev.RunAfter 3.5 Hollow.Lore.Reset"; C1+=("Hollow.Dev.RunAfter 3.5 Hollow.Lore.Reset")  # NAR-01b: no crew log yet
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 16 Hollow.UI.Dump"; h "Hollow.Dev.RunAfter 16.5 Hollow.UI.Shot Story_Briefing_RU"
+		h "Hollow.Dev.RunAfter 24 Hollow.UI.Language en"; h "Hollow.Dev.RunAfter 25 Hollow.UI.Shot Story_Briefing_EN"
+		h "Hollow.Dev.RunAfter 25.5 Hollow.UI.Dump"
+		h "Hollow.Dev.RunAfter 26 Hollow.UI.Language ru"; h "Hollow.Dev.RunAfter 27 Hollow.UI.Shot Story_Briefing_RU2"
+		C1+=("Hollow.Dev.RunAfter 22 Hollow.UI.Dump")                                 # the guest's own briefing, in English
+		h "Hollow.Dev.RunAfter 47 Hollow.UI.Dump"; C1+=("Hollow.Dev.RunAfter 47 Hollow.UI.Dump")   # over: quiet, heard for good
+		h "Hollow.Dev.RunAfter 48 Hollow.Dev.GoToTerminal Codex"; h "Hollow.Dev.RunAfter 49 Hollow.Interact"   # NAR-01b: the crew archive
+		h "Hollow.Dev.RunAfter 50.5 Hollow.UI.Shot Story_Codex_Empty"; h "Hollow.Dev.RunAfter 51 Hollow.UI.Dump"; h "$(key 52 Escape)"
+		h "Hollow.Dev.RunAfter 54 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 1 Hollow.Dev.Invulnerable All"; h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 3 Hollow.UI.Dump"; h "Hollow.Dev.RunInRaid 3.5 Hollow.UI.Shot Story_Sortie"; C+=("Hollow.Dev.RunInRaid 3 Hollow.UI.Dump")
+		h "Hollow.Dev.RunInRaid 5 Hollow.Lore.Dump"                                   # NAR-01b: the sector's two datapads
+		h "Hollow.Dev.RunInRaid 6 Hollow.Dev.GoToNearestDatapad"; h "Hollow.Dev.RunInRaid 7 Hollow.Dev.FaceNearestDatapad"
+		h "Hollow.Dev.RunInRaid 7.5 Hollow.Interact"; h "Hollow.Dev.RunInRaid 8.5 Hollow.UI.Shot Story_Datapad"; h "Hollow.Dev.RunInRaid 9 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 10 Hollow.Dev.GoToNearestDatapad"; h "Hollow.Dev.RunInRaid 11 Hollow.Dev.FaceNearestDatapad"
+		h "Hollow.Dev.RunInRaid 11.5 Hollow.Interact"; h "Hollow.Dev.RunInRaid 12.5 Hollow.UI.Shot Story_Datapad2"
+		C+=("Hollow.Dev.RunInRaid 14 Hollow.Lore.Dump")                               # the guest got both logs, in its own archive
+		h "Hollow.Dev.RunInRaid 16 Hollow.Dev.GoToNearestCore"; h "Hollow.Dev.RunInRaid 17 Hollow.Dev.FaceCore"
+		h "Hollow.Dev.RunInRaid 19 Hollow.UI.Dump"; h "Hollow.Dev.RunInRaid 19.5 Hollow.UI.Shot Story_CoreSighted"
+		h "Hollow.Dev.RunInRaid 25 Hollow.Interact"                                   # the host lifts the core
+		h "Hollow.Dev.RunInRaid 28 Hollow.UI.Dump"; h "Hollow.Dev.RunInRaid 28.5 Hollow.UI.Shot Story_CoreLifted"
+		C+=("Hollow.Dev.RunInRaid 28 Hollow.UI.Dump")                                 # the guest heard the lift too, in English
+		h "Hollow.Dev.RunInRaid 35 Hollow.Radio.Fire Stalker.Contact Force"           # the stalker was killed: its mimicry forced
+		h "Hollow.Dev.RunInRaid 36 Hollow.UI.Shot Story_Echo"; h "Hollow.Dev.RunInRaid 36.5 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 46 Hollow.Radio.Fire Resonance.Critical Force"; h "Hollow.Dev.RunInRaid 47 Hollow.UI.Shot Story_Resonance"
+		h "Hollow.Dev.RunInRaid 54 Hollow.Dev.Kill Others"                            # the client dies: the host hears the loss
+		h "Hollow.Dev.RunInRaid 55 Hollow.UI.Shot Story_SquadLoss"; h "Hollow.Dev.RunInRaid 55.5 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 62 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 65 Hollow.UI.Shot Story_Extraction"; h "Hollow.Dev.RunInRaid 65.5 Hollow.UI.Dump"
+		# NAR-01b: back in the hub, the crew archive with the two logs, in Russian, then in English.
+		h "Hollow.Dev.RunInRaid 140 Hollow.Dev.GoToTerminal Codex"; h "Hollow.Dev.RunInRaid 141 Hollow.Interact"
+		h "Hollow.Dev.RunInRaid 142.5 Hollow.UI.Shot Story_Codex_RU"; h "Hollow.Dev.RunInRaid 143 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 144 Hollow.UI.Language en"; h "Hollow.Dev.RunInRaid 145 Hollow.UI.Shot Story_Codex_EN"
+		h "Hollow.Dev.RunInRaid 146 Hollow.UI.Language ru"; h "Hollow.Dev.RunInRaid 147 Hollow.UI.PressKey Escape"
+		h "Hollow.Dev.RunInRaid 150 Hollow.Lore.Dump"; C+=("Hollow.Dev.RunInRaid 150 Hollow.Lore.Dump")
+		h "Hollow.Dev.RunInRaid 152 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 153 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
 	biomes)
 		D=HollowSector_Docks; K=HollowSector_Cathedral
 		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
@@ -818,7 +911,7 @@ else
 	# "Control listening on port 1985" matched at the same moment; the game's driver listens a menu press later (RG-1).
 	wait_for "$OUT/Host.log" 'UI up for .*[(]main menu[)]' 240 || { echo "the host's menu never came up"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
@@ -846,11 +939,11 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 
 SUMMARY_LINES=160
 [[ "$MODE" == biomes ]] && SUMMARY_LINES=320   # two raids and three hubs
-[[ "$MODE" == guide ]] && SUMMARY_LINES=260    # every step's objective on both machines
+[[ "$MODE" == guide || "$MODE" == loc || "$MODE" == story ]] && SUMMARY_LINES=260    # every step's objective on both machines
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role |Hollow.UI.Dump: (objective|tracker|waypoints|controls)|Objective of |Controls cheat sheet |Hollow.Art.Dump: |Hollow.Weapon.Dump: |Hollow.Feel.Dump: |in hand|carries DA_Weapon|reloads [0-9]|strikes |staggered|Hollow.Loot.Dump: |broken open|picks up|finds [0-9]|FaceNearest(Crate|Pickup): |GoToNearestCrate|found |Hollow.AI.(Swarm|Nest): |flinches in|a brood of|leaves [0-9]+ x|Swarm: " "$log" | grep -v "Command Line\|commandline\|metalmap" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role |Hollow.UI.Dump: (objective|tracker|waypoints|controls)|Objective of |Controls cheat sheet |Hollow.Art.Dump: |Hollow.Weapon.Dump: |Hollow.Feel.Dump: |in hand|carries DA_Weapon|reloads [0-9]|strikes |staggered|Hollow.Loot.Dump: |broken open|picks up|finds [0-9]|FaceNearest(Crate|Pickup): |GoToNearestCrate|found |Hollow.AI.(Swarm|Nest): |flinches in|a brood of|leaves [0-9]+ x|Swarm: |Hollow.UI.Language: |Language (English|Russian)|Hollow.UI.Dump: (radio|subtitle|lore notice)|Radio of |Radio: cue|Hollow.Radio.(Fire|Reset)|Hollow.Lore.(Dump|Reset)|crew log|Crew log|datapad|Datapad" "$log" | grep -v "Command Line\|commandline\|metalmap" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
 done
 if [[ "$MODE" == lantern ]]; then
 	# Every player's Resonance in the host's four dumps (by name and pawn: local processes share a name): the carrier

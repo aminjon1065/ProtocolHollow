@@ -44,6 +44,7 @@
 #include "Generation/HollowSectorTemplates.h"
 #include "HAL/IConsoleManager.h"
 #include "HollowGameLog.h"
+#include "World/HollowDatapad.h"
 #include "World/HollowLootCrate.h"
 #include "Movement/HollowCharacterMovementComponent.h"
 #include "Interaction/HollowInteractionComponent.h"
@@ -997,6 +998,37 @@ namespace HollowDevConsole
 		}
 	}
 
+	/** Usage: Hollow.Dev.GoToNearestDatapad [All|Others] (NAR-01b): the nearest one not downloaded. */
+	void GoToNearestDatapad(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || World->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogHollowGame, Warning, TEXT("Hollow.Dev.GoToNearestDatapad runs on the host."));
+			return;
+		}
+		const bool bAll = Args.Num() > 0 && Args[0].Equals(TEXT("All"), ESearchCase::IgnoreCase);
+		const bool bOthers = Args.Num() > 0 && Args[0].Equals(TEXT("Others"), ESearchCase::IgnoreCase);
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* Player = It->Get();
+			const APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+			if (!Pawn || !(bAll || Player->IsLocalController() != bOthers))
+			{
+				continue;
+			}
+			const AHollowDatapad* Nearest = nullptr;
+			for (TActorIterator<AHollowDatapad> Pad(World); Pad; ++Pad)
+			{
+				if (!Pad->IsTaken() && (!Nearest || FVector::DistSquared(Pad->GetActorLocation(), Pawn->GetActorLocation())
+					< FVector::DistSquared(Nearest->GetActorLocation(), Pawn->GetActorLocation())))
+				{
+					Nearest = *Pad;
+				}
+			}
+			PlaceInFrontOf(*Player, 0.0, Nearest, TEXT("Hollow.Dev.GoToNearestDatapad"));
+		}
+	}
+
 	void GoToNearestCore(const TArray<FString>& Args, UWorld* World)
 	{
 		GoToNearest(Args, World, AHollowAetherCore::StaticClass(), TEXT("Hollow.Dev.GoToNearestCore"));
@@ -1216,6 +1248,11 @@ namespace HollowDevConsole
 		TEXT("Hollow.Dev.GoToNearestBulkhead"),
 		TEXT("Host: puts the local pawn (or every player's, with All) in front of the nearest bulkhead, facing it. Usage: Hollow.Dev.GoToNearestBulkhead [All]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestBulkhead));
+
+	FAutoConsoleCommandWithWorldAndArgs GoToNearestDatapadCommand(
+		TEXT("Hollow.Dev.GoToNearestDatapad"),
+		TEXT("Host: puts the local pawn (or every player's, with All; the others', with Others) in front of the nearest crew datapad. Usage: Hollow.Dev.GoToNearestDatapad [All|Others]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GoToNearestDatapad));
 
 	FAutoConsoleCommandWithWorldAndArgs GoToNearestCrateCommand(
 		TEXT("Hollow.Dev.GoToNearestCrate"),

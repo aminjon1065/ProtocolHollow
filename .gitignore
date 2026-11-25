@@ -24,6 +24,10 @@ Packages/
 *.suo
 compile_commands.json
 
+# Python bytecode of the content scripts' shared modules (Build/Python/hollow_loc.py, LOC-01)
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db

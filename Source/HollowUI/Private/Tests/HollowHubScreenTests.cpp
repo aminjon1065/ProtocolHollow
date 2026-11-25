@@ -2,8 +2,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Blueprint/WidgetTree.h"
 #include "Classes/HollowClassDefinition.h"
 #include "CommonButtonBase.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
@@ -15,6 +17,7 @@
 #include "Framework/HollowPlayerController.h"
 #include "HollowUITags.h"
 #include "Hub/HollowContractDefinition.h"
+#include "Hub/HollowCodexWidget.h"
 #include "Hub/HollowContractTerminalWidget.h"
 #include "Hub/HollowHubRowWidget.h"
 #include "Hub/HollowHubScreenRouter.h"
@@ -27,12 +30,14 @@
 #include "Hub/HollowWorkbenchWidget.h"
 #include "ICommonInputModule.h"
 #include "Items/HollowItemDefinition.h"
+#include "Lore/HollowLoreEntryDefinition.h"
 #include "Profile/HollowEconomySettings.h"
 #include "Profile/HollowProfileSource.h"
 #include "Profile/HollowProfileTypes.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Tags/HollowGameplayTags.h"
 #include "Tests/HollowGameTestUtils.h"
+#include "Tests/HollowLocalizationTestUtils.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 namespace HollowHubScreenTests
@@ -673,7 +678,8 @@ bool FHollowHubRoutingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Each terminal kind has its screen"),
 		UHollowHubScreenRouter::ScreenClass(EHollowTerminalKind::Workbench)->IsChildOf(UHollowWorkbenchWidget::StaticClass())
 		&& UHollowHubScreenRouter::ScreenClass(EHollowTerminalKind::Locker)->IsChildOf(UHollowLoadoutWidget::StaticClass())
-		&& UHollowHubScreenRouter::ScreenClass(EHollowTerminalKind::Contracts)->IsChildOf(UHollowContractTerminalWidget::StaticClass()));
+		&& UHollowHubScreenRouter::ScreenClass(EHollowTerminalKind::Contracts)->IsChildOf(UHollowContractTerminalWidget::StaticClass())
+		&& UHollowHubScreenRouter::ScreenClass(EHollowTerminalKind::Codex)->IsChildOf(UHollowCodexWidget::StaticClass()));
 	UHollowHubScreenRouter* Router = NewObject<UHollowHubScreenRouter>(GetTransientPackage());
 	Router->Initialize(Rig.Layout, Host);
 
@@ -696,6 +702,226 @@ bool FHollowHubRoutingTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("The guest's terminal stays open"), Terminals->GetOpenTerminal(Guest) == Workbench);
 	Router->Deinitialize();
+	return true;
+}
+
+namespace HollowHubScreenTests
+{
+	/** Whether Text has a Latin word (a text to translate); numbers, signs and Roman numerals (Sector II) read the same. */
+	bool HasLatin(const FString& Text)
+	{
+		FString Word;
+		const auto IsLatinWord = [](const FString& Each)
+		{
+			bool bLatin = false;
+			bool bRoman = true;
+			for (const TCHAR Character : Each)
+			{
+				bLatin |= (Character >= TCHAR('A') && Character <= TCHAR('Z')) || (Character >= TCHAR('a') && Character <= TCHAR('z'));
+				bRoman &= FCString::Strchr(TEXT("IVXLCDM"), Character) != nullptr;
+			}
+			return bLatin && !bRoman;
+		};
+		for (const TCHAR Character : Text + TEXT(" "))
+		{
+			if (FChar::IsAlpha(Character))
+			{
+				Word.AppendChar(Character);
+				continue;
+			}
+			if (IsLatinWord(Word))
+			{
+				return true;
+			}
+			Word.Reset();
+		}
+		return false;
+	}
+
+	/**
+	 * LOC-01: the shown screen switched to Russian and back: every text with a Latin letter reads Russian (the same
+	 * widgets, no rebuild), nothing is cut on a 1080p screen in either language, English comes back the same.
+	 */
+	void CheckLanguages(FAutomationTestBase& Test, UUserWidget& Screen, const FString& Name)
+	{
+		using namespace HollowLocalizationTests;
+		const FVector2D View(1920.0, 1080.0);
+		for (const FString& Overflow : FindOverflows(Screen, View))   // lays it out first: every label is set
+		{
+			Test.AddError(FString::Printf(TEXT("%s, cut in English: %s"), *Name, *Overflow));
+		}
+		const TMap<FString, FString> English = ReadTexts(Screen);
+		Test.TestTrue(FString::Printf(TEXT("%s: texts to read"), *Name), English.Num() > 2);
+		{
+			const FScopedLanguage Russian(EHollowLanguage::Russian);
+			const TMap<FString, FString> Now = ReadTexts(Screen);
+			for (const TPair<FString, FString>& Text : English)
+			{
+				const FString* Shown = Now.Find(Text.Key);
+				if (HasLatin(Text.Value) && !(Shown && HasCyrillic(*Shown) && !HasLatin(*Shown)))
+				{
+					Test.AddError(FString::Printf(TEXT("%s: %s \"%s\" reads \"%s\" in Russian"), *Name, *Text.Key, *Text.Value, Shown ? **Shown : TEXT("-")));
+				}
+			}
+			for (const FString& Overflow : FindOverflows(Screen, View))
+			{
+				Test.AddError(FString::Printf(TEXT("%s, cut in Russian: %s"), *Name, *Overflow));
+			}
+		}
+		for (const FString& Change : Differences(English, ReadTexts(Screen)))
+		{
+			Test.AddError(FString::Printf(TEXT("%s, not back in English: %s"), *Name, *Change));
+		}
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCodexScreenTest, "Hollow.UI.Codex.Screen",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowCodexScreenTest::RunTest(const FString& Parameters)
+{
+	// NAR-01b (ADR-0050): the real W_Codex on a profile that found the first log of each sector: the twelve logs by
+	// sector with each sector's count and the total; a found log reads in full, one not found shows encrypted and
+	// cannot be read; the gamepad starts on the first log found; then every log, found, reads whole in its reader on a
+	// 1080p screen in both languages.
+	using namespace HollowHubScreenTests;
+	FScreenRig Rig;
+	const TArray<const UHollowLoreEntryDefinition*> Entries = UHollowLoreEntryDefinition::LoadAll();
+	if (!TestTrue(TEXT("Slate measures text here"), HollowLocalizationTests::CanMeasureText()) || !TestEqual(TEXT("Twelve logs"), Entries.Num(), 12)
+		|| !Rig.Build(*this))
+	{
+		return false;
+	}
+	const UHollowLoreEntryDefinition* DocksFirst = Entries[0];
+	const UHollowLoreEntryDefinition* DocksSecond = Entries[1];
+	const UHollowLoreEntryDefinition* CathedralFirst = Entries[6];
+	FMemoryProfile Profile;
+	Profile.State.Profile.Lore = {CathedralFirst->GetPrimaryAssetId(), DocksFirst->GetPrimaryAssetId()};
+	UHollowCodexWidget* Codex = Rig.Show<UHollowCodexWidget>(GetDefault<UHollowUISettings>()->CodexScreenClass, &Profile);
+	if (!TestNotNull(TEXT("W_Codex on the Menu layer"), Codex))
+	{
+		return false;
+	}
+	TestEqual(TEXT("Two sector headers and twelve logs"), Codex->GetRowWidgets().Num(), 14);
+	TestTrue(TEXT("Found 2 of 12"), Codex->GetFoundCount() == 2 && Codex->GetTotalCount() == 12);
+	TestTrue(TEXT("The status line says it"), Codex->GetStatus().ToString().Contains(TEXT("2/12")));
+	const FText DocksHeader = Codex->GetRowWidgets()[0]->GetRow().Name;
+	TestTrue(TEXT("Each sector's header: its name and found count"), Codex->GetRowWidgets()[0]->GetRow().bHeader
+		&& DocksHeader.ToString().Contains(DocksFirst->SectorName.ToString()) && DocksHeader.ToString().Contains(TEXT("1/6")));
+	TestTrue(TEXT("The reader opens on the first log found, whole"), Codex->GetReading() == DocksFirst->GetPrimaryAssetId()
+		&& Codex->GetReaderTitle().EqualTo(DocksFirst->Title) && Codex->GetReaderBody().EqualTo(DocksFirst->Body)
+		&& Codex->GetReaderMeta().ToString().Contains(DocksFirst->Author.ToString()) && Codex->GetReaderMeta().ToString().Contains(DocksFirst->Stamp.ToString()));
+	int32 Action = INDEX_NONE;
+	const auto Reads = [](const FPrimaryAssetId& Id) { return [Id](const FHollowHubAction& Each) { return Each.Command == EHollowHubCommand::ReadLore && Each.Lore == Id; }; };
+	UHollowHubRowWidget* Hidden = FindRowWidget(*Codex, Reads(DocksSecond->GetPrimaryAssetId()), Action);
+	TestTrue(TEXT("A log not found: [DATA ENCRYPTED - its sector], its Read greyed out"), Hidden && Hidden->GetRow().Name.ToString().Contains(DocksSecond->SectorName.ToString())
+		&& !Hidden->GetRow().Name.ToString().Contains(DocksSecond->Title.ToString()) && !Hidden->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("The gamepad starts on the first log found"), Codex->GetDesiredFocusTarget() == FindRowWidget(*Codex, Reads(DocksFirst->GetPrimaryAssetId()), Action)->GetActionButton(Action));
+	UHollowHubRowWidget* Found = FindRowWidget(*Codex, Reads(CathedralFirst->GetPrimaryAssetId()), Action);
+	Press(Found, Action);
+	TestTrue(TEXT("Read: the Cathedral's log in the reader"), Codex->GetReaderTitle().EqualTo(CathedralFirst->Title) && Codex->GetReaderBody().EqualTo(CathedralFirst->Body));
+	Codex->Read(DocksSecond->GetPrimaryAssetId());
+	TestTrue(TEXT("A log not found reads encrypted"), Codex->GetReaderTitle().ToString().Contains(DocksSecond->SectorName.ToString())
+		&& !Codex->GetReaderBody().EqualTo(DocksSecond->Body) && Codex->GetReaderMeta().IsEmpty());
+
+	// Every log found: each reads whole in the reader at 1080p, in English and in Russian (no scrolling).
+	for (const UHollowLoreEntryDefinition* Entry : Entries)
+	{
+		Profile.State.Profile.Lore.AddUnique(Entry->GetPrimaryAssetId());
+	}
+	Codex->Refresh();
+	TestEqual(TEXT("All found: 12/12"), Codex->GetFoundCount(), 12);
+	UWidget* Reader = Codex->WidgetTree->FindWidget(TEXT("Reader"));
+	UWidget* ReaderBox = Codex->WidgetTree->FindWidget(TEXT("ReaderBox"));
+	const UPanelWidget* List = Cast<UPanelWidget>(Codex->WidgetTree->FindWidget(TEXT("EntryList")));
+	if (!TestTrue(TEXT("The reader and the list"), Reader && ReaderBox && List))
+	{
+		return false;
+	}
+	const FVector2D View(1920.0, 1080.0);
+	for (const EHollowLanguage Language : {EHollowLanguage::English, EHollowLanguage::Russian})
+	{
+		const HollowLocalizationTests::FScopedLanguage Scoped(Language);
+		for (const UHollowLoreEntryDefinition* Entry : Entries)
+		{
+			Codex->Read(Entry->GetPrimaryAssetId());
+			for (const FString& Overflow : HollowLocalizationTests::FindOverflows(*Codex, View))
+			{
+				AddError(FString::Printf(TEXT("%s, %s: cut: %s"), *Entry->GetName(), LexToString(Language), *Overflow));
+			}
+			const double Height = Reader->GetDesiredSize().Y;
+			const double Room = ReaderBox->GetDesiredSize().Y;
+			TestTrue(*FString::Printf(TEXT("%s, %s: the whole log reads (%.0f of %.0f px)"), *Entry->GetName(), LexToString(Language), Height, Room), Height > 0.0 && Height <= Room);
+		}
+	}
+	Codex->NativeOnHandleBackAction();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLocalizationHubTest, "Hollow.UI.Localization.Hub",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowLocalizationHubTest::RunTest(const FString& Parameters)
+{
+	// LOC-01 (ADR-0048): the real hub screens with real data (the workbench's three tabs, the locker, the Codex of
+	// NAR-01b, the contracts) read Russian at once when the language changes, and their columns and rows hold the longer
+	// Russian words.
+	using namespace HollowHubScreenTests;
+	FScreenRig Rig;
+	if (!TestTrue(TEXT("Slate measures text here"), HollowLocalizationTests::CanMeasureText()) || !Rig.Build(*this))
+	{
+		return false;
+	}
+	FMemoryProfile Profile;
+	Profile.State.Profile.Credits = StartCredits;
+	Profile.State.Profile.ClassId = GetDefault<UHollowEconomySettings>()->DefaultClass;
+	Profile.State.Profile.Loadout = {Slot(RealCutter, 1)};
+	Profile.State.Profile.Stash = {Stack(RealScrap, StartScrap), Stack(RealShard, 1), Stack(RealCell, 1)};
+	UHollowWorkbenchWidget* Workbench = Rig.Show<UHollowWorkbenchWidget>(GetDefault<UHollowUISettings>()->WorkbenchScreenClass, &Profile);
+	if (!TestNotNull(TEXT("W_Workbench"), Workbench))
+	{
+		return false;
+	}
+	for (const EHollowWorkbenchTab Tab : {EHollowWorkbenchTab::Craft, EHollowWorkbenchTab::Shop, EHollowWorkbenchTab::Upgrades})
+	{
+		Workbench->SelectTab(Tab);
+		CheckLanguages(*this, *Workbench, FString::Printf(TEXT("W_Workbench %s"), *StaticEnum<EHollowWorkbenchTab>()->GetNameStringByValue(static_cast<int64>(Tab))));
+	}
+	Workbench->NativeOnHandleBackAction();
+
+	UHollowLoadoutWidget* Locker = Rig.Show<UHollowLoadoutWidget>(GetDefault<UHollowUISettings>()->LoadoutScreenClass, &Profile);
+	if (TestNotNull(TEXT("W_Loadout"), Locker))
+	{
+		CheckLanguages(*this, *Locker, TEXT("W_Loadout"));
+		Locker->NativeOnHandleBackAction();
+	}
+
+	// NAR-01b: the Codex with a log found in each sector (the rest encrypted).
+	const TArray<const UHollowLoreEntryDefinition*> Entries = UHollowLoreEntryDefinition::LoadAll();
+	if (TestEqual(TEXT("Twelve crew logs"), Entries.Num(), 12))
+	{
+		FMemoryProfile Archive;
+		Archive.State.Profile.Lore = {Entries[0]->GetPrimaryAssetId(), Entries[6]->GetPrimaryAssetId()};
+		UHollowCodexWidget* Codex = Rig.Show<UHollowCodexWidget>(GetDefault<UHollowUISettings>()->CodexScreenClass, &Archive);
+		if (TestNotNull(TEXT("W_Codex"), Codex))
+		{
+			CheckLanguages(*this, *Codex, TEXT("W_Codex"));
+			Codex->NativeOnHandleBackAction();
+		}
+	}
+
+	Rig.World->SpawnActor<AHollowGameState>();
+	AHollowPlayerController* Host = Rig.World->SpawnActor<AHollowPlayerController>();
+	if (TestNotNull(TEXT("Host"), Host))
+	{
+		Host->SetAsLocalPlayerController();
+		UHollowContractTerminalWidget* Contracts = Rig.Show<UHollowContractTerminalWidget>(GetDefault<UHollowUISettings>()->ContractScreenClass, &Profile, Host);
+		if (TestNotNull(TEXT("W_ContractTerminal"), Contracts))
+		{
+			CheckLanguages(*this, *Contracts, TEXT("W_ContractTerminal"));
+			Contracts->NativeOnHandleBackAction();
+		}
+	}
 	return true;
 }
 

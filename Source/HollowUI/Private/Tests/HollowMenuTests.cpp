@@ -2,9 +2,11 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Blueprint/WidgetTree.h"
 #include "CommonButtonBase.h"
 #include "CommonInputSettings.h"
 #include "Engine/World.h"
+#include "Foundation/HollowButton.h"
 #include "Foundation/HollowPrimaryLayout.h"
 #include "Foundation/HollowUISettings.h"
 #include "HollowUITags.h"
@@ -13,6 +15,7 @@
 #include "Menus/HollowMenuRules.h"
 #include "Menus/HollowSystemMenuWidget.h"
 #include "Raid/HollowDebriefWidget.h"
+#include "Tests/HollowLocalizationTestUtils.h"
 #include "Tests/AutomationCommon.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
@@ -130,6 +133,75 @@ bool FHollowMenuWidgetsTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("Back is handled by the debrief"), Debrief->NativeOnHandleBackAction());
 		TestFalse(TEXT("...and closes it"), Debrief->IsActivated());
+	}
+	Layout->RemoveFromParent();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLocalizationMenusTest, "Hollow.UI.Localization.Menus",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowLocalizationMenusTest::RunTest(const FString& Parameters)
+{
+	// LOC-01 (ADR-0048): both menus carry the language button; switching shows the open menu in Russian at once (the
+	// same widgets, no restart), its button names the new language in it, nothing is cut on a 1080p screen, and English
+	// comes back the same. The logo stays the same in every language.
+	using namespace HollowMenuTests;
+	using namespace HollowLocalizationTests;
+	const FVector2D Screen(1920.0, 1080.0);
+	const UHollowUISettings* Settings = GetDefault<UHollowUISettings>();
+	const TSubclassOf<UHollowPrimaryLayout> LayoutClass = Settings->PrimaryLayoutClass.LoadSynchronous();
+	const TSubclassOf<UCommonActivatableWidget> MainClass = Settings->MainMenuClass.LoadSynchronous();
+	const TSubclassOf<UCommonActivatableWidget> SystemClass = Settings->SystemMenuClass.LoadSynchronous();
+	FTestWorldWrapper TestWorld;
+	if (!TestTrue(TEXT("Slate measures text here"), CanMeasureText()) || !LayoutClass || !MainClass || !SystemClass || !TestWorld.CreateTestWorld(EWorldType::Game))
+	{
+		return false;
+	}
+	UWorld* World = TestWorld.GetTestWorld();
+	World->InitializeActorsForPlay(FURL());
+	ICommonInputModule::GetSettings().LoadData();
+	UHollowPrimaryLayout* Layout = CreateWidget<UHollowPrimaryLayout>(World, LayoutClass);
+	if (!TestNotNull(TEXT("Layout"), Layout))
+	{
+		return false;
+	}
+	Layout->TakeWidget();
+
+	for (const TSubclassOf<UCommonActivatableWidget>& Class : {MainClass, SystemClass})
+	{
+		UCommonActivatableWidget* Menu = Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Menu, Class);
+		const UHollowButton* Language = Menu ? Cast<UHollowButton>(Menu->WidgetTree->FindWidget(TEXT("LanguageButton"))) : nullptr;
+		if (!TestNotNull(FString::Printf(TEXT("%s has the language button"), *Class->GetName()), Language))
+		{
+			continue;
+		}
+		TestTrue(TEXT("...nothing cut in English"), FindOverflows(*Menu, Screen).IsEmpty());   // lays it out: every label is set
+		const TMap<FString, FString> English = ReadTexts(*Menu);
+		TestEqual(TEXT("...labelled with English"), Language->GetLabel().ToString(), FString(TEXT("Language: English")));
+		{
+			const FScopedLanguage Russian(EHollowLanguage::Russian);
+			TestTrue(TEXT("Russian applied"), Russian.bApplied && HollowLanguage::GetApplied() == EHollowLanguage::Russian);
+			TestTrue(FString::Printf(TEXT("...the button names Russian, in Russian (\"%s\")"), *Language->GetLabel().ToString()),
+				HasCyrillic(Language->GetLabel().ToString()));
+			const TMap<FString, FString> Now = ReadTexts(*Menu);
+			for (const TPair<FString, FString>& Text : English)
+			{
+				const FString* Shown = Now.Find(Text.Key);
+				const bool bLogo = Text.Value == TEXT("PROTOCOL: HOLLOW");
+				TestTrue(FString::Printf(TEXT("%s: \"%s\" -> \"%s\""), *Text.Key, *Text.Value, Shown ? **Shown : TEXT("-")),
+					Shown && (bLogo ? *Shown == Text.Value : HasCyrillic(*Shown)));
+			}
+			for (const FString& Overflow : FindOverflows(*Menu, Screen))
+			{
+				AddError(TEXT("Cut in Russian: ") + Overflow);
+			}
+		}
+		for (const FString& Change : Differences(English, ReadTexts(*Menu)))
+		{
+			AddError(TEXT("Not back in English: ") + Change);
+		}
+		Menu->DeactivateWidget();
 	}
 	Layout->RemoveFromParent();
 	return true;

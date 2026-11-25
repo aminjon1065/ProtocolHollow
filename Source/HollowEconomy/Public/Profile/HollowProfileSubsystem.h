@@ -79,6 +79,26 @@ public:
 	/** Development: Amount more credits (live checks of what costs more than a new profile has, S6-04). False in a raid or for nothing. */
 	bool AddCredits(int32 Amount);
 
+	/**
+	 * NAR-01b (ADR-0050): crew log Entry downloaded on this machine (a squad's datapad): kept for good and saved at once;
+	 * in a raid its bonus waits for the raid's result. True if the profile did not have it.
+	 */
+	bool AddLoreEntry(const FPrimaryAssetId& Entry);
+
+	bool HasLore(const FPrimaryAssetId& Entry) const;
+
+	/** Development: forgets every crew log found (Hollow.Lore.Reset), saved at once. */
+	void ForgetLore();
+
+	/** Whether radio cue CueId was heard once for good (NAR-01a, ADR-0049). */
+	bool HasHeardRadio(FName CueId) const;
+
+	/** Remembers radio cue CueId for good, saved at once (a raid's escrow does not hold it back; no OnProfileChanged). */
+	void MarkRadioHeard(FName CueId);
+
+	/** Development: forgets the radio cues heard (Hollow.Radio.Reset), saved at once. */
+	void ForgetRadio();
+
 	/** A raid was resolved (result, lost host, abandoned escrow). */
 	FOnHollowRaidReport OnRaidReport;
 

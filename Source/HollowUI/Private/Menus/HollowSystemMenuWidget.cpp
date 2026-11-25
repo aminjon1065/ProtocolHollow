@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HollowUILog.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Localization/HollowLanguage.h"
 #include "Menus/HollowMenuRules.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Session/HollowSessionSubsystem.h"
@@ -48,6 +49,10 @@ void UHollowSystemMenuWidget::NativeOnInitialized()
 	if (FlashesButton)
 	{
 		FlashesButton->OnClicked().AddUObject(this, &ThisClass::ToggleFlashes);
+	}
+	if (LanguageButton)
+	{
+		LanguageButton->OnClicked().AddUObject(this, &ThisClass::CycleLanguage);
 	}
 }
 
@@ -178,6 +183,13 @@ void UHollowSystemMenuWidget::RefreshFlashesLabel()
 			Button->SetLabel(FlashesLabel(Settings->IsReducedFlashes()));
 		}
 	}
+}
+
+
+void UHollowSystemMenuWidget::CycleLanguage()
+{
+	const EHollowLanguage Language = HollowMenuRules::CycleLanguage();
+	UE_LOG(LogHollowUI, Log, TEXT("%s: language %s"), *GetName(), LexToString(Language));
 }
 
 #undef LOCTEXT_NAMESPACE

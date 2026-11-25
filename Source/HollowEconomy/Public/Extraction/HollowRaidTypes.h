@@ -118,4 +118,12 @@ struct HOLLOWECONOMY_API FHollowProfileDelta
 	/** GP-01b: found loot left behind (the player did not extract). */
 	UPROPERTY(BlueprintReadOnly, Category = "Raid")
 	TArray<FHollowItemStack> FoundLost;
+
+	/** NAR-01b: crew logs first found in the raid (kept for good whatever the end). */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	TArray<FPrimaryAssetId> Lore;
+
+	/** NAR-01b: their bonus, paid only if the player extracted (part of Credits). */
+	UPROPERTY(BlueprintReadOnly, Category = "Raid")
+	int32 LoreCredits = 0;
 };

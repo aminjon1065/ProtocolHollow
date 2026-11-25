@@ -86,6 +86,9 @@ protected:
 	/** A command that is not a profile transaction (the contracts screen). */
 	virtual void RunCommand(const FHollowHubAction& Action, const FText& RowName) {}
 
+	/** A row's button took the focus (the Codex shows its log in the reader as the focus moves). */
+	virtual void OnActionFocused(const FHollowHubAction& Action, const FText& RowName) {}
+
 	/** Shown: subscribe to what the screen shows besides the profile. Hidden: let go of it. */
 	virtual void BindHub() {}
 	virtual void UnbindHub() {}

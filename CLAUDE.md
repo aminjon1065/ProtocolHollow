@@ -104,6 +104,7 @@ Every new core system must include lightweight **UE5 Automation / Functional Tes
 - Compiles cleanly with zero new compiler warnings.
 - No `LogTemp`, dead code, or hardcoded magic numbers.
 - Replication verified in PIE with **2+ players (Listen Server + Client)** for any networked feature.
+- Every new player-facing text is localizable (ADR-0048): `LOCTEXT` in C++ or a string table entry in data (`Build/Python/hollow_loc.py`), translated in `Content/Localization/Game/ru/Game.po` and compiled with `Build/Scripts/localize-mac.sh --check`; no Russian (or any non-ASCII) literal in code, configs or scripts.
 - Relevant automation tests added or updated and passing: `Build/Scripts/run-tests-mac.sh` (macOS) / `Build\Scripts\run-tests-win64.cmd` (Windows) must exit `0` — they build the editor with the zero-warning gate, run `Hollow.*` headless and fail on any failed/not-run test, empty filter, editor crash or timeout.
 
 ---

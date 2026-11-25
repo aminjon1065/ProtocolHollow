@@ -2,9 +2,11 @@
 
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Localization/HollowLanguage.h"
 #include "Raid/HollowRaidLauncher.h"
 #include "Session/HollowNetworkSettings.h"
 #include "Session/HollowSessionSubsystem.h"
+#include "Settings/HollowGameUserSettings.h"
 
 FHollowSystemMenuOptions HollowMenuRules::SystemMenuOptions(const FHollowMenuContext& Context)
 {
@@ -31,4 +33,18 @@ bool HollowMenuRules::IsFrontEnd(const UWorld* World)
 {
 	const FString FrontEnd = GetDefault<UHollowNetworkSettings>()->FrontEndMap.GetLongPackageName();
 	return World && !FrontEnd.IsEmpty() && UWorld::RemovePIEPrefix(World->GetOutermost()->GetName()) == FrontEnd;
+}
+
+EHollowLanguage HollowMenuRules::CycleLanguage()
+{
+	const EHollowLanguage Next = HollowLanguage::Next(HollowLanguage::GetApplied());
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		Settings->SetLanguage(Next);   // kept for the next launch
+	}
+	else
+	{
+		HollowLanguage::Apply(Next);
+	}
+	return HollowLanguage::GetApplied();
 }

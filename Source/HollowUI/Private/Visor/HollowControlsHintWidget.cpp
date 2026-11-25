@@ -4,6 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Foundation/HollowUISettings.h"
 #include "InputAction.h"
+#include "Localization/HollowLanguage.h"
 #include "Settings/HollowGameUserSettings.h"
 #include "ViewModels/HollowObjectiveModel.h"
 #include "ViewModels/HollowVisorContext.h"
@@ -27,6 +28,7 @@ void UHollowControlsHintWidget::BindContext(UHollowVisorContext& InContext)
 	InputTypeHandle = InContext.OnInputTypeChanged.AddWeakLambda(this, [this](ECommonInputType) { Refresh(); });
 	KeysHandle = InContext.OnKeysChanged.AddUObject(this, &ThisClass::Refresh);
 	ClassHandle = InContext.OnClassChanged.AddUObject(this, &ThisClass::Refresh);
+	LanguageHandle = HollowLanguage::OnApplied().AddUObject(this, &ThisClass::Refresh);
 	Objective = InContext.GetObjective();
 	if (UHollowObjectiveModel* Model = Objective.Get())
 	{
@@ -44,6 +46,7 @@ void UHollowControlsHintWidget::UnbindContext(UHollowVisorContext& InContext)
 	InContext.OnInputTypeChanged.Remove(InputTypeHandle);
 	InContext.OnKeysChanged.Remove(KeysHandle);
 	InContext.OnClassChanged.Remove(ClassHandle);
+	HollowLanguage::OnApplied().Remove(LanguageHandle);
 	if (UHollowObjectiveModel* Model = Objective.Get())
 	{
 		Model->OnObjectiveChanged.Remove(ObjectiveHandle);

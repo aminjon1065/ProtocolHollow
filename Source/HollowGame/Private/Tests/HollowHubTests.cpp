@@ -284,7 +284,7 @@ bool FHollowHubSkiffTest::RunTest(const FString& Parameters)
 		Terminals.Add(It->GetKind(), *It);
 	}
 	TestEqual(TEXT("Four player starts"), Starts.Num(), PlayerStarts);
-	TestEqual(TEXT("Contracts, workbench, locker"), Terminals.Num(), 3);
+	TestEqual(TEXT("Contracts, workbench, locker, crew archive (NAR-01b)"), Terminals.Num(), 4);
 
 	// Walk from every start to every terminal: the player's capsule, the pawns' collision.
 	const float Radius = Body->GetCapsuleComponent()->GetScaledCapsuleRadius();
@@ -308,8 +308,9 @@ bool FHollowHubSkiffTest::RunTest(const FString& Parameters)
 		const FVector Eyes = Terminal.Value->GetUseLocation() + FVector(0.0, 0.0, EyeHeight);
 		const FVector Screen = Terminal.Value->GetActorLocation() + FVector(0.0, 0.0, ScreenHeight);
 		const FVector Ahead = Eyes + (Screen - Eyes).GetSafeNormal() * LookReach;   // the player looks at its screen
-		TestTrue(Kind + TEXT(": focusable from its use spot"), World->LineTraceSingleByChannel(Focus, Eyes, Ahead, HollowCollision::Interaction, Query)
-			&& Focus.GetActor() == Terminal.Value);
+		const bool bHit = World->LineTraceSingleByChannel(Focus, Eyes, Ahead, HollowCollision::Interaction, Query);
+		TestTrue(FString::Printf(TEXT("%s: focusable from its use spot (the trace meets %s)"), *Kind, *GetNameSafe(Focus.GetActor())),
+			bHit && Focus.GetActor() == Terminal.Value);
 	}
 
 	// The light rig against the hub's limits (DA_LightBudget, Hollow.Room.Type.Hub).

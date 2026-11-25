@@ -31,6 +31,7 @@
 #include "Sound/AmbientSound.h"
 #include "Sound/ReverbEffect.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundEffectSource.h"
 #include "Tests/HollowDocksTestRooms.h"
 #include "Tags/HollowGameplayTags.h"
 
@@ -41,6 +42,9 @@ namespace HollowAudioGameTests
 	// Content under test (create_audio_assets.py, create_noise_assets.py, create_resonance_assets.py, create_pilgrim_assets.py).
 	const TCHAR* const NoiseConfigPath = TEXT("/Game/Hollow/Core/DA_NoiseConfig.DA_NoiseConfig");
 	const TCHAR* const WorldSoundClass = TEXT("/Game/Hollow/Audio/SC_Hollow_World.SC_Hollow_World");
+	/** NAR-01a: the radio's clicks take the comms bus (create_voice_assets.py). */
+	const TCHAR* const VoiceSoundClass = TEXT("/Game/Hollow/Audio/Voice/SC_Hollow_Voice.SC_Hollow_Voice");
+	const TCHAR* const RadioChain = TEXT("/Game/Hollow/Audio/Voice/SEC_Hollow_Radio.SEC_Hollow_Radio");
 	const TCHAR* const PilgrimDefinition = TEXT("/Game/Hollow/Characters/Enemies/IronPilgrim/DA_Enemy_IronPilgrim.DA_Enemy_IronPilgrim");
 	const TCHAR* const WhispererDefinition = TEXT("/Game/Hollow/Characters/Enemies/Whisperer/DA_Enemy_Whisperer.DA_Enemy_Whisperer");
 	const TCHAR* const StalkerDefinition = TEXT("/Game/Hollow/Characters/Enemies/EchoStalker/DA_Enemy_EchoStalker.DA_Enemy_EchoStalker");
@@ -80,7 +84,8 @@ namespace HollowAudioGameTests
 	{
 		return {HollowTags::Sound_Door_Servo, HollowTags::Sound_Footstep_Heavy, HollowTags::Sound_Footstep_Stalker, HollowTags::Sound_Enemy_PilgrimWindup,
 			HollowTags::Sound_Enemy_StalkerShriek, HollowTags::Sound_Stalker_Vent, HollowTags::Sound_Mine_Arm, HollowTags::Sound_Mine_Blast, HollowTags::Sound_Core_Hum,
-			HollowTags::Sound_Ward_Hum, HollowTags::Sound_Arc_Telegraph, HollowTags::Sound_Arc_Discharge, HollowTags::Sound_Altar_Purified};
+			HollowTags::Sound_Ward_Hum, HollowTags::Sound_Arc_Telegraph, HollowTags::Sound_Arc_Discharge, HollowTags::Sound_Altar_Purified,
+			HollowTags::Sound_Radio_Open, HollowTags::Sound_Radio_Close};
 	}
 
 	/** Sounds that run until stopped (tools while used, the core's hum); every other one ends by itself. */
@@ -166,15 +171,19 @@ bool FHollowAudioConsistencyTest::RunTest(const FString& Parameters)
 {
 	// The shipped sound base (ADR-0022): DA_SoundBank agrees with DA_NoiseConfig, so what players hear of a noise
 	// carries exactly as far as the Iron Pilgrim hears it; every sound the code plays is there, each a procedural
-	// MetaSound through SC_Hollow_World (the Resonance low-pass and the room volumes apply), looping or ending as used.
+	// MetaSound through SC_Hollow_World (the Resonance low-pass and the room volumes apply), looping or ending as used;
+	// only the handler's radio clicks take the comms bus (NAR-01a: the helmet's radio, no room muffles it).
 	using namespace HollowAudioGameTests;
 	const UHollowSoundBank* Bank = UHollowSoundBank::Get();
 	const UHollowNoiseConfig* Noise = LoadObject<UHollowNoiseConfig>(nullptr, NoiseConfigPath);
 	const USoundClass* SoundClass = LoadObject<USoundClass>(nullptr, WorldSoundClass);
+	const USoundClass* VoiceClass = LoadObject<USoundClass>(nullptr, VoiceSoundClass);
+	const USoundEffectSourcePresetChain* Radio = LoadObject<USoundEffectSourcePresetChain>(nullptr, RadioChain);
 	const UHollowEnemyDefinition* Pilgrim = LoadObject<UHollowEnemyDefinition>(nullptr, PilgrimDefinition);
 	const UHollowEnemyDefinition* Stalker = LoadObject<UHollowEnemyDefinition>(nullptr, StalkerDefinition);
 	if (!TestNotNull(TEXT("DA_SoundBank (UHollowAudioSettings)"), Bank) || !TestNotNull(TEXT("DA_NoiseConfig"), Noise)
-		|| !TestNotNull(TEXT("SC_Hollow_World"), SoundClass) || !TestNotNull(TEXT("DA_Enemy_IronPilgrim"), Pilgrim) || !TestNotNull(TEXT("DA_Enemy_EchoStalker"), Stalker))
+		|| !TestNotNull(TEXT("SC_Hollow_World"), SoundClass) || !TestNotNull(TEXT("SC_Hollow_Voice"), VoiceClass) || !TestNotNull(TEXT("SEC_Hollow_Radio"), Radio)
+		|| !TestNotNull(TEXT("DA_Enemy_IronPilgrim"), Pilgrim) || !TestNotNull(TEXT("DA_Enemy_EchoStalker"), Stalker))
 	{
 		return false;
 	}
@@ -210,7 +219,15 @@ bool FHollowAudioConsistencyTest::RunTest(const FString& Parameters)
 			continue;
 		}
 		TestTrue(FString::Printf(TEXT("%s: a procedural MetaSound (no wave bank)"), *Name), Sound->GetClass()->GetPathName() == MetaSoundSourceClass);
-		TestTrue(FString::Printf(TEXT("%s: through SC_Hollow_World"), *Name), Sound->SoundClassObject == SoundClass);
+		if (Entry.SoundTag == HollowTags::Sound_Radio_Open || Entry.SoundTag == HollowTags::Sound_Radio_Close)
+		{
+			TestTrue(FString::Printf(TEXT("%s: through the comms bus (SC_Hollow_Voice, SEC_Hollow_Radio)"), *Name),
+				Sound->SoundClassObject == VoiceClass && Sound->SourceEffectChain == Radio);
+		}
+		else
+		{
+			TestTrue(FString::Printf(TEXT("%s: through SC_Hollow_World"), *Name), Sound->SoundClassObject == SoundClass);
+		}
 		const bool bLoop = Loops().Contains(Entry.SoundTag);
 		TestEqual(FString::Printf(TEXT("%s: %s"), *Name, bLoop ? TEXT("loops until stopped") : TEXT("ends by itself")), Sound->IsOneShot(), !bLoop);
 		TestNotNull(*FString::Printf(TEXT("%s: an attenuation"), *Name), Entry.Attenuation.LoadSynchronous());

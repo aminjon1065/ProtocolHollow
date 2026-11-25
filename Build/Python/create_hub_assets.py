@@ -15,9 +15,14 @@ only when the spec changes. Run after create_lighting_assets.py and create_audio
 """
 import hashlib
 import json
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -40,11 +45,12 @@ INI_LINES = ["HubMap=/Game/Hollow/Maps/L_Hub_Skiff.L_Hub_Skiff", '+MapsToCook=(F
 # The contracts (data, S5-03 clarification 6; the Cathedral's S7-04): the sector Game Feature each raid assembles, its name
 # on the screen, and the items it pays with (priced on the screen as their extraction pays them, ADR-0041).
 CONTRACTS = [
-    {"name": "DA_Contract_Docks", "display_name": "Orbital Docks salvage", "sector_feature": "HollowSector_Docks",
+    {"name": "DA_Contract_Docks", "key": "Contract.Docks", "display_name": "Orbital Docks salvage", "sector_feature": "HollowSector_Docks",
      "sector_name": "Sector I - Orbital Docks",
      "description": "Recover an Aether core from the derelict docks and bring it to the extraction shuttle.",
      "rewards": ["DA_Item_AetherCore"]},
-    {"name": "DA_Contract_Cathedral", "display_name": "Reactor Cathedral purification", "sector_feature": "HollowSector_Cathedral",
+    {"name": "DA_Contract_Cathedral", "key": "Contract.Cathedral", "display_name": "Reactor Cathedral purification",
+     "sector_feature": "HollowSector_Cathedral",
      "sector_name": "Sector II - Reactor Cathedral",
      "description": "Carry the Aether core to the Purification Altar, hold out through the ritual and bring the purified core home.",
      "rewards": ["DA_Item_AetherCore", "DA_Item_PurifiedCore"]},
@@ -76,7 +82,14 @@ TERMINALS = [   # (label, kind, location, yaw, prompt, guest prompt)
     ("Terminal_Contracts", "CONTRACTS", (1490.0, 400.0, 0.0), 180.0, "Contracts", "Contracts (host decides)"),
     ("Terminal_Workbench", "WORKBENCH", (800.0, 765.0, 0.0), -90.0, "Workbench", ""),
     ("Terminal_Locker", "LOCKER", (800.0, 35.0, 0.0), 90.0, "Locker", ""),
+    # NAR-01b (ADR-0050): the crew archive, starboard between the workbench and the cockpit (each player's own Codex).
+    ("Terminal_Codex", "CODEX", (1200.0, 765.0, 0.0), -90.0, "Crew archive", ""),
 ]
+# LOC-01: the terminals' prompts as (key, English source) in loc.HUB, by label (the sources are TERMINALS' own).
+TERMINAL_TEXT_KEYS = {"Terminal_Contracts": ("Hub.Terminal.Contracts", "Hub.Terminal.Contracts.Guest"),
+                      "Terminal_Workbench": ("Hub.Terminal.Workbench", None), "Terminal_Locker": ("Hub.Terminal.Locker", None),
+                      "Terminal_Codex": ("Hub.Terminal.Codex", None)}
+CONTRACT_TEXTS = (("display_name", ".Name"), ("description", ".Description"), ("sector_name", ".Sector"))   # loc.WORLD, after the key
 PLAYER_STARTS = [(450.0, 300.0), (450.0, 500.0), (650.0, 300.0), (650.0, 500.0)]
 PLAYER_START_HEIGHT = 100.0
 # Lights (S5-03 clarification 4: calm, at most 8, 2 shadowed, no light function). Lumens; radius in uu. A sealed cabin
@@ -166,9 +179,8 @@ def item_id(name):
 
 
 def contract_matches(contract, spec):
-    return str(contract.get_editor_property("display_name")) == spec["display_name"] \
-        and str(contract.get_editor_property("description")) == spec["description"] \
-        and str(contract.get_editor_property("sector_name")) == spec["sector_name"] \
+    return all(loc.is_text(contract.get_editor_property(prop), loc.WORLD, spec["key"] + suffix)
+               and str(contract.get_editor_property(prop)) == spec[prop] for prop, suffix in CONTRACT_TEXTS) \
         and contract.get_editor_property("sector_feature") == spec["sector_feature"] \
         and [r.export_text() for r in contract.get_editor_property("reward_items")] == [item_id(n).export_text() for n in spec["rewards"]]
 
@@ -183,9 +195,8 @@ def ensure_contract(spec):
         contract, created = create(path, unreal.HollowContractDefinition, factory), True
     if not created and contract_matches(contract, spec):
         return contract
-    contract.set_editor_property("display_name", unreal.Text(spec["display_name"]))
-    contract.set_editor_property("description", unreal.Text(spec["description"]))
-    contract.set_editor_property("sector_name", unreal.Text(spec["sector_name"]))
+    for prop, suffix in CONTRACT_TEXTS:
+        contract.set_editor_property(prop, loc.text(loc.WORLD, spec["key"] + suffix, spec[prop]))
     contract.set_editor_property("sector_feature", spec["sector_feature"])
     contract.set_editor_property("reward_items", [item_id(n) for n in spec["rewards"]])
     save(contract)
@@ -323,6 +334,29 @@ def spawn_acoustics():
     component.set_editor_property("attenuation_overrides", attenuation)
 
 
+def set_terminal_texts(terminal, label, prompt, guest):
+    """The terminal's prompts from loc.HUB (no guest prompt: empty); True if they changed."""
+    prompt_key, guest_key = TERMINAL_TEXT_KEYS[label]
+    changed = loc.set_text(terminal, "prompt", loc.HUB, prompt_key, prompt)
+    if guest_key:
+        changed = loc.set_text(terminal, "guest_prompt", loc.HUB, guest_key, guest) or changed
+    elif not terminal.get_editor_property("guest_prompt").is_empty():
+        terminal.set_editor_property("guest_prompt", unreal.Text(""))
+        changed = True
+    return changed
+
+
+def localize_terminals():
+    """LOC-01 (ADR-0048): the placed terminals of a hub built before the string tables point at their entries now."""
+    by_label = dict((label, (prompt, guest)) for label, _, _, _, prompt, guest in TERMINALS)
+    changed = [a.get_actor_label() for a in actors.get_all_level_actors()
+               if a.get_actor_label() in by_label and set_terminal_texts(a, a.get_actor_label(), *by_label[a.get_actor_label()])]
+    if changed:
+        if not levels.save_current_level():
+            raise RuntimeError("Could not save " + HUB_MAP)
+        log("L_Hub_Skiff: %s prompts into %s" % (", ".join(changed), loc.HUB))
+
+
 def ensure_map(terminal_class):
     wanted = digest(hub_spec())
     if assets.does_asset_exist(HUB_MAP):
@@ -344,8 +378,7 @@ def ensure_map(terminal_class):
     for label, kind, location, yaw, prompt, guest in TERMINALS:
         terminal = managed(actors.spawn_actor_from_class(terminal_class, vector(location), unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw)), label, "Terminals")
         terminal.set_editor_property("kind", getattr(unreal.HollowTerminalKind, kind))
-        terminal.set_editor_property("prompt", unreal.Text(prompt))
-        terminal.set_editor_property("guest_prompt", unreal.Text(guest))
+        set_terminal_texts(terminal, label, prompt, guest)
         # On the instance too: a value set on the blueprint's class defaults did not reach the placed terminals.
         terminal.set_editor_property("use_distance", TERMINAL["use_distance"])
     for index, (x, y) in enumerate(PLAYER_STARTS):
@@ -387,7 +420,7 @@ def validate(terminal_class):
     level_actors = actors.get_all_level_actors()
     placed = [a for a in level_actors if isinstance(a, unreal.HollowHubTerminal)]
     kinds = sorted(str(a.get_editor_property("kind")) for a in placed)
-    check(len(kinds) == 3 and len(set(kinds)) == 3, "one terminal of each kind (%s)" % ", ".join(kinds))
+    check(len(kinds) == len(TERMINALS) and len(set(kinds)) == len(TERMINALS), "one terminal of each kind (%s)" % ", ".join(kinds))
     check(all(abs(a.get_editor_property("use_distance") - TERMINAL["use_distance"]) < 0.01 for a in placed), "every terminal's user stands in front of it")
     check(sum(1 for a in level_actors if isinstance(a, unreal.PlayerStart)) == len(PLAYER_STARTS), "four player starts")
     lights = [c for a in level_actors for c in a.get_components_by_class(unreal.LightComponent)]
@@ -402,6 +435,8 @@ def main():
         ensure_contract(spec)
     terminal_class = ensure_terminal()
     ensure_map(terminal_class)
+    localize_terminals()
+    loc.save()
     validate(terminal_class)
     unreal.log(SUCCESS_MARKER)
 

@@ -39,6 +39,7 @@ public class HollowEditor : ModuleRules
 			"HollowGame",
 			"GameplayTags",
 			"Json",
+			"Localization",   // LOC-01: the tests read the Game target's manifest and archives (FLocTextHelper)
 			"StateTreeModule",
 			"StateTreeEditorModule",
 			"PropertyBindingUtils",

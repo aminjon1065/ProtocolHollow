@@ -296,6 +296,7 @@ void UHollowHubScreenWidget::HandleRowFocus(UHollowHubRowWidget* Row, const int3
 {
 	const FHollowHubAction& Action = Row->GetRow().Actions[ActionIndex];
 	SetMessage(Action.bAvailable ? FText::GetEmpty() : FText::Format(LOCTEXT("Why", "{0}: {1}"), Action.Label, Action.Reason));
+	OnActionFocused(Action, Row->GetRow().Name);
 }
 
 #undef LOCTEXT_NAMESPACE

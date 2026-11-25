@@ -8,9 +8,14 @@ Creates or updates only what is missing, then validates.
 Run after create_raid_assets.py and create_tool_assets.py:
   Build/Scripts/run-editor-python.sh Build/Python/create_door_assets.py
 """
+import os
+import sys
 import traceback
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hollow_loc as loc   # LOC-01 (ADR-0048): player texts are string table entries
 
 SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 
@@ -41,6 +46,7 @@ WELD_TOOL = "Hollow.Ability.Tool.Welder"
 CUT_TOOL = "Hollow.Ability.Tool.PlasmaCutter"
 PROMPT_OPEN = "Open"
 PROMPT_CLOSE = "Close"
+PROMPT_KEYS = (("prompt_open", "World.Door.Open", PROMPT_OPEN), ("prompt_close", "World.Door.Close", PROMPT_CLOSE))   # loc.WORLD (LOC-01)
 
 # Greybox look (data).
 LEAF_THICKNESS = 10.0
@@ -99,8 +105,8 @@ def ensure_definition():
     definition.set_editor_property("weld_tool_tag", make_tag(WELD_TOOL))
     definition.set_editor_property("cut_tool_tag", make_tag(CUT_TOOL))
     definition.set_editor_property("initial_state", unreal.HollowDoorState.CLOSED)
-    definition.set_editor_property("prompt_open", PROMPT_OPEN)
-    definition.set_editor_property("prompt_close", PROMPT_CLOSE)
+    for prop, key, source in PROMPT_KEYS:
+        definition.set_editor_property(prop, loc.text(loc.WORLD, key, source))
     save(definition)
     log("created DA_Door_Standard")
 
@@ -172,8 +178,19 @@ def validate():
     log("validation passed")
 
 
+def localize_prompts():
+    """LOC-01 (ADR-0048): the door's prompts from before the string tables point at their entries now."""
+    definition = load(DEFINITION_PATH)
+    changed = [prop for prop, key, source in PROMPT_KEYS if loc.set_text(definition, prop, loc.WORLD, key, source)]
+    if changed:
+        save(definition)
+        log("DA_Door_Standard: %s into %s" % (", ".join(changed), loc.WORLD))
+
+
 def main():
     ensure_definition()
+    localize_prompts()
+    loc.save()
     ensure_door_blueprint()
     ensure_biome_rule()
     validate()
