@@ -122,6 +122,17 @@ UCommonActivatableWidget* AHollowHUD::OpenSystemMenu()
 	return Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Menu, GetDefault<UHollowUISettings>()->SystemMenuClass.LoadSynchronous());
 }
 
+UCommonActivatableWidget* AHollowHUD::OpenSettings()
+{
+	const TSubclassOf<UCommonActivatableWidget> SettingsClass = GetDefault<UHollowUISettings>()->SettingsScreenClass.LoadSynchronous();
+	if (!Layout || !SettingsClass)
+	{
+		UE_LOG(LogHollowUI, Warning, TEXT("%s: no settings screen (UHollowUISettings::SettingsScreenClass)."), *GetName());
+		return nullptr;
+	}
+	return Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Menu, SettingsClass);
+}
+
 void AHollowHUD::HandleRaidReport(const FHollowRaidReport& Report)
 {
 	ShowDebrief(Report);

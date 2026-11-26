@@ -71,6 +71,11 @@ def set_text(obj, prop, table_name, key, source):
     return True
 
 
+def remove(table_name, key):
+    """Drops an entry no asset shows any more (its translation then leaves Game.po at the next gather); True if it had one."""
+    return _authoring.remove_table_entry(table(table_name), key)
+
+
 def save():
     """Saves the string tables this script changed."""
     for found in _loaded.values():

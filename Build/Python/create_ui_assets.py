@@ -5,9 +5,9 @@
   /Game/Hollow/UI/Input/DA_InputGlyphs                                 key labels for prompts
   /Game/Hollow/UI/Foundation/BP_ButtonStyle_Menu, W_MenuButton, W_PrimaryLayout
   /Game/Hollow/UI/Visor/W_StatBar, W_InteractionPrompt, W_TargetStatus   (W_Visor itself: create_visor_assets.py, S4-08)
-  /Game/Hollow/UI/Menus/W_SystemMenu (S4-06: + Invite, Start raid, Leave session; S4-07: + Voice; H-1: + Flashes), W_MainMenu
   /Game/Hollow/Core/Framework/BP_GameMode_FrontEnd   AHollowFrontEndGameMode with the HUD; the game mode of L_Boot (S4-06)
-  /Game/Hollow/UI/Visor/W_RaidStatus, /Game/Hollow/UI/Menus/W_Debrief      (S3-03)
+  /Game/Hollow/UI/Visor/W_RaidStatus      (S3-03)
+  (UI-02, ADR-0052: W_MainMenu, W_SystemMenu, W_Debrief and the menu button's look are create_menu_ui_assets.py's)
   DA_Tool_Welder/PlasmaCutter ActionLabel, BP_GameMode_Hub/Raid HUDClass = AHollowHUD   (if unset)
 
 Widget trees are composed through UHollowWidgetAuthoring (HollowEditor): editor Python cannot reach a WBP's tree.
@@ -30,23 +30,10 @@ UI_DIR = "/Game/Hollow/UI"
 INPUT_DIR = UI_DIR + "/Input"
 FOUNDATION_DIR = UI_DIR + "/Foundation"
 VISOR_DIR = UI_DIR + "/Visor"
-MENUS_DIR = UI_DIR + "/Menus"
 FRAMEWORK_DIR = "/Game/Hollow/Core/Framework"
 GAME_MODES = [FRAMEWORK_DIR + "/BP_GameMode_Hub", FRAMEWORK_DIR + "/BP_GameMode_Raid", FRAMEWORK_DIR + "/BP_GameMode_FrontEnd"]
 FRONT_END_GAME_MODE = FRAMEWORK_DIR + "/BP_GameMode_FrontEnd"
 BOOT_MAP = "/Game/Hollow/Maps/L_Boot"
-# System menu, top to bottom (S4-06): the session buttons go between Resume and Quit; HollowMenuRules shows those that apply.
-# Every label is (widget, string table key, English source) in loc.MENUS (LOC-01, ADR-0048).
-SESSION_BUTTONS = [("InviteButton", "Menu.System.Invite", "Invite friends"), ("StartRaidButton", "Menu.System.StartRaid", "Start raid"),
-                   ("LeaveButton", "Menu.System.Leave", "Leave session")]
-SYSTEM_BUTTONS = [("ResumeButton", "Menu.System.Resume", "Resume"), ("QuitButton", "Menu.Quit", "Quit")]
-VOICE_BUTTON = ("VoiceButton", "Menu.System.Voice", "Voice: Push-to-talk")   # S4-07: the label follows the mode at run time
-FLASHES_BUTTON = ("FlashesButton", "Menu.System.Flashes", "Flashes: Full")    # H-1 (ADR-0029): the label follows the choice at run time
-LANGUAGE_BUTTON = ("LanguageButton", "Menu.Language", "Language: English")  # LOC-01: the label follows the language at run time
-MAIN_MENU_BUTTONS = [("HostButton", "Menu.Main.Host", "Host co-op"), ("SoloButton", "Menu.Main.Solo", "Play solo"), ("QuitButton", "Menu.Quit", "Quit")]
-SYSTEM_TITLE = ("Title", "Menu.System.Title", "SYSTEM")
-MAIN_TITLE = ("Title", "Menu.Main.Title", "PROTOCOL: HOLLOW")   # the logo: the same in every language
-DEBRIEF_CLOSE = ("CloseButton", "Menu.Debrief.Continue", "Continue")
 TOOL_LABELS = {   # loc.ITEMS
     "/Game/Hollow/Tools/Welder/DA_Tool_Welder": ("Tool.Welder.Action", "Welding"),
     "/Game/Hollow/Tools/PlasmaCutter/DA_Tool_PlasmaCutter": ("Tool.PlasmaCutter.Action", "Cutting"),
@@ -80,16 +67,13 @@ def glyph_text_key(key_name):
 # Greybox look (data).
 LAYER_TRANSITION_SECONDS = 0.0                # instant screen switches; a fade is a number here, no code
 TEXT_SIZE = 18
-TITLE_SIZE = 32
 BUTTON_TEXT_SIZE = 22
 PANEL_PADDING = 8.0
-DEBRIEF_WIDTH = 720.0
 MARKER_SIZE = unreal.Vector2D(3.0, 20.0)
 BUTTON_MIN_WIDTH = 280
 BUTTON_PADDING = unreal.Margin(24.0, 10.0, 24.0, 10.0)
 WELD_COLOR = unreal.LinearColor(1.0, 0.45, 0.1, 1.0)
 MARKER_COLOR = unreal.LinearColor(1.0, 1.0, 1.0, 0.9)
-BACKDROP_COLOR = unreal.LinearColor(0.0, 0.0, 0.0, 0.6)
 BUTTON_COLORS = {"normal_base": (0.12, 0.13, 0.15, 0.9), "normal_hovered": (0.3, 0.32, 0.36, 1.0),
                  "normal_pressed": (0.5, 0.35, 0.15, 1.0), "disabled": (0.1, 0.1, 0.1, 0.5)}
 
@@ -370,88 +354,12 @@ def ensure_target_status():
     finish(blueprint)
 
 
-def ensure_system_menu():
-    blueprint = new_widget_blueprint(MENUS_DIR + "/W_SystemMenu", unreal.HollowSystemMenuWidget)
-    if blueprint is None:
-        return
-    add(blueprint, unreal.Overlay, "Root")
-    backdrop = add(blueprint, unreal.Image, "Backdrop", "Root")
-    image(backdrop, unreal.Vector2D(0.0, 0.0), BACKDROP_COLOR)
-    box_slot(backdrop)
-    panel = add(blueprint, unreal.VerticalBox, "Panel", "Root")
-    box_slot(panel, H.H_ALIGN_CENTER, V.V_ALIGN_CENTER)
-    title = add(blueprint, unreal.TextBlock, "Title", "Panel")
-    text(title, SYSTEM_TITLE[1:], TITLE_SIZE, unreal.TextJustify.CENTER)
-    box_slot(title, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, 0.0, 0.0, PANEL_PADDING * 3.0))
-    button_class = load(FOUNDATION_DIR + "/W_MenuButton").generated_class()
-    for name, key, label in SYSTEM_BUTTONS:
-        button = add(blueprint, button_class, name, "Panel")
-        button.set_editor_property("label", loc.text(loc.MENUS, key, label))
-        box_slot(button, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
-    finish(blueprint)
 
 
-def ensure_system_menu_session_buttons():
-    """W_SystemMenu predates the session buttons: insert the missing ones after Resume, in order."""
-    blueprint = load(MENUS_DIR + "/W_SystemMenu")
-    button_class = load(FOUNDATION_DIR + "/W_MenuButton").generated_class()
-    added = []
-    for index, (name, key, label) in enumerate(SESSION_BUTTONS):
-        if author.find_widget(blueprint, name) is not None:
-            continue
-        button = author.insert_widget(blueprint, button_class, name, "Panel", 2 + index)   # after the title and Resume
-        if button is None:
-            raise RuntimeError("Could not add %s to W_SystemMenu" % name)
-        button.set_editor_property("label", loc.text(loc.MENUS, key, label))
-        box_slot(button, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
-        added.append(name)
-    if added:
-        if not author.compile(blueprint):
-            raise RuntimeError("W_SystemMenu does not compile with the session buttons")
-        save(blueprint)
-        log("W_SystemMenu: %s added" % ", ".join(added))
 
 
-def ensure_system_menu_toggle(button, menu="W_SystemMenu"):
-    """A settings toggle just before Quit: S4-07 the voice mode, H-1 reduced flashes (after the voice), LOC-01 the language (both menus)."""
-    blueprint = load(MENUS_DIR + "/" + menu)
-    name, key, label = button
-    if author.find_widget(blueprint, name) is not None:
-        return
-    panel = author.find_widget(blueprint, "Panel")
-    quit_index = panel.get_child_index(author.find_widget(blueprint, "QuitButton")) if panel else -1
-    if quit_index < 0:
-        raise RuntimeError("%s has no Panel with a QuitButton" % menu)
-    button = author.insert_widget(blueprint, load(FOUNDATION_DIR + "/W_MenuButton").generated_class(), name, "Panel", quit_index)
-    if button is None:
-        raise RuntimeError("Could not add %s to %s" % (name, menu))
-    button.set_editor_property("label", loc.text(loc.MENUS, key, label))
-    box_slot(button, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
-    if not author.compile(blueprint):
-        raise RuntimeError("%s does not compile with %s" % (menu, name))
-    save(blueprint)
-    log("%s: %s added" % (menu, name))
 
 
-def ensure_main_menu():
-    blueprint = new_widget_blueprint(MENUS_DIR + "/W_MainMenu", unreal.HollowMainMenuWidget)
-    if blueprint is None:
-        return
-    add(blueprint, unreal.Overlay, "Root")
-    backdrop = add(blueprint, unreal.Image, "Backdrop", "Root")
-    image(backdrop, unreal.Vector2D(0.0, 0.0), BACKDROP_COLOR)
-    box_slot(backdrop)
-    panel = add(blueprint, unreal.VerticalBox, "Panel", "Root")
-    box_slot(panel, H.H_ALIGN_CENTER, V.V_ALIGN_CENTER)
-    title = add(blueprint, unreal.TextBlock, "Title", "Panel")
-    text(title, MAIN_TITLE[1:], TITLE_SIZE, unreal.TextJustify.CENTER)
-    box_slot(title, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, 0.0, 0.0, PANEL_PADDING * 3.0))
-    button_class = load(FOUNDATION_DIR + "/W_MenuButton").generated_class()
-    for name, key, label in MAIN_MENU_BUTTONS:
-        button = add(blueprint, button_class, name, "Panel")
-        button.set_editor_property("label", loc.text(loc.MENUS, key, label))
-        box_slot(button, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
-    finish(blueprint)
 
 
 def ensure_front_end_game_mode():
@@ -489,28 +397,6 @@ def ensure_raid_status():
     finish(blueprint)
 
 
-def ensure_debrief():
-    blueprint = new_widget_blueprint(MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)
-    if blueprint is None:
-        return
-    add(blueprint, unreal.Overlay, "Root")
-    backdrop = add(blueprint, unreal.Image, "Backdrop", "Root")
-    image(backdrop, unreal.Vector2D(0.0, 0.0), BACKDROP_COLOR)
-    box_slot(backdrop)
-    panel = add(blueprint, unreal.VerticalBox, "Panel", "Root")
-    box_slot(panel, H.H_ALIGN_CENTER, V.V_ALIGN_CENTER)
-    title = add(blueprint, unreal.TextBlock, "TitleText", "Panel")
-    text(title, "", TITLE_SIZE, unreal.TextJustify.CENTER)
-    box_slot(title, H.H_ALIGN_CENTER, V.V_ALIGN_TOP, unreal.Margin(0.0, 0.0, 0.0, PANEL_PADDING * 3.0))
-    details = add(blueprint, unreal.TextBlock, "DetailsText", "Panel")
-    text(details, "", TEXT_SIZE)
-    details.set_editor_property("auto_wrap_text", True)
-    details.set_editor_property("wrap_text_at", DEBRIEF_WIDTH)
-    box_slot(details, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(0.0, 0.0, 0.0, PANEL_PADDING * 3.0))
-    close = add(blueprint, load(FOUNDATION_DIR + "/W_MenuButton").generated_class(), "CloseButton", "Panel")
-    close.set_editor_property("label", loc.text(loc.MENUS, DEBRIEF_CLOSE[1], DEBRIEF_CLOSE[2]))
-    box_slot(close, H.H_ALIGN_FILL, V.V_ALIGN_TOP, unreal.Margin(0.0, PANEL_PADDING, 0.0, PANEL_PADDING))
-    finish(blueprint)
 
 
 # ---------------------------------------------------------------- game data
@@ -524,25 +410,6 @@ def ensure_tool_labels():
             log("%s: action label %s" % (path.rsplit("/", 1)[1], key))
 
 
-def localize_menus():
-    """LOC-01 (ADR-0048): the menus' texts made before the string tables point at their entries now."""
-    for menu, entries in (("W_SystemMenu", [SYSTEM_TITLE] + SYSTEM_BUTTONS + SESSION_BUTTONS + [VOICE_BUTTON, FLASHES_BUTTON, LANGUAGE_BUTTON]),
-                          ("W_MainMenu", [MAIN_TITLE] + MAIN_MENU_BUTTONS + [LANGUAGE_BUTTON]),
-                          ("W_Debrief", [DEBRIEF_CLOSE])):
-        blueprint = load(MENUS_DIR + "/" + menu)
-        changed = []
-        for name, key, source in entries:
-            widget = author.find_widget(blueprint, name)
-            if widget is None:
-                raise RuntimeError("%s has no %s" % (menu, name))
-            prop = "text" if isinstance(widget, unreal.TextBlock) else "label"
-            if loc.set_text(widget, prop, loc.MENUS, key, source):
-                changed.append(name)
-        if changed:
-            if not author.compile(blueprint):
-                raise RuntimeError(menu + " does not compile")
-            save(blueprint)
-            log("%s: %s into %s" % (menu, ", ".join(changed), loc.MENUS))
 
 
 def ensure_hud_class():
@@ -583,15 +450,9 @@ def validate():
                          (VISOR_DIR + "/W_StatBar", unreal.HollowStatBarWidget),
                          (VISOR_DIR + "/W_InteractionPrompt", unreal.HollowInteractionPromptWidget),
                          (VISOR_DIR + "/W_TargetStatus", unreal.HollowTargetStatusWidget),
-                         (MENUS_DIR + "/W_SystemMenu", unreal.HollowSystemMenuWidget),
-                         (MENUS_DIR + "/W_MainMenu", unreal.HollowMainMenuWidget),
-                         (VISOR_DIR + "/W_RaidStatus", unreal.HollowRaidStatusWidget),
-                         (MENUS_DIR + "/W_Debrief", unreal.HollowDebriefWidget)):
+                         (VISOR_DIR + "/W_RaidStatus", unreal.HollowRaidStatusWidget)):
         generated = load(path).generated_class()
         check(generated is not None and unreal.MathLibrary.class_is_child_of(generated, parent.static_class()), path + " derives from " + parent.__name__)
-    for name, _, _ in SESSION_BUTTONS + [VOICE_BUTTON, FLASHES_BUTTON, LANGUAGE_BUTTON]:
-        check(author.find_widget(load(MENUS_DIR + "/W_SystemMenu"), name) is not None, "W_SystemMenu has " + name)
-    check(author.find_widget(load(MENUS_DIR + "/W_MainMenu"), LANGUAGE_BUTTON[0]) is not None, "W_MainMenu has the language button")
     for path, (key, _) in TOOL_LABELS.items():
         check(loc.is_text(load(path).get_editor_property("action_label"), loc.ITEMS, key), path + " action label from " + loc.ITEMS)
     for glyph in load(INPUT_DIR + "/DA_InputGlyphs").get_editor_property("glyphs"):
@@ -613,16 +474,7 @@ def main():
     ensure_prompt()
     ensure_target_status()
     ensure_raid_status()
-    ensure_system_menu()
-    ensure_system_menu_session_buttons()
-    ensure_system_menu_toggle(VOICE_BUTTON)
-    ensure_system_menu_toggle(FLASHES_BUTTON)
-    ensure_system_menu_toggle(LANGUAGE_BUTTON)
-    ensure_main_menu()
-    ensure_system_menu_toggle(LANGUAGE_BUTTON, "W_MainMenu")
-    ensure_debrief()
     ensure_tool_labels()
-    localize_menus()
     loc.save()
     ensure_front_end_game_mode()
     ensure_hud_class()

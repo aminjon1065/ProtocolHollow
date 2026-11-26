@@ -35,6 +35,12 @@ public:
 	/** Tests: the visor's size without a viewport. */
 	void SetViewSizeForTests(const FVector2D& Size) { TestViewSize = Size; }
 
+	/** Tests: the readouts to keep off, in the visor's space (none laid out without a viewport). */
+	void SetKeepOutForTests(const TArray<FBox2D>& Boxes) { TestKeepOut = Boxes; }
+
+	/** The visor's readouts the markers keep off now (UHollowVisorStyle::WaypointKeepOut, as laid out). */
+	TArray<FBox2D> CollectKeepOut() const;
+
 	const TArray<FShown>& GetShown() const { return Shown; }
 	bool IsUpdating() const;
 
@@ -65,4 +71,5 @@ private:
 	FDelegateHandle ObjectiveHandle;
 	FTimerHandle UpdateTimer;
 	FVector2D TestViewSize = FVector2D::ZeroVector;
+	TArray<FBox2D> TestKeepOut;
 };

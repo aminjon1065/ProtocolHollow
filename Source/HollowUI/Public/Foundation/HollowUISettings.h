@@ -11,6 +11,7 @@ class UHollowDebriefWidget;
 class UHollowHubScreenWidget;
 class UHollowPrimaryLayout;
 class UHollowRadioScript;
+class UHollowUIStyle;
 class UHollowVisorStyle;
 class UInputAction;
 class UInputMappingContext;
@@ -35,6 +36,10 @@ public:
 	/** On the front-end map instead of the visor (S4-06): solo, host co-op, quit. */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout")
 	TSoftClassPtr<UCommonActivatableWidget> MainMenuClass;
+
+	/** UI-02 (ADR-0052): the settings screen on the Menu layer, from the main menu and the system menu. */
+	UPROPERTY(Config, EditAnywhere, Category = "Layout")
+	TSoftClassPtr<UCommonActivatableWidget> SettingsScreenClass;
 
 	/** Raid debrief on the Menu layer (S3-03). */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout")
@@ -82,6 +87,10 @@ public:
 	/** UX-01 (ADR-0042): folds and unfolds the visor's controls cheat sheet (H / View). */
 	UPROPERTY(Config, EditAnywhere, Category = "Input")
 	TSoftObjectPtr<UInputAction> ControlsHintAction;
+
+	/** UI-02 (ADR-0052): badge colours, refused buttons, the terminal screens' sound (DA_UIStyle). */
+	UPROPERTY(Config, EditAnywhere, Category = "Layout")
+	TSoftObjectPtr<UHollowUIStyle> UIStyle;
 
 	/** Tiers, telemetry texts and colours of the visor (S4-08, DA_VisorStyle). */
 	UPROPERTY(Config, EditAnywhere, Category = "Visor")

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Crafting/HollowCraftingRules.h"
+#include "Hub/HollowHubBadge.h"
 
 struct FHollowProfileState;
 
@@ -43,6 +44,8 @@ struct HOLLOWUI_API FHollowHubRow
 	bool bHighlighted = false;
 	/** At most HollowHubScreenRules::MaxActions. */
 	TArray<FHollowHubAction> Actions;
+	/** UI-02: coloured badges after the name (a price, an insured slot). */
+	TArray<FHollowHubBadge> Badges;
 };
 
 /** Names and descriptions of the assets a screen shows, by id (lookups only); unknown ids show their asset name. */
@@ -138,6 +141,9 @@ namespace HollowHubScreenRules
 
 	/** Credits, stash and loadout use, insured slots of the limit (the ship's upgrades included), a raid in escrow. */
 	HOLLOWUI_API FText StatusLine(const FHollowProfileState& State, const FHollowEconomyTerms& Terms);
+
+	/** UI-02 (ADR-0052): the status line as coloured badges: credits, stash and loadout slots, insured slots. */
+	HOLLOWUI_API TArray<FHollowHubBadge> StatusBadges(const FHollowProfileState& State, const FHollowEconomyTerms& Terms);
 
 	/** Every id the profile rows may name (items, recipes, upgrades), to load their names. */
 	HOLLOWUI_API TArray<FPrimaryAssetId> NamedIds(const FHollowProfileState& State, const FHollowEconomyTerms& Terms);

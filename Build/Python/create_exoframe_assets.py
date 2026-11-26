@@ -4,7 +4,7 @@ Creates only missing assets (never overwrites tuning done in the editor), then v
 Requires the placeholder characters: Build/Scripts/import-placeholders.sh
 
   /Game/Hollow/Core/Input/Actions/IA_Move|IA_Look|IA_Jump|IA_Crouch|IA_Sprint
-  /Game/Hollow/Core/Input/IMC_Raid                         keyboard/mouse + gamepad
+  /Game/Hollow/Core/Input/IMC_Raid                         keyboard/mouse + gamepad (UI-02: the look takes the player's settings)
   /Game/Hollow/Core/Input/DA_InputConfig_Raid              Hollow.Input.* -> input action
   /Game/Hollow/Characters/ExoFrame/DA_MovementTuning_ExoFrame
   /Game/Hollow/Characters/ExoFrame/BP_ExoFrame             meshes, anims, camera, tuning, input
@@ -151,9 +151,10 @@ def build_mapping_context(path):
         mapping("IA_Move", "A", [negate_all()]),
         mapping("IA_Move", "D"),
         mapping("IA_Move", "Gamepad_Left2D", [dead_zone()]),
-        mapping("IA_Look", "Mouse2D", [negate_y()]),
+        mapping("IA_Look", "Mouse2D", [negate_y(), modifier(unreal.HollowLookSettingsModifier, apply_sensitivity=True)]),
         mapping("IA_Look", "Gamepad_Right2D", [dead_zone(), negate_y(), modifier(unreal.InputModifierScaleByDeltaTime),
-                                               modifier(unreal.InputModifierScalar, scalar=GAMEPAD_LOOK_RATE)]),
+                                               modifier(unreal.InputModifierScalar, scalar=GAMEPAD_LOOK_RATE),
+                                               modifier(unreal.HollowLookSettingsModifier, apply_sensitivity=False)]),
         mapping("IA_Jump", "SpaceBar"),
         mapping("IA_Jump", "Gamepad_FaceButton_Bottom"),
         mapping("IA_Crouch", "LeftControl"),
@@ -165,6 +166,36 @@ def build_mapping_context(path):
     data.set_editor_property("mappings", mappings)
     context.set_editor_property("default_key_mappings", data)
     return context
+
+
+# UI-02 (ADR-0052): the player's look settings on each look mapping: the mouse takes the sensitivity, both the inversion.
+LOOK_SETTINGS = {"Mouse2D": True, "Gamepad_Right2D": False}
+
+
+def ensure_look_settings():
+    """An IMC_Raid from before UI-02 gets the look settings modifier last on each look mapping."""
+    context = load(IMC_PATH)
+    data = context.get_editor_property("default_key_mappings")
+    entries = list(data.get_editor_property("mappings"))
+    added = []
+    for entry in entries:
+        action = entry.get_editor_property("action")
+        key = entry.get_editor_property("key").export_text()
+        wanted = [sensitivity for name, sensitivity in LOOK_SETTINGS.items() if make_key(name).export_text() == key]
+        if action is None or action.get_name() != "IA_Look" or not wanted:
+            continue
+        modifiers = list(entry.get_editor_property("modifiers"))
+        if any(isinstance(m, unreal.HollowLookSettingsModifier) for m in modifiers):
+            continue
+        look = unreal.new_object(unreal.HollowLookSettingsModifier, outer=context)
+        look.set_editor_property("apply_sensitivity", wanted[0])
+        entry.set_editor_property("modifiers", modifiers + [look])
+        added.append(key)
+    if added:
+        data.set_editor_property("mappings", entries)
+        context.set_editor_property("default_key_mappings", data)
+        save(context)
+        log("IMC_Raid: look settings on " + ", ".join(added))
 
 
 def build_input_config(path):
@@ -257,6 +288,13 @@ def validate():
     mappings = load(IMC_PATH).get_editor_property("default_key_mappings").get_editor_property("mappings")
     mapped_actions = {entry.get_editor_property("action").get_name() for entry in mappings}
     check(set(ACTIONS) <= mapped_actions, "IMC_Raid maps every ExoFrame action")
+    for entry in mappings:
+        if entry.get_editor_property("action") is not None and entry.get_editor_property("action").get_name() == "IA_Look":
+            looks = [m for m in entry.get_editor_property("modifiers") if isinstance(m, unreal.HollowLookSettingsModifier)]
+            key = entry.get_editor_property("key").export_text()
+            wanted = [sensitivity for name, sensitivity in LOOK_SETTINGS.items() if make_key(name).export_text() == key]
+            check(not wanted or (len(looks) == 1 and looks[0].get_editor_property("apply_sensitivity") == wanted[0]),
+                  "IA_Look on %s takes the player's look settings (UI-02)" % key)
 
     # Later scripts add more actions (e.g. Interact, S1-06): check presence, not an exact count.
     native = load(INPUT_CONFIG_PATH).get_editor_property("native_actions")
@@ -286,6 +324,7 @@ def main():
     for action_name, (value_type, _) in ACTIONS.items():
         ensure(ACTIONS_DIR + "/" + action_name, build_action(value_type))
     ensure(IMC_PATH, build_mapping_context)
+    ensure_look_settings()
     ensure(INPUT_CONFIG_PATH, build_input_config)
     ensure(TUNING_PATH, build_tuning)
     ensure(EXOFRAME_BP_PATH, build_exoframe)

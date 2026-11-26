@@ -151,7 +151,13 @@ STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoin
                  "hit_marker_seconds": 0.18, "armor_marker_scale": 0.8, "crit_marker_scale": 1.3,
                  "damage_flash_seconds": 0.45, "damage_full_share": 0.25, "reduced_damage_level": 0.35, "reduced_damage_seconds": 1.2,
                  "damage_fade_rate_hz": 30.0,
-                 "lore_notice_seconds": 6.0}   # NAR-01b: a downloaded crew log's notice
+                 "lore_notice_seconds": 6.0,   # NAR-01b: a downloaded crew log's notice
+                 # UI-02 (ADR-0052): a marker keeps this far off the readouts below; it is some 50 px each way with its label.
+                 "waypoint_keep_out_padding": 12.0, "waypoint_marker_radius": 52.0}
+# UI-02 (ADR-0052): the readouts the markers keep off (widgets of W_Visor, while shown): the cheat sheet, the health and
+# tool bars, the supply and weapon lines, the objective and the Resonance readout.
+WAYPOINT_KEEP_OUT = ["ControlsHint", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar", "SupplyReadout", "WeaponReadout",
+                     "Objective", "ResonanceReadout"]
 # Hub terminals pale cyan (the contracts console amber: it launches), extraction green, the vault aether cyan, the
 # altar ritual gold (Docs/Art bible palette).
 WAYPOINT_LOOKS = [
@@ -411,7 +417,7 @@ def ensure_style():
     factory = unreal.DataAssetFactory()
     factory.set_editor_property("data_asset_class", unreal.HollowVisorStyle)
     style, created = existing_or_new(STYLE_PATH, unreal.HollowVisorStyle, factory)
-    spec_hash = digest(TIERS, STYLE_TEXTS, STYLE_COLORS, STYLE_SCALARS, WAYPOINT_LOOKS)
+    spec_hash = digest(TIERS, STYLE_TEXTS, STYLE_COLORS, STYLE_SCALARS, WAYPOINT_LOOKS, WAYPOINT_KEEP_OUT)
     if not created and up_to_date(style, spec_hash):
         return style
     looks = []
@@ -438,6 +444,7 @@ def ensure_style():
         look.set_editor_property("color", color(rgba))
         waypoints.append(look)
     style.set_editor_property("waypoints", waypoints)
+    style.set_editor_property("waypoint_keep_out", WAYPOINT_KEEP_OUT)
     stamp(style, spec_hash)
     log("DA_VisorStyle ready")
     return style

@@ -305,6 +305,7 @@ namespace HollowHubScreenRules
 			Row.Name = Names.GetName(Item);
 			Row.Detail = FText::Format(LOCTEXT("Offer", "{0} cr each, {1} in stash"), Terms.ShopPrices.FindChecked(Item),
 				HollowCraftingRules::CountOf(State.Profile.Stash, Item));
+			Row.Badges.Add({EHollowHubBadgeKind::Price, FText::Format(LOCTEXT("Credits", "{0} cr"), Terms.ShopPrices.FindChecked(Item))});
 			Row.Actions.Add(MakeAction(LOCTEXT("BuyOne", "Buy 1"), FHollowProfileTransaction::Buy(Item, 1), State, Terms));
 			Row.Actions.Add(MakeAction(FText::Format(LOCTEXT("BuyMany", "Buy {0}"), BulkCount), FHollowProfileTransaction::Buy(Item, BulkCount), State, Terms));
 		}
@@ -339,6 +340,10 @@ namespace HollowHubScreenRules
 			Row.Name = Names.GetName(Id);
 			Row.Detail = Names.GetDescription(Id);
 			Row.bHighlighted = bOwned;
+			if (!bOwned)
+			{
+				Row.Badges.Add({EHollowHubBadgeKind::Price, FText::Format(LOCTEXT("Credits", "{0} cr"), Price)});
+			}
 			Row.Actions.Add(MakeAction(bOwned ? LOCTEXT("Owned", "Owned") : FText::Format(LOCTEXT("BuyUpgrade", "Buy ({0} cr)"), Price),
 				FHollowProfileTransaction::BuyUpgrade(Id), State, Terms));
 		}
@@ -382,6 +387,10 @@ namespace HollowHubScreenRules
 			Row.Detail = Slot.bInsured ? LOCTEXT("Insured", "Insured: kept if you die")
 				: bInsurable ? FText::Format(LOCTEXT("Uninsured", "Not insured (insurance {0} cr)"), Price) : LOCTEXT("Uninsurable", "Cannot be insured");
 			Row.bHighlighted = Slot.bInsured;
+			if (Slot.bInsured)
+			{
+				Row.Badges.Add({EHollowHubBadgeKind::Insured, LOCTEXT("InsuredBadge", "INSURED")});
+			}
 			if (Slot.Count > 1)
 			{
 				Row.Actions.Add(MakeAction(LOCTEXT("ReturnOne", "Return 1"), FHollowProfileTransaction::Unequip(Index, 1), State, Terms));
@@ -498,6 +507,18 @@ namespace HollowHubScreenRules
 		Args.Add(TEXT("InsuredLimit"), InsuredLimit(Profile, Terms));
 		const FText Line = FText::Format(LOCTEXT("Status", "Credits {Credits}    Stash {Stash}/{StashSlots}    Loadout {Loadout}/{LoadoutSlots}    Insured {Insured}/{InsuredLimit}"), Args);
 		return State.Escrow.IsActive() ? FText::Format(LOCTEXT("StatusInRaid", "{0}    {1}"), Line, ResultText(EHollowTransactionResult::InRaid)) : Line;
+	}
+
+	TArray<FHollowHubBadge> StatusBadges(const FHollowProfileState& State, const FHollowEconomyTerms& Terms)
+	{
+		const FHollowProfile& Profile = State.Profile;
+		const int32 Insured = static_cast<int32>(Algo::CountIf(Profile.Loadout, [](const FHollowLoadoutSlot& Slot) { return Slot.bInsured; }));
+		return {
+			{EHollowHubBadgeKind::Price, FText::Format(LOCTEXT("Credits", "{0} cr"), Profile.Credits)},
+			{EHollowHubBadgeKind::Slot, FText::Format(LOCTEXT("StashBadge", "Stash {0}/{1}"), Profile.Stash.Num(), Terms.StashSlots)},
+			{EHollowHubBadgeKind::Slot, FText::Format(LOCTEXT("LoadoutBadge", "Loadout {0}/{1}"), Profile.Loadout.Num(), Terms.MaxLoadoutSlots)},
+			{EHollowHubBadgeKind::Insured, FText::Format(LOCTEXT("InsuredCountBadge", "Insured {0}/{1}"), Insured, InsuredLimit(Profile, Terms))},
+		};
 	}
 
 	TArray<FPrimaryAssetId> NamedIds(const FHollowProfileState& State, const FHollowEconomyTerms& Terms)

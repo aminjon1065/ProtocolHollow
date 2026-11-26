@@ -10,6 +10,10 @@
   DA_Enemy_IronPilgrim / EchoStalker     WindupSound, FootstepSound and FootstepCadence
   /Game/Hollow/Audio/MetaSounds/MS_Radio_* NAR-01a (ADR-0049): the handler's radio opening and closing a transmission, in
                                           the listener's helmet, through the comms bus (SC_Hollow_Voice + SEC_Hollow_Radio)
+  /Game/Hollow/Audio/MetaSounds/MS_UI_*   UI-02 (ADR-0052): the menus' focus, confirm, deny and terminal sounds (SC_Hollow_UI)
+  /Game/Hollow/Audio/Modulation/CB_Volume_Master|Effects|Voice   the player's three volumes (UHollowAudioVolumeSubsystem): the
+                                          sound classes' volume listens to them (World and UI: master + effects; Voice:
+                                          master + voice)
 
 MetaSounds and levels keep a hash of their spec (asset metadata, or a marker actor in a level): a MetaSound is rebuilt and
 a level re-saved only when its spec changes - every save is a new LFS object.
@@ -33,6 +37,13 @@ BANK = AUDIO_DIR + "/DA_SoundBank"
 ATTENUATION = AUDIO_DIR + "/ATT_Hollow_World"
 SOUND_CLASS = AUDIO_DIR + "/SC_Hollow_World"   # create_resonance_assets.py (low-pass on CB_Resonance)
 VOICE_SOUND_CLASS = AUDIO_DIR + "/Voice/SC_Hollow_Voice"   # create_voice_assets.py: the comms bus
+UI_SOUND_CLASS = AUDIO_DIR + "/SC_Hollow_UI"                # UI-02: the menus' sounds (2D, no room acoustics)
+MODULATION_DIR = AUDIO_DIR + "/Modulation"
+VOLUME_PARAMETER = "/AudioModulation/Volume"                 # the engine plugin's volume parameter (linear 0..1)
+VOLUME_BUSES = ("CB_Volume_Master", "CB_Volume_Effects", "CB_Volume_Voice")
+# UI-02 (ADR-0052): which buses each sound class's volume listens to (they multiply).
+VOLUME_ROUTING = {SOUND_CLASS: ("CB_Volume_Master", "CB_Volume_Effects"), UI_SOUND_CLASS: ("CB_Volume_Master", "CB_Volume_Effects"),
+                  VOICE_SOUND_CLASS: ("CB_Volume_Master", "CB_Volume_Voice")}
 RADIO_CHAIN = AUDIO_DIR + "/Voice/SEC_Hollow_Radio"         # create_voice_assets.py: the radio's band and grit
 ROOM_DATA_DIR = "/HollowSector_Docks/Data"
 # Enemy voices and steps. Cadence: a step every interval (s) faster than min_speed, full volume at reference_speed (its
@@ -53,7 +64,8 @@ VOLUME_BRUSH = 200.0          # a spawned volume's default cube brush (uu)
 
 # ---------------------------------------------------------------- MetaSound graphs (data)
 # A graph: nodes {id: [class name, {input: default}]}, links [[from id, output, to id, input]]. "@play" is the graph's
-# On Play, "@finish" its On Finished (one-shots end when it fires), "@out" the mono output.
+# On Play, "@finish" its On Finished (one-shots end when it fires), "@out" the mono output. Every graph peaks under full
+# scale whatever seed its noise draws (UI-02: Hollow.Editor.AudioRender renders each one offline); the bank's volumes mix them.
 SINE, SAW, SQUARE, TRIANGLE = ("UE", "Sine", "Audio"), ("UE", "Saw", "Audio"), ("UE", "Square", "Audio"), ("UE", "Triangle", "Audio")
 NOISE, LFO = ("UE", "Noise", "Audio"), ("UE", "LFO", "Audio")
 ENVELOPE = ("AD Envelope", "AD Envelope", "Audio")
@@ -219,7 +231,7 @@ def breach_crash():
     g.node("sub", SINE, {"Frequency": 42.0}).burst("boom", "sub", "Audio", 0.01, 1.6)
     g.node("debris", NOISE, {"Type": WHITE}).node("debris_hp", HIGHPASS, {"Cutoff Frequency": 2500.0}).link("debris", "Audio", "debris_hp", "In")
     g.burst("shards", "debris_hp", "Out", 0.001, 0.35)
-    return g.mix("mix", [("body", "Out", 0.7), ("boom", "Out", 0.6), ("shards", "Out", 0.3)]).out("mix").finish_on("body_env").spec
+    return g.mix("mix", [("body", "Out", 0.59), ("boom", "Out", 0.5), ("shards", "Out", 0.25)]).out("mix").finish_on("body_env").spec
 
 
 def core_drop():
@@ -267,7 +279,7 @@ def mine_blast():
     g.node("zap", SQUARE, {"Frequency": 2400.0}).burst("arc", "zap", "Audio", 0.001, 0.06)
     g.node("air", NOISE, {"Type": WHITE}).node("air_lp", LOWPASS, {"Cutoff Frequency": 1800.0}).link("air", "Audio", "air_lp", "In")
     g.burst("blast", "air_lp", "Out", 0.001, 0.45)
-    return g.mix("mix", [("thump", "Out", 0.8), ("arc", "Out", 0.25), ("blast", "Out", 0.5)]).out("mix").finish_on("thump_env").spec
+    return g.mix("mix", [("thump", "Out", 0.53), ("arc", "Out", 0.16), ("blast", "Out", 0.33)]).out("mix").finish_on("thump_env").spec
 
 
 def nailgun_shot():
@@ -277,7 +289,7 @@ def nailgun_shot():
     g.burst("snap", "crack_hp", "Out", 0.0005, 0.05)
     g.node("ring", SINE, {"Frequency": 1450.0}).burst("tone", "ring", "Audio", 0.001, 0.12)
     g.node("sub", SINE, {"Frequency": 95.0}).burst("thump", "sub", "Audio", 0.001, 0.09)
-    return g.mix("mix", [("snap", "Out", 0.7), ("tone", "Out", 0.2), ("thump", "Out", 0.6)]).out("mix").finish_on("tone_env").spec
+    return g.mix("mix", [("snap", "Out", 0.42), ("tone", "Out", 0.12), ("thump", "Out", 0.36)]).out("mix").finish_on("tone_env").spec
 
 
 def shotgun_blast():
@@ -531,6 +543,55 @@ def radio_close():
 # NAR-01a: the radio's clicks go through the comms bus, not the world's (no room muffles the helmet's radio).
 RADIO_METASOUNDS = {"MS_Radio_Open": radio_open, "MS_Radio_Close": radio_close}
 
+
+def ui_focus():
+    """UI-02: a button takes the focus or the mouse: a soft glassy tick, quiet enough to run a list with."""
+    g = Graph(one_shot=True)
+    g.node("tick", TRIANGLE, {"Frequency": 1760.0}).burst("tick_burst", "tick", "Audio", 0.001, 0.022)
+    g.node("end", DELAY, {"Delay Time": 0.07}).link("@play", "On Play", "end", "In")
+    return g.node("level", SCALE, {"AdditionalOperands": 0.1}).link("tick_burst", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def ui_confirm():
+    """UI-02: a press accepted: two rising tones a fifth apart."""
+    g = Graph(one_shot=True)
+    g.node("low", SINE, {"Frequency": 880.0}).burst("low_burst", "low", "Audio", 0.001, 0.05)
+    g.node("second", DELAY, {"Delay Time": 0.045}).link("@play", "On Play", "second", "In")
+    g.node("high", SINE, {"Frequency": 1320.0}).burst("high_burst", "high", "Audio", 0.001, 0.08, trigger=("second", "Out"))
+    g.node("end", DELAY, {"Delay Time": 0.18}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("low_burst", "Out", 0.4), ("high_burst", "Out", 0.4)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.3}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def ui_deny():
+    """UI-02: a refused press (a greyed-out button): a low muffled buzz, twice."""
+    g = Graph(one_shot=True)
+    g.node("buzz", SQUARE, {"Frequency": 140.0}).node("buzz_lp", LOWPASS, {"Cutoff Frequency": 900.0}).link("buzz", "Audio", "buzz_lp", "In")
+    g.burst("first", "buzz_lp", "Out", 0.002, 0.07)
+    g.node("again", DELAY, {"Delay Time": 0.095}).link("@play", "On Play", "again", "In")
+    g.burst("second", "buzz_lp", "Out", 0.002, 0.08, trigger=("again", "Out"))
+    g.node("end", DELAY, {"Delay Time": 0.24}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("first", "Out", 0.5), ("second", "Out", 0.5)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.35}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def ui_terminal():
+    """UI-02: a hub terminal's screen opens (played lower when it closes): a glass chime rising over a breath of air."""
+    g = Graph(one_shot=True)
+    g.node("root", SINE, {"Frequency": 523.0}).burst("root_burst", "root", "Audio", 0.004, 0.2)
+    g.node("rise", DELAY, {"Delay Time": 0.06}).link("@play", "On Play", "rise", "In")
+    g.node("fifth", SINE, {"Frequency": 784.0}).burst("fifth_burst", "fifth", "Audio", 0.004, 0.22, trigger=("rise", "Out"))
+    g.node("air", NOISE, {"Type": PINK}).node("air_bp", SVF, {"Cutoff Frequency": 2400.0, "Resonance": 3.0}).link("air", "Audio", "air_bp", "In")
+    g.burst("breath", "air_bp", BAND_PASS, 0.01, 0.16)
+    g.node("end", DELAY, {"Delay Time": 0.4}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("root_burst", "Out", 0.35), ("fifth_burst", "Out", 0.35), ("breath", "Out", 0.2)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.35}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+# UI-02 (ADR-0052): the menus' sounds, in their own class (2D: no attenuation, no room acoustics); CommonUI's button
+# styles play them (create_menu_ui_assets.py, create_hub_ui_assets.py), DA_UIStyle the terminal's.
+UI_METASOUNDS = {"MS_UI_Focus": ui_focus, "MS_UI_Confirm": ui_confirm, "MS_UI_Deny": ui_deny, "MS_UI_Terminal": ui_terminal}
+
 METASOUNDS = {
     "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter, "MS_Tool_Lantern": lantern,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
@@ -579,7 +640,7 @@ ENTRIES = [
     ("Hollow.Sound.Arc.Discharge", "MS_Arc_Discharge", "SCON_Impacts", 2500.0, 0.9, 0.08, None),
     ("Hollow.Sound.Altar.Purified", "MS_Core_Purified", None, 2000.0, 0.8, 0.0, None),
     # GP-01 (ADR-0044): the shots as far as the AI hears them, a blow like a heavy impact; reload and dry fire players only.
-    ("Hollow.Noise.Weapon.Nailgun", "MS_Weapon_Nailgun", "SCON_Impacts", 0.0, 0.9, 0.06, None),
+    ("Hollow.Noise.Weapon.Nailgun", "MS_Weapon_Nailgun", "SCON_Impacts", 0.0, 1.0, 0.06, None),
     ("Hollow.Noise.Weapon.Shotgun", "MS_Weapon_Shotgun", "SCON_Impacts", 0.0, 1.0, 0.04, None),
     ("Hollow.Noise.Impact.Melee", "MS_Impact_Metal", "SCON_Impacts", 0.0, 0.7, 0.12, None),
     ("Hollow.Sound.Weapon.Reload", "MS_Weapon_Reload", None, 800.0, 0.6, 0.05, None),
@@ -763,7 +824,57 @@ def ensure_metasounds():
     for name in sorted(RADIO_METASOUNDS):
         made[name], fresh = ensure_metasound(name, RADIO_METASOUNDS[name](), voice, chain)
         built += int(fresh)
+    ui = load(UI_SOUND_CLASS)
+    for name in sorted(UI_METASOUNDS):
+        made[name], fresh = ensure_metasound(name, UI_METASOUNDS[name](), ui)
+        built += int(fresh)
     return made, built
+
+
+# ---------------------------------------------------------------- volumes (UI-02)
+
+def ensure_ui_sound_class():
+    sound_class, created = existing_or_new(UI_SOUND_CLASS, unreal.SoundClass, unreal.SoundClassFactory())
+    if created:
+        save(sound_class)
+        log("SC_Hollow_UI ready")
+    return sound_class
+
+
+def ensure_volume_buses():
+    parameter = load(VOLUME_PARAMETER)
+    buses = {}
+    for name in VOLUME_BUSES:
+        bus, created = existing_or_new(MODULATION_DIR + "/" + name, unreal.SoundControlBus, unreal.SoundControlBusFactory())
+        if created or bus.get_editor_property("parameter") != parameter:
+            bus.set_editor_property("parameter", parameter)
+            save(bus)
+            log(name + " ready")
+        buses[name] = bus
+    return buses
+
+
+def volume_modulators(sound_class):
+    destination = sound_class.get_editor_property("properties").get_editor_property("modulation_settings").get_editor_property("volume_modulation_destination")
+    return destination, sorted(m.get_name() for m in destination.get_editor_property("modulators") if m is not None)
+
+
+def ensure_volume_routing(buses):
+    """Every sound class's volume listens to its buses (only the volume: the low-pass is create_resonance_assets.py's)."""
+    for path, names in sorted(VOLUME_ROUTING.items()):
+        sound_class = load(path)
+        destination, current = volume_modulators(sound_class)
+        if current == sorted(names) and destination.get_editor_property("enable_modulation"):
+            continue
+        properties = sound_class.get_editor_property("properties")
+        modulation = properties.get_editor_property("modulation_settings")
+        destination.set_editor_property("enable_modulation", True)
+        destination.set_editor_property("modulators", [buses[name] for name in names])
+        modulation.set_editor_property("volume_modulation_destination", destination)
+        properties.set_editor_property("modulation_settings", modulation)
+        sound_class.set_editor_property("properties", properties)
+        save(sound_class)
+        log("%s: volume follows %s" % (path.rsplit("/", 1)[1], ", ".join(names)))
 
 
 # ---------------------------------------------------------------- attenuation, concurrency, reverb, bank
@@ -997,9 +1108,18 @@ def validate(rooms, sounds):
                   name + " plays through the comms bus (SC_Hollow_Voice, SEC_Hollow_Radio)")
             check(assets.get_metadata_tag(sound, SPEC_TAG) == digest(RADIO_METASOUNDS[name]()), name + " matches its spec")
             continue
+        if name in UI_METASOUNDS:
+            check(sound.get_editor_property("sound_class_object") == load(UI_SOUND_CLASS), name + " plays through SC_Hollow_UI")
+            check(assets.get_metadata_tag(sound, SPEC_TAG) == digest(UI_METASOUNDS[name]()), name + " matches its spec")
+            continue
         check(sound.get_editor_property("sound_class_object") == sound_class, name + " plays through SC_Hollow_World")
         check(assets.get_metadata_tag(sound, SPEC_TAG) == digest(METASOUNDS[name]()), name + " matches its spec")
     check(sound_class.get_editor_property("properties").get_editor_property("apply_ambient_volumes"), "room volumes apply to SC_Hollow_World")
+    for path, names in VOLUME_ROUTING.items():
+        check(volume_modulators(load(path))[1] == sorted(names), "%s volume follows %s" % (path, names))
+    for name in VOLUME_BUSES:
+        check(load(MODULATION_DIR + "/" + name).get_editor_property("parameter") == load(VOLUME_PARAMETER), name + " is a volume bus")
+        check(ini_has("%sVolumeBus=%s" % (name.split("_")[-1], object_path(MODULATION_DIR + "/" + name))), "UHollowPlayerSettingsConfig names " + name)
     check(ini_has("SoundBank=" + object_path(BANK)), "UHollowAudioSettings::SoundBank")
     for room in rooms:
         check(room_type(room) in ROOM_ACOUSTICS, "acoustics for " + room.get_name())
@@ -1010,6 +1130,8 @@ def validate(rooms, sounds):
 
 
 def main():
+    ensure_ui_sound_class()
+    ensure_volume_routing(ensure_volume_buses())
     sounds, built = ensure_metasounds()
     attenuation = ensure_attenuation()
     concurrency = ensure_concurrency()

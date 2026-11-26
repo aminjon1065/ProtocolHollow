@@ -47,6 +47,19 @@ FText UHollowLocalizationAuthoring::TableText(UStringTable* Table, const FString
 	return FText::FromStringTable(Table->GetStringTableId(), FTextKey(Key));
 }
 
+bool UHollowLocalizationAuthoring::RemoveTableEntry(UStringTable* Table, const FString& Key)
+{
+	FString Current;
+	if (!Table || Key.IsEmpty() || !Table->GetStringTable()->GetSourceString(FTextKey(Key), Current))
+	{
+		return false;
+	}
+	Table->Modify();
+	Table->GetMutableStringTable()->RemoveSourceString(FTextKey(Key));
+	Table->MarkPackageDirty();
+	return true;
+}
+
 bool UHollowLocalizationAuthoring::GetTableEntry(const FText& Text, FString& OutTableId, FString& OutKey)
 {
 	FName TableId;

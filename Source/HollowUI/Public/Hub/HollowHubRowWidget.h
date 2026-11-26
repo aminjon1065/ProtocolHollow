@@ -7,6 +7,7 @@
 
 class APlayerController;
 class UHollowButton;
+class UPanelWidget;
 class UTextBlock;
 
 /**
@@ -57,6 +58,10 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UHollowButton> ThirdAction;
+
+	/** UI-02: the row's coloured badges (W_HubBadge), after its name. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UPanelWidget> BadgeBox;
 
 	/** Name colours (create_hub_ui_assets.py). */
 	UPROPERTY(EditDefaultsOnly, Category = "Look")

@@ -165,6 +165,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "0"))
 	float WaypointEdgeMargin = 0.f;
 
+	/**
+	 * UI-02 (ADR-0052): the visor's readouts the markers keep off (widgets of W_Visor by name, while shown): the cheat
+	 * sheet, the health and tool bars... An edge arrow slides along its edge, a marker in view steps beside it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints")
+	TArray<FName> WaypointKeepOut;
+
+	/** Room kept round each of those readouts. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "0"))
+	float WaypointKeepOutPadding = 0.f;
+
+	/** A marker's half size with its label, for keeping it off the readouts. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "0"))
+	float WaypointMarkerRadius = 0.f;
+
 	/** The cheat sheet's title: {0} = the key that folds it. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controls")
 	FText ControlsTitleFormat;

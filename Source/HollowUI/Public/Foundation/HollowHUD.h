@@ -35,6 +35,9 @@ public:
 	/** Pushes the system menu on the Menu layer unless one is already active there. */
 	UCommonActivatableWidget* OpenSystemMenu();
 
+	/** UI-02 (ADR-0052): pushes the settings screen on the Menu layer, over the menu that opened it (Back returns there). */
+	UCommonActivatableWidget* OpenSettings();
+
 	/** Shows a resolved raid on the Menu layer (S3-03): the host's result, a lost host, an abandoned raid. */
 	UHollowDebriefWidget* ShowDebrief(const FHollowRaidReport& Report);
 

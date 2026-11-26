@@ -4,6 +4,9 @@
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Foundation/HollowButton.h"
+#include "Foundation/HollowUIStyle.h"
+#include "Hub/HollowBadgeWidget.h"
+#include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "HollowUILog.h"
 #include "Hub/HollowHubRowWidget.h"
@@ -63,6 +66,7 @@ void UHollowHubScreenWidget::NativeOnActivated()
 	SetMessage(FText::GetEmpty());
 	Refresh();
 	Super::NativeOnActivated();
+	PlayTerminalSound(/*bOpening=*/true);
 	UE_LOG(LogHollowUI, Log, TEXT("%s: open for %s"), *GetName(), *GetNameSafe(GetHubPlayer()));
 }
 
@@ -75,6 +79,7 @@ void UHollowHubScreenWidget::NativeOnDeactivated()
 		BoundSource = nullptr;
 	}
 	UnbindHub();
+	PlayTerminalSound(/*bOpening=*/false);
 	// Leaving the screen leaves its terminal (closed first, or another one opened since: nothing to close).
 	UHollowHubTerminalSubsystem* Terminals = UHollowHubTerminalSubsystem::Get(GetWorld());
 	APlayerController* HubPlayer = GetHubPlayer();
@@ -102,8 +107,22 @@ void UHollowHubScreenWidget::Refresh()
 	const FHollowProfileState& State = Source ? Source->GetProfileState() : NoProfile;
 	const FHollowEconomyTerms Terms = FHollowEconomyTerms::Load(State);
 	Names = FHollowHubNames::Load(GetNamedIds(State, Terms));
-	StatusText->SetText(Source ? HollowHubScreenRules::StatusLine(State, Terms) : FText::GetEmpty());
+	StatusLine = Source ? HollowHubScreenRules::StatusLine(State, Terms) : FText::GetEmpty();
+	const bool bBadges = StatusBadges && Source && ShowsProfileBadges();
+	UHollowBadgeWidget::FillBox(StatusBadges, bBadges ? HollowHubScreenRules::StatusBadges(State, Terms) : TArray<FHollowHubBadge>(), *this);
+	// With the badges the line keeps only what they do not say (a raid under way).
+	StatusText->SetText(bBadges ? (State.Escrow.IsActive() ? HollowHubScreenRules::ResultText(EHollowTransactionResult::InRaid) : FText::GetEmpty()) : StatusLine);
 	RefreshRows(State, Terms);
+}
+
+void UHollowHubScreenWidget::PlayTerminalSound(const bool bOpening) const
+{
+	const UHollowUIStyle* Style = UHollowUIStyle::Get();
+	USoundBase* Sound = Style ? Style->TerminalSound.LoadSynchronous() : nullptr;
+	if (Sound && GetWorld())
+	{
+		UGameplayStatics::PlaySound2D(this, Sound, /*VolumeMultiplier=*/1.f, bOpening ? 1.f : Style->TerminalClosePitch);
+	}
 }
 
 TArray<FPrimaryAssetId> UHollowHubScreenWidget::GetNamedIds(const FHollowProfileState& State, const FHollowEconomyTerms& Terms) const
@@ -144,6 +163,30 @@ void UHollowHubScreenWidget::FillList(UPanelWidget* List, const TArray<FHollowHu
 	for (int32 Index = Rows.Num(); Index < List->GetChildrenCount(); ++Index)
 	{
 		List->GetChildAt(Index)->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// UI-H8 (UI-02): down from the last row with buttons goes to Close; Slate finds no neighbour below a column that
+	// Close does not overlap (the locker's stash). The other rows keep Slate's own search.
+	int32 LastWithButtons = INDEX_NONE;
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
+	{
+		LastWithButtons = Rows[Index].Actions.IsEmpty() ? LastWithButtons : Index;
+	}
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
+	{
+		const UHollowHubRowWidget* Row = Cast<UHollowHubRowWidget>(List->GetChildAt(Index));
+		for (int32 Action = 0; Row && Action < HollowHubScreenRules::MaxActions; ++Action)
+		{
+			UHollowButton* Button = Row->GetActionButton(Action);
+			if (Index == LastWithButtons)
+			{
+				Button->SetNavigationRuleExplicit(EUINavigation::Down, CloseButton);
+			}
+			else
+			{
+				Button->SetNavigationRuleBase(EUINavigation::Down, EUINavigationRule::Escape);
+			}
+		}
 	}
 
 	// A focused button that went: the nearest one left (same row, then up, then down), else Close.
@@ -252,7 +295,7 @@ FText UHollowHubScreenWidget::GetMessage() const
 
 FText UHollowHubScreenWidget::GetStatus() const
 {
-	return StatusText->GetText();
+	return StatusBadges && ShowsProfileBadges() ? StatusLine : StatusText->GetText();
 }
 
 void UHollowHubScreenWidget::SetMessage(const FText& Message)

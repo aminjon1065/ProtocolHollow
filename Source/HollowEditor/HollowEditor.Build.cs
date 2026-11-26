@@ -47,7 +47,12 @@ public class HollowEditor : ModuleRules
 			"AIModule",
 			"Niagara",
 			"NiagaraCore",
-			"NiagaraEditor"   // Art-01: the beam's sparks are built from the content scripts (UHollowNiagaraAuthoring)
+			"NiagaraEditor",   // Art-01: the beam's sparks are built from the content scripts (UHollowNiagaraAuthoring)
+			// UI-02 (UI2-5): the tests render every MetaSound offline (no audio device), as the mixer would pull it.
+			"MetasoundEngine",
+			"MetasoundFrontend",
+			"MetasoundGenerator",
+			"MetasoundGraphCore"
 		});
 	}
 }

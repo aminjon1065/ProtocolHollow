@@ -10,6 +10,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Scalability.h"
+#include "Settings/HollowPlayerSettingsConfig.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowGameUserSettings)
 
@@ -95,7 +96,7 @@ void UHollowGameUserSettings::ApplyPreset(const EHollowGraphicsPreset Preset, co
 	}
 	GraphicsPreset = Preset;
 	const bool bDeck = IsSteamDeck();
-	const float FrameLimit = bDeck ? Graphics->DeckFrameRateLimit : Spec->FrameRateLimit;
+	const float FrameLimit = GetFrameRateChoice();   // the player's limit outlives preset changes (UI-02)
 	SetOverallScalabilityLevel(Spec->ScalabilityLevel);
 	SetResolutionScaleValueEx(Spec->ScreenPercentage);
 	SetDynamicResolutionEnabled(Spec->bDynamicResolution);
@@ -154,6 +155,143 @@ bool UHollowGameUserSettings::EnsureDisplayChosen()
 	ApplyResolutionSettings(/*bCheckForCommandLineOverrides=*/true);   // the window already exists: place it by the monitor now
 	UE_LOG(LogHollowGame, Display, TEXT("Display: %s (monitor %d) remembered for the game window."), *Metrics.MonitorInfo[Monitor].Name, Monitor);
 	return true;
+}
+
+float UHollowGameUserSettings::GetFrameRateChoice() const
+{
+	if (FrameRateLimitChoice >= 0.f)
+	{
+		return FrameRateLimitChoice;
+	}
+	if (IsSteamDeck())
+	{
+		return GetDefault<UHollowGraphicsSettings>()->DeckFrameRateLimit;
+	}
+	const FHollowGraphicsPresetSpec* Spec = GetDefault<UHollowGraphicsSettings>()->FindPreset(GraphicsPreset);
+	return Spec ? Spec->FrameRateLimit : 0.f;
+}
+
+void UHollowGameUserSettings::SetFrameRateChoice(const float Limit, const bool bSave)
+{
+	FrameRateLimitChoice = FMath::Max(Limit, 0.f);
+	SetFrameRateLimit(FrameRateLimitChoice);
+	if (FApp::CanEverRender())
+	{
+		ApplyNonResolutionSettings();
+	}
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	UE_LOG(LogHollowGame, Display, TEXT("Frame rate limit %s"), FrameRateLimitChoice > 0.f ? *FString::Printf(TEXT("%.0f"), FrameRateLimitChoice) : TEXT("none"));
+}
+
+void UHollowGameUserSettings::SetWindowModeNow(const EWindowMode::Type Mode, const bool bSave)
+{
+	FIntPoint Resolution = GetDesktopResolution();
+	if (Mode == EWindowMode::Windowed)
+	{
+		const float Scale = GetDefault<UHollowPlayerSettingsConfig>()->WindowedResolutionScale;
+		Resolution = FIntPoint(FMath::RoundToInt32(Resolution.X * Scale), FMath::RoundToInt32(Resolution.Y * Scale));
+	}
+	SetFullscreenMode(Mode);
+	if (Resolution.GetMin() > 0)
+	{
+		SetScreenResolution(Resolution);
+	}
+	if (FApp::CanEverRender())
+	{
+		ApplyResolutionSettings(/*bCheckForCommandLineOverrides=*/false);
+	}
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	UE_LOG(LogHollowGame, Display, TEXT("Window mode %s at %dx%d"), LexToString(Mode), Resolution.X, Resolution.Y);
+}
+
+void UHollowGameUserSettings::SetVSyncNow(const bool bEnabled, const bool bSave)
+{
+	SetVSyncEnabled(bEnabled);
+	if (FApp::CanEverRender())
+	{
+		ApplyNonResolutionSettings();
+	}
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	UE_LOG(LogHollowGame, Display, TEXT("Vertical sync %s"), bEnabled ? TEXT("on") : TEXT("off"));
+}
+
+float UHollowGameUserSettings::GetMouseSensitivity() const
+{
+	const FHollowSettingRange& Range = GetDefault<UHollowPlayerSettingsConfig>()->MouseSensitivity;
+	return Range.Snap(MouseSensitivity < 0.f ? Range.Default : MouseSensitivity);
+}
+
+void UHollowGameUserSettings::SetMouseSensitivity(const float Sensitivity, const bool bSave)
+{
+	MouseSensitivity = GetDefault<UHollowPlayerSettingsConfig>()->MouseSensitivity.Snap(Sensitivity);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	OnControlsChanged.Broadcast();
+}
+
+void UHollowGameUserSettings::SetLookInverted(const bool bInverted, const bool bSave)
+{
+	bInvertLook = bInverted;
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	OnControlsChanged.Broadcast();
+}
+
+float UHollowGameUserSettings::GetFieldOfView() const
+{
+	const FHollowSettingRange& Range = GetDefault<UHollowPlayerSettingsConfig>()->FieldOfView;
+	return Range.Snap(FieldOfView < 0.f ? Range.Default : FieldOfView);
+}
+
+void UHollowGameUserSettings::SetFieldOfView(const float Degrees, const bool bSave)
+{
+	FieldOfView = GetDefault<UHollowPlayerSettingsConfig>()->FieldOfView.Snap(Degrees);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	OnControlsChanged.Broadcast();
+}
+
+float UHollowGameUserSettings::GetVolume(const EHollowVolume Volume) const
+{
+	const FHollowSettingRange& Range = GetDefault<UHollowPlayerSettingsConfig>()->Volume;
+	const float Kept = Volume == EHollowVolume::Effects ? EffectsVolume : Volume == EHollowVolume::Voice ? VoiceVolume : MasterVolume;
+	return Range.Snap(Kept < 0.f ? Range.Default : Kept);
+}
+
+void UHollowGameUserSettings::SetVolume(const EHollowVolume Volume, const float Value, const bool bSave)
+{
+	const float Snapped = GetDefault<UHollowPlayerSettingsConfig>()->Volume.Snap(Value);
+	(Volume == EHollowVolume::Effects ? EffectsVolume : Volume == EHollowVolume::Voice ? VoiceVolume : MasterVolume) = Snapped;
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	OnAudioChanged.Broadcast();
+}
+
+void UHollowGameUserSettings::SaveSettings()
+{
+	if (TestConfigFile.IsEmpty())
+	{
+		Super::SaveSettings();
+		return;
+	}
+	SaveConfig(CPF_Config, *TestConfigFile, GConfig, /*bAllowCopyToDefaultObject=*/false);   // the engine's settings stay as they are
 }
 
 void UHollowGameUserSettings::SetVoiceMode(const EHollowVoiceMode Mode)

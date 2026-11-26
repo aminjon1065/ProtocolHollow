@@ -1,7 +1,9 @@
 #include "Hub/HollowHubRowWidget.h"
 
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Foundation/HollowButton.h"
+#include "Hub/HollowBadgeWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 
@@ -16,6 +18,7 @@ void UHollowHubRowWidget::NativeOnInitialized()
 		Button->OnClicked().AddUObject(this, &ThisClass::HandleClicked, Index);
 		Button->OnFocusReceived().AddUObject(this, &ThisClass::HandleFocused, Index);
 		Button->OnHovered().AddUObject(this, &ThisClass::HandleFocused, Index);
+		Button->OnLockClicked().AddUObject(this, &ThisClass::HandleFocused, Index);   // a refused press: say why again
 	}
 }
 
@@ -47,6 +50,7 @@ void UHollowHubRowWidget::SetRow(const FHollowHubRow& InRow)
 	NameText->SetColorAndOpacity(FSlateColor(Row.bHeader ? HeaderColor : Row.bHighlighted ? HighlightColor : NameColor));
 	DetailText->SetText(Row.Detail);
 	DetailText->SetVisibility(Row.Detail.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	UHollowBadgeWidget::FillBox(BadgeBox, Row.Badges, *this);
 	for (int32 Index = 0; Index < HollowHubScreenRules::MaxActions; ++Index)
 	{
 		UHollowButton* Button = GetActionButton(Index);
@@ -57,7 +61,7 @@ void UHollowHubRowWidget::SetRow(const FHollowHubRow& InRow)
 		}
 		const FHollowHubAction& Action = Row.Actions[Index];
 		Button->SetLabel(Action.Label);
-		Button->SetIsInteractionEnabled(Action.bAvailable);   // greyed out, still focusable: the reason shows on focus
+		Button->SetRefused(!Action.bAvailable);   // greyed out, still focusable: the reason shows on focus and on a press
 		Button->SetToolTipText(Action.bAvailable ? FText::GetEmpty() : Action.Reason);
 		Button->SetVisibility(ESlateVisibility::Visible);
 	}

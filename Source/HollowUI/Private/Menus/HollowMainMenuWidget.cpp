@@ -1,7 +1,10 @@
 #include "Menus/HollowMainMenuWidget.h"
 
 #include "CommonButtonBase.h"
+#include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
+#include "Foundation/HollowHUD.h"
+#include "GeneralProjectSettings.h"
 #include "HollowUILog.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Localization/HollowLanguage.h"
@@ -9,6 +12,8 @@
 #include "Session/HollowSessionSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowMainMenuWidget)
+
+#define LOCTEXT_NAMESPACE "HollowMainMenu"
 
 UHollowMainMenuWidget::UHollowMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -26,11 +31,30 @@ void UHollowMainMenuWidget::NativeOnInitialized()
 	{
 		LanguageButton->OnClicked().AddUObject(this, &ThisClass::CycleLanguage);
 	}
+	if (SettingsButton)
+	{
+		SettingsButton->OnClicked().AddUObject(this, &ThisClass::OpenSettings);
+	}
+	if (VersionText)
+	{
+		VersionText->SetText(VersionLabel());
+	}
 }
 
 UWidget* UHollowMainMenuWidget::NativeGetDesiredFocusTarget() const
 {
-	return HostButton;
+	return HostButton;   // co-op is the game's own mode (S4-06): the gamepad starts there
+}
+
+FText UHollowMainMenuWidget::VersionLabel()
+{
+	return FText::Format(LOCTEXT("Version", "v{0}"), FText::AsCultureInvariant(GetDefault<UGeneralProjectSettings>()->ProjectVersion));
+}
+
+void UHollowMainMenuWidget::OpenSettings()
+{
+	AHollowHUD* HUD = AHollowHUD::Get(GetOwningPlayer());
+	UE_CLOG(!HUD || !HUD->OpenSettings(), LogHollowUI, Warning, TEXT("%s: the settings screen did not open"), *GetName());
 }
 
 void UHollowMainMenuWidget::Host(const bool bOnline)
@@ -53,3 +77,5 @@ void UHollowMainMenuWidget::CycleLanguage()
 	const EHollowLanguage Language = HollowMenuRules::CycleLanguage();
 	UE_LOG(LogHollowUI, Log, TEXT("%s: language %s"), *GetName(), LexToString(Language));
 }
+
+#undef LOCTEXT_NAMESPACE

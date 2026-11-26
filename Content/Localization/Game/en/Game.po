@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-25 09:48\n"
-"PO-Revision-Date: 2026-11-25 09:48\n"
+"POT-Creation-Date: 2026-11-25 20:04\n"
+"PO-Revision-Date: 2026-11-25 20:04\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -748,6 +748,13 @@ msgctxt "ST_Menus,Menu.Main.Solo"
 msgid "Play solo"
 msgstr "Play solo"
 
+#. Key:	Menu.Main.Subtitle
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Main.Subtitle"
+msgid "The Ark has returned. Its cores are still warm."
+msgstr "The Ark has returned. Its cores are still warm."
+
 #. Key:	Menu.Main.Title
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
 #: /Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -762,12 +769,243 @@ msgctxt "ST_Menus,Menu.Quit"
 msgid "Quit"
 msgstr "Quit"
 
-#. Key:	Menu.System.Flashes
+#. Key:	Menu.Settings
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
 #: /Game/Hollow/Localization/ST_Menus.ST_Menus
-msgctxt "ST_Menus,Menu.System.Flashes"
-msgid "Flashes: Full"
-msgstr "Flashes: Full"
+msgctxt "ST_Menus,Menu.Settings"
+msgid "Settings"
+msgstr "Settings"
+
+#. Key:	Menu.Settings.Close
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Close"
+msgid "Close"
+msgstr "Close"
+
+#. Key:	Menu.Settings.ControlsHint
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.ControlsHint"
+msgid "Controls cheat sheet"
+msgstr "Controls cheat sheet"
+
+#. Key:	Menu.Settings.EffectsVolume
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.EffectsVolume"
+msgid "Effects"
+msgstr "Effects"
+
+#. Key:	Menu.Settings.FieldOfView
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.FieldOfView"
+msgid "Field of view"
+msgstr "Field of view"
+
+#. Key:	Menu.Settings.FrameLimit
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.FrameLimit"
+msgid "Frame rate limit"
+msgstr "Frame rate limit"
+
+#. Key:	Menu.Settings.InvertLook
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.InvertLook"
+msgid "Invert vertical look"
+msgstr "Invert vertical look"
+
+#. Key:	Menu.Settings.Language
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Language"
+msgid "Language"
+msgstr "Language"
+
+#. Key:	Menu.Settings.MasterVolume
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.MasterVolume"
+msgid "Master volume"
+msgstr "Master volume"
+
+#. Key:	Menu.Settings.MouseSensitivity
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.MouseSensitivity"
+msgid "Mouse sensitivity"
+msgstr "Mouse sensitivity"
+
+#. Key:	Menu.Settings.Preset
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Preset"
+msgid "Graphics preset"
+msgstr "Graphics preset"
+
+#. Key:	Menu.Settings.ReducedFlashes
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.ReducedFlashes"
+msgid "Reduced flashes"
+msgstr "Reduced flashes"
+
+#. Key:	Menu.Settings.Tab.Accessibility
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Tab.Accessibility"
+msgid "Language and accessibility"
+msgstr "Language and accessibility"
+
+#. Key:	Menu.Settings.Tab.Audio
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Tab.Audio"
+msgid "Audio"
+msgstr "Audio"
+
+#. Key:	Menu.Settings.Tab.Controls
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Tab.Controls"
+msgid "Controls"
+msgstr "Controls"
+
+#. Key:	Menu.Settings.Tab.Graphics
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Tab.Graphics"
+msgid "Graphics"
+msgstr "Graphics"
+
+#. Key:	Menu.Settings.Title
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Title"
+msgid "SETTINGS"
+msgstr "SETTINGS"
+
+#. Key:	Menu.Settings.Value.Degrees
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Degrees"
+msgid "{0}°"
+msgstr "{0}°"
+
+#. Key:	Menu.Settings.Value.Frames
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Frames"
+msgid "{0} FPS"
+msgstr "{0} FPS"
+
+#. Key:	Menu.Settings.Value.Fullscreen
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Fullscreen"
+msgid "Fullscreen"
+msgstr "Fullscreen"
+
+#. Key:	Menu.Settings.Value.Muted
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Muted"
+msgid "Muted"
+msgstr "Muted"
+
+#. Key:	Menu.Settings.Value.Off
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Off"
+msgid "Off"
+msgstr "Off"
+
+#. Key:	Menu.Settings.Value.On
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.On"
+msgid "On"
+msgstr "On"
+
+#. Key:	Menu.Settings.Value.OpenMic
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.OpenMic"
+msgid "Open mic"
+msgstr "Open mic"
+
+#. Key:	Menu.Settings.Value.PresetHigh
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.PresetHigh"
+msgid "High"
+msgstr "High"
+
+#. Key:	Menu.Settings.Value.PresetLow
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.PresetLow"
+msgid "Low (Lumen Lite)"
+msgstr "Low (Lumen Lite)"
+
+#. Key:	Menu.Settings.Value.PushToTalk
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.PushToTalk"
+msgid "Push-to-talk"
+msgstr "Push-to-talk"
+
+#. Key:	Menu.Settings.Value.Unlimited
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Unlimited"
+msgid "Unlimited"
+msgstr "Unlimited"
+
+#. Key:	Menu.Settings.Value.Windowed
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.Windowed"
+msgid "Windowed"
+msgstr "Windowed"
+
+#. Key:	Menu.Settings.Value.WindowedFullscreen
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.WindowedFullscreen"
+msgid "Windowed fullscreen"
+msgstr "Windowed fullscreen"
+
+#. Key:	Menu.Settings.VoiceMode
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.VoiceMode"
+msgid "Microphone"
+msgstr "Microphone"
+
+#. Key:	Menu.Settings.VoiceVolume
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.VoiceVolume"
+msgid "Voice chat"
+msgstr "Voice chat"
+
+#. Key:	Menu.Settings.VSync
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.VSync"
+msgid "Vertical sync"
+msgstr "Vertical sync"
+
+#. Key:	Menu.Settings.WindowMode
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.WindowMode"
+msgid "Display mode"
+msgstr "Display mode"
 
 #. Key:	Menu.System.Invite
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -803,13 +1041,6 @@ msgstr "Start raid"
 msgctxt "ST_Menus,Menu.System.Title"
 msgid "SYSTEM"
 msgstr "SYSTEM"
-
-#. Key:	Menu.System.Voice
-#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
-#: /Game/Hollow/Localization/ST_Menus.ST_Menus
-msgctxt "ST_Menus,Menu.System.Voice"
-msgid "Voice: Push-to-talk"
-msgstr "Voice: Push-to-talk"
 
 #. Key:	Altar.Started.1.1
 #. SourceLocation:	/Game/Hollow/Localization/ST_Radio.ST_Radio
@@ -2009,316 +2240,344 @@ msgid "{0} cr each, {1} in stash"
 msgstr "{0} cr each, {1} in stash"
 
 #. Key:	BuyOne
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(308)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(308)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(309)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(309)
 msgctxt "HollowHubScreens,BuyOne"
 msgid "Buy 1"
 msgstr "Buy 1"
 
 #. Key:	BuyMany
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(309)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(309)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(310)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(310)
 msgctxt "HollowHubScreens,BuyMany"
 msgid "Buy {0}"
 msgstr "Buy {0}"
 
 #. Key:	Sell
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(311)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(311)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(312)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(312)
 msgctxt "HollowHubScreens,Sell"
 msgid "SELL"
 msgstr "SELL"
 
 #. Key:	Sale
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(319)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(319)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(320)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(320)
 msgctxt "HollowHubScreens,Sale"
 msgid "{0} in stash, {1} cr each"
 msgstr "{0} in stash, {1} cr each"
 
 #. Key:	SellOne
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(320)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(320)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(321)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(321)
 msgctxt "HollowHubScreens,SellOne"
 msgid "Sell 1"
 msgstr "Sell 1"
 
 #. Key:	SellAll
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(321)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(321)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(322)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(322)
 msgctxt "HollowHubScreens,SellAll"
 msgid "Sell all (+{0} cr)"
 msgstr "Sell all (+{0} cr)"
 
 #. Key:	NothingToSell
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(326)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(326)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(327)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(327)
 msgctxt "HollowHubScreens,NothingToSell"
 msgid "The stash is empty"
 msgstr "The stash is empty"
 
 #. Key:	BuyUpgrade
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
 msgctxt "HollowHubScreens,BuyUpgrade"
 msgid "Buy ({0} cr)"
 msgstr "Buy ({0} cr)"
 
 #. Key:	Owned
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(342)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
 msgctxt "HollowHubScreens,Owned"
 msgid "Owned"
 msgstr "Owned"
 
 #. Key:	NoUpgrades
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(347)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(352)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(352)
 msgctxt "HollowHubScreens,NoUpgrades"
 msgid "No ship upgrades"
 msgstr "No ship upgrades"
 
 #. Key:	InStash
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(360)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(360)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(365)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(365)
 msgctxt "HollowHubScreens,InStash"
 msgid "{0} in stash"
 msgstr "{0} in stash"
 
 #. Key:	TakeOne
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(361)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(361)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(366)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(366)
 msgctxt "HollowHubScreens,TakeOne"
 msgid "Take 1"
 msgstr "Take 1"
 
 #. Key:	TakeAll
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(362)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(362)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(367)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(367)
 msgctxt "HollowHubScreens,TakeAll"
 msgid "Take all"
 msgstr "Take all"
 
 #. Key:	EmptyStash
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(366)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(366)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(371)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(371)
 msgctxt "HollowHubScreens,EmptyStash"
 msgid "The stash is empty"
 msgstr "The stash is empty"
 
 #. Key:	Insured
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(382)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(382)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(387)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(387)
 msgctxt "HollowHubScreens,Insured"
 msgid "Insured: kept if you die"
 msgstr "Insured: kept if you die"
 
 #. Key:	Uninsurable
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(388)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(388)
 msgctxt "HollowHubScreens,Uninsurable"
 msgid "Cannot be insured"
 msgstr "Cannot be insured"
 
 #. Key:	Uninsured
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(383)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(388)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(388)
 msgctxt "HollowHubScreens,Uninsured"
 msgid "Not insured (insurance {0} cr)"
 msgstr "Not insured (insurance {0} cr)"
 
+#. Key:	InsuredBadge
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(392)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(392)
+msgctxt "HollowHubScreens,InsuredBadge"
+msgid "INSURED"
+msgstr "INSURED"
+
 #. Key:	ReturnOne
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(387)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(387)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(396)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(396)
 msgctxt "HollowHubScreens,ReturnOne"
 msgid "Return 1"
 msgstr "Return 1"
 
 #. Key:	ReturnAll
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(389)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(389)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(398)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(398)
 msgctxt "HollowHubScreens,ReturnAll"
 msgid "Return all"
 msgstr "Return all"
 
 #. Key:	IsInsured
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(390)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(390)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(399)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(399)
 msgctxt "HollowHubScreens,IsInsured"
 msgid "Insured"
 msgstr "Insured"
 
 #. Key:	Insure
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(400)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(400)
 msgctxt "HollowHubScreens,Insure"
 msgid "Insure ({0} cr)"
 msgstr "Insure ({0} cr)"
 
 #. Key:	InsureNot
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(391)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(400)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(400)
 msgctxt "HollowHubScreens,InsureNot"
 msgid "Insure"
 msgstr "Insure"
 
 #. Key:	EmptyLoadout
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(396)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(396)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(405)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(405)
 msgctxt "HollowHubScreens,EmptyLoadout"
 msgid "The loadout is empty"
 msgstr "The loadout is empty"
 
 #. Key:	ChooseClass
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(421)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(421)
 msgctxt "HollowHubScreens,ChooseClass"
 msgid "Choose"
 msgstr "Choose"
 
 #. Key:	Playing
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(412)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(421)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(421)
 msgctxt "HollowHubScreens,Playing"
 msgid "Playing"
 msgstr "Playing"
 
 #. Key:	NoClasses
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(417)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(417)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(426)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(426)
 msgctxt "HollowHubScreens,NoClasses"
 msgid "No classes"
 msgstr "No classes"
 
 #. Key:	RewardItem
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(427)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(427)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(436)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(436)
 msgctxt "HollowHubScreens,RewardItem"
 msgid "{0} {1} cr"
 msgstr "{0} {1} cr"
 
 #. Key:	NoSector
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(429)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(429)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(438)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(438)
 msgctxt "HollowHubScreens,NoSector"
 msgid "Unknown sector"
 msgstr "Unknown sector"
 
 #. Key:	ContractOffer
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(430)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(430)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(439)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(439)
 msgctxt "HollowHubScreens,ContractOffer"
 msgid "{0}. Reward: {1}"
 msgstr "{0}. Reward: {1}"
 
 #. Key:	GuestRole
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(444)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(444)
 msgctxt "HollowHubScreens,GuestRole"
 msgid "The host chooses the contract and launches."
 msgstr "The host chooses the contract and launches."
 
 #. Key:	HostRole
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(435)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(444)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(444)
 msgctxt "HollowHubScreens,HostRole"
 msgid "Choose the squad's contract, then launch."
 msgstr "Choose the squad's contract, then launch."
 
 #. Key:	GuestChosen
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(451)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(451)
 msgctxt "HollowHubScreens,GuestChosen"
 msgid "{0}\nThe host chose: {1} - {2}"
 msgstr "{0}\nThe host chose: {1} - {2}"
 
 #. Key:	HostChosen
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(442)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(451)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(451)
 msgctxt "HollowHubScreens,HostChosen"
 msgid "{0}\nNow: {1} - {2}"
 msgstr "{0}\nNow: {1} - {2}"
 
 #. Key:	OfferDetail
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(464)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(464)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(473)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(473)
 msgctxt "HollowHubScreens,OfferDetail"
 msgid "{0}. {1}"
 msgstr "{0}. {1}"
 
 #. Key:	Choose
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(480)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(480)
 msgctxt "HollowHubScreens,Choose"
 msgid "Choose"
 msgstr "Choose"
 
 #. Key:	Chosen
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(471)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(480)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(480)
 msgctxt "HollowHubScreens,Chosen"
 msgid "Chosen"
 msgstr "Chosen"
 
 #. Key:	AlreadyChosen
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(473)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(473)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(482)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(482)
 msgctxt "HollowHubScreens,AlreadyChosen"
 msgid "The squad's contract already"
 msgstr "The squad's contract already"
 
 #. Key:	HostsChoice
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(477)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(477)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(486)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(486)
 msgctxt "HollowHubScreens,HostsChoice"
 msgid "The host's choice. {0}"
 msgstr "The host's choice. {0}"
 
 #. Key:	NoContracts
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(482)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(482)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(491)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(491)
 msgctxt "HollowHubScreens,NoContracts"
 msgid "No contracts"
 msgstr "No contracts"
 
 #. Key:	Status
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(499)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(499)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(508)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(508)
 msgctxt "HollowHubScreens,Status"
 msgid "Credits {Credits}    Stash {Stash}/{StashSlots}    Loadout {Loadout}/{LoadoutSlots}    Insured {Insured}/{InsuredLimit}"
 msgstr "Credits {Credits}    Stash {Stash}/{StashSlots}    Loadout {Loadout}/{LoadoutSlots}    Insured {Insured}/{InsuredLimit}"
 
 #. Key:	StatusInRaid
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(500)
-#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(500)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(509)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(509)
 msgctxt "HollowHubScreens,StatusInRaid"
 msgid "{0}    {1}"
 msgstr "{0}    {1}"
 
+#. Key:	StashBadge
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(518)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(518)
+msgctxt "HollowHubScreens,StashBadge"
+msgid "Stash {0}/{1}"
+msgstr "Stash {0}/{1}"
+
+#. Key:	LoadoutBadge
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(519)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(519)
+msgctxt "HollowHubScreens,LoadoutBadge"
+msgid "Loadout {0}/{1}"
+msgstr "Loadout {0}/{1}"
+
+#. Key:	InsuredCountBadge
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(520)
+#: Source/HollowUI/Private/Hub/HollowHubScreenRules.cpp(520)
+msgctxt "HollowHubScreens,InsuredCountBadge"
+msgid "Insured {0}/{1}"
+msgstr "Insured {0}/{1}"
+
 #. Key:	Refused
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(267)
-#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(267)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(310)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(310)
 msgctxt "HollowHubScreens,Refused"
 msgid "{0}: {1}"
 msgstr "{0}: {1}"
 
 #. Key:	Done
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(283)
-#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(283)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(326)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(326)
 msgctxt "HollowHubScreens,Done"
 msgid "{0}: {1} - done"
 msgstr "{0}: {1} - done"
 
 #. Key:	Failed
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(284)
-#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(284)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(327)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(327)
 msgctxt "HollowHubScreens,Failed"
 msgid "{0}: {1} - {2}"
 msgstr "{0}: {1} - {2}"
 
 #. Key:	Why
-#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(298)
-#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(298)
+#. SourceLocation:	Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(341)
+#: Source/HollowUI/Private/Hub/HollowHubScreenWidget.cpp(341)
 msgctxt "HollowHubScreens,Why"
 msgid "{0}: {1}"
 msgstr "{0}: {1}"
@@ -2344,40 +2603,12 @@ msgctxt "HollowHubScreens,UpgradesTab"
 msgid "Ship upgrades"
 msgstr "Ship upgrades"
 
-#. Key:	VoiceOpenMic
-#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(131)
-#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(131)
-msgctxt "HollowSystemMenu,VoiceOpenMic"
-msgid "Voice: Open mic"
-msgstr "Voice: Open mic"
-
-#. Key:	VoiceMuted
-#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(132)
-#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(132)
-msgctxt "HollowSystemMenu,VoiceMuted"
-msgid "Voice: Muted"
-msgstr "Voice: Muted"
-
-#. Key:	VoicePushToTalk
-#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(133)
-#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(133)
-msgctxt "HollowSystemMenu,VoicePushToTalk"
-msgid "Voice: Push-to-talk"
-msgstr "Voice: Push-to-talk"
-
-#. Key:	FlashesFull
-#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
-#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
-msgctxt "HollowSystemMenu,FlashesFull"
-msgid "Flashes: Full"
-msgstr "Flashes: Full"
-
-#. Key:	FlashesReduced
-#. SourceLocation:	Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
-#: Source/HollowUI/Private/Menus/HollowSystemMenuWidget.cpp(162)
-msgctxt "HollowSystemMenu,FlashesReduced"
-msgid "Flashes: Reduced"
-msgstr "Flashes: Reduced"
+#. Key:	Version
+#. SourceLocation:	Source/HollowUI/Private/Menus/HollowMainMenuWidget.cpp(51)
+#: Source/HollowUI/Private/Menus/HollowMainMenuWidget.cpp(51)
+msgctxt "HollowMainMenu,Version"
+msgid "v{0}"
+msgstr "v{0}"
 
 #. Key:	Stack
 #. SourceLocation:	Source/HollowUI/Private/Raid/HollowDebriefWidget.cpp(110)
@@ -2478,8 +2709,8 @@ msgid "Hold {0}"
 msgstr "Hold {0}"
 
 #. Key:	PromptKeyFormat
-#. SourceLocation:	Source/HollowUI/Private/Visor/HollowInteractionPromptWidget.cpp(12)
-#: Source/HollowUI/Private/Visor/HollowInteractionPromptWidget.cpp(12)
+#. SourceLocation:	Source/HollowUI/Private/Visor/HollowInteractionPromptWidget.cpp(13)
+#: Source/HollowUI/Private/Visor/HollowInteractionPromptWidget.cpp(13)
 msgctxt "HollowUI,PromptKeyFormat"
 msgid "[{0}]"
 msgstr "[{0}]"

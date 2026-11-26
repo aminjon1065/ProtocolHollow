@@ -6,7 +6,10 @@
 
 class UTextBlock;
 
-/** "[E] Open": the focused interactable's prompt with the Interact key of the current device. */
+/**
+ * "[E] Open": the focused interactable's prompt with the Interact key of the current device. Hidden while a hub
+ * terminal's screen is open (UI-H7, UI-02: it showed through the screen's backdrop).
+ */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowInteractionPromptWidget : public UHollowVisorElement
 {
@@ -33,4 +36,5 @@ private:
 	void Refresh();
 
 	FDelegateHandle PromptHandle;
+	FDelegateHandle ObjectiveHandle;
 };

@@ -32,6 +32,7 @@ public class HollowUI : ModuleRules
 		{
 			"Slate",
 			"SlateCore",
+			"EngineSettings",  // UI-02: the main menu shows the project's version
 			"HollowPhysics",   // the objective follows the Aether cores (UX-01); tests drive the real door
 			"HollowAI",        // NAR-01a: the radio's helmet sensor knows the Echo-Stalker
 			"HollowPCG"        // NAR-01a: the radio reads the raid's sector from its manifest

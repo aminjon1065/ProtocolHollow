@@ -1,5 +1,6 @@
 #include "Visor/HollowWaypointLayerWidget.h"
 
+#include "Blueprint/WidgetTree.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -117,6 +118,7 @@ void UHollowWaypointLayerWidget::UpdateMarkers()
 
 	TArray<FHollowWaypointTarget> Targets;
 	Model->GetWaypoints(ViewLocation, Targets);
+	const TArray<FBox2D> KeepOut = CollectKeepOut();
 	Shown.Reset();
 	for (const FHollowWaypointTarget& Target : Targets)
 	{
@@ -129,7 +131,8 @@ void UHollowWaypointLayerWidget::UpdateMarkers()
 		FVector2D Projected;
 		const bool bProjected = HollowWaypointMath::Project(ViewLocation, ViewRotation, Fov, Size, Target.Location, Projected);
 		const FVector2D Direction = HollowWaypointMath::ScreenDirection(ViewLocation, ViewRotation, Target.Location);
-		const FHollowWaypointPlacement Placement = HollowWaypointMath::Place(Size, Style->WaypointEdgeMargin, bProjected, Projected, Direction);
+		const FHollowWaypointPlacement Placement = HollowWaypointMath::AvoidKeepOut(HollowWaypointMath::Place(Size, Style->WaypointEdgeMargin, bProjected, Projected, Direction),
+			Size, Style->WaypointEdgeMargin, Style->WaypointMarkerRadius, KeepOut);
 
 		const int32 Index = Shown.Num();
 		if (!Markers.IsValidIndex(Index))
@@ -149,6 +152,41 @@ void UHollowWaypointLayerWidget::UpdateMarkers()
 		Shown.Add({Target.Kind, Metres, Placement});
 	}
 	HideFrom(Shown.Num());
+}
+
+TArray<FBox2D> UHollowWaypointLayerWidget::CollectKeepOut() const
+{
+	if (!TestKeepOut.IsEmpty())
+	{
+		return TestKeepOut;
+	}
+	TArray<FBox2D> Boxes;
+	const UHollowVisorContext* Owner = GetContext();
+	const UHollowVisorStyle* Style = Owner ? Owner->GetStyle() : nullptr;
+	const UUserWidget* Visor = GetTypedOuter<UUserWidget>();   // the visor whose tree holds this layer and the readouts
+	if (!Style || !Visor || !Visor->WidgetTree)
+	{
+		return Boxes;
+	}
+	const FGeometry& Layer = MarkerCanvas->GetCachedGeometry();
+	for (const FName& Name : Style->WaypointKeepOut)
+	{
+		const UWidget* Element = Visor->WidgetTree->FindWidget(Name);
+		if (!Element || !Element->IsVisible())
+		{
+			continue;
+		}
+		const FGeometry& Geometry = Element->GetCachedGeometry();
+		const FVector2D LocalSize = Geometry.GetLocalSize();
+		if (LocalSize.X <= 0.0 || LocalSize.Y <= 0.0)
+		{
+			continue;   // not laid out yet
+		}
+		const FVector2D TopLeft = Layer.AbsoluteToLocal(Geometry.LocalToAbsolute(FVector2D::ZeroVector));
+		const FVector2D BottomRight = Layer.AbsoluteToLocal(Geometry.LocalToAbsolute(LocalSize));
+		Boxes.Add(FBox2D(TopLeft, BottomRight).ExpandBy(Style->WaypointKeepOutPadding));
+	}
+	return Boxes;
 }
 
 FString UHollowWaypointLayerWidget::Describe() const

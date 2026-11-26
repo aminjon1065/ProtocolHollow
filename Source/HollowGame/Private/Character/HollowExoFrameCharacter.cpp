@@ -34,6 +34,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Raid/HollowRaidFlowComponent.h"
 #include "Raid/HollowRaidSettings.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "Tags/HollowGameplayTags.h"
 #include "TimerManager.h"
 #include "Tools/HollowGA_AetherLantern.h"
@@ -209,7 +210,22 @@ void AHollowExoFrameCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Class->OnClassChanged.Remove(LookClassHandle);
 	}
 	LookClass.Reset();
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		Settings->OnControlsChanged.Remove(ControlsHandle);
+	}
+	ControlsHandle.Reset();
 	Super::EndPlay(EndPlayReason);
+}
+
+void AHollowExoFrameCharacter::ApplyFieldOfView()
+{
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (Settings && PlayerController && PlayerController->IsLocalController())
+	{
+		FirstPersonCamera->SetFieldOfView(Settings->GetFieldOfView());
+	}
 }
 
 void AHollowExoFrameCharacter::UnbindHealth()
@@ -399,6 +415,13 @@ void AHollowExoFrameCharacter::NotifyControllerChanged()
 	ViewFeel->Refresh();   // GP-01c: the view feel of the player that controls it now, if local
 
 	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	if (Settings && PlayerController && PlayerController->IsLocalController() && !ControlsHandle.IsValid())
+	{
+		ControlsHandle = Settings->OnControlsChanged.AddUObject(this, &ThisClass::ApplyFieldOfView);   // UI-02
+	}
+	ApplyFieldOfView();
+
 	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer);
 	if (!InputSubsystem)

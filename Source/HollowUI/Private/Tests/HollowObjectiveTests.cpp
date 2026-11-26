@@ -4,6 +4,7 @@
 
 #include "AbilitySystem/HollowAbilitySystemComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Carry/HollowAetherCore.h"
 #include "Carry/HollowCarryableComponent.h"
 #include "Classes/HollowClassDefinition.h"
@@ -14,6 +15,8 @@
 #include "GameplayEffect.h"
 #include "Hub/HollowHubTerminal.h"
 #include "Hub/HollowHubTerminalSubsystem.h"
+#include "Interaction/HollowInteractionComponent.h"
+#include "Interfaces/HollowInteractable.h"
 #include "Profile/HollowProfileSource.h"
 #include "Profile/HollowProfileTypes.h"
 #include "Raid/HollowExtractionZone.h"
@@ -30,6 +33,7 @@
 #include "ViewModels/HollowVisorContext.h"
 #include "Visor/HollowControlsHintSet.h"
 #include "Visor/HollowControlsHintWidget.h"
+#include "Visor/HollowInteractionPromptWidget.h"
 #include "Visor/HollowObjectiveRules.h"
 #include "Visor/HollowObjectiveWidget.h"
 #include "Visor/HollowVisorElement.h"
@@ -299,6 +303,69 @@ bool FHollowWaypointMathTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowWaypointSafeFrameTest, "Hollow.UI.Visor.WaypointSafeFrame",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowWaypointSafeFrameTest::RunTest(const FString& Parameters)
+{
+	// UI-02 (ADR-0052): the markers keep off the visor's readouts (the cheat sheet, the health bar...): an edge arrow
+	// slides along its edge, a marker in view steps just beside the readout, both inside the margin frame; where no
+	// place is free, a marker stays where it was. DA_VisorStyle names the readouts, W_Visor has them.
+	using namespace HollowObjectiveTests;
+	const FVector2D Size(1920.0, 1080.0);
+	constexpr float Frame = 96.f;   // the visor's edge margin
+	constexpr float Radius = 52.f;
+	const FBox2D Health(FVector2D(36.0, 970.0), FVector2D(380.0, 1044.0));   // bottom left
+	const FBox2D Sheet(FVector2D(1500.0, 120.0), FVector2D(1884.0, 560.0));   // top right
+	const TArray<FBox2D> KeepOut = {Health, Sheet};
+	auto Clear = [&KeepOut, Radius](const FVector2D& Point)
+	{
+		return !KeepOut.ContainsByPredicate([&Point, Radius](const FBox2D& Box) { return Box.ExpandBy(Radius).IsInside(Point); });
+	};
+	auto InFrame = [&Size, Frame](const FVector2D& Point)
+	{
+		return Point.X >= Frame - 1.0 && Point.X <= Size.X - Frame + 1.0 && Point.Y >= Frame - 1.0 && Point.Y <= Size.Y - Frame + 1.0;
+	};
+	auto Placed = [](const FVector2D& Position, const bool bOnScreen)
+	{
+		FHollowWaypointPlacement Placement;
+		Placement.Position = Position;
+		Placement.bOnScreen = bOnScreen;
+		return Placement;
+	};
+
+	const FHollowWaypointPlacement LeftLow = HollowWaypointMath::AvoidKeepOut(Placed(FVector2D(Frame, 950.0), false), Size, Frame, Radius, KeepOut);
+	TestTrue(FString::Printf(TEXT("An arrow over the health bar slides up its edge (%s)"), *LeftLow.Position.ToString()),
+		FMath::IsNearlyEqual(LeftLow.Position.X, Frame) && LeftLow.Position.Y < 950.0 && Clear(LeftLow.Position) && InFrame(LeftLow.Position));
+	const FHollowWaypointPlacement RightHigh = HollowWaypointMath::AvoidKeepOut(Placed(FVector2D(Size.X - Frame, 300.0), false), Size, Frame, Radius, KeepOut);
+	TestTrue(FString::Printf(TEXT("An arrow on the cheat sheet slides down below it (%s)"), *RightHigh.Position.ToString()),
+		FMath::IsNearlyEqual(RightHigh.Position.X, Size.X - Frame) && RightHigh.Position.Y > Sheet.Max.Y && Clear(RightHigh.Position));
+	const FHollowWaypointPlacement InView = HollowWaypointMath::AvoidKeepOut(Placed(FVector2D(1700.0, 400.0), true), Size, Frame, Radius, KeepOut);
+	TestTrue(FString::Printf(TEXT("A marker in view steps beside the cheat sheet (%s)"), *InView.Position.ToString()),
+		InView.bOnScreen && Clear(InView.Position) && InFrame(InView.Position) && FVector2D::Distance(InView.Position, FVector2D(1700.0, 400.0)) < 300.0);
+	const FVector2D Free(900.0, 500.0);
+	TestTrue(TEXT("Elsewhere: where it was"), HollowWaypointMath::AvoidKeepOut(Placed(Free, true), Size, Frame, Radius, KeepOut).Position.Equals(Free));
+	const TArray<FBox2D> Everything = {FBox2D(FVector2D::ZeroVector, Size)};
+	TestTrue(TEXT("Nowhere free: where it was"), HollowWaypointMath::AvoidKeepOut(Placed(FVector2D(Frame, 500.0), false), Size, Frame, Radius, Everything)
+		.Position.Equals(FVector2D(Frame, 500.0)));
+
+	const UHollowVisorStyle* Style = GetDefault<UHollowUISettings>()->VisorStyle.LoadSynchronous();
+	const TSubclassOf<UUserWidget> VisorClass = LoadClass<UUserWidget>(nullptr, VisorPath);
+	const UWidgetBlueprintGeneratedClass* Generated = Cast<UWidgetBlueprintGeneratedClass>(VisorClass.Get());
+	const UWidgetTree* Tree = Generated ? Generated->GetWidgetTreeArchetype() : nullptr;
+	if (!TestNotNull(TEXT("DA_VisorStyle"), Style) || !TestNotNull(TEXT("W_Visor"), Tree))
+	{
+		return false;
+	}
+	TestTrue(TEXT("The style keeps the markers off the cheat sheet and the health bar"), Style->WaypointKeepOut.Contains(TEXT("ControlsHint"))
+		&& Style->WaypointKeepOut.Contains(TEXT("HealthBar")) && Style->WaypointKeepOutPadding > 0.f && Style->WaypointMarkerRadius > 0.f);
+	for (const FName& Name : Style->WaypointKeepOut)
+	{
+		TestNotNull(*FString::Printf(TEXT("W_Visor has %s"), *Name.ToString()), Tree->FindWidget(Name));
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowVisorObjectiveTest, "Hollow.UI.Visor.Objective",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -411,7 +478,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowVisorHubObjectiveTest, "Hollow.UI.Visor.
 bool FHollowVisorHubObjectiveTest::RunTest(const FString& Parameters)
 {
 	// UX-01: in the hub the three terminals are marked; the workbench or locker first, then the contracts console;
-	// under an open terminal's screen the waypoints step aside.
+	// under an open terminal's screen the waypoints step aside, and so does the terminal's prompt (UI-H7, UI-02: it
+	// showed through the screen's backdrop).
 	using namespace HollowObjectiveTests;
 	using S = EHollowObjectiveStep;
 	FRig Rig;
@@ -441,11 +509,28 @@ bool FHollowVisorHubObjectiveTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the workbench to the right, the locker to the left"), Workshop && Store && Workshop->Placement.Position.X > ViewSize.X * 0.5
 		&& Store->Placement.Position.X < ViewSize.X * 0.5);
 
+	const TSubclassOf<UUserWidget> VisorClass = LoadClass<UUserWidget>(nullptr, VisorPath);
+	UUserWidget* Visor = VisorClass ? CreateWidget<UUserWidget>(World, VisorClass) : nullptr;
+	UHollowInteractionPromptWidget* Prompt = Visor && Visor->WidgetTree ? Cast<UHollowInteractionPromptWidget>(Visor->WidgetTree->FindWidget(TEXT("InteractionPrompt"))) : nullptr;
+	if (!TestNotNull(TEXT("W_Visor's prompt"), Prompt))
+	{
+		return false;
+	}
+	Prompt->SetContext(Rig.Context);
+	auto Shown = [](const UWidget* Widget) { return Widget->GetVisibility() != ESlateVisibility::Collapsed; };   // no Slate widget in a test
+	FHollowInteractionInfo Info;
+	Info.Prompt = FText::AsCultureInvariant(Workbench->GetName());
+	Rig.Character->GetInteractionComponent()->OnFocusChanged.Broadcast(Workbench, Info);   // the player looks at the workbench
+	TestTrue(TEXT("Looking at a terminal: its prompt"), Shown(Prompt));
+
 	Terminals->Open(Rig.Controller, Workbench);
 	TestTrue(TEXT("A screen open: the waypoints step aside"), Rig.Objective->IsScreenOpen() && !Layer->IsUpdating() && Layer->GetShown().IsEmpty());
+	TestFalse(TEXT("...and the prompt too (UI-H7)"), Shown(Prompt));
 	Terminals->Close(Rig.Controller);
 	TestEqual(TEXT("Closed: the host goes to the contracts console"), Rig.Objective->GetObjective().Step, S::HubLaunch);
 	TestTrue(TEXT("...the markers are back"), Layer->IsUpdating() && Layer->GetShown().Num() == 3);
+	TestTrue(TEXT("...the prompt too"), Shown(Prompt));
+	Prompt->SetContext(nullptr);
 	Layer->SetContext(nullptr);
 	Rig.Context->Deinitialize();
 	return true;

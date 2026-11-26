@@ -9,12 +9,14 @@
 
 struct FDisplayMetrics;
 enum class EHollowLanguage : uint8;
+enum class EHollowVolume : uint8;
 
 /**
  * The player's settings (GameUserSettings.ini) with the graphics preset (ADR-0023). The first launch on a machine picks
  * one (Steam Deck, else the hardware benchmark); -HollowPreset=Low|High overrides it for one run. Set as
  * GameUserSettingsClassName in DefaultEngine.ini. The lower modules read the comfort choices through
- * IHollowComfortSettings (GP-01c: game feel in HollowCore).
+ * IHollowComfortSettings (GP-01c: game feel in HollowCore). UI-02 (ADR-0052): the settings screen's controls, volumes,
+ * frame rate limit, window mode and vertical sync; their ranges and choices are UHollowPlayerSettingsConfig's.
  */
 UCLASS(Config = GameUserSettings, ConfigDoNotCheckDefaults)
 class HOLLOWGAME_API UHollowGameUserSettings : public UGameUserSettings, public IHollowComfortSettings
@@ -83,6 +85,55 @@ public:
 	 */
 	static EHollowLanguage ChooseLanguage(const TOptional<EHollowLanguage>& CommandLine, const FString& Saved, const FString& SystemCulture, bool& bOutKeep);
 
+	/**
+	 * UI-02 (ADR-0052): mouse look speed, within UHollowPlayerSettingsConfig::MouseSensitivity (its default until the
+	 * player chooses). UHollowLookSettingsModifier applies it to the mouse's look input.
+	 */
+	float GetMouseSensitivity() const;
+
+	/** Keeps a sensitivity (snapped to the range) and tells OnControlsChanged; bSave keeps it for the next launch. */
+	void SetMouseSensitivity(float Sensitivity, bool bSave = true);
+
+	/** Looking up and down is inverted, mouse and gamepad alike. */
+	bool IsLookInverted() const { return bInvertLook; }
+
+	void SetLookInverted(bool bInverted, bool bSave = true);
+
+	/** The player camera's horizontal field of view, degrees (UHollowPlayerSettingsConfig::FieldOfView). */
+	float GetFieldOfView() const;
+
+	void SetFieldOfView(float Degrees, bool bSave = true);
+
+	/** The controls changed (sensitivity, inversion, field of view): the local ExoFrame applies its field of view. */
+	FSimpleMulticastDelegate OnControlsChanged;
+
+	/** A volume, linear (UHollowPlayerSettingsConfig::Volume); UHollowAudioVolumeSubsystem sets its bus. */
+	float GetVolume(EHollowVolume Volume) const;
+
+	void SetVolume(EHollowVolume Volume, float Value, bool bSave = true);
+
+	/** A volume changed. */
+	FSimpleMulticastDelegate OnAudioChanged;
+
+	/** The frame rate limit in effect: the player's choice, else the preset's (the Steam Deck's on a Deck); 0: none. */
+	float GetFrameRateChoice() const;
+
+	/** Chooses a limit (one of UHollowPlayerSettingsConfig::FrameRateLimits): it outlives preset changes. Applied now. */
+	void SetFrameRateChoice(float Limit, bool bSave = true);
+
+	/**
+	 * Fullscreen, windowed fullscreen or a window (UHollowPlayerSettingsConfig::WindowedResolutionScale of the monitor),
+	 * applied now on a machine that renders.
+	 */
+	void SetWindowModeNow(EWindowMode::Type Mode, bool bSave = true);
+
+	void SetVSyncNow(bool bEnabled, bool bSave = true);
+
+	/** Tests: SaveSettings writes only this file's section instead of GameUserSettings.ini (empty: the real one). */
+	void SetConfigFileForTests(const FString& Filename) { TestConfigFile = Filename; }
+
+	virtual void SaveSettings() override;
+
 	/** Only the preset's scalability and its console variables (what tests check: no window, no saving). */
 	static bool ApplyScalability(const FHollowGraphicsPresetSpec& Spec);
 
@@ -126,4 +177,29 @@ private:
 	/** The kept language ("en", "ru"); empty until the first launch chose one (LOC-01). */
 	UPROPERTY(Config)
 	FString LanguageCulture;
+
+	/** UI-02: below 0, not chosen yet (the config's default). */
+	UPROPERTY(Config)
+	float MouseSensitivity = -1.f;
+
+	UPROPERTY(Config)
+	bool bInvertLook = false;
+
+	UPROPERTY(Config)
+	float FieldOfView = -1.f;
+
+	UPROPERTY(Config)
+	float MasterVolume = -1.f;
+
+	UPROPERTY(Config)
+	float EffectsVolume = -1.f;
+
+	UPROPERTY(Config)
+	float VoiceVolume = -1.f;
+
+	/** Below 0: the preset's limit. */
+	UPROPERTY(Config)
+	float FrameRateLimitChoice = -1.f;
+
+	FString TestConfigFile;
 };

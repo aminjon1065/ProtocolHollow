@@ -196,6 +196,71 @@ FHollowWaypointPlacement HollowWaypointMath::Place(const FVector2D& Size, const 
 	return Placement;
 }
 
+FHollowWaypointPlacement HollowWaypointMath::AvoidKeepOut(const FHollowWaypointPlacement& Placement, const FVector2D& Size, const float Margin,
+	const float Radius, const TConstArrayView<FBox2D> KeepOut)
+{
+	// A slide may land on another readout: a few passes, each moving off the readout under the marker.
+	constexpr int32 MaxPasses = 4;
+	constexpr double Nudge = 1.0;
+	constexpr double OnEdge = 0.5;
+	const FBox2D Frame(FVector2D(Margin, Margin), Size - FVector2D(Margin, Margin));
+	auto Under = [&KeepOut, Radius](const FVector2D& Point) -> const FBox2D*
+	{
+		for (const FBox2D& Box : KeepOut)
+		{
+			if (Box.bIsValid && Box.ExpandBy(Radius).IsInside(Point))
+			{
+				return &Box;
+			}
+		}
+		return nullptr;
+	};
+	auto InFrame = [&Frame](const FVector2D& Point)
+	{
+		return Point.X >= Frame.Min.X - OnEdge && Point.X <= Frame.Max.X + OnEdge && Point.Y >= Frame.Min.Y - OnEdge && Point.Y <= Frame.Max.Y + OnEdge;
+	};
+	const FVector2D Start = Placement.Position;
+	const bool bSideEdge = !Placement.bOnScreen && (FMath::IsNearlyEqual(Start.X, Frame.Min.X, OnEdge) || FMath::IsNearlyEqual(Start.X, Frame.Max.X, OnEdge));
+	const bool bTopOrBottom = !Placement.bOnScreen && (FMath::IsNearlyEqual(Start.Y, Frame.Min.Y, OnEdge) || FMath::IsNearlyEqual(Start.Y, Frame.Max.Y, OnEdge));
+	const bool bAnyWay = Placement.bOnScreen || (!bSideEdge && !bTopOrBottom);
+	FHollowWaypointPlacement Out = Placement;
+	for (int32 Pass = 0; Pass < MaxPasses; ++Pass)
+	{
+		const FBox2D* Box = Under(Out.Position);
+		if (!Box)
+		{
+			return Out;
+		}
+		const FBox2D Grown = Box->ExpandBy(Radius);
+		const FVector2D At = Out.Position;
+		TArray<FVector2D, TInlineAllocator<4>> Candidates;
+		if (bAnyWay || bTopOrBottom)   // along x
+		{
+			Candidates.Add(FVector2D(Grown.Min.X - Nudge, At.Y));
+			Candidates.Add(FVector2D(Grown.Max.X + Nudge, At.Y));
+		}
+		if (bAnyWay || bSideEdge)   // along y
+		{
+			Candidates.Add(FVector2D(At.X, Grown.Min.Y - Nudge));
+			Candidates.Add(FVector2D(At.X, Grown.Max.Y + Nudge));
+		}
+		const FVector2D* Best = nullptr;
+		for (const FVector2D& Candidate : Candidates)
+		{
+			if (InFrame(Candidate) && (!Best || FVector2D::DistSquared(Candidate, At) < FVector2D::DistSquared(*Best, At)))
+			{
+				Best = &Candidate;
+			}
+		}
+		if (!Best)
+		{
+			return Placement;   // nowhere free: where it was
+		}
+		Out.Position = *Best;
+	}
+	return Under(Out.Position) ? Placement : Out;
+}
+
 int32 HollowWaypointMath::Metres(const FVector& From, const FVector& To)
 {
 	return FMath::RoundToInt32(FVector::Dist(From, To) / HollowObjectiveRulesPrivate::CentimetresPerMetre);

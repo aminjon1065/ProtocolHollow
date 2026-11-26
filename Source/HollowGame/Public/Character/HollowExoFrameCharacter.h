@@ -120,6 +120,13 @@ private:
 	/** The lamp casts shadows (if its data says so) only for the player of this machine, unless bOtherHelmetLampsCastShadows. */
 	void ApplyHelmetShadows();
 
+	/**
+	 * UI-02 (ADR-0052): the camera of the player of this machine takes the field of view of its settings, now and
+	 * whenever they change; every other copy keeps the data's.
+	 */
+	void ApplyFieldOfView();
+	FDelegateHandle ControlsHandle;
+
 	UFUNCTION()
 	void OnRep_Dead();
 

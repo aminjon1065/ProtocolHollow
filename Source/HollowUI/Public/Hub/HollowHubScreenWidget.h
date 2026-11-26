@@ -89,6 +89,9 @@ protected:
 	/** A row's button took the focus (the Codex shows its log in the reader as the focus moves). */
 	virtual void OnActionFocused(const FHollowHubAction& Action, const FText& RowName) {}
 
+	/** UI-02: whether the footer shows the profile's badges (credits, slots, insured) instead of the status line. */
+	virtual bool ShowsProfileBadges() const { return true; }
+
 	/** Shown: subscribe to what the screen shows besides the profile. Hidden: let go of it. */
 	virtual void BindHub() {}
 	virtual void UnbindHub() {}
@@ -114,6 +117,10 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> MessageText;
 
+	/** UI-02 (ADR-0052): the status line as coloured badges (W_HubBadge); the line itself then shows only a raid's note. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UPanelWidget> StatusBadges;
+
 	/** W_HubRow (create_hub_ui_assets.py). */
 	UPROPERTY(EditDefaultsOnly, Category = "Rows")
 	TSubclassOf<UHollowHubRowWidget> RowClass;
@@ -122,6 +129,9 @@ private:
 	void HandleRowAction(UHollowHubRowWidget* Row, int32 ActionIndex);
 	void HandleRowFocus(UHollowHubRowWidget* Row, int32 ActionIndex);
 	void Close();
+	/** UI-02: the terminal's sound (DA_UIStyle), at its pitch for opening or closing. */
+	void PlayTerminalSound(bool bOpening) const;
+	FText StatusLine;
 
 	TWeakObjectPtr<APlayerController> Player;
 	TWeakObjectPtr<AHollowHubTerminal> Terminal;

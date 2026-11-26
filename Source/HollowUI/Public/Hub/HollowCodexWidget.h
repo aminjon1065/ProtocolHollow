@@ -38,6 +38,8 @@ protected:
 	virtual TArray<FPrimaryAssetId> GetNamedIds(const FHollowProfileState& State, const FHollowEconomyTerms& Terms) const override { return {}; }
 	virtual void RunCommand(const FHollowHubAction& Action, const FText& RowName) override;
 	virtual void OnActionFocused(const FHollowHubAction& Action, const FText& RowName) override;
+	/** Its status line counts the crew logs found, not the profile's credits and slots. */
+	virtual bool ShowsProfileBadges() const override { return false; }
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UPanelWidget> EntryList;

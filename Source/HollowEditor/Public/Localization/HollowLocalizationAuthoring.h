@@ -26,6 +26,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Localization")
 	static FText TableText(UStringTable* Table, const FString& Key, const FString& SourceString);
 
+	/** Removes Key from Table (a text nothing shows any more, UI-02); false if it had none. Save the table afterwards. */
+	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Localization")
+	static bool RemoveTableEntry(UStringTable* Table, const FString& Key);
+
 	/** The string table and key Text refers to; false for any other text. */
 	UFUNCTION(BlueprintCallable, Category = "Hollow|Editor|Localization")
 	static bool GetTableEntry(const FText& Text, FString& OutTableId, FString& OutKey);

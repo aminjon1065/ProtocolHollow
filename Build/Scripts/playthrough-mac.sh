@@ -117,7 +117,11 @@
 #   fabaltar  FAB-01 Niagara (ADR-0051): host + 1 headless client, Cathedral. The client carries the core (its cyan aura
 #          seen by the host), the client lays it on the altar, the host stands beside it: the violet ritual, the gold finale,
 #          the purified core's gold glow (FabAltar_* shots); both dump the altar.
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story|fab|fabaltar> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+#   ui     UI-02 menus and settings (ADR-0052): host (-culture=ru, this run only) + 1 headless client. The host shoots every
+#          screen in Russian, then in English at once (Hollow.UI.Language, no restart): the live main menu, the settings'
+#          four tabs (E: the next one), in the hub the visor, the workbench, the locker, the contracts, the Codex, the system
+#          menu and the settings from it; in the raid the visor (UI_* shots). Both dump their UI and their profile.
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story|fab|fabaltar|ui> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -126,7 +130,7 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar ]] || { sed -n '2,123p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar || "$MODE" == ui ]] || { sed -n '2,128p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
@@ -175,16 +179,18 @@ launch() { local name="$1"; shift; rm -f "$GAME_SAVES/Playthrough$name.sav"
 	"$GAME" "${COMMON[@]}" "$@" "$(slot "$name")" -abslog="$OUT/$name.log" > /dev/null 2>&1 & PIDS+=($!); }
 key() { echo "Hollow.Dev.RunAfter $1 Hollow.UI.PressKey $2"; }
 DOWN=Gamepad_DPad_Down
+UP=Gamepad_DPad_Up
 PRESS=Gamepad_FaceButton_Bottom
 
 H=()   # host commands
 HOST_ARGS=()   # extra arguments of the host
 C=()   # commands of every client
 C1=()  # commands of client 1 only
+CLIENT_OPEN="open 127.0.0.1"   # how the clients join (a mode whose host hosts late waits first)
 h() { H+=("$1"); }
 case "$MODE" in
 	solo)
-		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
+		h "$(key 6 $UP)"; h "$(key 7 $PRESS)"                                         # main menu: Host co-op -> Play solo (above it, UI-02)
 		h "$(key 16 Escape)"; h "$(key 17 $DOWN)"; h "$(key 18 $PRESS)"               # system menu: Resume -> Start raid
 		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
 		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToNearestCore"
@@ -195,7 +201,8 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 47 Hollow.UI.PressKey Escape"                        # system menu
 		h "Hollow.Dev.RunInRaid 48 Hollow.UI.PressKey $DOWN"
 		h "Hollow.Dev.RunInRaid 49 Hollow.UI.PressKey $DOWN"
-		h "Hollow.Dev.RunInRaid 50 Hollow.UI.PressKey $PRESS"                        # Resume, Start raid -> Leave session
+		h "Hollow.Dev.RunInRaid 49.5 Hollow.UI.PressKey $DOWN"
+		h "Hollow.Dev.RunInRaid 50 Hollow.UI.PressKey $PRESS"                        # Resume, Start raid, Settings -> Leave session
 		h "Hollow.Dev.RunInRaid 57 Hollow.Session.Status"
 		h "Hollow.Dev.RunInRaid 58 Hollow.UI.Dump"                                   # the main menu again
 		END='Hollow[.]UI[.]Dump: layer'   # an output line (the command line in the log names the command too)
@@ -743,6 +750,49 @@ case "$MODE" in
 		h "Hollow.Dev.RunInRaid 100 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 101 Hollow.Profile.Dump")
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	ui)
+		HOST_ARGS=(-culture=ru)                                                       # the host in Russian, this run only
+		# One pass per language over the same screens: the live main menu and the settings' four tabs (E: the next).
+		shots() {   # $1: start (s after launch), $2: language suffix
+			local s=$1 l=$2
+			h "Hollow.Dev.RunAfter $s Hollow.UI.Shot UI_MainMenu_$l"
+			h "$(key $((s + 1)) $DOWN)"; h "$(key $((s + 2)) $PRESS)"                   # Host co-op -> Settings
+			h "Hollow.Dev.RunAfter $((s + 3)) Hollow.UI.Shot UI_Settings_Graphics_$l"; h "Hollow.Dev.RunAfter $((s + 3)) Hollow.UI.Dump"
+			h "$(key $((s + 4)) E)"; h "Hollow.Dev.RunAfter $((s + 5)) Hollow.UI.Shot UI_Settings_Audio_$l"
+			h "$(key $((s + 6)) E)"; h "Hollow.Dev.RunAfter $((s + 7)) Hollow.UI.Shot UI_Settings_Controls_$l"
+			h "$(key $((s + 8)) E)"; h "Hollow.Dev.RunAfter $((s + 9)) Hollow.UI.Shot UI_Settings_Accessibility_$l"
+			h "$(key $((s + 10)) Escape)"                                             # back to the main menu
+		}
+		shots 5 RU
+		h "Hollow.Dev.RunAfter 17 Hollow.UI.Language en"; shots 18 EN
+		h "Hollow.Dev.RunAfter 30 Hollow.UI.Language ru"
+		h "$(key 31 $PRESS)"                                                          # main menu: Host co-op -> the Skiff
+		hub() {   # $1: start, $2: language suffix
+			local s=$1 l=$2
+			h "Hollow.Dev.RunAfter $s Hollow.UI.Shot UI_Hub_$l"; h "Hollow.Dev.RunAfter $s Hollow.UI.Dump"
+			local t=$((s + 1)) terminal
+			for terminal in Workbench Locker Contracts Codex; do
+				h "Hollow.Dev.RunAfter $t Hollow.Dev.GoToTerminal $terminal"; h "Hollow.Dev.RunAfter $((t + 1)) Hollow.Interact"
+				h "Hollow.Dev.RunAfter $((t + 2)) Hollow.UI.Shot UI_${terminal}_$l"; h "Hollow.Dev.RunAfter $((t + 2)) Hollow.UI.Dump"   # UI-H7: no prompt
+				h "$(key $((t + 3)) Escape)"; t=$((t + 4))
+			done
+			h "$(key $t Escape)"; h "Hollow.Dev.RunAfter $((t + 1)) Hollow.UI.Shot UI_SystemMenu_$l"   # the system menu
+			h "$(key $((t + 2)) $DOWN)"; h "$(key $((t + 3)) $DOWN)"; h "$(key $((t + 4)) $DOWN)"; h "$(key $((t + 5)) $PRESS)"   # Resume, Invite, Start raid -> Settings
+			h "Hollow.Dev.RunAfter $((t + 6)) Hollow.UI.Shot UI_SystemSettings_$l"
+			h "$(key $((t + 7)) Escape)"; h "Hollow.Dev.RunAfter $((t + 8)) Hollow.UI.Dump"; h "$(key $((t + 9)) Escape)"
+		}
+		hub 43 RU
+		h "Hollow.Dev.RunAfter 70 Hollow.UI.Language en"; hub 71 EN
+		h "Hollow.Dev.RunAfter 98 Hollow.UI.Language ru"
+		h "Hollow.Dev.RunAfter 100 Hollow.Hub.Launch"
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"
+		h "Hollow.Dev.RunInRaid 4 Hollow.UI.Shot UI_Raid_RU"; h "Hollow.Dev.RunInRaid 4.5 Hollow.UI.Dump"
+		h "Hollow.Dev.RunInRaid 6 Hollow.UI.Language en"; h "Hollow.Dev.RunInRaid 7 Hollow.UI.Shot UI_Raid_EN"
+		h "Hollow.Dev.RunInRaid 8 Hollow.UI.Language ru"
+		h "Hollow.Dev.RunInRaid 10 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 6 Hollow.UI.Dump"); C+=("Hollow.Dev.RunInRaid 11 Hollow.Profile.Dump")
+		CLIENT_OPEN="Hollow.Dev.RunAfter 40 open 127.0.0.1"   # the host hosts after its menu shots (31 s): an open at once times out (UI2-1)
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
 	story)
 		HOST_ARGS=(-culture=ru)                                                       # the host in Russian, this run only
 		h "Hollow.Dev.RunAfter 3 Hollow.Radio.Reset"; C1+=("Hollow.Dev.RunAfter 3 Hollow.Radio.Reset")   # the briefing unheard
@@ -860,7 +910,7 @@ case "$MODE" in
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
 	screens)
-		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
+		h "$(key 6 $UP)"; h "$(key 7 $PRESS)"                                         # main menu: Host co-op -> Play solo (above it, UI-02)
 		h "Hollow.Dev.RunAfter 16 Hollow.Dev.GoToTerminal Workbench"
 		h "Hollow.Dev.RunAfter 17 Hollow.Interact"                                  # E: the server opens it, the screen shows
 		h "Hollow.Dev.RunAfter 18 Hollow.UI.Dump"; h "Hollow.Dev.RunAfter 18.5 Hollow.UI.Shot Screens_Craft"
@@ -894,7 +944,7 @@ case "$MODE" in
 		END='Hollow[.]Profile[.]Dump: [0-9].*raids 1,'
 		;;
 	economy)
-		h "$(key 6 $DOWN)"; h "$(key 7 $PRESS)"                                       # main menu: Host co-op -> Play solo
+		h "$(key 6 $UP)"; h "$(key 7 $PRESS)"                                         # main menu: Host co-op -> Play solo (above it, UI-02)
 		h "Hollow.Dev.RunAfter 10 Hollow.Profile.Dump"
 		h "Hollow.Dev.RunAfter 10.5 Hollow.Shop.Dump"
 		h "Hollow.Dev.RunAfter 11 Hollow.Craft.Make DA_Recipe_PulseMine 2"           # one shard in the stash: refused, nothing taken
@@ -968,9 +1018,9 @@ else
 	# "Control listening on port 1985" matched at the same moment; the game's driver listens a menu press later (RG-1).
 	wait_for "$OUT/Host.log" 'UI up for .*[(]main menu[)]' 240 || { echo "the host's menu never came up"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar || "$MODE" == ui ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
-		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "open 127.0.0.1" ${C[@]+"${C[@]}"})
+		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "$CLIENT_OPEN" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
 		launch "Client$i" "${HEADLESS[@]}" ${NET_ARGS[@]+"${NET_ARGS[@]}"} -ExecCmds="$(join "${CMDS[@]}")"
 		[[ "$i" == 1 ]] && CLIENT1="${PIDS[${#PIDS[@]}-1]}"
@@ -996,7 +1046,8 @@ wait ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
 
 SUMMARY_LINES=160
 [[ "$MODE" == biomes ]] && SUMMARY_LINES=320   # two raids and three hubs
-[[ "$MODE" == guide || "$MODE" == loc || "$MODE" == story ]] && SUMMARY_LINES=260    # every step's objective on both machines
+[[ "$MODE" == guide || "$MODE" == loc || "$MODE" == story ]] && SUMMARY_LINES=260
+[[ "$MODE" == ui ]] && SUMMARY_LINES=420   # two passes over every screen    # every step's objective on both machines
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"

@@ -4,6 +4,8 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "CommonButtonBase.h"
+#include "Components/TextBlock.h"
+#include "GeneralProjectSettings.h"
 #include "CommonInputSettings.h"
 #include "Engine/World.h"
 #include "Foundation/HollowButton.h"
@@ -77,9 +79,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowMenuWidgetsTest, "Hollow.UI.Menus.Widget
 
 bool FHollowMenuWidgetsTest::RunTest(const FString& Parameters)
 {
-	// The real WBPs (create_ui_assets.py): the main menu takes menu input with focus on Host co-op and binds its three
-	// buttons; the system menu has the session buttons and shows those that apply (none in a test world: no session);
-	// Back closes a debrief.
+	// The real WBPs (create_menu_ui_assets.py): the main menu takes menu input with focus on Host co-op and binds its four
+	// buttons and its version line (UI-02); the system menu has the session buttons and shows those
+	// that apply (none in a test world: no session), opens the settings and has no toggles of its own any more (they
+	// moved to the settings screen); Back closes a debrief.
 	using namespace HollowMenuTests;
 	const UHollowUISettings* Settings = GetDefault<UHollowUISettings>();
 	const TSubclassOf<UHollowPrimaryLayout> LayoutClass = Settings->PrimaryLayoutClass.LoadSynchronous();
@@ -108,8 +111,10 @@ bool FHollowMenuWidgetsTest::RunTest(const FString& Parameters)
 	{
 		const TOptional<FUIInputConfig> Input = Main->GetDesiredInputConfig();
 		TestTrue(TEXT("...menu input"), Input.IsSet() && Input->GetInputMode() == ECommonInputMode::Menu);
-		TestTrue(TEXT("...solo, host co-op and quit bound"), Main->GetSoloButton() && Main->GetHostButton() && Main->GetQuitButton());
+		TestTrue(TEXT("...solo, host co-op, settings and quit bound"), Main->GetSoloButton() && Main->GetHostButton() && Main->GetSettingsButton() && Main->GetQuitButton());
 		TestTrue(TEXT("...gamepad focus on Host co-op"), Main->GetDesiredFocusTarget() == Main->GetHostButton());
+		TestTrue(TEXT("...its version line shows the project's version"), Main->GetVersionText()
+			&& Main->GetVersionText()->GetText().ToString().Contains(GetDefault<UGeneralProjectSettings>()->ProjectVersion));
 		Main->DeactivateWidget();
 	}
 
@@ -122,9 +127,12 @@ bool FHollowMenuWidgetsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Co-op host in the hub: all three"), Shown(System->GetInviteButton()) && Shown(System->GetStartRaidButton()) && Shown(System->GetLeaveButton()));
 		System->ApplyContext(Context(true, false, true, true));
 		TestTrue(TEXT("Client: only Leave"), !Shown(System->GetInviteButton()) && !Shown(System->GetStartRaidButton()) && Shown(System->GetLeaveButton()));
-		// H-1 (ADR-0029): the reduced-flashes toggle, shown wherever the menu is, labelled with the choice.
-		TestTrue(TEXT("...has the flashes toggle, shown"), System->GetFlashesButton() && Shown(System->GetFlashesButton()));
-		TestFalse(TEXT("...its two labels differ"), UHollowSystemMenuWidget::FlashesLabel(true).EqualTo(UHollowSystemMenuWidget::FlashesLabel(false)));
+		// UI-02: Settings, shown wherever the menu is; voice, flashes and language moved there.
+		TestTrue(TEXT("...has Settings, shown"), System->GetSettingsButton() && Shown(System->GetSettingsButton()));
+		for (const TCHAR* Gone : {TEXT("VoiceButton"), TEXT("FlashesButton"), TEXT("LanguageButton")})
+		{
+			TestNull(FString::Printf(TEXT("...no %s of its own"), Gone), System->WidgetTree->FindWidget(Gone));
+		}
 		System->DeactivateWidget();
 	}
 	// Bug bash: Back (Esc / B) closes a debrief like its button (it was ignored).
@@ -143,9 +151,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLocalizationMenusTest, "Hollow.UI.Locali
 
 bool FHollowLocalizationMenusTest::RunTest(const FString& Parameters)
 {
-	// LOC-01 (ADR-0048): both menus carry the language button; switching shows the open menu in Russian at once (the
-	// same widgets, no restart), its button names the new language in it, nothing is cut on a 1080p screen, and English
-	// comes back the same. The logo stays the same in every language.
+	// LOC-01 (ADR-0048): switching shows an open menu in Russian at once (the same widgets, no restart), nothing is cut
+	// on a 1080p screen, and English comes back the same. The main menu's language button names the new language in it
+	// (UI-02: the system menu's moved to the settings screen). The logo and the version line stay the same.
 	using namespace HollowMenuTests;
 	using namespace HollowLocalizationTests;
 	const FVector2D Screen(1920.0, 1080.0);
@@ -171,26 +179,37 @@ bool FHollowLocalizationMenusTest::RunTest(const FString& Parameters)
 	for (const TSubclassOf<UCommonActivatableWidget>& Class : {MainClass, SystemClass})
 	{
 		UCommonActivatableWidget* Menu = Layout->PushWidgetToLayer(HollowUITags::UI_Layer_Menu, Class);
-		const UHollowButton* Language = Menu ? Cast<UHollowButton>(Menu->WidgetTree->FindWidget(TEXT("LanguageButton"))) : nullptr;
-		if (!TestNotNull(FString::Printf(TEXT("%s has the language button"), *Class->GetName()), Language))
+		if (!TestNotNull(*Class->GetName(), Menu))
+		{
+			continue;
+		}
+		const UHollowButton* Language = Cast<UHollowButton>(Menu->WidgetTree->FindWidget(TEXT("LanguageButton")));
+		if (Class == MainClass && !TestNotNull(TEXT("The main menu has the language button"), Language))
 		{
 			continue;
 		}
 		TestTrue(TEXT("...nothing cut in English"), FindOverflows(*Menu, Screen).IsEmpty());   // lays it out: every label is set
 		const TMap<FString, FString> English = ReadTexts(*Menu);
-		TestEqual(TEXT("...labelled with English"), Language->GetLabel().ToString(), FString(TEXT("Language: English")));
+		if (Language)
+		{
+			TestEqual(TEXT("...labelled with English"), Language->GetLabel().ToString(), FString(TEXT("Language: English")));
+		}
 		{
 			const FScopedLanguage Russian(EHollowLanguage::Russian);
 			TestTrue(TEXT("Russian applied"), Russian.bApplied && HollowLanguage::GetApplied() == EHollowLanguage::Russian);
-			TestTrue(FString::Printf(TEXT("...the button names Russian, in Russian (\"%s\")"), *Language->GetLabel().ToString()),
-				HasCyrillic(Language->GetLabel().ToString()));
+			if (Language)
+			{
+				TestTrue(FString::Printf(TEXT("...the button names Russian, in Russian (\"%s\")"), *Language->GetLabel().ToString()),
+					HasCyrillic(Language->GetLabel().ToString()));
+			}
 			const TMap<FString, FString> Now = ReadTexts(*Menu);
+			const FString Version = UHollowMainMenuWidget::VersionLabel().ToString();
 			for (const TPair<FString, FString>& Text : English)
 			{
 				const FString* Shown = Now.Find(Text.Key);
-				const bool bLogo = Text.Value == TEXT("PROTOCOL: HOLLOW");
+				const bool bSame = Text.Value == TEXT("PROTOCOL: HOLLOW") || (Shown && *Shown == Version);
 				TestTrue(FString::Printf(TEXT("%s: \"%s\" -> \"%s\""), *Text.Key, *Text.Value, Shown ? **Shown : TEXT("-")),
-					Shown && (bLogo ? *Shown == Text.Value : HasCyrillic(*Shown)));
+					Shown && (bSame ? *Shown == Text.Value : HasCyrillic(*Shown)));
 			}
 			for (const FString& Overflow : FindOverflows(*Menu, Screen))
 			{

@@ -19,6 +19,8 @@
 #                 named ...-Altar-stand|ritual. For the two to compare, start the capture early: --warmup 1 --seconds 18
 #   --still       the host's view does not turn (with --altar: it faces the altar all along, the worst case; a
 #                 --profilegpu frame then sees the effect)
+#   --menu        UI-02 (ADR-0052): the main menu's live scene instead of a raid (one game, no clients, no session); the
+#                 capture is named E9-PRESET-Menu
 set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
@@ -35,6 +37,7 @@ BUILD=1
 CONTRACT=
 ALTAR=
 STILL=0
+MENU=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--preset) PRESET="$2"; shift 2 ;;
@@ -50,6 +53,7 @@ while [[ $# -gt 0 ]]; do
 		--contract) CONTRACT="$2"; shift 2 ;;
 		--altar) ALTAR="$2"; shift 2 ;;
 		--still) STILL=1; shift ;;
+		--menu) MENU=1; shift ;;
 		*) echo "Unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
@@ -85,6 +89,19 @@ HEADLESS=(-nullrhi -nosound)
 HEADLESS_FPS="t.MaxFPS 30"   # the clients only have to play: keep their CPU away from the host
 slot() { echo "-ini:Game:[/Script/HollowEconomy.HollowEconomySettings]:SaveSlotName=$1"; }
 wait_for() { local i; for ((i = 0; i < $3; i++)); do grep -qE "$2" "$1" 2>/dev/null && return 0; sleep 1; done; return 1; }
+
+if [[ "$MENU" == 1 ]]; then   # UI-02: the front end only, as a player sees it on launch
+	PIDS=()
+	trap 'kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true' EXIT
+	launch "$OUT/host.log" "${COMMON[@]}" -RenderOffScreen -windowed -ResX=1920 -ResY=1080 "$(slot PerfHost)" \
+		-ExecCmds="r.VSync 0,t.MaxFPS 0,Hollow.Dev.RunAfter 4 Hollow.Graphics.Dump,Hollow.Dev.RunAfter 4 Hollow.Perf.Capture E9-$PRESET-Menu $SECONDS_TO_CAPTURE $WARMUP"
+	wait_for "$OUT/host.log" 'Hollow.Perf: report ' $((120 + ${SECONDS_TO_CAPTURE%.*} + ${WARMUP%.*})) || echo "no capture report"
+	sleep 2
+	kill "${PIDS[@]}" 2>/dev/null || true
+	wait "${PIDS[@]}" 2>/dev/null || true
+	grep -hE "Graphics preset|Hollow.Graphics.Dump|Hollow.Perf: " "$OUT/host.log" | sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-600
+	exit 0
+fi
 
 TOTAL=$(awk -v w="$WARMUP" -v s="$SECONDS_TO_CAPTURE" 'BEGIN { print w + s + 5 }')
 H="r.VSync 0,t.MaxFPS 0,Hollow.Session.Host InviteOnly,Hollow.Dev.RunAfter 45 Hollow.Raid.Start 7"

@@ -146,5 +146,13 @@ namespace HollowWaypointMath
 	HOLLOWUI_API FHollowWaypointPlacement Place(const FVector2D& Size, float Margin, bool bProjected, const FVector2D& Projected, const FVector2D& Direction);
 
 	/** Whole metres between two points, as the marker shows them. */
+	/**
+	 * UI-02 (ADR-0052): Placement moved off the visor's readouts (KeepOut, in the visor's space; Radius: the marker's
+	 * half size). An edge arrow slides along its edge, a marker in view steps just beside the readout it would cover;
+	 * either stays inside the Margin frame. Unchanged where no free place is found.
+	 */
+	HOLLOWUI_API FHollowWaypointPlacement AvoidKeepOut(const FHollowWaypointPlacement& Placement, const FVector2D& Size, float Margin, float Radius,
+		TConstArrayView<FBox2D> KeepOut);
+
 	HOLLOWUI_API int32 Metres(const FVector& From, const FVector& To);
 }

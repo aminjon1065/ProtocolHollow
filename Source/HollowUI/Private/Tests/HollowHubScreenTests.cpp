@@ -3,9 +3,11 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/WidgetNavigation.h"
 #include "Classes/HollowClassDefinition.h"
 #include "CommonButtonBase.h"
 #include "Components/PanelWidget.h"
+#include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "Crafting/HollowCraftingRecipe.h"
 #include "Crafting/HollowShipUpgradeDefinition.h"
@@ -486,7 +488,7 @@ bool FHollowHubWorkbenchScreenTest::RunTest(const FString& Parameters)
 		return Each.Transaction.Kind == EHollowTransactionKind::Buy && Each.Transaction.Item == RealCutter && Each.Transaction.Count > 1;
 	}, Action);
 	const UHollowButton* Greyed = Expensive ? Expensive->GetActionButton(Action) : nullptr;
-	TestTrue(TEXT("Ten cutters: greyed out, focusable, the reason as tooltip"), Greyed && !Greyed->IsInteractionEnabled() && Greyed->IsVisible()
+	TestTrue(TEXT("Ten cutters: greyed out, focusable, the reason as tooltip"), Greyed && Greyed->IsRefused() && Greyed->IsVisible()
 		&& Greyed->GetToolTipText().EqualTo(HollowHubScreenRules::ResultText(EHollowTransactionResult::NotEnoughCredits)));
 	TestNotNull(TEXT("The crafted cell can be sold"), FindRowWidget(*Screen, Is(EHollowTransactionKind::Sell, RealCell), Action));
 
@@ -497,7 +499,7 @@ bool FHollowHubWorkbenchScreenTest::RunTest(const FString& Parameters)
 	Press(Row, Action);
 	TestTrue(TEXT("The fuel reserve is the ship's"), Profile.State.Profile.Upgrades.Contains(RealReserve));
 	Row = FindRowWidget(*Screen, Is(EHollowTransactionKind::BuyUpgrade, RealReserve), Action);
-	TestTrue(TEXT("...shown owned: highlighted, greyed out"), Row && Row->GetRow().bHighlighted && !Row->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("...shown owned: highlighted, greyed out"), Row && Row->GetRow().bHighlighted && Row->GetActionButton(Action)->IsRefused());
 
 	// Back (Esc / B) leaves it.
 	Screen->NativeOnHandleBackAction();
@@ -510,7 +512,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowHubLoadoutScreenTest, "Hollow.UI.Hub.Loa
 
 bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 {
-	// The real W_Loadout: stash to loadout and back, insurance.
+	// The real W_Loadout: stash to loadout and back, insurance. UI-02 (ADR-0052): every class in sight without scrolling,
+	// down from the stash's last row reaches Close (UI-H8), the insured slot and the footer wear their badges.
 	using namespace HollowHubScreenTests;
 	FScreenRig Rig;
 	if (!Rig.Build(*this))
@@ -532,9 +535,34 @@ bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Two stash rows, one loadout row, a row per class"), Screen->GetRowWidgets().Num(), 3 + Classes);
 	int32 Action = INDEX_NONE;
 	const UHollowHubRowWidget* ScrapRow = FindRowWidget(*Screen, Is(EHollowTransactionKind::Equip, RealScrap), Action);
-	TestTrue(TEXT("Scrap stays out of raids: greyed out"), ScrapRow && !ScrapRow->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("Scrap stays out of raids: greyed out"), ScrapRow && ScrapRow->GetActionButton(Action)->IsRefused());
 	TestTrue(TEXT("The gamepad starts on the first button that can do something (not the scrap's)"),
 		Screen->GetDesiredFocusTarget() != (ScrapRow ? ScrapRow->GetActionButton(0) : nullptr));
+	const UWidget* ClassList = Screen->WidgetTree->FindWidget(TEXT("ClassList"));
+	bool bClassesScroll = false;
+	for (const UWidget* Up = ClassList ? ClassList->GetParent() : nullptr; Up; Up = Up->GetParent())
+	{
+		bClassesScroll |= Up->IsA<UScrollBox>();
+	}
+	TestTrue(TEXT("Every class in sight: the class list scrolls in nothing"), ClassList && !bClassesScroll);
+	const UPanelWidget* StashList = Cast<UPanelWidget>(Screen->WidgetTree->FindWidget(TEXT("StashList")));
+	const UHollowHubRowWidget* LastStash = nullptr;
+	for (int32 Index = 0; StashList && Index < StashList->GetChildrenCount(); ++Index)
+	{
+		const UHollowHubRowWidget* Each = Cast<UHollowHubRowWidget>(StashList->GetChildAt(Index));
+		LastStash = Each && Each->IsVisible() && !Each->GetRow().Actions.IsEmpty() ? Each : LastStash;
+	}
+	const UHollowButton* LastButton = LastStash ? LastStash->GetActionButton(0) : nullptr;
+	TestTrue(TEXT("UI-H8: down from the stash's last row goes to Close"), LastButton && LastButton->Navigation
+		&& LastButton->Navigation->Down.Rule == EUINavigationRule::Explicit && LastButton->Navigation->Down.Widget.Get() == Screen->GetCloseButton());
+	const UPanelWidget* StatusBadges = Cast<UPanelWidget>(Screen->WidgetTree->FindWidget(TEXT("StatusBadges")));
+	int32 Badges = 0;
+	for (int32 Index = 0; StatusBadges && Index < StatusBadges->GetChildrenCount(); ++Index)
+	{
+		Badges += StatusBadges->GetChildAt(Index)->IsVisible() ? 1 : 0;
+	}
+	TestEqual(TEXT("The footer's badges: credits, stash, loadout, insured"), Badges, 4);
+	TestTrue(TEXT("...the status line still reads the credits (Hollow.UI.Dump)"), Screen->GetStatus().ToString().Contains(FText::AsNumber(LockerCredits).ToString()));
 
 	// Take all the cells: a new loadout slot, their stash row goes.
 	UHollowHubRowWidget* Row = FindRowWidget(*Screen, [](const FHollowHubAction& Each)
@@ -552,7 +580,8 @@ bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The cutter is insured for its price"), Loadout[0].bInsured
 		&& Profile.State.Profile.Credits == LockerCredits - HollowCraftingRules::InsurancePrice(Terms, Slot(RealCutter, 1)));
 	Row = FindRowWidget(*Screen, IsSlot(EHollowTransactionKind::Insure, 0), Action);
-	TestTrue(TEXT("...shown insured"), Row && Row->GetRow().bHighlighted && !Row->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("...shown insured"), Row && Row->GetRow().bHighlighted && Row->GetActionButton(Action)->IsRefused());
+	TestTrue(TEXT("...with its badge"), Row && Row->GetRow().Badges.ContainsByPredicate([](const FHollowHubBadge& Badge) { return Badge.Kind == EHollowHubBadgeKind::Insured; }));
 
 	// Return all the cells: back in the stash.
 	Row = FindRowWidget(*Screen, [](const FHollowHubAction& Each)
@@ -567,7 +596,7 @@ bool FHollowHubLoadoutScreenTest::RunTest(const FString& Parameters)
 	// The classes (S6-01, ADR-0034): the one played greyed out; another brings its own loadout, this one is kept.
 	const TArray<FHollowLoadoutSlot> EngineerLoadout = Loadout;
 	Row = FindRowWidget(*Screen, Is(EHollowTransactionKind::SelectClass, RealEngineer), Action);
-	TestTrue(TEXT("The Engineer, played: highlighted, greyed out"), Row && Row->GetRow().bHighlighted && !Row->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("The Engineer, played: highlighted, greyed out"), Row && Row->GetRow().bHighlighted && Row->GetActionButton(Action)->IsRefused());
 	TestTrue(TEXT("...and no class switch is where the gamepad starts"), Screen->GetDesiredFocusTarget() != (Row ? Row->GetActionButton(Action) : nullptr));
 	Row = FindRowWidget(*Screen, Is(EHollowTransactionKind::SelectClass, RealOccultist), Action);
 	Press(Row, Action);
@@ -622,11 +651,11 @@ bool FHollowHubContractScreenTest::RunTest(const FString& Parameters)
 	{
 		return Each.Command == EHollowHubCommand::SelectContract && Each.Contract == Docks;
 	}, Action);
-	TestTrue(TEXT("Docks can be chosen"), Row && Row->GetActionButton(Action)->IsInteractionEnabled() && !Row->GetRow().bHighlighted);
+	TestTrue(TEXT("Docks can be chosen"), Row && !Row->GetActionButton(Action)->IsRefused() && !Row->GetRow().bHighlighted);
 	Press(Row, Action);
 	TestTrue(TEXT("The server made it the squad's"), Hub->GetSelectedContract() == Docks);
 	Row = FindRowWidget(*Screen, [](const FHollowHubAction& Each) { return Each.Contract == Docks; }, Action);
-	TestTrue(TEXT("The screen followed: chosen, highlighted, greyed out"), Row && Row->GetRow().bHighlighted && !Row->GetActionButton(Action)->IsInteractionEnabled());
+	TestTrue(TEXT("The screen followed: chosen, highlighted, greyed out"), Row && Row->GetRow().bHighlighted && Row->GetActionButton(Action)->IsRefused());
 
 	// What the Cathedral pays this player: a core and a purified core, with the ship's core bonus (both are Aether cores).
 	const UHollowItemDefinition* Core = Cast<UHollowItemDefinition>(UAssetManager::Get().GetPrimaryAssetPath(RealCore).TryLoad());
@@ -815,7 +844,7 @@ bool FHollowCodexScreenTest::RunTest(const FString& Parameters)
 	const auto Reads = [](const FPrimaryAssetId& Id) { return [Id](const FHollowHubAction& Each) { return Each.Command == EHollowHubCommand::ReadLore && Each.Lore == Id; }; };
 	UHollowHubRowWidget* Hidden = FindRowWidget(*Codex, Reads(DocksSecond->GetPrimaryAssetId()), Action);
 	TestTrue(TEXT("A log not found: [DATA ENCRYPTED - its sector], its Read greyed out"), Hidden && Hidden->GetRow().Name.ToString().Contains(DocksSecond->SectorName.ToString())
-		&& !Hidden->GetRow().Name.ToString().Contains(DocksSecond->Title.ToString()) && !Hidden->GetActionButton(Action)->IsInteractionEnabled());
+		&& !Hidden->GetRow().Name.ToString().Contains(DocksSecond->Title.ToString()) && Hidden->GetActionButton(Action)->IsRefused());
 	TestTrue(TEXT("The gamepad starts on the first log found"), Codex->GetDesiredFocusTarget() == FindRowWidget(*Codex, Reads(DocksFirst->GetPrimaryAssetId()), Action)->GetActionButton(Action));
 	UHollowHubRowWidget* Found = FindRowWidget(*Codex, Reads(CathedralFirst->GetPrimaryAssetId()), Action);
 	Press(Found, Action);
