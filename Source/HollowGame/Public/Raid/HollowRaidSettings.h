@@ -4,6 +4,7 @@
 
 #include "HollowRaidSettings.generated.h"
 
+class AHollowSoloDrone;
 class UGameplayEffect;
 
 /** Raid flow timing (Project Settings > Game > Hollow Raid, DefaultGame.ini; ADR-0016). */
@@ -32,6 +33,10 @@ public:
 	/** A dead player watches their body this long before the free spectator camera. */
 	UPROPERTY(Config, EditAnywhere, Category = "Death", meta = (ClampMin = "0", Units = "Seconds"))
 	float DeathSpectateDelaySeconds = 0.f;
+
+	/** DRONE-01 (ADR-0054): the drone a raid of exactly one player gets (BP_SoloDrone; UHollowSoloDroneSubsystem). */
+	UPROPERTY(Config, EditAnywhere, Category = "Solo")
+	TSoftClassPtr<AHollowSoloDrone> SoloDroneClass;
 
 	/** Instant damage effect (SetByCaller Hollow.Data.Damage) used by Hollow.Dev.Kill. */
 	UPROPERTY(Config, EditAnywhere, Category = "Development")

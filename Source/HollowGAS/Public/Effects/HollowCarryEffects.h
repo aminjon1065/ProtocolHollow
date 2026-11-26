@@ -47,6 +47,20 @@ public:
 };
 
 /**
+ * Structure of the drone carry effect (DRONE-01, ADR-0054): infinite while the player's solo drone carries the load,
+ * grants Hollow.State.DroneCarry only. Not a heavy carry: tools and weapons stay free and stamina recovers. Period and
+ * the Resonance gain are data (GE_Carry_Drone derives from this).
+ */
+UCLASS(Abstract)
+class HOLLOWGAS_API UHollowCarryDroneEffect : public UGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	explicit UHollowCarryDroneEffect(const FObjectInitializer& ObjectInitializer);
+};
+
+/**
  * Structure of the passive stamina recovery: infinite, paused while the player carries anything heavy
  * (Hollow.State.CarryingHeavy). Period and amount are data (GE_Stamina_Recovery derives from this).
  */

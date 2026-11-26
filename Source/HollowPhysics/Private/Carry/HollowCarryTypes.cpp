@@ -11,8 +11,9 @@ namespace HollowCarry
 		switch (Mode)
 		{
 		case EHollowCarryMode::Solo:
-		case EHollowCarryMode::Drone:
 			return EHollowCarryClaim::Solo;
+		case EHollowCarryMode::Drone:
+			return EHollowCarryClaim::Drone;
 		case EHollowCarryMode::Coop:
 			return EHollowCarryClaim::Coop;
 		case EHollowCarryMode::Dragged:

@@ -49,6 +49,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_CarryingHeavy, "Hollow.State.CarryingHeavy", "Carrying a heavy object (any mode).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_CarryingHeavy_Solo, "Hollow.State.CarryingHeavy.Solo", "Carrying a heavy object alone.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_CarryingHeavy_Coop, "Hollow.State.CarryingHeavy.Coop", "Carrying a heavy object with a teammate.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(State_DroneCarry, "Hollow.State.DroneCarry", "The solo drone carries a heavy object for this player (hands free, DRONE-01).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Low, "Hollow.State.Resonance.Low", "Squad Resonance tier low (S4-08: every player, mirrored on each machine from the replicated squad tier).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_Medium, "Hollow.State.Resonance.Medium", "Squad Resonance tier medium (every player).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(State_Resonance_High, "Hollow.State.Resonance.High", "Squad Resonance tier high (every player; the visor alerts).");
@@ -112,6 +113,7 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Arm, "Hollow.Sound.Mine.Arm", "Pulse mine armed.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Mine_Blast, "Hollow.Sound.Mine.Blast", "Pulse mine going off (heard by the AI as Impact.Heavy).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Core_Hum, "Hollow.Sound.Core.Hum", "Aether core hum (loop).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Drone_Hum, "Hollow.Sound.Drone.Hum", "Solo drone: its quiet rotor hum, a loop on its body (players only, no noise rule).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_HelmetLamp_Toggle, "Hollow.Sound.HelmetLamp.Toggle", "Helmet lamp click (players only; the AI does not hear it).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Ward_Hum, "Hollow.Sound.Ward.Hum", "Ritual ward hum (loop while it burns; players only, the AI does not hear it).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Arc_Telegraph, "Hollow.Sound.Arc.Telegraph", "An electric arc's warning crackle (S7-03; players only, the AI does not hear it).");

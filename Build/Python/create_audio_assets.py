@@ -254,6 +254,18 @@ def core_hum():
     return g.out("breathing").spec
 
 
+def drone_hum():
+    """DRONE-01 (ADR-0054): the solo drone hovering - two rotor tones a few hertz apart beating softly, a breath of air
+    through a band filter, the whole wobbling slowly as it holds its place. Quiet: it stays beside the player all raid."""
+    g = Graph(one_shot=False)
+    g.node("rotor_a", TRIANGLE, {"Frequency": 174.0}).node("rotor_b", TRIANGLE, {"Frequency": 178.5}).node("air", NOISE, {"Type": PINK})
+    g.node("wash", SVF, {"Cutoff Frequency": 900.0, "Resonance": 2.0}).link("air", "Audio", "wash", "In")
+    g.mix("rotors", [("rotor_a", "Audio", 0.12), ("rotor_b", "Audio", 0.1), ("wash", BAND_PASS, 0.12)])
+    g.node("hover", LFO, {"Frequency": 0.6, "Min Value": 0.75, "Max Value": 1.0})
+    g.node("hovering", SCALE).link("rotors", "Out", "hovering", "PrimaryOperand").link("hover", "Out", "hovering", "AdditionalOperands")
+    return g.out("hovering").spec
+
+
 def mine_arm():
     g = Graph(one_shot=True)
     g.node("second", DELAY, {"Delay Time": 0.16}).link("@play", "On Play", "second", "In")
@@ -635,7 +647,7 @@ UI_METASOUNDS = {"MS_UI_Focus": ui_focus, "MS_UI_Confirm": ui_confirm, "MS_UI_De
 METASOUNDS = {
     "MS_Tool_Welder": welder, "MS_Tool_Cutter": cutter, "MS_Tool_Lantern": lantern,
     "MS_Door_Servo": door_servo, "MS_Impact_Metal": impact_metal, "MS_Breach_Crash": breach_crash,
-    "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
+    "MS_Core_Drop": core_drop, "MS_Core_Hum": core_hum, "MS_Drone_Hum": drone_hum, "MS_Mine_Arm": mine_arm, "MS_Mine_Blast": mine_blast,
     "MS_HelmetLamp_Click": helmet_lamp_click, "MS_Ward_Hum": ward_hum, "MS_Altar_Bell": altar_bell,
     "MS_Reactor_Hum": reactor_hum, "MS_Arc_Crackle": arc_crackle, "MS_Arc_Discharge": arc_discharge, "MS_Core_Purified": core_purified,
     "MS_Footstep_Light": footstep_light, "MS_Footstep_Heavy": footstep_heavy, "MS_Footstep_Stalker": footstep_stalker,
@@ -674,6 +686,7 @@ ENTRIES = [
     ("Hollow.Sound.Mine.Arm", "MS_Mine_Arm", None, 1000.0, 0.7, 0.0, None),
     ("Hollow.Sound.Mine.Blast", "MS_Mine_Blast", "SCON_Impacts", 0.0, 1.0, 0.05, "Hollow.Noise.Impact.Heavy"),
     ("Hollow.Sound.Core.Hum", "MS_Core_Hum", None, 900.0, 0.5, 0.0, None),
+    ("Hollow.Sound.Drone.Hum", "MS_Drone_Hum", None, 700.0, 0.3, 0.0, None),   # DRONE-01: players only, no noise rule
     ("Hollow.Sound.HelmetLamp.Toggle", "MS_HelmetLamp_Click", None, 600.0, 0.4, 0.06, None),   # S4-08: within a room
     ("Hollow.Sound.Ward.Hum", "MS_Ward_Hum", None, 1200.0, 0.5, 0.0, None),   # S6-03: players only
     # S7-03: the Reactor Cathedral, players only (create_cathedral_look.py plays MS_Reactor_Hum as its rooms' tone).

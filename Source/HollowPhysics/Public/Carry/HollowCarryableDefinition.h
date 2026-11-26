@@ -119,6 +119,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Coop")
 	TSubclassOf<UGameplayEffect> CoopEffect;
 
+	/**
+	 * DRONE-01 (ADR-0054): applied to the player instead of SoloEffect while their solo drone carries this (no heavy-carry
+	 * tag: tools and weapons stay free; Resonance as solo). Null: no drone takes this object.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone")
+	TSubclassOf<UGameplayEffect> DroneEffect;
+
 	/** Spacing and tether of two carriers; the pose between them is HollowCarryCoop::Pose at the grip height. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Coop")
 	FHollowCoopCarryTuning Coop;

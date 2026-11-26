@@ -1,5 +1,5 @@
 {
- "about": "Art-01 (ADR-0043), FAB-01 (ADR-0051): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Kept paths are under /Game/Fab/<Pack> in the staging; a pack still at the staging's root (staged_at) is moved there first. texture_source_max: the migrated textures' sources are downsized to it (hero_texture_source_max: a hero mesh's own textures to more).",
+ "about": "Art-01 (ADR-0043), FAB-01 (ADR-0051): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Kept paths are under /Game/Fab/<Pack> in the staging; a pack still at the staging's root (staged_at) is moved there first. texture_source_max: the migrated textures' sources are downsized to it (hero_texture_source_max: a hero mesh's own textures to more). DRONE-01 (ADR-0054): only the Legacy drone's static mesh (and its two materials and four textures) of AdvancedCompanionDroneSystem.",
  "budget_mb": 2000,
  "packs": [
   {
@@ -39,6 +39,14 @@
     "/Game/Fab/OvergrownFactoryENV/Meshes/Props/SM_FluorescentLight_01",
     "/Game/Fab/OvergrownFactoryENV/Meshes/Foliage/SM_Ivy_01",
     "/Game/Fab/OvergrownFactoryENV/Meshes/Foliage/SM_IvyDecal_01"
+   ]
+  },
+  {
+   "name": "AdvancedCompanionDroneSystem",
+   "staged_at": "/Game/AdvancedCompanionDroneSystem",
+   "texture_source_max": 1024,
+   "keep": [
+    "/Game/Fab/AdvancedCompanionDroneSystem/Mesh/Drone/Legacy/SM_LegacyDrone"
    ]
   }
  ],

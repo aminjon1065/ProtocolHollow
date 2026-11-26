@@ -9,6 +9,7 @@
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -23,6 +24,11 @@ namespace HollowFabTests
 	constexpr int32 NiagaraSystems = 3;    // Teal, Purple, Yellow
 	constexpr int32 PropMeshes = 19;       // OvergrownFactoryENV's kept props
 	constexpr int32 EffectMeshes = 1;      // the absorption's own core mesh
+	// DRONE-01 (ADR-0054): AdvancedCompanionDroneSystem gave only the Legacy drone's static mesh, two materials, four textures.
+	const TCHAR* const DronePack = TEXT("/Game/Fab/AdvancedCompanionDroneSystem/");
+	constexpr int32 DroneMeshes = 1;
+	constexpr int32 DroneTextures = 4;
+	constexpr int32 DroneTextureMax = 1024;
 	constexpr int64 TargetMegabytes = 300; // the task's ceiling for Content/Fab (its budget_mb is GitHub's, 2000)
 	const FName PropTag(TEXT("HollowFab"));
 	struct FDressed
@@ -58,9 +64,18 @@ bool FHollowFabContentTest::RunTest(const FString& Parameters)
 	Registry.GetAssets(Filter, Assets);
 	int32 Systems = 0;
 	int32 Meshes = 0;
+	int32 DroneTextureCount = 0;
 	for (const FAssetData& Asset : Assets)
 	{
 		const FString Class = Asset.AssetClassPath.GetAssetName().ToString();
+		if (Asset.PackageName.ToString().StartsWith(DronePack) && Class == TEXT("Texture2D"))
+		{
+			++DroneTextureCount;
+			const UTexture2D* Texture = Cast<UTexture2D>(Asset.GetAsset());
+			const FIntPoint Size = Texture ? Texture->GetImportedSize() : FIntPoint::ZeroValue;
+			TestTrue(FString::Printf(TEXT("%s: its source is at most %d (%dx%d)"), *Asset.AssetName.ToString(), DroneTextureMax, Size.X, Size.Y),
+				Size.X > 0 && Size.X <= DroneTextureMax && Size.Y <= DroneTextureMax);
+		}
 		for (const TCHAR* Forbidden : ForbiddenClasses)
 		{
 			if (Class == Forbidden)
@@ -72,7 +87,8 @@ bool FHollowFabContentTest::RunTest(const FString& Parameters)
 		Meshes += Class == TEXT("StaticMesh") ? 1 : 0;
 	}
 	TestEqual(TEXT("The three absorption colours"), Systems, NiagaraSystems);
-	TestEqual(TEXT("The chosen props and the effect's core mesh"), Meshes, PropMeshes + EffectMeshes);
+	TestEqual(TEXT("The chosen props, the effect's core mesh and the drone"), Meshes, PropMeshes + EffectMeshes + DroneMeshes);
+	TestEqual(TEXT("The drone's four textures"), DroneTextureCount, DroneTextures);
 
 	int64 Bytes = 0;
 	IFileManager::Get().IterateDirectoryStatRecursively(*(FPaths::ProjectContentDir() / TEXT("Fab")), [&Bytes](const TCHAR*, const FFileStatData& Stat)

@@ -177,14 +177,31 @@ def stage_packs():
             log("moving %s to %s (references rewritten)" % (source, target))
             if not assets.rename_directory(source, target):
                 raise RuntimeError("Could not move %s to %s" % (source, target))
-        drop_redirectors(source)
+        drop_redirectors(source, target)
 
 
-def drop_redirectors(folder):
+def all_stale(folder, target, packages):
+    """DRONE-01: a move whose old copies the editor could not delete (a pack's demo content that loads with errors)
+    leaves each asset twice. True if every one of packages is such a stale copy: its twin is under target and nothing
+    outside folder references it."""
+    options = unreal.AssetRegistryDependencyOptions()
+    for name in packages:
+        outside = [str(r) for r in (registry.get_referencers(name, options) or []) if not str(r).startswith(folder + "/")]
+        if outside or not registry.get_assets_by_package_name(target + name[len(folder):]):
+            return False
+    return True
+
+
+def drop_redirectors(folder, target):
     """What a move left behind: the redirectors' referencers are resaved (they then name the new paths), then the
-    redirectors go with the old folder. Anything but a redirector left there stops the run."""
+    redirectors go with the old folder. Anything but a redirector left there stops the run, unless it is a stale copy
+    (all_stale): those are left for the owner to delete, with a warning, and the redirectors stay with them."""
     left = registry.get_assets_by_path(folder, recursive=True)
     others = [str(data.package_name) for data in left if str(data.asset_class_path.asset_name) != "ObjectRedirector"]
+    if others and all_stale(folder, target, others):
+        unreal.log_warning("prepare_fab_assets: %s still holds %d stale copies of %s (each has its twin there, nothing references them; "
+                           "the editor could not delete them): delete the folder by hand" % (folder, len(others), target))
+        return
     check(not others, "%s still holds assets after the move: %s" % (folder, ", ".join(others[:6])))
     resaved = set()
     for data in left:

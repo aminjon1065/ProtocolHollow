@@ -32,6 +32,9 @@ struct FInputActionValue;
 /** The helmet lamp switched on or off on this machine (the visor's lamp line, S4-08). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowHelmetLampChanged, bool /*bOn*/);
 
+/** The character died, seen on this machine (the server's Die, a client's OnRep_Dead): the solo drone goes dark (DRONE-01). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowCharacterDied, class AHollowExoFrameCharacter& /*Character*/);
+
 /**
  * Player character (ExoFrame). First-person arms and the third-person body use the engine first-person rendering
  * (ADR-0011): the owner sees FirstPersonMesh with its own FOV, everyone else sees the character mesh.
@@ -76,6 +79,9 @@ public:
 	void SetHelmetLampOn(bool bOn);
 
 	FOnHollowHelmetLampChanged OnHelmetLampChanged;
+
+	/** Every machine, once: the death presentation is applied. */
+	FOnHollowCharacterDied OnDied;
 
 	/** The Interact input: drops a carried core, otherwise interacts with the focus (a free core is predicted as lifted). */
 	void RequestInteract();

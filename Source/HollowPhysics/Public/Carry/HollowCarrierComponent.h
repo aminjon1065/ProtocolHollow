@@ -34,7 +34,12 @@ class HOLLOWPHYSICS_API UHollowCarrierComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowCarriedChanged, const UHollowCarrierComponent& /*Carrier*/);
+
 	explicit UHollowCarrierComponent(const FObjectInitializer& ObjectInitializer);
+
+	/** Every machine: what this pawn carries, or how (Solo, Coop, Drone), changed (the solo drone's focus, DRONE-01). */
+	FOnHollowCarriedChanged OnCarriedChanged;
 
 	/** Components a carried visual attaches to: the first-person view (camera) and the third-person body mesh. */
 	void SetAttachTargets(USceneComponent* FirstPerson, USceneComponent* ThirdPerson);
@@ -53,7 +58,7 @@ public:
 
 	/**
 	 * Local Interact input. Carrying: asks the server to drop (or let go of a co-op carry) and returns true (input
-	 * consumed). Focusing a free carryable or one someone carries alone: predicts the pick-up or the join and returns
+	 * consumed); while the own drone carries it (DRONE-01) the hands are free, so returns false. Focusing a free carryable or one someone carries alone: predicts the pick-up or the join and returns
 	 * false, so the interaction goes on to the server's checks.
 	 */
 	bool HandleInteractInput(AActor* Focus);

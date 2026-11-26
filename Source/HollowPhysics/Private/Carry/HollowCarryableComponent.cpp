@@ -3,6 +3,7 @@
 #include "Audio/HollowAudioSubsystem.h"
 #include "Carry/HollowCarrierComponent.h"
 #include "Carry/HollowCarrySettings.h"
+#include "Carry/HollowCarryVehicle.h"
 #include "Carry/HollowCarryableDefinition.h"
 #include "Collision/HollowCollisionChannels.h"
 #include "Components/CapsuleComponent.h"
@@ -107,6 +108,10 @@ EHollowCarryPresentation UHollowCarryableComponent::GetPresentation() const
 	{
 		return EHollowCarryPresentation::Coop;
 	}
+	if (CarryState.IsCarried() && bShownDrone)
+	{
+		return EHollowCarryPresentation::Drone;
+	}
 	if (CarryState.IsCarried() && Visual.IsValid() && Visual->GetAttachParent() != Body.Get())
 	{
 		return bShownFirstPerson ? EHollowCarryPresentation::FirstPerson : EHollowCarryPresentation::ThirdPerson;
@@ -210,6 +215,63 @@ bool UHollowCarryableComponent::BeginCoop(APawn* Secondary)
 	return true;
 }
 
+bool UHollowCarryableComponent::CanHandTo(const APawn* Carrier, const AActor* Vehicle) const
+{
+	const IHollowCarryVehicle* CarryVehicle = Cast<const IHollowCarryVehicle>(Vehicle);
+	return Definition && Definition->DroneEffect && Body.IsValid() && Visual.IsValid() && !bHeld && IsValid(Carrier)
+		&& CarryState.Mode == EHollowCarryMode::Solo && CarryState.Primary == Carrier
+		&& CarryVehicle && CarryVehicle->GetCarryOwner() == Carrier && CarryVehicle->GetCarryPoint();
+}
+
+bool UHollowCarryableComponent::BeginDrone(APawn* Carrier, AActor* Vehicle)
+{
+	AActor* Owner = GetOwner();
+	if (!Owner->HasAuthority() || !CanHandTo(Carrier, Vehicle))
+	{
+		return false;
+	}
+	FHollowCarryNetState NewState = CarryState;
+	NewState.Mode = EHollowCarryMode::Drone;
+	NewState.Vehicle = Vehicle;
+	NewState.TransitionSerial = static_cast<uint8>(CarryState.TransitionSerial + 1);
+	SetCarryState(NewState);
+	Owner->SetNetDormancy(DORM_DormantAll);
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: %s hands it to %s (Drone, serial %d)"), *GetNameSafe(Owner), *GetNameSafe(Carrier), *GetNameSafe(Vehicle),
+		CarryState.TransitionSerial);
+	return true;
+}
+
+bool UHollowCarryableComponent::CanTakeBack(const APawn* Carrier) const
+{
+	return Definition && Body.IsValid() && Visual.IsValid() && IsValid(Carrier) && CarryState.Mode == EHollowCarryMode::Drone
+		&& CarryState.Primary == Carrier;
+}
+
+bool UHollowCarryableComponent::EndDrone(APawn* Carrier)
+{
+	AActor* Owner = GetOwner();
+	if (!Owner->HasAuthority() || !CanTakeBack(Carrier))
+	{
+		return false;
+	}
+	const FString VehicleName = GetNameSafe(CarryState.Vehicle);
+	FHollowCarryNetState NewState = CarryState;
+	NewState.Mode = EHollowCarryMode::Solo;
+	NewState.Vehicle = nullptr;
+	NewState.TransitionSerial = static_cast<uint8>(CarryState.TransitionSerial + 1);
+	SetCarryState(NewState);
+	Owner->SetNetDormancy(DORM_DormantAll);
+	UE_LOG(LogHollowPhysics, Log, TEXT("%s: %s takes it back from %s (Solo, serial %d)"), *GetNameSafe(Owner), *GetNameSafe(Carrier), *VehicleName,
+		CarryState.TransitionSerial);
+	return true;
+}
+
+USceneComponent* UHollowCarryableComponent::GetVehicleCarryPoint() const
+{
+	const IHollowCarryVehicle* Vehicle = CarryState.Mode == EHollowCarryMode::Drone ? Cast<const IHollowCarryVehicle>(CarryState.Vehicle.Get()) : nullptr;
+	return Vehicle ? Vehicle->GetCarryPoint() : nullptr;
+}
+
 bool UHollowCarryableComponent::ReleaseCarrier(APawn* Carrier, const EHollowCarryLeave Reason)
 {
 	AActor* Owner = GetOwner();
@@ -242,7 +304,12 @@ bool UHollowCarryableComponent::Release(const FVector& Velocity, const bool bFor
 	{
 		return false;
 	}
-	TOptional<FVector> DropLocation = FindDropLocation(*Carrier);
+	// From the drone it falls straight down (DRONE-01: its carrier died or let go), else it goes where it fits around the carrier.
+	TOptional<FVector> DropLocation = FindDropUnderVehicle();
+	if (!DropLocation)
+	{
+		DropLocation = FindDropLocation(*Carrier);
+	}
 	if (!DropLocation && !bForce)
 	{
 		UE_LOG(LogHollowPhysics, Warning, TEXT("%s: no room to put it down around %s; still carried"), *GetNameSafe(Owner), *GetNameSafe(Carrier));
@@ -354,37 +421,16 @@ void UHollowCarryableComponent::OnRep_LootItemOverride()
 
 TOptional<FVector> UHollowCarryableComponent::FindDropLocation(const APawn& Carrier) const
 {
-	UWorld* World = GetWorld();
-	FCollisionResponseTemplate Free;
-	if (!World || !UCollisionProfile::Get()->GetProfileTemplate(HollowCollision::CarryableProfile(), Free))
-	{
-		return TOptional<FVector>();
-	}
 	using namespace HollowCarryablePrivate;
 	const FTransform& Capsule = Carrier.GetActorTransform();
 	const FVector Start = GetCarrierCentre(Carrier);
 	const FVector Grip = Definition->GripOffset.GetLocation();
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowCarryDrop), /*bTraceComplex=*/false, GetOwner());
-	Params.AddIgnoredActor(&Carrier);
-	const FCollisionResponseParams Responses(Free.ResponseToChannels);
-	const FQuat Rotation = Body->GetComponentQuat();
-	const FCollisionShape Shape = Body->GetCollisionShape();
 	for (int32 Step = 0; Step < DropDirections; ++Step)
 	{
 		// 0, +45, -45, +90, -90, +135, -135, 180 degrees: front first, then ever further round to the back.
 		const int32 Turn = (Step + 1) / 2 * (Step % 2 == 1 ? 1 : -1);
 		const FVector Candidate = Capsule.TransformPosition(Grip.RotateAngleAxis(Turn * 360.f / DropDirections, FVector::UpVector));
-		// The spot must be free, and nothing may stand between the carrier's centre and it. A line, not a sweep: the
-		// body turned with the carrier may graze the walls its capsule touches (a corner), which a sweep from there
-		// reports as blocking even when moving away; the centre itself is never inside a wall.
-		TArray<FOverlapResult> Overlaps;
-		World->OverlapMultiByChannel(Overlaps, Candidate, Rotation, Free.ObjectType, Shape, Params, Responses);
-		const FOverlapResult* Inside = Overlaps.FindByPredicate([](const FOverlapResult& Overlap) { return Overlap.bBlockingHit; });
-		FHitResult Hit;
-		const bool bBetween = !Inside && World->LineTraceSingleByChannel(Hit, Start, Candidate, Free.ObjectType, Params, Responses);
-		UE_LOG(LogHollowPhysics, Verbose, TEXT("%s: drop %d degrees round: inside %s, in the way %s"), *GetNameSafe(GetOwner()), Turn * 360 / DropDirections,
-			Inside ? *GetNameSafe(Inside->GetActor()) : TEXT("nothing"), bBetween ? *GetNameSafe(Hit.GetActor()) : TEXT("nothing"));
-		if (!Inside && !bBetween)
+		if (FitsAt(Start, Candidate, &Carrier))
 		{
 			UE_CLOG(Step > 0, LogHollowPhysics, Log, TEXT("%s: no room in front of %s, put down %d degrees round"), *GetNameSafe(GetOwner()),
 				*GetNameSafe(&Carrier), Turn * 360 / DropDirections);
@@ -392,6 +438,51 @@ TOptional<FVector> UHollowCarryableComponent::FindDropLocation(const APawn& Carr
 		}
 	}
 	return TOptional<FVector>();
+}
+
+TOptional<FVector> UHollowCarryableComponent::FindDropUnderVehicle() const
+{
+	const USceneComponent* CarryPoint = GetVehicleCarryPoint();
+	const APawn* Carrier = CarryState.Primary.Get();
+	if (!CarryPoint || !IsValid(Carrier))
+	{
+		return TOptional<FVector>();
+	}
+	const FVector Location = CarryPoint->GetComponentLocation();
+	if (!FitsAt(GetCarrierCentre(*Carrier), Location, Carrier))
+	{
+		UE_LOG(LogHollowPhysics, Log, TEXT("%s: no room under %s, put down by %s instead"), *GetNameSafe(GetOwner()), *GetNameSafe(CarryState.Vehicle),
+			*GetNameSafe(Carrier));
+		return TOptional<FVector>();
+	}
+	return Location;
+}
+
+bool UHollowCarryableComponent::FitsAt(const FVector& From, const FVector& Location, const APawn* Carrier) const
+{
+	UWorld* World = GetWorld();
+	FCollisionResponseTemplate Free;
+	if (!World || !Body.IsValid() || !UCollisionProfile::Get()->GetProfileTemplate(HollowCollision::CarryableProfile(), Free))
+	{
+		return false;
+	}
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(HollowCarryDrop), /*bTraceComplex=*/false, GetOwner());
+	if (Carrier)
+	{
+		Params.AddIgnoredActor(Carrier);
+	}
+	const FCollisionResponseParams Responses(Free.ResponseToChannels);
+	// The spot must be free, and nothing may stand between From (the carrier's centre) and it. A line, not a sweep: the
+	// body turned with the carrier may graze the walls its capsule touches (a corner), which a sweep from there reports
+	// as blocking even when moving away; the centre itself is never inside a wall.
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByChannel(Overlaps, Location, Body->GetComponentQuat(), Free.ObjectType, Body->GetCollisionShape(), Params, Responses);
+	const FOverlapResult* Inside = Overlaps.FindByPredicate([](const FOverlapResult& Overlap) { return Overlap.bBlockingHit; });
+	FHitResult Hit;
+	const bool bBetween = !Inside && World->LineTraceSingleByChannel(Hit, From, Location, Free.ObjectType, Params, Responses);
+	UE_LOG(LogHollowPhysics, Verbose, TEXT("%s: drop at %s: inside %s, in the way %s"), *GetNameSafe(GetOwner()), *Location.ToCompactString(),
+		Inside ? *GetNameSafe(Inside->GetActor()) : TEXT("nothing"), bBetween ? *GetNameSafe(Hit.GetActor()) : TEXT("nothing"));
+	return !Inside && !bBetween;
 }
 
 FVector UHollowCarryableComponent::GetCarrierCentre(const APawn& Carrier) const
@@ -565,6 +656,7 @@ void UHollowCarryableComponent::ApplyPresentation(const APawn* IgnoredCarrier)
 	VisualComponent->SetUsingAbsoluteLocation(false);
 	VisualComponent->SetUsingAbsoluteRotation(false);
 	bShownCoop = false;
+	bShownDrone = false;
 
 	if (Shown.Num() > 0)
 	{
@@ -572,6 +664,25 @@ void UHollowCarryableComponent::ApplyPresentation(const APawn* IgnoredCarrier)
 		APawn* Carrier = Shown[0];
 		BodyComponent->SetSimulatePhysics(false);
 		BodyComponent->SetCollisionProfileName(HollowCollision::CarriedProfile());
+		if (USceneComponent* CarryPoint = GetVehicleCarryPoint())
+		{
+			// Hanging from the carrier's drone (DRONE-01): a world object on every machine, where the drone holds it. A
+			// drone not yet on this machine (replication order) shows it in the carrier's hands until it arrives.
+			if (BodyComponent->GetAttachParent() != CarryPoint)
+			{
+				BodyComponent->AttachToComponent(CarryPoint, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			}
+			BodyComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FQuat::Identity);
+			if (VisualComponent->GetAttachParent() != BodyComponent)
+			{
+				VisualComponent->AttachToComponent(BodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
+			}
+			VisualComponent->SetRelativeTransform(VisualRestRelative);
+			VisualComponent->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
+			bShownFirstPerson = false;
+			bShownDrone = true;
+			return;
+		}
 		USceneComponent* Capsule = Carrier->GetRootComponent();
 		if (BodyComponent->GetAttachParent() != Capsule)
 		{

@@ -19,7 +19,7 @@ enum class EHollowCarryMode : uint8
 };
 
 /**
- * Carry slowdown a carrier's saved moves claim (two compressed move flags, HollowMoveFlags::Carry). The server
+ * Carry slowdown a carrier's saved moves claim (three compressed move flags, HollowMoveFlags::Carry). The server
  * accepts any claim that is at least as slow as its own state (HollowCarryPolicy), so speed changes never correct.
  */
 UENUM(BlueprintType)
@@ -28,7 +28,9 @@ enum class EHollowCarryClaim : uint8
 	None,
 	Solo,
 	Coop,
-	Dragged
+	Dragged,
+	/** DRONE-01 (ADR-0054): the player's solo drone carries the load beside it; the player keeps pace with it. */
+	Drone
 };
 
 /**
@@ -50,6 +52,13 @@ struct HOLLOWPHYSICS_API FHollowCarryNetState
 	/** Second carrier in Coop (S3-06, ADR-0028): the player who joined an already carried object. */
 	UPROPERTY()
 	TObjectPtr<APawn> Secondary = nullptr;
+
+	/**
+	 * DRONE-01 (ADR-0054): in Drone mode, what holds the load for Primary (its solo drone, an IHollowCarryVehicle);
+	 * the object hangs from it on every machine. Primary still counts as the carrier (the altar, the extraction).
+	 */
+	UPROPERTY()
+	TObjectPtr<AActor> Vehicle = nullptr;
 
 	/** Increments on every change, so a repeated pick-up still replicates. */
 	UPROPERTY()
@@ -75,6 +84,6 @@ enum class EHollowCarryLeave : uint8
 
 namespace HollowCarry
 {
-	/** The slowdown a carrier in Mode claims: the drone carries alone (Solo); a winched object has no carrier. */
+	/** The slowdown a carrier in Mode claims: the drone's own (DRONE-01); a winched object has no carrier. */
 	HOLLOWPHYSICS_API EHollowCarryClaim ClaimFor(EHollowCarryMode Mode);
 }

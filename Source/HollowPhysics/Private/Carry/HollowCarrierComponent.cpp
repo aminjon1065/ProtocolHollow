@@ -86,6 +86,10 @@ bool UHollowCarrierComponent::HandleInteractInput(AActor* Focus)
 {
 	if (IsCarrying())
 	{
+		if (Carried->GetCarryState().Mode == EHollowCarryMode::Drone)
+		{
+			return false;   // DRONE-01: the drone holds it, the hands are free; Interact goes to the focus (the drone takes it back)
+		}
 		Server_Drop();
 		return true;
 	}
@@ -189,6 +193,7 @@ void UHollowCarrierComponent::NotifyCarryChanged(UHollowCarryableComponent* Carr
 	RefreshClaim();
 	UE_LOG(LogHollowPhysics, Log, TEXT("%s: carrying %s (%s%s%s)"), *GetNameSafe(GetOwner()), Carried.IsValid() ? *GetNameSafe(Carried->GetOwner()) : TEXT("nothing"),
 		*HollowEnumToString(Claim), Partner ? TEXT(" with ") : TEXT(""), Partner ? *GetNameSafe(Partner) : TEXT(""));
+	OnCarriedChanged.Broadcast(*this);
 }
 
 void UHollowCarrierComponent::HandleControllerChanged(APawn* Pawn, AController* OldController, AController* NewController)
@@ -233,8 +238,11 @@ void UHollowCarrierComponent::HandlePredictionTimeout()
 void UHollowCarrierComponent::ApplyCarryEffect(const UHollowCarryableComponent& Carryable)
 {
 	const UHollowCarryableDefinition* Definition = Carryable.GetDefinition();
+	const EHollowCarryMode Mode = Carryable.GetCarryState().Mode;
 	const TSubclassOf<UGameplayEffect> Wanted = !Definition ? nullptr
-		: Carryable.GetCarryState().Mode == EHollowCarryMode::Coop ? Definition->CoopEffect : Definition->SoloEffect;
+		: Mode == EHollowCarryMode::Coop ? Definition->CoopEffect
+		: Mode == EHollowCarryMode::Drone ? Definition->DroneEffect
+		: Definition->SoloEffect;
 	if (CarryEffect.IsValid() && CarryEffectClass == Wanted)
 	{
 		return;
@@ -247,7 +255,7 @@ void UHollowCarrierComponent::ApplyCarryEffect(const UHollowCarryableComponent& 
 			*GetNameSafe(Carryable.GetOwner()));
 		return;
 	}
-	// The mode changed (Solo <-> Coop): the new effect first, so the carrying tag never lapses (stamina recovery stays paused).
+	// The mode changed (Solo <-> Coop, Solo <-> Drone): the new effect first, so a carrying tag never lapses between them.
 	const FActiveGameplayEffectHandle Applied = AbilitySystem->ApplyGameplayEffectToSelf(Wanted.GetDefaultObject(), HollowCarrierPrivate::EffectLevel,
 		AbilitySystem->MakeEffectContext());
 	RemoveCarryEffect();

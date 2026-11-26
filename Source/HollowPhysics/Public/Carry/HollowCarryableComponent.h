@@ -23,7 +23,9 @@ enum class EHollowCarryPresentation : uint8
 	/** Carried by a pawn this machine sees from outside: visual on the carrier's body. */
 	ThirdPerson,
 	/** Carried by two (ADR-0028): a world object between the carriers as this machine renders them. */
-	Coop
+	Coop,
+	/** DRONE-01 (ADR-0054): hanging from the carry point of its carrier's solo drone, a world object on every machine. */
+	Drone
 };
 
 /**
@@ -85,6 +87,24 @@ public:
 
 	/** Server: Secondary joins the solo carrier (Solo -> Coop); both carriers learn it through the state change. */
 	bool BeginCoop(APawn* Secondary);
+
+	/**
+	 * DRONE-01 (ADR-0054): whether Carrier, carrying this alone, could hand it to Vehicle now: an IHollowCarryVehicle
+	 * of Carrier's own with a carry point, and a definition with a DroneEffect (local focus and server check).
+	 */
+	bool CanHandTo(const APawn* Carrier, const AActor* Vehicle) const;
+
+	/** Server: Solo -> Drone. Vehicle holds this for its carrier, who stays the carrier (the altar, the extraction). */
+	bool BeginDrone(APawn* Carrier, AActor* Vehicle);
+
+	/** Whether Carrier could take this back from its vehicle (Drone -> Solo, local focus and server check). */
+	bool CanTakeBack(const APawn* Carrier) const;
+
+	/** Server: Drone -> Solo: Carrier holds this in both hands again. */
+	bool EndDrone(APawn* Carrier);
+
+	/** The vehicle's carry point while in Drone mode and the vehicle is on this machine, else null. */
+	USceneComponent* GetVehicleCarryPoint() const;
 
 	/**
 	 * Server: one of two carriers lets go; the other carries on alone (Coop -> Solo, it becomes the primary). False if
@@ -171,6 +191,10 @@ private:
 	 * between it and the carrier's centre. Unset if every direction is blocked.
 	 */
 	TOptional<FVector> FindDropLocation(const APawn& Carrier) const;
+	/** Server, Drone mode: the vehicle's carry point if the body fits there (it falls from under the drone), else unset. */
+	TOptional<FVector> FindDropUnderVehicle() const;
+	/** Whether the body fits at Location with nothing between From and it (FindDropLocation's test). */
+	bool FitsAt(const FVector& From, const FVector& Location, const APawn* Carrier) const;
 	/** The carrier's centre at grip height: inside its capsule, so free once the carrier is gone. */
 	FVector GetCarrierCentre(const APawn& Carrier) const;
 	/** Clients: move the body onto the last replicated pose (drop start, rest). */
@@ -213,6 +237,8 @@ private:
 	bool bAwake = false;
 	/** Whether the visual is between two carriers on this machine. */
 	bool bShownCoop = false;
+	/** Whether the body hangs from a vehicle's carry point on this machine (DRONE-01). */
+	bool bShownDrone = false;
 
 	FTimerHandle DormancyTimer;
 	FTimerHandle MaxAwakeTimer;

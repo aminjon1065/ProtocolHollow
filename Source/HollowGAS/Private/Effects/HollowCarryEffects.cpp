@@ -43,6 +43,17 @@ UHollowCarryCoopEffect::UHollowCarryCoopEffect(const FObjectInitializer& ObjectI
 	InitCarryStructure(HollowTags::State_CarryingHeavy_Coop);
 }
 
+UHollowCarryDroneEffect::UHollowCarryDroneEffect(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+	UTargetTagsGameplayEffectComponent* TargetTags = CreateDefaultSubobject<UTargetTagsGameplayEffectComponent>(TEXT("DroneCarryTag"));
+	FInheritedTagContainer Granted;
+	Granted.Added.AddTag(HollowTags::State_DroneCarry);
+	TargetTags->SetAndApplyTargetTagChanges(Granted);
+	GEComponents.Add(TargetTags);
+}
+
 UHollowStaminaRecoveryEffect::UHollowStaminaRecoveryEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

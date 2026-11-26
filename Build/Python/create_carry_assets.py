@@ -4,13 +4,15 @@
                                                          (S4-02: x ResonanceGainMultiplier, UHollowResonanceGainCalculation)
   /Game/Hollow/GAS/Effects/GE_Carry_Coop                 co-op carry, on each of two carriers (S3-06, ADR-0028): CarryingHeavy.Coop
                                                          tag, no tools, half the stamina drain, the same Resonance gain
+  /Game/Hollow/GAS/Effects/GE_Carry_Drone                DRONE-01 (ADR-0054): the solo drone carries the core for its player:
+                                                         DroneCarry tag only (tools free, stamina recovers), the same Resonance gain
   /Game/Hollow/GAS/Effects/GE_Stamina_Recovery           passive stamina recovery, paused while carrying
   /Game/Hollow/Items/AetherCore/PM_AetherCore            physical material of the core: friction, sleep thresholds
   /Game/Hollow/Items/AetherCore/MI_AetherCore            greybox glow colour
   /Game/Hollow/Items/AetherCore/DA_Carryable_AetherCore  UHollowCarryableDefinition: grip, FP/TP attachment, physics, timing,
                                                          co-op spacing and tether, join prompt (S3-06)
   /Game/Hollow/Items/AetherCore/BP_AetherCore            AHollowAetherCore: box body, cylinder visual
-  DA_MovementTuning_ExoFrame                             carry slowdown per mode (Solo, Coop, Dragged)
+  DA_MovementTuning_ExoFrame                             carry slowdown per mode (Solo, Coop, Dragged, Drone)
   DA_AbilitySet_ExoFrame                                 grants GE_Stamina_Recovery
   /HollowSector_Docks/Data/DA_Biome_Docks                socket rule CoreSpawn -> BP_AetherCore (replaces the marker)
 
@@ -33,6 +35,7 @@ SUCCESS_MARKER = "HOLLOW_PYTHON_OK"   # checked by run-editor-python.sh
 EFFECTS_DIR = "/Game/Hollow/GAS/Effects"
 CARRY_EFFECT = EFFECTS_DIR + "/GE_Carry_Solo"
 COOP_EFFECT = EFFECTS_DIR + "/GE_Carry_Coop"
+DRONE_EFFECT = EFFECTS_DIR + "/GE_Carry_Drone"
 RECOVERY_EFFECT = EFFECTS_DIR + "/GE_Stamina_Recovery"
 CORE_DIR = "/Game/Hollow/Items/AetherCore"
 CORE_MATERIAL = CORE_DIR + "/PM_AetherCore"
@@ -79,6 +82,8 @@ CARRY_MODES = {
     "solo": {"speed_scale": 0.45, "acceleration_scale": 0.6, "allow_sprint": False, "allow_jump": False},
     "coop": {"speed_scale": 0.75, "acceleration_scale": 0.8, "allow_sprint": False, "allow_jump": False},
     "dragged": {"speed_scale": 0.25, "acceleration_scale": 0.5, "allow_sprint": False, "allow_jump": False},
+    # DRONE-01 (ADR-0054): the solo drone carries the core, the player keeps pace with it (as fast as two carriers, a hop allowed).
+    "drone": {"speed_scale": 0.75, "acceleration_scale": 0.8, "allow_sprint": False, "allow_jump": True},
 }
 
 # Effects (data). MaxStamina and MaxResonance are 100 (GE_ExoFrame_InitAttributes).
@@ -190,7 +195,10 @@ def ensure_effects():
     recovery = ensure_effect(RECOVERY_EFFECT, unreal.HollowStaminaRecoveryEffect, RECOVERY_PERIOD, [
         modifier("HollowSurvivalSet", "Stamina", scalable(STAMINA_RECOVERY_PER_SECOND * RECOVERY_PERIOD)),
     ])
-    return carry, coop, recovery
+    drone = ensure_effect(DRONE_EFFECT, unreal.HollowCarryDroneEffect, CARRY_PERIOD, [
+        modifier("HollowResonanceSet", "Resonance", resonance_gain(RESONANCE_PER_SECOND * CARRY_PERIOD)),
+    ])
+    return carry, coop, recovery, drone
 
 
 def ensure_resonance_gain():
@@ -353,6 +361,16 @@ def ensure_coop(coop_effect):
     log("DA_Carryable_AetherCore: co-op carry (spacing %.0f cm)" % wanted.get_editor_property("carrier_spacing"))
 
 
+def ensure_drone(drone_effect):
+    """DRONE-01 (ADR-0054): the solo drone may carry the core (a definition from before gets the effect)."""
+    definition = load(CORE_DEFINITION)
+    if definition.get_editor_property("drone_effect") == drone_effect:
+        return
+    definition.set_editor_property("drone_effect", drone_effect)
+    save(definition)
+    log("DA_Carryable_AetherCore: the solo drone carries it (GE_Carry_Drone)")
+
+
 def ensure_blueprint():
     core_bp, created = blueprint(CORE_BP, unreal.HollowAetherCore)
     if not created:
@@ -400,7 +418,7 @@ def check(condition, message):
         raise RuntimeError("validation failed: " + message)
 
 
-def validate(carry_effect, coop_effect, recovery):
+def validate(carry_effect, coop_effect, recovery, drone_effect):
     core = unreal.get_default_object(load(CORE_BP).generated_class())
     definition = core.get_editor_property("carryable").get_editor_property("definition")
     check(definition == load(CORE_DEFINITION), "BP_AetherCore uses DA_Carryable_AetherCore")
@@ -424,6 +442,11 @@ def validate(carry_effect, coop_effect, recovery):
     tuning = load(TUNING_PATH).get_editor_property("carry")
     check(abs(tuning.get_editor_property("solo").get_editor_property("speed_scale") - CARRY_MODES["solo"]["speed_scale"]) < 1e-4, "solo speed scale")
     check(abs(tuning.get_editor_property("coop").get_editor_property("speed_scale") - CARRY_MODES["coop"]["speed_scale"]) < 1e-4, "co-op speed scale")
+    drone = tuning.get_editor_property("drone")
+    check(abs(drone.get_editor_property("speed_scale") - CARRY_MODES["drone"]["speed_scale"]) < 1e-4 and drone.get_editor_property("allow_jump")
+          and not drone.get_editor_property("allow_sprint"), "drone carry pace: no sprint, a hop allowed")
+    check(definition.get_editor_property("drone_effect") == drone_effect, "the core applies GE_Carry_Drone while the drone carries it")
+    check(len(unreal.get_default_object(drone_effect).get_editor_property("modifiers")) == 1, "GE_Carry_Drone only adds Resonance")
     effects = load(ABILITY_SET_PATH).get_editor_property("granted_effects")
     check(any(e.get_editor_property("gameplay_effect") == recovery for e in effects), "the ExoFrame recovers stamina")
     tag = make_tag(CORE_SOCKET).export_text()
@@ -434,18 +457,19 @@ def validate(carry_effect, coop_effect, recovery):
 
 
 def main():
-    carry_effect, coop_effect, recovery = ensure_effects()
+    carry_effect, coop_effect, recovery, drone_effect = ensure_effects()
     ensure_ability_set(recovery)
     ensure_movement_tuning()
     ensure_physical_material()
     ensure_look()
     ensure_definition(carry_effect)
     ensure_coop(coop_effect)
+    ensure_drone(drone_effect)
     ensure_blueprint()
     ensure_biome_rule()
     localize_prompts()
     loc.save()
-    validate(carry_effect, coop_effect, recovery)
+    validate(carry_effect, coop_effect, recovery, drone_effect)
     unreal.log(SUCCESS_MARKER)
 
 

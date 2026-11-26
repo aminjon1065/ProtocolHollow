@@ -1,5 +1,6 @@
 #include "Raid/HollowExtractionZone.h"
 
+#include "Carry/HollowCarrierComponent.h"
 #include "Carry/HollowCarryableComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -54,6 +55,16 @@ void AHollowExtractionZone::Sample(TArray<APawn*>& OutPawns, TArray<UHollowCarry
 		else if (UHollowCarryableComponent* Carryable = Actor ? Actor->FindComponentByClass<UHollowCarryableComponent>() : nullptr)
 		{
 			OutCarryables.AddUnique(Carryable);
+		}
+	}
+	// DRONE-01 (ADR-0054): a core the solo drone holds beside its carrier counts with the carrier, wherever the drone's arm is.
+	for (const APawn* Pawn : OutPawns)
+	{
+		const UHollowCarrierComponent* Carrier = Pawn->FindComponentByClass<UHollowCarrierComponent>();
+		UHollowCarryableComponent* Carried = Carrier ? Carrier->GetCarried() : nullptr;
+		if (Carried && Carried->GetCarryState().Mode == EHollowCarryMode::Drone)
+		{
+			OutCarryables.AddUnique(Carried);
 		}
 	}
 }

@@ -171,14 +171,15 @@ AActor* UHollowInteractionComponent::ProbeFocus() const
 
 void UHollowInteractionComponent::SetFocus(AActor* NewFocus)
 {
-	if (FocusedActor.Get() == NewFocus)
+	const IHollowInteractable* Interactable = Cast<IHollowInteractable>(NewFocus);
+	const FHollowInteractionInfo Info = Interactable ? Interactable->GetInteractionInfo(GetOwner()) : FHollowInteractionInfo();
+	if (FocusedActor.Get() == NewFocus && Info.Prompt.EqualTo(FocusedPrompt))
 	{
 		return;
 	}
 
 	FocusedActor = NewFocus;
-	const IHollowInteractable* Interactable = Cast<IHollowInteractable>(NewFocus);
-	const FHollowInteractionInfo Info = Interactable ? Interactable->GetInteractionInfo(GetOwner()) : FHollowInteractionInfo();
+	FocusedPrompt = Info.Prompt;
 	UE_LOG(LogHollowGame, Verbose, TEXT("%s focus: %s"), *GetNameSafe(GetOwner()), *GetNameSafe(NewFocus));
 	OnFocusChanged.Broadcast(NewFocus, Info);
 }

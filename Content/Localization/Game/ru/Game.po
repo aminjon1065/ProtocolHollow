@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-26 07:01\n"
-"PO-Revision-Date: 2026-11-26 07:01\n"
+"POT-Creation-Date: 2026-11-26 12:46\n"
+"PO-Revision-Date: 2026-11-26 12:46\n"
 "Language-Team: \n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
@@ -1958,6 +1958,20 @@ msgstr "Закрыть"
 msgctxt "ST_World,World.Door.Open"
 msgid "Open"
 msgstr "Открыть"
+
+#. Key:	World.Drone.HandOver
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Drone.HandOver"
+msgid "Hand the core to the drone"
+msgstr "Передать ядро дрону"
+
+#. Key:	World.Drone.TakeBack
+#. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World
+#: /Game/Hollow/Localization/ST_World.ST_World
+msgctxt "ST_World,World.Drone.TakeBack"
+msgid "Take the core back"
+msgstr "Забрать ядро"
 
 #. Key:	World.Switch.Off
 #. SourceLocation:	/Game/Hollow/Localization/ST_World.ST_World

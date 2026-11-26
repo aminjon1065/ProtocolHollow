@@ -41,6 +41,10 @@ struct HOLLOWPHYSICS_API FHollowCarryMovementTuning
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
 	FHollowCarryModeTuning Dragged;
 
+	/** DRONE-01 (ADR-0054): the solo drone carries the load; the player only keeps pace (hands free). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Carry")
+	FHollowCarryModeTuning Drone;
+
 	/** Tuning of a claim; null for None (no carry restrictions). */
 	const FHollowCarryModeTuning* Find(EHollowCarryClaim Claim) const;
 

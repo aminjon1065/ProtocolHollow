@@ -322,6 +322,7 @@ void AHollowExoFrameCharacter::ApplyDeadPresentation()
 	{
 		HollowPlayerState->GetVoiceTalker()->RefreshPlacement();   // the dead talk on the radio (S4-07)
 	}
+	OnDied.Broadcast(*this);
 }
 
 void AHollowExoFrameCharacter::SetHelmetLampOn(const bool bOn)

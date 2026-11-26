@@ -3,6 +3,8 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Carry/HollowCarryPolicy.h"
+#include "Carry/HollowCarryTypes.h"
+#include "Movement/HollowCharacterMovementComponent.h"
 #include "Movement/HollowMovementTuning.h"
 
 namespace HollowCarryTests
@@ -12,6 +14,7 @@ namespace HollowCarryTests
 	constexpr float SoloScale = 0.45f;
 	constexpr float CoopScale = 0.75f;
 	constexpr float DraggedScale = 0.25f;
+	constexpr float DroneScale = 0.75f;
 	constexpr double Long = 10.0;
 
 	FHollowCarryMovementTuning MakeTuning()
@@ -20,6 +23,7 @@ namespace HollowCarryTests
 		Tuning.Solo.SpeedScale = SoloScale;
 		Tuning.Coop.SpeedScale = CoopScale;
 		Tuning.Dragged.SpeedScale = DraggedScale;
+		Tuning.Drone.SpeedScale = DroneScale;
 		return Tuning;
 	}
 
@@ -79,6 +83,53 @@ bool FHollowCarrySlowdownPolicyTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("No grace configured: the server state binds at once"), HollowCarryPolicy::ServerFloor(Lifted, 0.0, 0.f, Tuning), EClaim::Solo);
 	TestEqual(TEXT("None tunes nothing"), Tuning.GetSpeedScale(EClaim::None), 1.f);
 	TestNull(TEXT("None has no carry tuning"), Tuning.Find(EClaim::None));
+	return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowCarryDroneClaimTest, "Hollow.Physics.Carry.DroneClaim",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowCarryDroneClaimTest::RunTest(const FString& Parameters)
+{
+	// DRONE-01 (ADR-0054): the drone carry has its own claim, packed into the third carry bit of the saved moves, its own
+	// tuning, and hands over (faster) and back (slower) without a correction.
+	using namespace HollowCarryTests;
+	using EClaim = EHollowCarryClaim;
+	TestEqual(TEXT("Drone mode claims Drone"), HollowCarry::ClaimFor(EHollowCarryMode::Drone), EClaim::Drone);
+	TestEqual(TEXT("Solo mode still claims Solo"), HollowCarry::ClaimFor(EHollowCarryMode::Solo), EClaim::Solo);
+	TestEqual(TEXT("Coop mode claims Coop"), HollowCarry::ClaimFor(EHollowCarryMode::Coop), EClaim::Coop);
+	TestEqual(TEXT("A winched object has no carrier"), HollowCarry::ClaimFor(EHollowCarryMode::Winched), EClaim::None);
+
+	// Every claim survives the compressed flags, inside the carry bits only (sprint, jump and crouch keep theirs).
+	const uint8 Others = FSavedMove_Character::FLAG_JumpPressed | FSavedMove_Character::FLAG_WantsToCrouch | HollowMoveFlags::Sprint;
+	TestEqual(TEXT("Carry bits overlap no other flag"), static_cast<uint8>(HollowMoveFlags::CarryMask & Others), static_cast<uint8>(0));
+	TestEqual(TEXT("Three carry bits: Custom 1 to 3"), HollowMoveFlags::CarryMask,
+		static_cast<uint8>(FSavedMove_Character::FLAG_Custom_1 | FSavedMove_Character::FLAG_Custom_2 | FSavedMove_Character::FLAG_Custom_3));
+	for (uint8 Value = 0; Value <= static_cast<uint8>(EClaim::Drone); ++Value)
+	{
+		const EClaim Claim = static_cast<EClaim>(Value);
+		const uint8 Flags = HollowMoveFlags::EncodeCarry(Claim);
+		TestEqual(FString::Printf(TEXT("Claim %d stays in the carry bits"), Value), static_cast<uint8>(Flags & ~HollowMoveFlags::CarryMask), static_cast<uint8>(0));
+		TestEqual(FString::Printf(TEXT("Claim %d round trip"), Value), HollowMoveFlags::DecodeCarry(Flags | Others), Claim);
+	}
+	TestEqual(TEXT("Drone uses the third bit"), static_cast<uint8>(HollowMoveFlags::EncodeCarry(EClaim::Drone) & FSavedMove_Character::FLAG_Custom_3),
+		static_cast<uint8>(FSavedMove_Character::FLAG_Custom_3));
+
+	const FHollowCarryMovementTuning Tuning = MakeTuning();
+	TestTrue(TEXT("Drone has its own tuning"), Tuning.Find(EClaim::Drone) == &Tuning.Drone);
+	TestEqual(TEXT("Drone pace"), Tuning.GetSpeedScale(EClaim::Drone), DroneScale);
+	TestEqual(TEXT("Carrying alone is slower than the drone"), HollowCarryPolicy::Slower(EClaim::Drone, EClaim::Solo, Tuning), EClaim::Solo);
+
+	// Handing over (Solo -> Drone, faster): the client still claiming Solo is slower than allowed, accepted as it is.
+	const FHollowServerCarry HandedOver = Server(EClaim::Drone, EClaim::Solo);
+	TestEqual(TEXT("Hand-over: no grace needed"), HollowCarryPolicy::ServerFloor(HandedOver, 0.0, Grace, Tuning), EClaim::Drone);
+	TestEqual(TEXT("Hand-over: the late Solo claim stands"), HollowCarryPolicy::Effective(EClaim::Solo, HandedOver, 0.0, Grace, Tuning), EClaim::Solo);
+	TestEqual(TEXT("Hand-over: then the Drone pace"), HollowCarryPolicy::Effective(EClaim::Drone, HandedOver, Long, Grace, Tuning), EClaim::Drone);
+	// Taking back (Drone -> Solo, slower): the late Drone claim is accepted only within the grace.
+	const FHollowServerCarry TakenBack = Server(EClaim::Solo, EClaim::Drone);
+	TestEqual(TEXT("Take-back: the Drone claim within the grace"), HollowCarryPolicy::Effective(EClaim::Drone, TakenBack, 0.0, Grace, Tuning), EClaim::Drone);
+	TestEqual(TEXT("Take-back: Solo after the grace"), HollowCarryPolicy::Effective(EClaim::Drone, TakenBack, Long, Grace, Tuning), EClaim::Solo);
 	return true;
 }
 

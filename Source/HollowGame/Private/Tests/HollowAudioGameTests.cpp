@@ -85,14 +85,14 @@ namespace HollowAudioGameTests
 		return {HollowTags::Sound_Door_Servo, HollowTags::Sound_Footstep_Heavy, HollowTags::Sound_Footstep_Stalker, HollowTags::Sound_Enemy_PilgrimWindup,
 			HollowTags::Sound_Enemy_StalkerShriek, HollowTags::Sound_Stalker_Vent, HollowTags::Sound_Mine_Arm, HollowTags::Sound_Mine_Blast, HollowTags::Sound_Core_Hum,
 			HollowTags::Sound_Ward_Hum, HollowTags::Sound_Arc_Telegraph, HollowTags::Sound_Arc_Discharge, HollowTags::Sound_Altar_Purified,
-			HollowTags::Sound_Radio_Open, HollowTags::Sound_Radio_Close};
+			HollowTags::Sound_Radio_Open, HollowTags::Sound_Radio_Close, HollowTags::Sound_Drone_Hum};
 	}
 
-	/** Sounds that run until stopped (tools while used, the core's hum); every other one ends by itself. */
+	/** Sounds that run until stopped (tools while used, the core's and the solo drone's hum); every other one ends by itself. */
 	TArray<FGameplayTag> Loops()
 	{
 		return {HollowTags::Noise_Tool_Welder, HollowTags::Noise_Tool_Cutter, HollowTags::Noise_Tool_Lantern, HollowTags::Sound_Core_Hum, HollowTags::Sound_Ward_Hum,
-			HollowTags::Sound_Whisperer_Whisper};
+			HollowTags::Sound_Whisperer_Whisper, HollowTags::Sound_Drone_Hum};
 	}
 
 	/** Plays of Tag since the call before (counts per tag, UHollowAudioSubsystem). */

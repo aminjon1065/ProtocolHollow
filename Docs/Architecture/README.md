@@ -283,3 +283,14 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
   - **Слоган** главного меню, глоссарий с проверяемыми основами.
   - **Флаги usage** мастеров `M_Hollow_Surface`, `M_Hollow_Emissive` (ISM) и `M_Kit_Surface` (Geometry Collection).
   - **Тесты:** `Hollow.Core.Noise.Answer`, `Hollow.AI.AcousticAlert`, `Hollow.UI.Visor.{AcousticAlert, ImmersiveWaypoints}`, `Hollow.Game.Settings.Waypoints`, `Hollow.Editor.MaterialUsage`, `Hollow.Editor.Localization.Glossary`; смоук `playthrough-mac.sh alert`.
+- **DRONE-01 «Тактический соло-дрон»** ([ADR-0054](../ADR/ADR-0054-solo-drone.md)):
+  - **Дрон:** `AHollowSoloDrone` (`BP_SoloDrone`, `DA_SoloDrone`) — меш Fab `SM_LegacyDrone` ×2,5. Он прикреплён к капсуле игрока, следует за ним за счёт задержки `USpringArmComponent` (проба по Visibility), своего Tick нет. Мягкий прожектор без теней, гул `MS_Drone_Hum` только для игроков.
+  - **Только соло:** `UHollowSoloDroneSubsystem` (сервер) один раз за рейд, если в нём ровно один игрок (`UHollowRaidSettings::SoloDroneClass`).
+  - **Переноска `EHollowCarryMode::Drone`:**
+    - заявка `EHollowCarryClaim::Drone` в трёх битах сохранённого хода (`FLAG_Custom_1..3`);
+    - темп 0,75 с прыжком, без спринта;
+    - `FHollowCarryNetState::Vehicle` (`IHollowCarryVehicle`); передача и возврат — Interact на дроне (`IHollowCarryReceiver`, `BeginDrone` / `EndDrone`);
+    - `GE_Carry_Drone` даёт только `Hollow.State.DroneCarry`: руки свободны, Резонанс растёт;
+    - игрок остаётся носителем: алтарь и эвакуация засчитывают ядро;
+    - при гибели ядро падает из-под дрона, а дрон гаснет.
+  - **Тесты:** `Hollow.Physics.Carry.DroneClaim`, `Hollow.Game.Drone.{Spawn, Follow, Carry}`; расширены `Hollow.Game.Fab.Content` и `Hollow.Game.Audio.*`; смоуки `playthrough-mac.sh solo` (дрон) и `coop` (без дрона).

@@ -15,11 +15,15 @@ namespace HollowMoveFlags
 	/** Sprint request of the move. */
 	inline constexpr uint8 Sprint = FSavedMove_Character::FLAG_Custom_0;
 
-	/** Carry claim of the move (EHollowCarryClaim, two bits: FLAG_Custom_1 low, FLAG_Custom_2 high; ADR-0015). */
+	/**
+	 * Carry claim of the move (EHollowCarryClaim, three bits: FLAG_Custom_1 low to FLAG_Custom_3 high; ADR-0015). DRONE-01
+	 * (ADR-0054) took the third, once spare, for the drone's claim: no custom bit is left.
+	 */
 	inline constexpr uint8 CarryLow = FSavedMove_Character::FLAG_Custom_1;
-	inline constexpr uint8 CarryMask = FSavedMove_Character::FLAG_Custom_1 | FSavedMove_Character::FLAG_Custom_2;
-	static_assert(FSavedMove_Character::FLAG_Custom_2 == FSavedMove_Character::FLAG_Custom_1 << 1, "carry claim bits must be adjacent");
-	// FLAG_Custom_3: spare (a weight class of the carried object, if cores ever differ).
+	inline constexpr uint8 CarryMask = FSavedMove_Character::FLAG_Custom_1 | FSavedMove_Character::FLAG_Custom_2 | FSavedMove_Character::FLAG_Custom_3;
+	static_assert(FSavedMove_Character::FLAG_Custom_2 == FSavedMove_Character::FLAG_Custom_1 << 1
+		&& FSavedMove_Character::FLAG_Custom_3 == FSavedMove_Character::FLAG_Custom_2 << 1, "carry claim bits must be adjacent");
+	static_assert(static_cast<uint8>(EHollowCarryClaim::Drone) * CarryLow <= CarryMask, "every carry claim fits its bits");
 
 	inline uint8 EncodeCarry(const EHollowCarryClaim Claim) { return static_cast<uint8>((static_cast<uint8>(Claim) * CarryLow) & CarryMask); }
 	inline EHollowCarryClaim DecodeCarry(const uint8 Flags) { return static_cast<EHollowCarryClaim>((Flags & CarryMask) / CarryLow); }

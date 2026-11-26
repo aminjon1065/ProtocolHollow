@@ -30,7 +30,7 @@ public:
 
 	AActor* GetFocusedActor() const { return FocusedActor.Get(); }
 
-	/** Fired locally when the focus changes (prompt UI arrives in S2-06). */
+	/** Fired locally when the focus changes, or its prompt does (the solo drone: hand over, then take back; DRONE-01). */
 	FOnHollowFocusChanged OnFocusChanged;
 
 	/** Server-side facts for a request to interact with Target: line of sight, distance, rate, state (also for tests). */
@@ -49,6 +49,8 @@ private:
 
 	FTimerHandle FocusTimer;
 	TWeakObjectPtr<AActor> FocusedActor;
+	/** The prompt last shown for FocusedActor. */
+	FText FocusedPrompt;
 	/** World time of the last accepted interaction (server). */
 	TOptional<double> LastInteractionTime;
 

@@ -12,6 +12,8 @@ const FHollowCarryModeTuning* FHollowCarryMovementTuning::Find(const EHollowCarr
 		return &Coop;
 	case EHollowCarryClaim::Dragged:
 		return &Dragged;
+	case EHollowCarryClaim::Drone:
+		return &Drone;
 	case EHollowCarryClaim::None:
 		break;
 	}
