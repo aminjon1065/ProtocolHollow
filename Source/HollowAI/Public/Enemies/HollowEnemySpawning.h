@@ -14,4 +14,7 @@ namespace HollowEnemySpawning
 	 */
 	HOLLOWAI_API AHollowEnemyCharacter* SpawnOnNavmesh(UWorld* World, TSubclassOf<AHollowEnemyCharacter> Class, const FVector& Wanted,
 		float SearchExtent, const FRotator& Facing);
+
+	/** Whether SpawnOnNavmesh would find its navmesh near Wanted (nothing spawned, nothing logged). */
+	HOLLOWAI_API bool HasNavmeshFor(UWorld* World, TSubclassOf<AHollowEnemyCharacter> Class, const FVector& Wanted, float SearchExtent);
 }

@@ -40,21 +40,23 @@ namespace HollowAIDevConsole
 	}
 
 	/** Nearest door or bulkhead that does not let an enemy through, to Location. */
-	AActor* NearestObstacle(UWorld* World, const FVector& Location)
+	/** Closed doors and bulkheads, nearest to Location first. */
+	TArray<AActor*> ObstaclesByDistance(UWorld* World, const FVector& Location)
 	{
-		AActor* Nearest = nullptr;
-		double NearestDistance = TNumericLimits<double>::Max();
+		TArray<AActor*> Obstacles;
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{
 			const IHollowStructural* Structural = Cast<IHollowStructural>(*It);
-			const double Distance = FVector::DistSquared(It->GetActorLocation(), Location);
-			if (Structural && Structural->GetPassage() != EHollowPassage::Clear && Distance < NearestDistance)
+			if (Structural && Structural->GetPassage() != EHollowPassage::Clear)
 			{
-				Nearest = *It;
-				NearestDistance = Distance;
+				Obstacles.Add(*It);
 			}
 		}
-		return Nearest;
+		Obstacles.Sort([&Location](const AActor& A, const AActor& B)
+		{
+			return FVector::DistSquared(A.GetActorLocation(), Location) < FVector::DistSquared(B.GetActorLocation(), Location);
+		});
+		return Obstacles;
 	}
 
 	void Dump(UWorld* World)
@@ -102,15 +104,24 @@ namespace HollowAIDevConsole
 		FVector Wanted = Player->GetActorLocation() + Player->GetActorForwardVector() * Distance;
 		if (bBehind)
 		{
-			const AActor* Obstacle = NearestObstacle(World, Player->GetActorLocation());
-			if (!Obstacle)
+			// The nearest closed door or bulkhead with navmesh behind it (a door to the hull has none).
+			bool bFound = false;
+			for (const AActor* Obstacle : ObstaclesByDistance(World, Player->GetActorLocation()))
 			{
-				UE_LOG(LogHollowAI, Warning, TEXT("Hollow.AI.Spawn: no closed door or bulkhead to spawn behind."));
+				const FVector Forward = Obstacle->GetActorForwardVector();
+				const double Side = FVector::DotProduct(Player->GetActorLocation() - Obstacle->GetActorLocation(), Forward) >= 0.0 ? 1.0 : -1.0;
+				Wanted = Obstacle->GetActorLocation() - Forward * Side * Distance;
+				if (HollowEnemySpawning::HasNavmeshFor(World, Class, Wanted, Settings->DevSpawnSearchExtent))
+				{
+					bFound = true;
+					break;
+				}
+			}
+			if (!bFound)
+			{
+				UE_LOG(LogHollowAI, Warning, TEXT("Hollow.AI.Spawn: no closed door or bulkhead with room behind it."));
 				return;
 			}
-			const FVector Forward = Obstacle->GetActorForwardVector();
-			const double Side = FVector::DotProduct(Player->GetActorLocation() - Obstacle->GetActorLocation(), Forward) >= 0.0 ? 1.0 : -1.0;
-			Wanted = Obstacle->GetActorLocation() - Forward * Side * Distance;
 		}
 
 		const FRotator Facing = (Player->GetActorLocation() - Wanted).GetSafeNormal2D().Rotation();

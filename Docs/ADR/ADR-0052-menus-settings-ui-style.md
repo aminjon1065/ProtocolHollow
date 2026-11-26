@@ -1,6 +1,6 @@
 # ADR-0052: Меню, настройки и стиль интерфейса — релизный уровень UI
 
-- **Статус:** Proposed · 2026-11-26 (UI-02; план и уточнения 1–11 приняты владельцем «ок»)
+- **Статус:** Accepted · 2026-11-26 (UI-02; план и уточнения 1–11 приняты владельцем «ок», результат принят: 274/274, 25/25 смоуков, меню 88,6 FPS, `Hollow.Editor.AudioRender` по 45 MetaSound)
 - **Связано:**
   - [ADR-0013](ADR-0013-ui-foundation-commonui.md), [ADR-0033](ADR-0033-hub-screens-commonui.md) — слои CommonUI, экраны хаба;
   - [ADR-0023](ADR-0023-scalability-presets-perf-capture.md) — пресеты графики;

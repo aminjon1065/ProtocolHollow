@@ -177,6 +177,25 @@ bool FHollowSettingsControlsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSettingsWaypointsTest, "Hollow.Game.Settings.Waypoints",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowSettingsWaypointsTest::RunTest(const FString& Parameters)
+{
+	// POLISH-01 (ADR-0053): the visor's waypoints are full until the player chooses immersive ones; the choice is told
+	// to the visor at once and kept for the next launch.
+	using namespace HollowSettingsTests;
+	FTestSettings Test(TEXT("HollowSettingsWaypoints"));
+	TestEqual(TEXT("Full by default"), Test.Settings->GetWaypointMode(), EHollowWaypointMode::Full);
+	int32 Changes = 0;
+	Test.Settings->OnWaypointModeChanged.AddLambda([&Changes]() { ++Changes; });
+	Test.Settings->SetWaypointMode(EHollowWaypointMode::Immersive);
+	Test.Settings->SetWaypointMode(EHollowWaypointMode::Immersive);
+	TestEqual(TEXT("A change told once (the same again is none)"), Changes, 1);
+	TestEqual(TEXT("The next launch has it"), Test.Reload()->GetWaypointMode(), EHollowWaypointMode::Immersive);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowSettingsAudioTest, "Hollow.Game.Settings.Audio",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

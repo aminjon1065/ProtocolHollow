@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-25 20:04\n"
-"PO-Revision-Date: 2026-11-25 20:04\n"
+"POT-Creation-Date: 2026-11-26 07:01\n"
+"PO-Revision-Date: 2026-11-26 07:01\n"
 "Language-Team: \n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
@@ -704,7 +704,7 @@ msgstr "«Гелиос-Надир», отдел активов"
 #: /Game/Hollow/Localization/ST_Lore.ST_Lore
 msgctxt "ST_Lore,Lore.12.Body"
 msgid "To orbital control. Subject: recovery of Ark Hollow assets. The Ark's return was projected within a four per cent margin. Priority: Aether cores, intact. Crew records and anomalous tissue: secondary assets. Handlers Vector-1 to Vector-8 have been decommissioned after prolonged exposure to Ark transmissions (see incident file: voices on the handler channel). Vector-9 is to address contractors in text only. Contractor losses within projected figures are acceptable and need not be reported. This memo is not to be shared with contractors."
-msgstr "Орбитальному контролю. Тема: возврат активов ковчега «Пустота». Возвращение ковчега прогнозировалось с точностью до четырёх процентов. Приоритет: Эфирные ядра, целые. Записи экипажа и аномальные ткани — второстепенные активы. Операторы с Вектор-1 по Вектор-8 списаны после длительного воздействия передач ковчега (см. дело об инциденте: голоса на канале оператора). Вектору-9 обращаться к контракторам только текстом. Потери контракторов в пределах прогнозных значений допустимы и отчёта не требуют. Записку контракторам не показывать."
+msgstr "Орбитальному контролю. Тема: возврат активов ковчега «Пустота». Возвращение ковчега прогнозировалось с точностью до четырёх процентов. Приоритет: Эфирные ядра, целые. Записи экипажа и аномальные ткани — второстепенные активы. Диспетчеры с Вектор-1 по Вектор-8 списаны после длительного воздействия передач ковчега (см. дело об инциденте: голоса на канале диспетчера). Вектору-9 обращаться к контракторам только текстом. Потери контракторов в пределах прогнозных значений допустимы и отчёта не требуют. Записку контракторам не показывать."
 
 #. Key:	Lore.12.Stamp
 #. SourceLocation:	/Game/Hollow/Localization/ST_Lore.ST_Lore
@@ -740,6 +740,13 @@ msgstr "Язык: Русский"
 msgctxt "ST_Menus,Menu.Main.Host"
 msgid "Host co-op"
 msgstr "Создать кооп-игру"
+
+#. Key:	Menu.Main.Slogan
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Main.Slogan"
+msgid "The ship hears you."
+msgstr "Корабль слышит вас."
 
 #. Key:	Menu.Main.Solo
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -965,6 +972,20 @@ msgctxt "ST_Menus,Menu.Settings.Value.Unlimited"
 msgid "Unlimited"
 msgstr "Без лимита"
 
+#. Key:	Menu.Settings.Value.WaypointsFull
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.WaypointsFull"
+msgid "Full"
+msgstr "Полные"
+
+#. Key:	Menu.Settings.Value.WaypointsImmersive
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.WaypointsImmersive"
+msgid "Immersive"
+msgstr "Погружение"
+
 #. Key:	Menu.Settings.Value.Windowed
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
 #: /Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -999,6 +1020,13 @@ msgstr "Голосовой чат"
 msgctxt "ST_Menus,Menu.Settings.VSync"
 msgid "Vertical sync"
 msgstr "Вертикальная синхронизация"
+
+#. Key:	Menu.Settings.Waypoints
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Waypoints"
+msgid "Waypoints"
+msgstr "Маркеры цели"
 
 #. Key:	Menu.Settings.WindowMode
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -1553,6 +1581,13 @@ msgctxt "ST_Visor,Glyph.Two"
 msgid "2"
 msgstr "2"
 
+#. Key:	Visor.Alert.Acoustic
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Alert.Acoustic"
+msgid "ACOUSTIC ALERT"
+msgstr "АКУСТИЧЕСКИЙ ОТКЛИК"
+
 #. Key:	Visor.Bar.Fuel
 #. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
 #: /Game/Hollow/Localization/ST_Visor.ST_Visor
@@ -1594,6 +1629,13 @@ msgstr "УПРАВЛЕНИЕ"
 msgctxt "ST_Visor,Visor.Controls.TitleFormat"
 msgid "[{0}] CONTROLS"
 msgstr "[{0}] УПРАВЛЕНИЕ"
+
+#. Key:	Visor.Controls.TitleImmersiveFormat
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Controls.TitleImmersiveFormat"
+msgid "[{0}] CONTROLS + MARKERS"
+msgstr "[{0}] УПРАВЛЕНИЕ + МАРКЕРЫ"
 
 #. Key:	Visor.Lamp.Format
 #. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor

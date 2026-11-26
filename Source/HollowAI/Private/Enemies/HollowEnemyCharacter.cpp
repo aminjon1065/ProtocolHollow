@@ -221,6 +221,26 @@ void AHollowEnemyCharacter::OnRep_InVent()
 	}
 }
 
+void AHollowEnemyCharacter::AnswerNoise()
+{
+	if (HasAuthority() && !bDead)
+	{
+		Multicast_AcousticAlert();
+	}
+}
+
+void AHollowEnemyCharacter::Multicast_AcousticAlert_Implementation()
+{
+	++AnswersHeard;
+	const FGameplayTag Sound = Definition ? Definition->AcousticAlertSound : FGameplayTag();
+	UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this);
+	UE_LOG(LogHollowAI, Log, TEXT("%s: acoustic alert %s"), *GetName(), *Sound.ToString());
+	if (Audio && Sound.IsValid())
+	{
+		Audio->Play(Sound, GetActorLocation());   // where it is: the squad hears from where the hunt comes
+	}
+}
+
 void AHollowEnemyCharacter::PlayVentSound() const
 {
 	if (UHollowAudioSubsystem* Audio = UHollowAudioSubsystem::Get(this))

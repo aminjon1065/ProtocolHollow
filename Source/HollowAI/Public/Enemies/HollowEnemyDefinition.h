@@ -152,6 +152,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (Categories = "Hollow.Sound"))
 	FGameplayTag WindupSound;
 
+	/**
+	 * What it calls out when a player's noise wakes it (POLISH-01, ADR-0053; DA_SoundBank, long range): heard where it is
+	 * on every machine, so the squad knows why the hunt began. None: it answers nothing (the Whisperers).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (Categories = "Hollow.Sound"))
+	FGameplayTag AcousticAlertSound;
+
 	/** Its footsteps for players (UHollowFootstepAudioComponent); no AI hears them. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (Categories = "Hollow.Sound"))
 	FGameplayTag FootstepSound;

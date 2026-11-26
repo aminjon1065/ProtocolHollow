@@ -58,6 +58,11 @@ EDataValidationResult UHollowNoiseConfig::IsDataValid(FDataValidationContext& Co
 			Result = EDataValidationResult::Invalid;
 		}
 	}
+	if (Rules.ContainsByPredicate([](const FHollowNoiseRule& Rule) { return Rule.bRaisesAcousticAlert; }) && AcousticAlertCooldown <= 0.f)
+	{
+		Context.AddError(LOCTEXT("AlertCooldown", "Noises raise acoustic alerts: the visor's AcousticAlertCooldown must be above 0."));
+		Result = EDataValidationResult::Invalid;
+	}
 	return Result == EDataValidationResult::NotValidated ? EDataValidationResult::Valid : Result;
 }
 #endif

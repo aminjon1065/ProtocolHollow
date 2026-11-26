@@ -5,6 +5,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "InputAction.h"
 #include "Settings/HollowGameUserSettings.h"
+#include "Visor/HollowWaypointLayerWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowVisorWidget)
 
@@ -51,5 +52,9 @@ void UHollowVisorWidget::ToggleControlsHint()
 	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
 	{
 		Settings->SetControlsHintShown(!Settings->IsControlsHintShown());
+	}
+	if (Waypoints)
+	{
+		Waypoints->Reveal();
 	}
 }

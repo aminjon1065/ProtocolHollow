@@ -1,6 +1,7 @@
 """Creates the S3-05 noise content (idempotent, ADR-0010, ADR-0018).
 
-  /Game/Hollow/Core/DA_NoiseConfig    UHollowNoiseConfig: one rule per Hollow.Noise.* tag + the footstep cadence (data)
+  /Game/Hollow/Core/DA_NoiseConfig    UHollowNoiseConfig: one rule per Hollow.Noise.* tag + the footstep cadence (data);
+                                      POLISH-01 (ADR-0053): which noises an enemy answers, and how often
   DA_Tool_Welder / DA_Tool_PlasmaCutter  checked for their noise tags; resaved once if they still hold the noise numbers
                                          that moved here (S3-05 removed NoiseLoudness / NoiseRange / NoiseEveryNSamples)
 
@@ -49,6 +50,11 @@ RULES = [
     # GP-01b (ADR-0045): a loot crate broken open, heard through the room and the next one.
     ("Hollow.Noise.Impact.Crate", 0.9, 1800.0, 0.0),
 ]
+# POLISH-01 (ADR-0053): an enemy that wakes to a noise answers it (its acoustic alert; the instigator's visor says so),
+# except to the steady ones: footsteps and the lantern's hum would keep the visor calling out.
+NO_ACOUSTIC_ALERT = ("Hollow.Noise.Footstep", "Hollow.Noise.Tool.Lantern")
+# One enemy answers at most every 6 s (a welder going on); one player's visor shows an alert at most every 9 s.
+ACOUSTIC_ALERT = {"answer_interval": 6.0, "acoustic_alert_cooldown": 9.0}
 # Footsteps (data): checked twice a second; crouch-walking (180) stays under the minimum; walking (400) is the reference.
 FOOTSTEPS = {"footstep_interval": 0.5, "footstep_min_speed": 200.0, "footstep_reference_speed": 400.0,
              "inter_room_range": 0.6}   # S4-04: a noise from another room carries 60 % as far (walls; players hear it muffled too)
@@ -90,12 +96,14 @@ def make_rule(tag, loudness, max_range, min_interval):
     rule.set_editor_property("loudness", loudness)
     rule.set_editor_property("max_range", max_range)
     rule.set_editor_property("min_interval", min_interval)
+    rule.set_editor_property("raises_acoustic_alert", tag not in NO_ACOUSTIC_ALERT)
     return rule
 
 
 def rule_key(rule):
     return (rule.get_editor_property("noise_tag").export_text(), round(rule.get_editor_property("loudness"), 4),
-            round(rule.get_editor_property("max_range"), 2), round(rule.get_editor_property("min_interval"), 4))
+            round(rule.get_editor_property("max_range"), 2), round(rule.get_editor_property("min_interval"), 4),
+            bool(rule.get_editor_property("raises_acoustic_alert")))
 
 
 def asset_file(path):
@@ -117,7 +125,7 @@ def ensure_config():
     changed = [rule_key(r) for r in config.get_editor_property("rules")] != [rule_key(r) for r in wanted]
     if changed:
         config.set_editor_property("rules", wanted)
-    for name, value in FOOTSTEPS.items():
+    for name, value in list(FOOTSTEPS.items()) + list(ACOUSTIC_ALERT.items()):
         if abs(config.get_editor_property(name) - value) > 1e-4:
             config.set_editor_property(name, value)
             changed = True
@@ -150,6 +158,10 @@ def validate():
     config = load(CONFIG_PATH)
     check([rule_key(r) for r in config.get_editor_property("rules")] == [rule_key(make_rule(*r)) for r in RULES], "DA_NoiseConfig rules")
     check(config.get_editor_property("footstep_min_speed") < config.get_editor_property("footstep_reference_speed"), "footstep speeds")
+    alerting = [r for r in config.get_editor_property("rules") if r.get_editor_property("raises_acoustic_alert")]
+    check(alerting and not any(r.get_editor_property("noise_tag").export_text() in [make_tag(t).export_text() for t in NO_ACOUSTIC_ALERT] for r in alerting),
+          "every noise but footsteps and the lantern raises an acoustic alert")
+    check(8.0 <= config.get_editor_property("acoustic_alert_cooldown") <= 10.0, "an acoustic alert at most every 8-10 s")
     tags = [r.get_editor_property("noise_tag").export_text() for r in config.get_editor_property("rules")]
     for path, noise in TOOLS.items():
         check(make_tag(noise).export_text() in tags, path + " noise has a rule")

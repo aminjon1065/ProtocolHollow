@@ -51,6 +51,7 @@ private:
 	FDelegateHandle ClassHandle;
 	FDelegateHandle ObjectiveHandle;
 	FDelegateHandle SettingsHandle;
+	FDelegateHandle ModeHandle;
 	/** The list pads plain strings into columns, so a new language builds it again (LOC-01). */
 	FDelegateHandle LanguageHandle;
 };

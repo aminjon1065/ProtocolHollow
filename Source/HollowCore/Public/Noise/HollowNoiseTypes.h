@@ -34,6 +34,19 @@ struct HOLLOWCORE_API FHollowNoiseEvent
 	float LoudnessScale = 1.f;
 };
 
+/**
+ * An enemy woke to a noise and answers it (POLISH-01, ADR-0053): server side, from the AI to whoever shows it (the
+ * instigator's visor).
+ */
+struct FHollowNoiseAnswer
+{
+	/** The enemy that answered. */
+	TWeakObjectPtr<AActor> Enemy;
+	/** The player whose noise it was. */
+	TWeakObjectPtr<AActor> Instigator;
+	FGameplayTag NoiseTag;
+};
+
 /** A noise as it went out to AI hearing, after its rule. */
 struct FHollowNoiseReport
 {

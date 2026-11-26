@@ -514,6 +514,10 @@ def build_creature(material):
 
 MASTERS = {SURFACE_MASTER: build_surface, GLOW_MASTER: build_glow, TOOL_GLOW_MASTER: build_tool_glow, VISOR_MASTER: build_visor,
            SEAM_MASTER: build_seam, HAZARD_MASTER: build_hazard, SCREEN_MASTER: build_screen, CREATURE_MASTER: build_creature}
+# AK-14 (POLISH-01, ADR-0053): a cooked game draws a material without its usage flag with the engine's default one (the
+# editor sets it on the fly and never saves it). MI_Kit_DarkAlloy is the loot crate's, whose pieces are a geometry
+# collection (create_loot_assets.py). Kept out of the masters' hash: setting a flag never rebuilds a graph.
+MASTER_USAGE = {SURFACE_MASTER: ["used_with_geometry_collections"]}
 
 
 def ensure_materials():
@@ -528,6 +532,13 @@ def ensure_materials():
             mel.recompile_material(material)
             stamp(material, spec_hash)
             log("%s built (%d expressions)" % (path.rsplit("/", 1)[1], mel.get_num_material_expressions(material)))
+        missing = [flag for flag in MASTER_USAGE.get(path, []) if not material.get_editor_property(flag)]
+        for flag in missing:
+            material.set_editor_property(flag, True)
+        if missing:
+            mel.recompile_material(material)
+            save(material)
+            log("%s: %s" % (path.rsplit("/", 1)[1], ", ".join(missing)))
         made[path] = material
     for name, (parent, values) in sorted(MATERIALS.items()):
         path = MAT_DIR + "/" + name
@@ -1179,6 +1190,9 @@ def ensure_hub_dressing():
 # ---------------------------------------------------------------- main
 
 def validate():
+    for path, flags in sorted(MASTER_USAGE.items()):
+        for flag in flags:
+            check(load(path).get_editor_property(flag), "%s: %s" % (path, flag))
     for name, spec in mesh_specs().items():
         mesh = load(KIT_DIR + "/" + name)
         check(up_to_date(mesh, spec["hash"]), name + " matches its spec")

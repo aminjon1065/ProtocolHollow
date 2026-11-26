@@ -7,7 +7,8 @@
   /Game/Hollow/Audio/SCON_*              concurrency groups (footsteps, impacts, tools)
   /Game/Hollow/Audio/Reverb/RE_*         reverb presets (Vault, Hangar, Corridor)
   Every Docks room level                 an Audio Gameplay Volume over the room (reverb + muffled outside) and a room tone
-  DA_Enemy_IronPilgrim / EchoStalker     WindupSound, FootstepSound and FootstepCadence
+  DA_Enemy_IronPilgrim / EchoStalker     WindupSound, FootstepSound and FootstepCadence; POLISH-01 (ADR-0053): AcousticAlertSound,
+                                          MS_Enemy_PilgrimAlert / MS_Enemy_StalkerAlert (an answer to a noise, heard far)
   /Game/Hollow/Audio/MetaSounds/MS_Radio_* NAR-01a (ADR-0049): the handler's radio opening and closing a transmission, in
                                           the listener's helmet, through the comms bus (SC_Hollow_Voice + SEC_Hollow_Radio)
   /Game/Hollow/Audio/MetaSounds/MS_UI_*   UI-02 (ADR-0052): the menus' focus, confirm, deny and terminal sounds (SC_Hollow_UI)
@@ -50,10 +51,12 @@ ROOM_DATA_DIR = "/HollowSector_Docks/Data"
 # chase): the Pilgrim's slow heavy tread is heard from its 180 patrol on, the stalker skitters (cm/s).
 ENEMIES = {
     "/Game/Hollow/Characters/Enemies/IronPilgrim/DA_Enemy_IronPilgrim": {
-        "tags": {"windup_sound": "Hollow.Sound.Enemy.PilgrimWindup", "footstep_sound": "Hollow.Sound.Footstep.Heavy"},
+        "tags": {"windup_sound": "Hollow.Sound.Enemy.PilgrimWindup", "footstep_sound": "Hollow.Sound.Footstep.Heavy",
+                 "acoustic_alert_sound": "Hollow.Sound.Enemy.PilgrimAlert"},
         "cadence": {"interval": 0.7, "min_speed": 60.0, "reference_speed": 330.0}},
     "/Game/Hollow/Characters/Enemies/EchoStalker/DA_Enemy_EchoStalker": {
-        "tags": {"windup_sound": "Hollow.Sound.Enemy.StalkerShriek", "footstep_sound": "Hollow.Sound.Footstep.Stalker"},
+        "tags": {"windup_sound": "Hollow.Sound.Enemy.StalkerShriek", "footstep_sound": "Hollow.Sound.Footstep.Stalker",
+                 "acoustic_alert_sound": "Hollow.Sound.Enemy.StalkerAlert"},
         "cadence": {"interval": 0.28, "min_speed": 60.0, "reference_speed": 480.0}},
 }
 SPEC_TAG = "HollowSpec"
@@ -425,6 +428,43 @@ def stalker_shriek():
     return g.mix("mix", [("shriek", "Out", 0.5), ("hiss", "Out", 0.2)]).out("mix").finish_on("shriek_env").spec
 
 
+def pilgrim_alert():
+    """POLISH-01 (ADR-0053): an Iron Pilgrim woke to a noise, far off: a heavy clang through the hull, its echo, a groan."""
+    g = Graph(one_shot=True)
+    g.node("strike_a", SINE, {"Frequency": 98.0}).node("strike_b", SINE, {"Frequency": 157.0}).node("strike_c", TRIANGLE, {"Frequency": 263.0})
+    g.mix("metal", [("strike_a", "Audio", 0.5), ("strike_b", "Audio", 0.35), ("strike_c", "Audio", 0.15)])
+    g.node("metal_lp", LOWPASS, {"Cutoff Frequency": 700.0}).link("metal", "Out", "metal_lp", "In")
+    g.burst("clang", "metal_lp", "Out", 0.004, 0.9)
+    g.node("echo_at", DELAY, {"Delay Time": 0.38}).link("@play", "On Play", "echo_at", "In")
+    g.burst("echo", "metal_lp", "Out", 0.02, 0.6, trigger=("echo_at", "Out"))
+    g.node("sag", LFO, {"Frequency": 0.8, "Shape": LFO_SAW, "Min Value": 38.0, "Max Value": 62.0})
+    g.node("hull", SAW).link("sag", "Out", "hull", "Frequency")
+    g.node("hull_lp", LOWPASS, {"Cutoff Frequency": 320.0}).link("hull", "Audio", "hull_lp", "In")
+    g.node("groan_at", DELAY, {"Delay Time": 0.3}).link("@play", "On Play", "groan_at", "In")
+    g.burst("groan", "hull_lp", "Out", 0.25, 0.6, trigger=("groan_at", "Out"))
+    g.node("end", DELAY, {"Delay Time": 1.3}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("clang", "Out", 0.55), ("echo", "Out", 0.22), ("groan", "Out", 0.35)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.8}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
+def stalker_alert():
+    """POLISH-01 (ADR-0053): the Echo-Stalker woke to a noise, somewhere in the ducts: a scrape along a vent, then a high
+    call that echoes back."""
+    g = Graph(one_shot=True)
+    g.node("sweep", LFO, {"Frequency": 1.8, "Shape": LFO_SAW, "Min Value": 1100.0, "Max Value": 2600.0})
+    g.node("grit", NOISE, {"Type": WHITE}).node("duct", SVF, {"Resonance": 6.0}).link("grit", "Audio", "duct", "In").link("sweep", "Out", "duct", "Cutoff Frequency")
+    g.burst("scrape", "duct", BAND_PASS, 0.06, 0.45)
+    g.node("trill", LFO, {"Frequency": 7.0, "Min Value": 1180.0, "Max Value": 1320.0})
+    g.node("call", SINE).link("trill", "Out", "call", "Frequency")
+    g.node("call_at", DELAY, {"Delay Time": 0.32}).link("@play", "On Play", "call_at", "In")
+    g.burst("cry", "call", "Audio", 0.08, 0.42, trigger=("call_at", "Out"))
+    g.node("echo_at", DELAY, {"Delay Time": 0.72}).link("@play", "On Play", "echo_at", "In")
+    g.burst("echo", "call", "Audio", 0.08, 0.5, trigger=("echo_at", "Out"))
+    g.node("end", DELAY, {"Delay Time": 1.4}).link("@play", "On Play", "end", "In")
+    g.mix("mix", [("scrape", "Out", 0.45), ("cry", "Out", 0.3), ("echo", "Out", 0.12)])
+    return g.node("level", SCALE, {"AdditionalOperands": 0.8}).link("mix", "Out", "level", "PrimaryOperand").out("level").finish_on("end", "Out").spec
+
+
 def stalker_vent():
     g = Graph(one_shot=True)
     g.node("rattle", REPEAT, {"Period": 0.05, "Num Repeats": 9}).link("@play", "On Play", "rattle", "Start")
@@ -606,6 +646,7 @@ METASOUNDS = {
     "MS_UI_HitMarker_Hit": hit_marker_hit, "MS_UI_HitMarker_Armor": hit_marker_armor, "MS_UI_HitMarker_Crit": hit_marker_crit,
     "MS_Footstep_Whisperer": footstep_whisperer, "MS_Whisperer_Whisper": whisperer_whisper, "MS_Whisperer_Shriek": whisperer_shriek,
     "MS_Whisperer_Bite": whisperer_bite, "MS_Whisperer_Death": whisperer_death,
+    "MS_Enemy_PilgrimAlert": pilgrim_alert, "MS_Enemy_StalkerAlert": stalker_alert,
 }
 
 # ---------------------------------------------------------------- bank, attenuation, concurrency (data)
@@ -659,6 +700,10 @@ ENTRIES = [
     ("Hollow.Sound.Whisperer.Shriek", "MS_Whisperer_Shriek", None, 2000.0, 0.8, 0.12, None),
     ("Hollow.Sound.Whisperer.Bite", "MS_Whisperer_Bite", None, 1200.0, 0.7, 0.1, None),
     ("Hollow.Sound.Whisperer.Death", "MS_Whisperer_Death", "SCON_Impacts", 1500.0, 0.8, 0.1, None),
+    # POLISH-01 (ADR-0053): an enemy answering a noise it woke to, players only: heard far (50-60 m), where it is, muffled
+    # through walls like the rest, so the squad knows a hunt began and from where.
+    ("Hollow.Sound.Enemy.PilgrimAlert", "MS_Enemy_PilgrimAlert", None, 5000.0, 0.9, 0.06, None),
+    ("Hollow.Sound.Enemy.StalkerAlert", "MS_Enemy_StalkerAlert", None, 6000.0, 0.8, 0.08, None),
     # NAR-01a (ADR-0049): the handler's radio in the listener's helmet (each machine plays its own).
     ("Hollow.Sound.Radio.Open", "MS_Radio_Open", None, 200.0, 0.5, 0.0, None),
     ("Hollow.Sound.Radio.Close", "MS_Radio_Close", None, 200.0, 0.5, 0.0, None),

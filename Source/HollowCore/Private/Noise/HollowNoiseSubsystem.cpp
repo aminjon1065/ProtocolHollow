@@ -32,6 +32,43 @@ void UHollowNoiseSubsystem::SetConfig(const UHollowNoiseConfig* InConfig)
 {
 	Config = InConfig;
 	LastReported.Reset();
+	LastAnswered.Reset();
+	LastAlerted.Reset();
+}
+
+bool UHollowNoiseSubsystem::AnswerNoise(AActor& Enemy, AActor* Instigator, const FGameplayTag& NoiseTag)
+{
+	const UWorld* World = GetWorld();
+	const FHollowNoiseRule* Rule = Config ? Config->FindRule(NoiseTag) : nullptr;
+	if (!World || World->GetNetMode() == NM_Client || !Rule || !Rule->bRaisesAcousticAlert)
+	{
+		return false;
+	}
+	const double Now = World->GetTimeSeconds();
+	const auto IsDue = [Now](TMap<FObjectKey, double>& Last, const UObject* Key, const float Interval)
+	{
+		double& When = Last.FindOrAdd(FObjectKey(Key), -TNumericLimits<double>::Max());
+		if (Now - When < Interval)
+		{
+			return false;
+		}
+		When = Now;
+		return true;
+	};
+	if (!IsDue(LastAnswered, &Enemy, Config->AnswerInterval))
+	{
+		return false;
+	}
+	UE_LOG(LogHollowCore, Log, TEXT("%s answers %s by %s"), *Enemy.GetName(), *NoiseTag.ToString(), *GetNameSafe(Instigator));
+	if (Instigator && IsDue(LastAlerted, Instigator, Config->AcousticAlertCooldown))
+	{
+		FHollowNoiseAnswer Answer;
+		Answer.Enemy = &Enemy;
+		Answer.Instigator = Instigator;
+		Answer.NoiseTag = NoiseTag;
+		OnAcousticAlert.Broadcast(Answer);
+	}
+	return true;
 }
 
 bool UHollowNoiseSubsystem::ReportNoise(const FHollowNoiseEvent& Event)

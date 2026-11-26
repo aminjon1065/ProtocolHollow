@@ -468,6 +468,21 @@ def build_emissive(material, collection):
 EMERGENCY_SPEC = ["emergency", FLICKER, REDUCED]
 DYING_SPEC = ["dying", DYING, REDUCED]
 EMISSIVE_SPEC = ["emissive", FLICKER, EMISSIVE_DEFAULTS, REDUCED]
+# AK-14 (POLISH-01, ADR-0053): what the masters are drawn on besides plain meshes. A cooked game draws a material without
+# the flag with the engine's default one (the editor sets it on the fly and never saves it): the Cathedral's decor, its
+# arcs' emitters and beams and its altar are instanced static meshes. Kept out of the graph specs: setting a flag never
+# rebuilds a graph.
+MASTER_USAGE = {SURFACE: ["used_with_instanced_static_meshes"], EMISSIVE: ["used_with_instanced_static_meshes"]}
+
+
+def ensure_usage(path, material):
+    missing = [flag for flag in MASTER_USAGE.get(path, []) if not material.get_editor_property(flag)]
+    for flag in missing:
+        material.set_editor_property(flag, True)
+    if missing:
+        mel.recompile_material(material)
+        save(material)
+        log("%s: %s" % (path.rsplit("/", 1)[1], ", ".join(missing)))
 
 
 def ensure_materials():
@@ -479,6 +494,8 @@ def ensure_materials():
         SURFACE: rebuild_if_changed(SURFACE, factory, ["surface", SURFACE_SPEC, SURFACE_DEFAULTS], build_surface),
         EMISSIVE: rebuild_if_changed(EMISSIVE, factory, EMISSIVE_SPEC, lambda m: build_emissive(m, collection)),
     }
+    for path, material in sorted(made.items()):
+        ensure_usage(path, material)
     instances = {}
     for name, (parent_path, values) in sorted(MATERIAL_INSTANCES.items()):
         path = MATERIAL_DIR + "/" + name
@@ -799,6 +816,9 @@ def validate(rooms):
         check(material.get_editor_property("material_domain") == unreal.MaterialDomain.MD_LIGHT_FUNCTION, path + " is a light function")
         check(assets.get_metadata_tag(material, SPEC_TAG) == digest(spec), path + " matches its spec")
     check(assets.get_metadata_tag(load(EMISSIVE), SPEC_TAG) == digest(EMISSIVE_SPEC), EMISSIVE + " matches its spec")
+    for path, flags in sorted(MASTER_USAGE.items()):
+        for flag in flags:
+            check(load(path).get_editor_property(flag), "%s: %s" % (path, flag))
     check(REDUCED["strobe_hz"] <= MAX_REDUCED_HZ, "no reduced-flashes pulse over 2 Hz")
     validator = unreal.get_editor_subsystem(unreal.EditorValidatorSubsystem)
     for room in rooms:

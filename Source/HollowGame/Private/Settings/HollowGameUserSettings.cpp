@@ -11,6 +11,7 @@
 #include "Misc/Parse.h"
 #include "Scalability.h"
 #include "Settings/HollowPlayerSettingsConfig.h"
+#include "Util/HollowEnumUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HollowGameUserSettings)
 
@@ -316,6 +317,21 @@ void UHollowGameUserSettings::SetReducedFlashes(const bool bReduced, const bool 
 	}
 	UE_LOG(LogHollowGame, Display, TEXT("Reduced flashes %s"), bReduced ? TEXT("on") : TEXT("off"));
 	OnReducedFlashesChanged.Broadcast();
+}
+
+void UHollowGameUserSettings::SetWaypointMode(const EHollowWaypointMode Mode, const bool bSave)
+{
+	if (Mode == WaypointMode)
+	{
+		return;
+	}
+	WaypointMode = Mode;
+	if (bSave)
+	{
+		SaveSettings();
+	}
+	UE_LOG(LogHollowGame, Display, TEXT("Waypoints %s"), *HollowEnumToString(Mode));
+	OnWaypointModeChanged.Broadcast();
 }
 
 void UHollowGameUserSettings::SetControlsHintShown(const bool bShown, const bool bSave)

@@ -27,6 +27,13 @@ struct FHollowNoiseRule
 	/** At most one event per instigator this often (continuous sources such as tools; 0: every event). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Noise", meta = (ClampMin = "0", Units = "Seconds"))
 	float MinInterval = 0.f;
+
+	/**
+	 * An enemy that wakes to this noise answers it (POLISH-01, ADR-0053): its acoustic alert sounds where it is and the
+	 * visor of the player who made the noise says so. Off for the steady ones (footsteps, the lantern's hum).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Noise")
+	bool bRaisesAcousticAlert = false;
 };
 
 /**
@@ -70,6 +77,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rooms", meta = (ClampMin = "0", ClampMax = "1"))
 	float InterRoomRange = 1.f;
+
+	/** One enemy answers a noise at most this often (POLISH-01): a welder going on does not keep it calling out. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Acoustic alert", meta = (ClampMin = "0", Units = "Seconds"))
+	float AnswerInterval = 0.f;
+
+	/** A player's visor shows an acoustic alert at most this often, whoever answered (POLISH-01: no spam). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Acoustic alert", meta = (ClampMin = "0", Units = "Seconds"))
+	float AcousticAlertCooldown = 0.f;
 
 	/** How far a noise reaches a listener hearing HearingRange: Loudness x LoudnessScale x HearingRange, capped by its MaxRange. */
 	float RangeFor(const FHollowNoiseRule& Rule, float HearingRange, float LoudnessScale = 1.f) const;

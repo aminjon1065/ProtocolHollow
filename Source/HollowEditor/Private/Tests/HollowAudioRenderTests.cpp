@@ -45,6 +45,10 @@ namespace HollowAudioRenderTests
 	/** Shorter than a quick double press, so the menus never pile their sounds up. */
 	constexpr double MaxMenuSoundSeconds = 0.6;
 
+	/** POLISH-01 (ADR-0053): an enemy's answer to a noise: a one-shot, heard at once and over before the hunt is on. */
+	const TCHAR* const AlertSounds[] = {TEXT("MS_Enemy_PilgrimAlert"), TEXT("MS_Enemy_StalkerAlert")};
+	constexpr double MaxAlertSeconds = 2.0;
+
 	struct FRender
 	{
 		bool bBuilt = false;
@@ -207,6 +211,7 @@ bool FHollowAudioRenderTest::RunTest(const FString& Parameters)
 	}
 
 	TMap<FString, FLevels> MenuLevels;
+	int32 AlertsRendered = 0;
 	for (const FAssetData& Asset : Assets)
 	{
 		const FString Name = Asset.AssetName.ToString();
@@ -259,8 +264,18 @@ bool FHollowAudioRenderTest::RunTest(const FString& Parameters)
 					Rendered.bFinished && Rendered.EndSeconds <= MaxMenuSoundSeconds);
 			}
 		}
+		for (const TCHAR* AlertSound : AlertSounds)
+		{
+			if (Name == AlertSound)
+			{
+				++AlertsRendered;
+				TestTrue(*FString::Printf(TEXT("%s: an acoustic alert is a one-shot within %.0f s (%.2f s)"), *Name, MaxAlertSeconds, Rendered.EndSeconds),
+					bOneShot && bAllFinished && Rendered.EndSeconds <= MaxAlertSeconds);
+			}
+		}
 		TestTrue(*FString::Printf(TEXT("%s: written to Saved/%s"), *Name, RenderFolder), WriteWave(Rendered, Name));
 	}
+	TestEqual(TEXT("Both acoustic alerts were rendered"), AlertsRendered, static_cast<int32>(UE_ARRAY_COUNT(AlertSounds)));
 
 	TestEqual(TEXT("Every menu sound was rendered"), MenuLevels.Num(), static_cast<int32>(UE_ARRAY_COUNT(MenuSounds)));
 	if (const FLevels* Focus = MenuLevels.Find(MenuFocus))

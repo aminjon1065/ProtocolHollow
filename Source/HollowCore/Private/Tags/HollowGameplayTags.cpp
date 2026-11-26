@@ -103,6 +103,8 @@ namespace HollowTags
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Enemy_PilgrimWindup, "Hollow.Sound.Enemy.PilgrimWindup", "Iron Pilgrim winding up a blow.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Enemy_StalkerShriek, "Hollow.Sound.Enemy.StalkerShriek", "Echo-Stalker about to strike.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Stalker_Vent, "Hollow.Sound.Stalker.Vent", "Echo-Stalker slipping into or out of a vent.");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Enemy_PilgrimAlert, "Hollow.Sound.Enemy.PilgrimAlert", "Iron Pilgrim answering a noise it woke to: a distant clang (POLISH-01).");
+	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Enemy_StalkerAlert, "Hollow.Sound.Enemy.StalkerAlert", "Echo-Stalker answering a noise it woke to: a vent scrape and its echo (POLISH-01).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Whisperer_Whisper, "Hollow.Sound.Whisperer.Whisper", "Whisperer: its whispering, a loop on its body (louder in a frenzy).");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Whisperer_Shriek, "Hollow.Sound.Whisperer.Shriek", "Whisperer flinching in a beam of light.");
 	HOLLOW_DEFINE_GAMEPLAY_TAG(Sound_Whisperer_Bite, "Hollow.Sound.Whisperer.Bite", "Whisperer winding up its bite.");

@@ -49,6 +49,7 @@ INI_LINES = [
 # Texts: (widget, string table key, English source) in loc.MENUS.
 MAIN_TITLE = ("Title", "Menu.Main.Title", "PROTOCOL: HOLLOW")   # the logo: the same in every language
 MAIN_SUBTITLE = ("Subtitle", "Menu.Main.Subtitle", "The Ark has returned. Its cores are still warm.")   # Docs/Narrative/Canon.md
+MAIN_SLOGAN = ("Slogan", "Menu.Main.Slogan", "The ship hears you.")   # POLISH-01 (ADR-0053): the tagline under the logo
 MAIN_BUTTONS = [("SoloButton", "Menu.Main.Solo", "Play solo"), ("HostButton", "Menu.Main.Host", "Host co-op"),
                 ("SettingsButton", "Menu.Settings", "Settings"), ("QuitButton", "Menu.Quit", "Quit")]
 LANGUAGE_BUTTON = ("LanguageButton", "Menu.Language", "Language: English")   # every translation names its own language
@@ -81,7 +82,8 @@ TABS = [
         ("CONTROLS_HINT", "Menu.Settings.ControlsHint", "Controls cheat sheet")]),
     (("Accessibility", "Menu.Settings.Tab.Accessibility", "Language and accessibility"), [
         ("LANGUAGE", "Menu.Settings.Language", "Language"),
-        ("REDUCED_FLASHES", "Menu.Settings.ReducedFlashes", "Reduced flashes")]),
+        ("REDUCED_FLASHES", "Menu.Settings.ReducedFlashes", "Reduced flashes"),
+        ("WAYPOINTS", "Menu.Settings.Waypoints", "Waypoints")]),   # POLISH-01 (ADR-0053)
 ]
 # FHollowSettingsTexts: property -> (key, English).
 VALUE_TEXTS = {
@@ -93,6 +95,9 @@ VALUE_TEXTS = {
     "frames_format": ("Menu.Settings.Value.Frames", "{0} FPS"), "degrees_format": ("Menu.Settings.Value.Degrees", "{0}\u00b0"),
     "push_to_talk": ("Menu.Settings.Value.PushToTalk", "Push-to-talk"), "open_mic": ("Menu.Settings.Value.OpenMic", "Open mic"),
     "muted": ("Menu.Settings.Value.Muted", "Muted"),
+    # POLISH-01: always on the visor, or hidden in a raid but for a few seconds when the objective changes or on H.
+    "waypoints_full": ("Menu.Settings.Value.WaypointsFull", "Full"),
+    "waypoints_immersive": ("Menu.Settings.Value.WaypointsImmersive", "Immersive"),
 }
 
 # Layout (data).
@@ -101,6 +106,8 @@ MENU_BUTTON_PADDING = (28.0, 12.0, 28.0, 12.0)
 BUTTON_GAP = 6.0
 MAIN_MARGIN = (120.0, 104.0, 120.0, 56.0)    # the main menu's distance from the screen's edges
 HERO_ACCENT_WIDTH = 420.0
+SLOGAN_SIZE = 20            # POLISH-01: the tagline, cyan and spaced like the logo but small
+SLOGAN_SPACING = 180
 LANGUAGE_MIN_WIDTH = 260
 SYSTEM_TITLE_GAP = 20.0
 DEBRIEF_WIDTH = 720.0
@@ -287,8 +294,8 @@ def ensure_menu_button():
 
 
 def ensure_main_menu():
-    blueprint, wanted = widget_blueprint(MENUS_DIR + "/W_MainMenu", unreal.HollowMainMenuWidget, MAIN_TITLE, MAIN_SUBTITLE, MAIN_BUTTONS,
-                                         LANGUAGE_BUTTON, MAIN_MARGIN, HERO_ACCENT_WIDTH)
+    blueprint, wanted = widget_blueprint(MENUS_DIR + "/W_MainMenu", unreal.HollowMainMenuWidget, MAIN_TITLE, MAIN_SLOGAN, MAIN_SUBTITLE, MAIN_BUTTONS,
+                                         LANGUAGE_BUTTON, MAIN_MARGIN, HERO_ACCENT_WIDTH, SLOGAN_SIZE, SLOGAN_SPACING)
     if blueprint is None:
         return
     add(blueprint, unreal.Overlay, "Root")   # over the dark menu scene: no backdrop
@@ -297,7 +304,10 @@ def ensure_main_menu():
     title = add(blueprint, unreal.TextBlock, MAIN_TITLE[0], "Content")
     text(title, MAIN_TITLE, style.HERO_SIZE, typeface=style.TITLE_TYPEFACE, spacing=style.HERO_SPACING)
     box_slot(title, H.H_ALIGN_LEFT, V.V_ALIGN_TOP)
-    accent(blueprint, "Accent", "Content", HERO_ACCENT_WIDTH, H.H_ALIGN_LEFT, unreal.Margin(4.0, 8.0, 0.0, 0.0))
+    slogan = add(blueprint, unreal.TextBlock, MAIN_SLOGAN[0], "Content")
+    text(slogan, MAIN_SLOGAN, SLOGAN_SIZE, tint=style.CYAN, typeface=style.TITLE_TYPEFACE, spacing=SLOGAN_SPACING)
+    box_slot(slogan, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(6.0, 4.0, 0.0, 0.0))
+    accent(blueprint, "Accent", "Content", HERO_ACCENT_WIDTH, H.H_ALIGN_LEFT, unreal.Margin(4.0, 12.0, 0.0, 0.0))
     subtitle = add(blueprint, unreal.TextBlock, MAIN_SUBTITLE[0], "Content")
     text(subtitle, MAIN_SUBTITLE, style.SUBTITLE_SIZE, tint=style.TEXT_SECONDARY)
     box_slot(subtitle, H.H_ALIGN_LEFT, V.V_ALIGN_TOP, unreal.Margin(4.0, 16.0, 0.0, 0.0))
@@ -523,7 +533,7 @@ def validate():
                          (MENU_BUTTON, unreal.HollowButton)):
         check(derives(path, parent), path + " derives from " + parent.__name__)
     main_menu = load(MENUS_DIR + "/W_MainMenu")
-    for name, key, _ in [MAIN_TITLE, MAIN_SUBTITLE, LANGUAGE_BUTTON] + MAIN_BUTTONS:
+    for name, key, _ in [MAIN_TITLE, MAIN_SLOGAN, MAIN_SUBTITLE, LANGUAGE_BUTTON] + MAIN_BUTTONS:
         widget = author.find_widget(main_menu, name)
         check(widget is not None, "W_MainMenu has " + name)
         check(loc.is_text(widget.get_editor_property("text" if isinstance(widget, unreal.TextBlock) else "label"), loc.MENUS, key),

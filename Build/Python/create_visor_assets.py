@@ -24,6 +24,7 @@ NAR-01a (ADR-0049):
   /Game/Hollow/UI/Visor/W_RadioSubtitle       the handler's radio: call sign over the line on the air, low in the middle
 NAR-01b (ADR-0050):
   /Game/Hollow/UI/Visor/W_LoreNotice          "CREW LOG 3/12", the log's title, its bonus: under the objective a few seconds
+  /Game/Hollow/UI/Visor/W_AcousticAlert       POLISH-01 (ADR-0053): "ACOUSTIC ALERT" under the raid's status when an enemy woke to this player's noise
 GP-01c (ADR-0046):
   /Game/Hollow/UI/Visor/M_UI_HitMarker        UI material: four diagonal ticks round the crosshair, tinted by the image
   /Game/Hollow/UI/Visor/W_HitMarker           the hit marker (hit / armour / crit: colour and size from DA_VisorStyle)
@@ -133,6 +134,9 @@ STYLE_TEXTS = {
     # NAR-01b: a downloaded crew log.
     "lore_notice_format": ("Visor.Lore.Format", "CREW LOG {0}/{1}"), "lore_notice_new": ("Visor.Lore.New", "+{0} cr on extraction"),
     "lore_notice_known": ("Visor.Lore.Known", "Already in your archive"),
+    # POLISH-01 (ADR-0053): an enemy woke to this player's noise; with immersive waypoints the controls key shows them too.
+    "acoustic_alert_text": ("Visor.Alert.Acoustic", "ACOUSTIC ALERT"),
+    "controls_title_immersive_format": ("Visor.Controls.TitleImmersiveFormat", "[{0}] CONTROLS + MARKERS"),
 }
 STYLE_COLORS = {
     "telemetry_color": (0.6, 0.88, 1.0, 0.9),
@@ -144,6 +148,8 @@ STYLE_COLORS = {
     "damage_color": (0.95, 0.1, 0.06, 1.0),
     # NAR-01a: the radio's subtitle near white; the Echo-Stalker's corrupted transmissions a sick violet.
     "radio_text_color": (0.94, 0.96, 1.0, 0.95), "radio_echo_color": (0.78, 0.45, 1.0, 0.95),
+    # POLISH-01: the acoustic alert a warning amber, between the heat bar's orange and the critical tier's red.
+    "acoustic_alert_color": (1.0, 0.55, 0.22, 1.0),
 }
 STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoint_edge_margin": 96.0,
                  # GP-01c: a marker for 0.18 s (armour smaller, a crit larger); the damage edge flashes over 0.45 s, full
@@ -153,11 +159,13 @@ STYLE_SCALARS = {"waypoint_rate_hz": 12.0, "waypoint_hide_metres": 2.5, "waypoin
                  "damage_fade_rate_hz": 30.0,
                  "lore_notice_seconds": 6.0,   # NAR-01b: a downloaded crew log's notice
                  # UI-02 (ADR-0052): a marker keeps this far off the readouts below; it is some 50 px each way with its label.
-                 "waypoint_keep_out_padding": 12.0, "waypoint_marker_radius": 52.0}
+                 "waypoint_keep_out_padding": 12.0, "waypoint_marker_radius": 52.0,
+                 # POLISH-01 (ADR-0053): the acoustic alert stays 3 s, steady; immersive waypoints show 5 s.
+                 "acoustic_alert_seconds": 3.0, "waypoint_reveal_seconds": 5.0}
 # UI-02 (ADR-0052): the readouts the markers keep off (widgets of W_Visor, while shown): the cheat sheet, the health and
 # tool bars, the supply and weapon lines, the objective and the Resonance readout.
 WAYPOINT_KEEP_OUT = ["ControlsHint", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar", "SupplyReadout", "WeaponReadout",
-                     "Objective", "ResonanceReadout"]
+                     "Objective", "ResonanceReadout", "AcousticAlert"]
 # Hub terminals pale cyan (the contracts console amber: it launches), extraction green, the vault aether cyan, the
 # altar ritual gold (Docs/Art bible palette).
 WAYPOINT_LOOKS = [
@@ -195,11 +203,12 @@ WIDGETS = {
     # NAR-01a: the subtitle in the UI's reading font (Roboto), wrapped short enough to stay clear of the bars at the bottom.
     "W_RadioSubtitle": {"version": 1, "speaker": TELEMETRY_SMALL, "text": 20, "wrap": 860.0, "gap": GAP},
     "W_LoreNotice": {"version": 1, "title": TELEMETRY_SMALL, "text": TELEMETRY_TEXT, "wrap": 620.0, "gap": GAP},   # NAR-01b
+    "W_AcousticAlert": {"version": 1, "text": 20},   # POLISH-01: larger than the telemetry, it has to be read at a glance
 }
 
 # W_Visor layout (data): distances from the screen edges, inside the glass's rim.
 LAYOUT = {
-    "version": 8,
+    "version": 9,
     "edge": 48.0,
     "crosshair": 6.0,
     "hit_marker": 44.0,                       # GP-01c: round the crosshair
@@ -214,6 +223,7 @@ LAYOUT = {
     "controls_below_readout": 76.0,           # UX-01: under the Resonance readout
     "subtitle_above_bottom": 120.0,           # NAR-01a: the radio's subtitle, over the bars' line
     "notice_below_objective": 84.0,           # NAR-01b: a crew log's notice, under the objective's two lines
+    "alert_below_status": 64.0,               # POLISH-01: the acoustic alert, under the raid's status at the top
     "colors": {"health": (0.75, 0.15, 0.15, 1.0), "stamina": (0.35, 0.85, 0.55, 1.0), "fuel": (0.2, 0.6, 1.0, 1.0),
                "heat": (1.0, 0.55, 0.1, 1.0), "alert": (1.0, 0.1, 0.05, 1.0), "crosshair": (1.0, 1.0, 1.0, 1.0)},
 }
@@ -920,6 +930,18 @@ def ensure_lore_notice():
     finish(blueprint, spec)
 
 
+def ensure_acoustic_alert():
+    spec = WIDGETS["W_AcousticAlert"]
+    blueprint = widget_blueprint("W_AcousticAlert", unreal.HollowAcousticAlertWidget, spec)
+    if blueprint is None:
+        return
+    add(blueprint, unreal.Overlay, "Root")
+    alert = add(blueprint, unreal.TextBlock, "AlertText", "Root")
+    telemetry_text(alert, spec["text"], unreal.TextJustify.CENTER)
+    box_slot(alert, H.H_ALIGN_CENTER, V.V_ALIGN_TOP)
+    finish(blueprint, spec)
+
+
 def configure_bar(bar, set_name, attribute, max_attribute, fill_color, alert_tag=None):
     key, label = BAR_LABELS[bar.get_name()]
     bar.set_editor_property("label", loc.text(loc.VISOR, key, label))
@@ -1017,6 +1039,10 @@ def ensure_visor():
     notice = add(blueprint, cls("W_LoreNotice"), "LoreNotice", "Root")
     canvas_slot(notice, top_left, top_left, unreal.Vector2D(edge, edge + L["objective_below_voice"] + L["notice_below_objective"]), auto_size=True)
 
+    # POLISH-01: an enemy's answer to this player's noise, under the raid's status.
+    alert = add(blueprint, cls("W_AcousticAlert"), "AcousticAlert", "Root")
+    canvas_slot(alert, top_centre, top_centre, unreal.Vector2D(0.0, edge + L["alert_below_status"]), auto_size=True)
+
     # NAR-01a: the radio's subtitle low in the middle, its bottom over the bars' line.
     subtitle = add(blueprint, cls("W_RadioSubtitle"), "RadioSubtitle", "Root")
     bottom_centre = unreal.Vector2D(0.5, 1.0)
@@ -1048,7 +1074,7 @@ def validate():
                          ("W_WeaponReadout", unreal.HollowWeaponReadoutWidget), ("W_HitMarker", unreal.HollowHitMarkerWidget),
                          ("W_VisorWaypoint", unreal.HollowWaypointMarkerWidget), ("W_VisorWaypoints", unreal.HollowWaypointLayerWidget),
                          ("W_ControlsHint", unreal.HollowControlsHintWidget), ("W_RadioSubtitle", unreal.HollowRadioSubtitleWidget),
-                         ("W_LoreNotice", unreal.HollowLoreNoticeWidget),
+                         ("W_LoreNotice", unreal.HollowLoreNoticeWidget), ("W_AcousticAlert", unreal.HollowAcousticAlertWidget),
                          ("W_Visor", unreal.HollowVisorWidget)):
         blueprint = load(VISOR_DIR + "/" + path)
         generated = blueprint.generated_class()
@@ -1062,7 +1088,7 @@ def validate():
     visor = load(VISOR_DIR + "/W_Visor")
     for name in ("Layers", "VisorFrame", "Root", "Crosshair", "TargetStatus", "InteractionPrompt", "HealthBar", "StaminaBar", "ToolFuelBar", "ToolHeatBar",
                  "VoiceIndicator", "LampIndicator", "SupplyReadout", "WeaponReadout", "RaidStatus", "ResonanceReadout", "Waypoints", "Objective",
-                 "ControlsHint", "HitMarker", "RadioSubtitle", "LoreNotice"):
+                 "ControlsHint", "HitMarker", "RadioSubtitle", "LoreNotice", "AcousticAlert"):
         check(author.find_widget(visor, name) is not None, "W_Visor shows " + name)
     hit_marker = load(HIT_MARKER_PATH)
     check(hit_marker.get_editor_property("material_domain") == unreal.MaterialDomain.MD_UI and up_to_date(hit_marker, digest(HIT_MARKER)), "M_UI_HitMarker")
@@ -1115,6 +1141,7 @@ def main():
     ensure_controls()
     ensure_radio_subtitle()
     ensure_lore_notice()
+    ensure_acoustic_alert()
     ensure_visor()
     loc.save()
     validate()

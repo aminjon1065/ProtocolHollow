@@ -72,6 +72,7 @@
 | `Hollow.Game.Audio.RoomAcoustics` | Удалены `RoomAcoustics` или `RoomTone` |
 | `Hollow.PCG.DocksOpenings` | Проём перекрыт, в ошибке — имя актёра |
 | `Hollow.Editor.ArtBudget` | Текстура больше 2048 или декор с коллизией / навигацией |
+| `Hollow.Editor.MaterialUsage` | У мастер-материала нет флага usage для того, на чём он рисуется: ISM (декор и дуги Собора) или Geometry Collection (обломки). Флаги задаёт `MASTER_USAGE` в `create_lighting_assets.py` и `create_art_kit.py` |
 | `Hollow.Editor.AudioRender` | MetaSound молчит, уходит выше полной шкалы, выдаёт NaN или one-shot не заканчивается; звук меню длиннее 0,6 с или тик фокуса не самый тихий. В тексте — уровни каждого звука |
 | `Hollow.Game.Tool.Mount`, `Hollow.Game.Enemy.Montages` | Ошибка в коде крепления или монтажей, а не в арте (ADR-0027) |
 
@@ -115,4 +116,5 @@
 - **Звуки** — четыре процедурных MetaSound в `SC_Hollow_UI`: фокус, подтверждение, отказ серой кнопки, открытие и закрытие терминала. WAV в игре нет (`Hollow.UI.Sounds`).
 - **Послушать звуки без игры.** `run-tests-mac.sh --filter Hollow.Editor.AudioRender` рендерит каждый MetaSound проекта в `Saved/AudioRender/<имя>.wav`: 48 кГц, моно, как его играет микшер, до громкости банка. Это не контент и в пакет не попадает.
 - **Уровни.** Источник пикует ниже полной шкалы при любом зерне шума: лимитера на мастере нет, всё выше 0 dBFS режется на выходе. Громче или тише в игре — громкость записи в `DA_SoundBank` (`create_audio_assets.py ENTRIES`), а не усиление графа.
+- **Флаги usage мастеров** (AK-14, ADR-0053). Редактор ставит флаг (ISM, Geometry Collection, скелетный меш) сам, но не сохраняет его, и в собранной игре такой материал рисуется движковым по умолчанию. Новый мастер под ISM или обломки — флаг в `MASTER_USAGE` скрипта. Смоуки выводят `missing usage flag` в разделе ошибок.
 - **Сцена главного меню** — `create_menu_scene.py` в `L_Boot`: не больше трёх своих источников света, один с тенью (`Hollow.Game.MenuScene`). Пропы там только для вида: NoCollision, без навигации.

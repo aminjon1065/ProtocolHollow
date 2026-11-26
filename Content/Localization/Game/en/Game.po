@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-25 20:04\n"
-"PO-Revision-Date: 2026-11-25 20:04\n"
+"POT-Creation-Date: 2026-11-26 07:01\n"
+"PO-Revision-Date: 2026-11-26 07:01\n"
 "Language-Team: \n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -741,6 +741,13 @@ msgctxt "ST_Menus,Menu.Main.Host"
 msgid "Host co-op"
 msgstr "Host co-op"
 
+#. Key:	Menu.Main.Slogan
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Main.Slogan"
+msgid "The ship hears you."
+msgstr "The ship hears you."
+
 #. Key:	Menu.Main.Solo
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
 #: /Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -965,6 +972,20 @@ msgctxt "ST_Menus,Menu.Settings.Value.Unlimited"
 msgid "Unlimited"
 msgstr "Unlimited"
 
+#. Key:	Menu.Settings.Value.WaypointsFull
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.WaypointsFull"
+msgid "Full"
+msgstr "Full"
+
+#. Key:	Menu.Settings.Value.WaypointsImmersive
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Value.WaypointsImmersive"
+msgid "Immersive"
+msgstr "Immersive"
+
 #. Key:	Menu.Settings.Value.Windowed
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
 #: /Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -999,6 +1020,13 @@ msgstr "Voice chat"
 msgctxt "ST_Menus,Menu.Settings.VSync"
 msgid "Vertical sync"
 msgstr "Vertical sync"
+
+#. Key:	Menu.Settings.Waypoints
+#. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
+#: /Game/Hollow/Localization/ST_Menus.ST_Menus
+msgctxt "ST_Menus,Menu.Settings.Waypoints"
+msgid "Waypoints"
+msgstr "Waypoints"
 
 #. Key:	Menu.Settings.WindowMode
 #. SourceLocation:	/Game/Hollow/Localization/ST_Menus.ST_Menus
@@ -1553,6 +1581,13 @@ msgctxt "ST_Visor,Glyph.Two"
 msgid "2"
 msgstr "2"
 
+#. Key:	Visor.Alert.Acoustic
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Alert.Acoustic"
+msgid "ACOUSTIC ALERT"
+msgstr "ACOUSTIC ALERT"
+
 #. Key:	Visor.Bar.Fuel
 #. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
 #: /Game/Hollow/Localization/ST_Visor.ST_Visor
@@ -1594,6 +1629,13 @@ msgstr "CONTROLS"
 msgctxt "ST_Visor,Visor.Controls.TitleFormat"
 msgid "[{0}] CONTROLS"
 msgstr "[{0}] CONTROLS"
+
+#. Key:	Visor.Controls.TitleImmersiveFormat
+#. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor
+#: /Game/Hollow/Localization/ST_Visor.ST_Visor
+msgctxt "ST_Visor,Visor.Controls.TitleImmersiveFormat"
+msgid "[{0}] CONTROLS + MARKERS"
+msgstr "[{0}] CONTROLS + MARKERS"
 
 #. Key:	Visor.Lamp.Format
 #. SourceLocation:	/Game/Hollow/Localization/ST_Visor.ST_Visor

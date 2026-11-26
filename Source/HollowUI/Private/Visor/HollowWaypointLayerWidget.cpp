@@ -6,6 +6,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Settings/HollowGameUserSettings.h"
 #include "TimerManager.h"
 #include "ViewModels/HollowObjectiveModel.h"
 #include "ViewModels/HollowVisorContext.h"
@@ -29,6 +30,10 @@ void UHollowWaypointLayerWidget::BindContext(UHollowVisorContext& InContext)
 	{
 		ObjectiveHandle = Model->OnObjectiveChanged.AddUObject(this, &ThisClass::Restart);
 	}
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		ModeHandle = Settings->OnWaypointModeChanged.AddUObject(this, &ThisClass::Restart);
+	}
 	Restart();
 }
 
@@ -39,11 +44,50 @@ void UHollowWaypointLayerWidget::UnbindContext(UHollowVisorContext& InContext)
 		Model->OnObjectiveChanged.Remove(ObjectiveHandle);
 	}
 	Objective.Reset();
+	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
+	{
+		Settings->OnWaypointModeChanged.Remove(ModeHandle);
+	}
 	if (const UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(UpdateTimer);
+		World->GetTimerManager().ClearTimer(RevealTimer);
 	}
+	bRevealed = false;
+	LastStep = EHollowObjectiveStep::None;
 	HideFrom(0);
+}
+
+bool UHollowWaypointLayerWidget::IsImmersive() const
+{
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	const UHollowObjectiveModel* Model = Objective.Get();
+	return Settings && Settings->GetWaypointMode() == EHollowWaypointMode::Immersive && Model && Model->GetFacts().bInRaid;
+}
+
+bool UHollowWaypointLayerWidget::IsHiddenByImmersion() const
+{
+	return IsImmersive() && !bRevealed;
+}
+
+void UHollowWaypointLayerWidget::Reveal()
+{
+	const UHollowVisorContext* Owner = GetContext();
+	const UHollowVisorStyle* Style = Owner ? Owner->GetStyle() : nullptr;
+	UWorld* World = GetWorld();
+	if (!World || !Style || !IsImmersive())
+	{
+		return;
+	}
+	bRevealed = true;
+	World->GetTimerManager().SetTimer(RevealTimer, this, &ThisClass::EndReveal, FMath::Max(Style->WaypointRevealSeconds, 0.1f), /*bLoop=*/false);
+	Restart();
+}
+
+void UHollowWaypointLayerWidget::EndReveal()
+{
+	bRevealed = false;
+	Restart();
 }
 
 bool UHollowWaypointLayerWidget::IsUpdating() const
@@ -62,7 +106,16 @@ void UHollowWaypointLayerWidget::Restart()
 	{
 		return;
 	}
-	const bool bAny = Model && Style && !Model->GetObjective().Waypoints.IsEmpty() && !Model->IsScreenOpen();
+	if (Model && Model->GetObjective().Step != LastStep)
+	{
+		LastStep = Model->GetObjective().Step;
+		if (IsImmersive())
+		{
+			Reveal();   // a new objective: where it is, for a few seconds (Reveal comes back here)
+			return;
+		}
+	}
+	const bool bAny = Model && Style && !Model->GetObjective().Waypoints.IsEmpty() && !Model->IsScreenOpen() && !IsHiddenByImmersion();
 	if (!bAny)
 	{
 		World->GetTimerManager().ClearTimer(UpdateTimer);
@@ -197,5 +250,6 @@ FString UHollowWaypointLayerWidget::Describe() const
 		Parts.Add(FString::Printf(TEXT("%s %d m %s"), *StaticEnum<EHollowWaypointKind>()->GetNameStringByValue(static_cast<int64>(Marker.Kind)), Marker.Metres,
 			Marker.Placement.bOnScreen ? TEXT("in view") : *FString::Printf(TEXT("edge %.0f deg"), Marker.Placement.ArrowDegrees)));
 	}
-	return FString::Printf(TEXT("waypoints %d (%s)%s"), Shown.Num(), *FString::Join(Parts, TEXT(", ")), IsUpdating() ? TEXT("") : TEXT(" idle"));
+	const TCHAR* Mode = !IsImmersive() ? TEXT("") : (bRevealed ? TEXT(", immersive: revealed") : TEXT(", immersive: hidden"));
+	return FString::Printf(TEXT("waypoints %d (%s)%s%s"), Shown.Num(), *FString::Join(Parts, TEXT(", ")), IsUpdating() ? TEXT("") : TEXT(" idle"), Mode);
 }

@@ -105,6 +105,78 @@ bool FHollowNoiseSubsystemTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowNoiseAnswerTest, "Hollow.Core.Noise.Answer",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowNoiseAnswerTest::RunTest(const FString& Parameters)
+{
+	// POLISH-01 (ADR-0053): an enemy that wakes to a player's noise answers it when the noise's rule raises an acoustic
+	// alert, at most once per AnswerInterval per enemy; the player's visor hears of it at most once per
+	// AcousticAlertCooldown, whichever enemy answered. The shipped rules: every noise but footsteps and the lantern.
+	using namespace HollowNoiseTests;
+	constexpr float AnswerInterval = 2.f;
+	constexpr float AlertCooldown = 5.f;
+	constexpr float Step = 0.25f;
+	FTestWorldWrapper TestWorld;
+	if (!TestWorld.CreateTestWorld(EWorldType::Game))
+	{
+		TestWorld.ForwardErrorMessages(this);
+		return false;
+	}
+	UWorld* World = TestWorld.GetTestWorld();
+	World->InitializeActorsForPlay(FURL());
+	UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(World);
+	if (!TestNotNull(TEXT("Noise subsystem"), Noise))
+	{
+		return false;
+	}
+	if (const UHollowNoiseConfig* Shipped = Noise->GetConfig(); TestNotNull(TEXT("DA_NoiseConfig"), Shipped))
+	{
+		for (const FHollowNoiseRule& Rule : Shipped->Rules)
+		{
+			const bool bSteady = Rule.NoiseTag == HollowTags::Noise_Footstep || Rule.NoiseTag == HollowTags::Noise_Tool_Lantern;
+			TestEqual(*FString::Printf(TEXT("Shipped: %s raises an acoustic alert"), *Rule.NoiseTag.ToString()), Rule.bRaisesAcousticAlert, !bSteady);
+		}
+		TestTrue(TEXT("Shipped: a visor alert at most every 8-10 s"), Shipped->AcousticAlertCooldown >= 8.f && Shipped->AcousticAlertCooldown <= 10.f);
+		TestTrue(TEXT("Shipped: an enemy answers at most every few seconds"), Shipped->AnswerInterval > 0.f);
+	}
+
+	UHollowNoiseConfig* Config = MakeConfig();
+	Config->Rules[0].bRaisesAcousticAlert = true;   // the welder; footsteps stay silent to the visor
+	Config->AnswerInterval = AnswerInterval;
+	Config->AcousticAlertCooldown = AlertCooldown;
+	Noise->SetConfig(Config);
+	TArray<FHollowNoiseAnswer> Alerts;
+	Noise->OnAcousticAlert.AddLambda([&Alerts](const FHollowNoiseAnswer& Answer) { Alerts.Add(Answer); });
+	AActor* Pilgrim = World->SpawnActor<AActor>();
+	AActor* Stalker = World->SpawnActor<AActor>();
+	AActor* Welder = World->SpawnActor<AActor>();
+	AActor* Other = World->SpawnActor<AActor>();
+	auto Wait = [&TestWorld](const float Seconds)
+	{
+		for (float Elapsed = 0.f; Elapsed < Seconds; Elapsed += Step)
+		{
+			TestWorld.TickTestWorld(Step);
+		}
+	};
+
+	TestFalse(TEXT("Footsteps: no answer"), Noise->AnswerNoise(*Pilgrim, Welder, HollowTags::Noise_Footstep));
+	TestTrue(TEXT("Welding: the enemy answers"), Noise->AnswerNoise(*Pilgrim, Welder, HollowTags::Noise_Tool_Welder));
+	TestTrue(TEXT("...and the welder's visor hears of it"), Alerts.Num() == 1 && Alerts[0].Instigator.Get() == Welder && Alerts[0].Enemy.Get() == Pilgrim
+		&& Alerts[0].NoiseTag == HollowTags::Noise_Tool_Welder);
+	TestFalse(TEXT("The same enemy again at once: no second answer"), Noise->AnswerNoise(*Pilgrim, Welder, HollowTags::Noise_Tool_Welder));
+	TestTrue(TEXT("Another enemy answers"), Noise->AnswerNoise(*Stalker, Welder, HollowTags::Noise_Tool_Welder));
+	TestEqual(TEXT("...but the welder's visor is told once per cooldown"), Alerts.Num(), 1);
+	Wait(AnswerInterval + Step);
+	TestTrue(TEXT("After its interval the enemy answers again"), Noise->AnswerNoise(*Pilgrim, Other, HollowTags::Noise_Tool_Welder));
+	TestTrue(TEXT("...another player's noise: that player's visor"), Alerts.Num() == 2 && Alerts[1].Instigator.Get() == Other);
+	Wait(AlertCooldown);
+	TestTrue(TEXT("After the cooldown"), Noise->AnswerNoise(*Stalker, Welder, HollowTags::Noise_Tool_Welder));
+	TestTrue(TEXT("...the welder's visor is told again"), Alerts.Num() == 3 && Alerts[2].Instigator.Get() == Welder);
+	TestFalse(TEXT("A noise without a rule: no answer"), Noise->AnswerNoise(*Pilgrim, Welder, HollowTags::Noise_Voice));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowNoiseFootstepScaleTest, "Hollow.Core.Noise.FootstepScale",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

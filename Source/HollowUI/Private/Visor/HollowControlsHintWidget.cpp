@@ -37,6 +37,7 @@ void UHollowControlsHintWidget::BindContext(UHollowVisorContext& InContext)
 	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
 	{
 		SettingsHandle = Settings->OnControlsHintChanged.AddUObject(this, &ThisClass::Refresh);
+		ModeHandle = Settings->OnWaypointModeChanged.AddUObject(this, &ThisClass::Refresh);
 	}
 	Refresh();
 }
@@ -55,6 +56,7 @@ void UHollowControlsHintWidget::UnbindContext(UHollowVisorContext& InContext)
 	if (UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get())
 	{
 		Settings->OnControlsHintChanged.Remove(SettingsHandle);
+		Settings->OnWaypointModeChanged.Remove(ModeHandle);
 	}
 }
 
@@ -73,7 +75,15 @@ FText UHollowControlsHintWidget::GetTitleText() const
 		return FText::GetEmpty();
 	}
 	const FText Key = Owner->GetKeyLabel(GetDefault<UHollowUISettings>()->ControlsHintAction.LoadSynchronous());
-	return Key.IsEmpty() ? Style->ControlsTitle : FText::Format(Style->ControlsTitleFormat, Key);
+	if (Key.IsEmpty())
+	{
+		return Style->ControlsTitle;
+	}
+	// POLISH-01: with immersive waypoints in a raid the key shows them too, and the title says so.
+	const UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	const UHollowObjectiveModel* Model = Objective.Get();
+	const bool bImmersive = Settings && Settings->GetWaypointMode() == EHollowWaypointMode::Immersive && Model && Model->GetFacts().bInRaid;
+	return FText::Format(bImmersive && !Style->ControlsTitleImmersiveFormat.IsEmpty() ? Style->ControlsTitleImmersiveFormat : Style->ControlsTitleFormat, Key);
 }
 
 FText UHollowControlsHintWidget::GetListText() const

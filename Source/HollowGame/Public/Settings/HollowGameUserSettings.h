@@ -11,6 +11,16 @@ struct FDisplayMetrics;
 enum class EHollowLanguage : uint8;
 enum class EHollowVolume : uint8;
 
+/** POLISH-01 (ADR-0053): how the visor marks the way in a raid. */
+UENUM(BlueprintType)
+enum class EHollowWaypointMode : uint8
+{
+	/** Always, as UX-01 has it. */
+	Full,
+	/** Hidden in a raid; they show a few seconds when the objective changes or the controls key is pressed (the hub as Full). */
+	Immersive
+};
+
 /**
  * The player's settings (GameUserSettings.ini) with the graphics preset (ADR-0023). The first launch on a machine picks
  * one (Steam Deck, else the hardware benchmark); -HollowPreset=Low|High overrides it for one run. Set as
@@ -60,6 +70,14 @@ public:
 	void SetControlsHintShown(bool bShown, bool bSave = true);
 
 	FSimpleMulticastDelegate OnControlsHintChanged;
+
+	/** POLISH-01 (ADR-0053): the visor's waypoints, full unless the player chose immersive ones. */
+	EHollowWaypointMode GetWaypointMode() const { return WaypointMode; }
+
+	/** Switches them now (OnWaypointModeChanged); bSave keeps it for the next launch. */
+	void SetWaypointMode(EHollowWaypointMode Mode, bool bSave = true);
+
+	FSimpleMulticastDelegate OnWaypointModeChanged;
 
 	/**
 	 * LOC-01 (ADR-0048): the language of the player's texts, applied once after the engine starts. The first launch takes
@@ -173,6 +191,9 @@ private:
 
 	UPROPERTY(Config)
 	bool bControlsHintShown = true;
+
+	UPROPERTY(Config)
+	EHollowWaypointMode WaypointMode = EHollowWaypointMode::Full;
 
 	/** The kept language ("en", "ru"); empty until the first launch chose one (LOC-01). */
 	UPROPERTY(Config)

@@ -21,7 +21,9 @@ enum class EHollowSettingId : uint8
 	FieldOfView,
 	ControlsHint,
 	Language,
-	ReducedFlashes
+	ReducedFlashes,
+	/** POLISH-01 (ADR-0053): full or immersive waypoints. */
+	Waypoints
 };
 
 /** A row of a tab: its setting and its name (a string table entry). */
@@ -99,6 +101,13 @@ struct HOLLOWUI_API FHollowSettingsTexts
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Texts")
 	FText Muted;
+
+	/** POLISH-01: the waypoints' modes. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Texts")
+	FText WaypointsFull;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Texts")
+	FText WaypointsImmersive;
 };
 
 /**

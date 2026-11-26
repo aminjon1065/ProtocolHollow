@@ -305,9 +305,10 @@ void AHollowAIController::ForgetStimulus()
 void AHollowAIController::HandlePerception(AActor* Actor, const FAIStimulus Stimulus)
 {
 	APawn* SensedPawn = Cast<APawn>(Actor);
-	if (!IsCandidate(SensedPawn))
+	const AHollowEnemyCharacter* Self = Cast<AHollowEnemyCharacter>(GetPawn());
+	if (!IsCandidate(SensedPawn) || (Self && Self->IsDead()))
 	{
-		return;
+		return;   // a dead one's perception still reports until it is gone: it senses nothing (POLISH-01: answers nothing)
 	}
 	if (Stimulus.Type == UAISense::GetSenseID<UAISense_Sight>())
 	{
@@ -322,7 +323,7 @@ void AHollowAIController::HandlePerception(AActor* Actor, const FAIStimulus Stim
 	}
 	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Hearing>() && Stimulus.WasSuccessfullySensed() && IsAudibleFromItsRoom(Stimulus))
 	{
-		ReportHeard(Stimulus.StimulusLocation);
+		ReportHeard(Stimulus.StimulusLocation, SensedPawn, FGameplayTag::RequestGameplayTag(Stimulus.Tag, /*ErrorIfNotFound=*/false));
 	}
 	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Damage>() && Stimulus.WasSuccessfullySensed())
 	{
@@ -406,7 +407,7 @@ void AHollowAIController::ForgetLostTarget()
 	}
 }
 
-void AHollowAIController::ReportHeard(const FVector& Location)
+void AHollowAIController::ReportHeard(const FVector& Location, AActor* NoiseInstigator, const FGameplayTag& NoiseTag)
 {
 	const UHollowEnemyDefinition* Definition = GetDefinition();
 	const bool bNew = !bHasStimulus || !Definition || FVector::Dist(Location, StimulusLocation) > Definition->MoveAcceptanceRadius;
@@ -419,6 +420,19 @@ void AHollowAIController::ReportHeard(const FVector& Location)
 	{
 		UE_LOG(LogHollowAI, Log, TEXT("%s: hears a noise at %s"), *GetNameSafe(GetPawn()), *Location.ToCompactString());
 		Reconsider();
+		AnswerNoise(NoiseInstigator, NoiseTag);
+	}
+}
+
+void AHollowAIController::AnswerNoise(AActor* NoiseInstigator, const FGameplayTag& NoiseTag)
+{
+	AHollowEnemyCharacter* Enemy = Cast<AHollowEnemyCharacter>(GetPawn());
+	const UHollowEnemyDefinition* Definition = GetDefinition();
+	UHollowNoiseSubsystem* Noise = UHollowNoiseSubsystem::Get(this);
+	if (Enemy && !Enemy->IsDead() && Definition && Definition->AcousticAlertSound.IsValid() && NoiseTag.IsValid() && Noise
+		&& Noise->AnswerNoise(*Enemy, NoiseInstigator, NoiseTag))
+	{
+		Enemy->AnswerNoise();
 	}
 }
 

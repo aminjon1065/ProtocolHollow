@@ -470,4 +470,150 @@ bool FHollowLocalizationNetTextsTest::RunTest(const FString& Parameters)
 	return Problems.IsEmpty();
 }
 
+namespace HollowLocalizationGlossary
+{
+	/** POLISH-01 (ADR-0053): the glossary's checked terms (Docs/Localization/Glossary-ru.md, the section naming this test). */
+	const TCHAR* const GlossaryFile = TEXT("Docs/Localization/Glossary-ru.md");
+	const TCHAR* const SectionMarker = TEXT("`Hollow.Editor.Localization.Glossary`");
+
+	struct FTerm
+	{
+		FString English;
+		FString Stem;
+	};
+
+	/** Lower case in any script (ICU), so a stem matches at the start of a sentence too. */
+	FString Lower(const FString& Text)
+	{
+		return FText::FromString(Text).ToLower().ToString();
+	}
+
+	/** The text without its format arguments ({Squad} is no word of the text). */
+	FString WithoutArguments(const FString& Pattern)
+	{
+		FString Result;
+		bool bInside = false;
+		for (const TCHAR Character : Pattern)
+		{
+			if (Character == TCHAR('{'))
+			{
+				bInside = true;
+			}
+			else if (Character == TCHAR('}'))
+			{
+				bInside = false;
+			}
+			else if (!bInside)
+			{
+				Result.AppendChar(Character);
+			}
+		}
+		return Result;
+	}
+
+	/** Term in Text, not inside a longer word on its left ("handler" finds "Handlers", not "panhandler"). */
+	bool Mentions(const FString& Text, const FString& Term)
+	{
+		const FString Haystack = Lower(Text);
+		const FString Needle = Lower(Term);
+		for (int32 From = Haystack.Find(Needle); From != INDEX_NONE; From = Haystack.Find(Needle, ESearchCase::CaseSensitive, ESearchDir::FromStart, From + 1))
+		{
+			if (From == 0 || !FChar::IsAlpha(Haystack[From - 1]))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** The rows of the checked terms' table: "| English | Stem |" after the section's heading. */
+	TArray<FTerm> ReadTerms(const FString& Markdown)
+	{
+		TArray<FString> Lines;
+		Markdown.ParseIntoArrayLines(Lines, /*bCullEmpty=*/false);
+		TArray<FTerm> Terms;
+		bool bInSection = false;
+		for (const FString& Line : Lines)
+		{
+			if (Line.StartsWith(TEXT("#")))
+			{
+				bInSection = Line.Contains(SectionMarker);
+				continue;
+			}
+			TArray<FString> Cells;
+			Line.ParseIntoArray(Cells, TEXT("|"), /*InCullEmpty=*/true);
+			if (!bInSection || !Line.StartsWith(TEXT("|")) || Cells.Num() < 2)
+			{
+				continue;
+			}
+			const FString English = Cells[0].TrimStartAndEnd();
+			const FString Stem = Cells[1].TrimStartAndEnd();
+			if (English == TEXT("English") || English.StartsWith(TEXT("-")))
+			{
+				continue;   // the header and its rule
+			}
+			Terms.Add({English, Stem});
+		}
+		return Terms;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowLocalizationGlossaryTest, "Hollow.Editor.Localization.Glossary",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowLocalizationGlossaryTest::RunTest(const FString& Parameters)
+{
+	// POLISH-01 (ADR-0053): one name per thing in Russian. A player text whose English names a checked term of the
+	// glossary (the Echo-Stalker, the Skiff, the handler...) names it with the glossary's word in its translation.
+	using namespace HollowLocalizationTests;
+	using namespace HollowLocalizationGlossary;
+	FString Markdown;
+	if (!TestTrue(TEXT("The glossary reads"), FFileHelper::LoadFileToString(Markdown, *FPaths::Combine(FPaths::ProjectDir(), GlossaryFile))))
+	{
+		return false;
+	}
+	const TArray<FTerm> Terms = ReadTerms(Markdown);
+	if (!TestTrue(TEXT("The glossary has checked terms"), Terms.Num() > 0))
+	{
+		return false;
+	}
+	for (const FTerm& Term : Terms)
+	{
+		TestFalse(*FString::Printf(TEXT("Glossary: %s has a stem"), *Term.English), Term.Stem.IsEmpty());
+	}
+	FLocTextHelper Helper(TargetDir(), TEXT("Game.manifest"), TEXT("Game.archive"), TEXT("en"), {Russian}, nullptr);
+	FText Error;
+	if (!TestTrue(TEXT("The Game target loads"), Helper.LoadAll(ELocTextHelperLoadFlags::Load, &Error)))
+	{
+		AddError(Error.ToString());
+		return false;
+	}
+	int32 Checked = 0;
+	Helper.EnumerateSourceTexts([&](TSharedRef<FManifestEntry> Entry)
+	{
+		const FString Source = WithoutArguments(Entry->Source.Text);
+		for (const FManifestContext& Context : Entry->Contexts)
+		{
+			const TSharedPtr<FArchiveEntry> Translated = Helper.FindTranslation(Russian, Entry->Namespace, Context.Key, Context.KeyMetadataObj);
+			const FString Translation = Translated.IsValid() ? WithoutArguments(Translated->Translation.Text) : FString();
+			for (const FTerm& Term : Terms)
+			{
+				if (Translation.IsEmpty() || !Mentions(Source, Term.English))
+				{
+					continue;
+				}
+				++Checked;
+				if (!Lower(Translation).Contains(Lower(Term.Stem)))
+				{
+					AddError(FString::Printf(TEXT("%s,%s: \"%s\" is translated without \"%s\" (the glossary's word for %s)"), *Entry->Namespace.GetString(),
+						*Context.Key.GetString(), *Entry->Source.Text.Left(80), *Term.Stem, *Term.English));
+				}
+			}
+		}
+		return true;
+	}, /*bCheckDependencies=*/true);
+	AddInfo(FString::Printf(TEXT("%d checked terms, %d uses in the player texts"), Terms.Num(), Checked));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

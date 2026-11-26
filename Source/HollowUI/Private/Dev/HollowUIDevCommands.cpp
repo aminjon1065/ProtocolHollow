@@ -279,6 +279,28 @@ namespace HollowUIDevConsole
 			HollowLanguage::CultureName(HollowLanguage::GetApplied()), Settings ? *Settings->GetSavedLanguage() : TEXT("-"));
 	}
 
+	/** POLISH-01 (ADR-0053): prints or switches the visor's waypoints for this run (not saved). Usage: Hollow.UI.Waypoints [Full|Immersive] */
+	void Waypoints(const TArray<FString>& Args)
+	{
+		UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+		if (!Settings)
+		{
+			UE_LOG(LogHollowUI, Warning, TEXT("Hollow.UI.Waypoints: no game settings here."));
+			return;
+		}
+		if (Args.Num() > 0)
+		{
+			const int64 Value = StaticEnum<EHollowWaypointMode>()->GetValueByNameString(Args[0]);
+			if (Value == INDEX_NONE)
+			{
+				UE_LOG(LogHollowUI, Warning, TEXT("Hollow.UI.Waypoints: '%s' is no mode (Full, Immersive)."), *Args[0]);
+				return;
+			}
+			Settings->SetWaypointMode(static_cast<EHollowWaypointMode>(Value), /*bSave=*/false);
+		}
+		UE_LOG(LogHollowUI, Display, TEXT("Hollow.UI.Waypoints: %s"), *StaticEnum<EHollowWaypointMode>()->GetNameStringByValue(static_cast<int64>(Settings->GetWaypointMode())));
+	}
+
 	/** NAR-01a (ADR-0049): fires a radio trigger on this machine. Usage: Hollow.Radio.Fire <Trigger> [Force] */
 	void RadioFire(const TArray<FString>& Args, UWorld* World)
 	{
@@ -326,6 +348,11 @@ namespace HollowUIDevConsole
 		TEXT("Hollow.UI.Language"),
 		TEXT("Prints or switches the language of the texts at once (Keep also saves it). Usage: Hollow.UI.Language [en|ru] [Keep]"),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Language));
+
+	FAutoConsoleCommand WaypointsCommand(
+		TEXT("Hollow.UI.Waypoints"),
+		TEXT("Prints or switches the visor's waypoints for this run, not saved (POLISH-01). Usage: Hollow.UI.Waypoints [Full|Immersive]"),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Waypoints));
 
 	FAutoConsoleCommand ShotCommand(
 		TEXT("Hollow.UI.Shot"),

@@ -13,7 +13,8 @@ class UHollowWaypointMarkerWidget;
  * The visor's waypoints (UX-01, ADR-0042): the places the objective marks, each with its distance, on the place while
  * it is in view and at the edge with an arrow otherwise, so a player never loses the way in the generated sector.
  * A timer at UHollowVisorStyle::WaypointRateHz places them while any is to be shown; no Tick. Under a hub screen
- * they step aside.
+ * they step aside. POLISH-01 (ADR-0053): with immersive waypoints (the player's settings) they hide in a raid and show
+ * for WaypointRevealSeconds when the objective changes or the player presses the controls key (Reveal).
  */
 UCLASS(Abstract, meta = (DisableNativeTick))
 class HOLLOWUI_API UHollowWaypointLayerWidget : public UHollowVisorElement
@@ -44,6 +45,13 @@ public:
 	const TArray<FShown>& GetShown() const { return Shown; }
 	bool IsUpdating() const;
 
+	/** POLISH-01: shows immersive waypoints in a raid for a while (the controls key); nothing otherwise. */
+	void Reveal();
+	/** Immersive waypoints in a raid, outside a reveal: hidden now. */
+	bool IsHiddenByImmersion() const;
+	/** Immersive waypoints and a raid (the hub always shows them). */
+	bool IsImmersive() const;
+
 	virtual FString Describe() const override;
 
 protected:
@@ -62,6 +70,7 @@ private:
 	void Restart();
 	void HideFrom(int32 FirstHidden);
 	FVector2D GetViewSize() const;
+	void EndReveal();
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UHollowWaypointMarkerWidget>> Markers;
@@ -69,7 +78,12 @@ private:
 	TArray<FShown> Shown;
 	TWeakObjectPtr<UHollowObjectiveModel> Objective;
 	FDelegateHandle ObjectiveHandle;
+	FDelegateHandle ModeHandle;
 	FTimerHandle UpdateTimer;
+	FTimerHandle RevealTimer;
+	/** The step last placed for: a new one reveals immersive waypoints. */
+	EHollowObjectiveStep LastStep = EHollowObjectiveStep::None;
+	bool bRevealed = false;
 	FVector2D TestViewSize = FVector2D::ZeroVector;
 	TArray<FBox2D> TestKeepOut;
 };

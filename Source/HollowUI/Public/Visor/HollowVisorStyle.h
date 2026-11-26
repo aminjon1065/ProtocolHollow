@@ -188,6 +188,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controls")
 	FText ControlsTitle;
 
+	/** POLISH-01: the title with immersive waypoints in a raid, the key showing them too: {0} = the key. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controls")
+	FText ControlsTitleImmersiveFormat;
+
 	/** GP-01c (ADR-0046): how long the hit marker stays after a hit. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit Marker", meta = (ClampMin = "0", Units = "Seconds"))
 	float HitMarkerSeconds = 0.f;
@@ -254,4 +258,22 @@ public:
 	/** How long the notice stays. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lore", meta = (ClampMin = "0", Units = "Seconds"))
 	float LoreNoticeSeconds = 0.f;
+
+	/** POLISH-01 (ADR-0053): an enemy woke to this player's noise ("ACOUSTIC ALERT"). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Acoustic alert")
+	FText AcousticAlertText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Acoustic alert")
+	FLinearColor AcousticAlertColor = FLinearColor::White;
+
+	/** How long it stays (steady: no blinking, whatever the flashes setting). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Acoustic alert", meta = (ClampMin = "0", Units = "Seconds"))
+	float AcousticAlertSeconds = 0.f;
+
+	/**
+	 * POLISH-01: with immersive waypoints in a raid, the markers show this long when the objective changes or the player
+	 * presses the controls key (H, the gamepad's View).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waypoints", meta = (ClampMin = "0", Units = "Seconds"))
+	float WaypointRevealSeconds = 0.f;
 };

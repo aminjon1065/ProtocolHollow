@@ -2,12 +2,16 @@
 
 #include "Extraction/HollowRaidTypes.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "Inventory/HollowLoadoutRules.h"
 
 #include "HollowPlayerController.generated.h"
 
 class AHollowHubTerminal;
 class UHollowVoiceComponent;
+
+/** This machine: an enemy answered its player's noise (POLISH-01), with the noise's tag. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowLocalAcousticAlert, const FGameplayTag& /*NoiseTag*/);
 
 /**
  * Thin player controller (CLAUDE.md sec. 8): client-to-server requests that belong to no pawn, and the player's voice
@@ -60,6 +64,17 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_SelectClass(const FPrimaryAssetId& Class);
 
+	/**
+	 * POLISH-01 (ADR-0053): an enemy woke to this player's noise and answers it (UHollowAcousticAlertSubsystem, at most
+	 * once per DA_NoiseConfig's AcousticAlertCooldown): this machine's visor says so. Unreliable: only a notice.
+	 */
+	UFUNCTION(Client, Unreliable)
+	void Client_AcousticAlert(const FGameplayTag& NoiseTag);
+
+	/** This machine's acoustic alerts (UHollowAcousticAlertWidget). */
+	FOnHollowLocalAcousticAlert OnAcousticAlert;
+	int32 GetAcousticAlerts() const { return AcousticAlerts; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -74,6 +89,7 @@ private:
 
 	/** The class last sent to the server (none yet on a new map). */
 	FPrimaryAssetId RequestedClass;
+	int32 AcousticAlerts = 0;
 	FDelegateHandle ProfileHandle;
 
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Voice")

@@ -154,6 +154,8 @@ FText HollowSettingsRules::ValueText(const EHollowSettingId Setting, const UHoll
 		return LanguageName(Settings.GetLanguage());
 	case EHollowSettingId::ReducedFlashes:
 		return OnOff(Settings.IsReducedFlashes(), Texts);
+	case EHollowSettingId::Waypoints:
+		return Settings.GetWaypointMode() == EHollowWaypointMode::Immersive ? Texts.WaypointsImmersive : Texts.WaypointsFull;
 	default:
 		return FText::GetEmpty();
 	}
@@ -250,6 +252,9 @@ bool HollowSettingsRules::Step(const EHollowSettingId Setting, UHollowGameUserSe
 	}
 	case EHollowSettingId::ReducedFlashes:
 		Settings.SetReducedFlashes(!Settings.IsReducedFlashes());
+		return true;
+	case EHollowSettingId::Waypoints:
+		Settings.SetWaypointMode(Settings.GetWaypointMode() == EHollowWaypointMode::Full ? EHollowWaypointMode::Immersive : EHollowWaypointMode::Full);
 		return true;
 	default:
 		return false;

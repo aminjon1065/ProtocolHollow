@@ -68,6 +68,7 @@ namespace HollowSettingsScreenTests
 			Settings->SetReducedFlashes(false, false);
 			Settings->SetControlsHintShown(true, false);
 			Settings->SetFrameRateChoice(0.f, false);
+			Settings->SetWaypointMode(EHollowWaypointMode::Full, false);
 		}
 
 		~FTestSettings()
@@ -236,6 +237,16 @@ bool FHollowSettingsScreenTest::RunTest(const FString& Parameters)
 	Row = Screen->FindRow(EHollowSettingId::ReducedFlashes);
 	Row->Step(1);
 	TestTrue(TEXT("Accessibility: reduced flashes on"), Settings.IsReducedFlashes() && Row->GetValue().EqualTo(Texts.On));
+	Row = Screen->FindRow(EHollowSettingId::Waypoints);
+	TestTrue(TEXT("POLISH-01: the waypoints row, full"), Row && Row->GetValue().EqualTo(Texts.WaypointsFull) && !Texts.WaypointsImmersive.IsEmpty());
+	if (Row)
+	{
+		Navigate(*Row, EUINavigation::Right);
+		TestTrue(TEXT("...a step: immersive, kept in the settings"), Settings.GetWaypointMode() == EHollowWaypointMode::Immersive
+			&& Row->GetValue().EqualTo(Texts.WaypointsImmersive));
+		Row->Step(-1);
+		TestEqual(TEXT("...and back: full"), Settings.GetWaypointMode(), EHollowWaypointMode::Full);
+	}
 	Row = Screen->FindRow(EHollowSettingId::Language);
 	TestEqual(TEXT("The language row names English in English"), Row ? Row->GetValue().ToString() : FString(), FString(EnglishName));
 	Row->Step(1);

@@ -17,6 +17,7 @@
 #include "Hub/HollowHubTerminalSubsystem.h"
 #include "Interaction/HollowInteractionComponent.h"
 #include "Interfaces/HollowInteractable.h"
+#include "Misc/ScopeExit.h"
 #include "Profile/HollowProfileSource.h"
 #include "Profile/HollowProfileTypes.h"
 #include "Raid/HollowExtractionZone.h"
@@ -531,6 +532,81 @@ bool FHollowVisorHubObjectiveTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the markers are back"), Layer->IsUpdating() && Layer->GetShown().Num() == 3);
 	TestTrue(TEXT("...the prompt too"), Shown(Prompt));
 	Prompt->SetContext(nullptr);
+	Layer->SetContext(nullptr);
+	Rig.Context->Deinitialize();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowVisorImmersiveWaypointsTest, "Hollow.UI.Visor.ImmersiveWaypoints",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FHollowVisorImmersiveWaypointsTest::RunTest(const FString& Parameters)
+{
+	// POLISH-01 (ADR-0053): with immersive waypoints (the player's setting, kept) the raid hides the markers, and they
+	// show for DA_VisorStyle's WaypointRevealSeconds when the objective changes or the controls key is pressed (Reveal);
+	// outside a raid and with full waypoints nothing changes. Timers only, no Tick.
+	using namespace HollowObjectiveTests;
+	using S = EHollowObjectiveStep;
+	FRig Rig;
+	UHollowGameUserSettings* Settings = UHollowGameUserSettings::Get();
+	if (!TestNotNull(TEXT("The game's settings class"), Settings) || !Build(*this, Rig))
+	{
+		return false;
+	}
+	const EHollowWaypointMode Before = Settings->GetWaypointMode();
+	ON_SCOPE_EXIT
+	{
+		Settings->SetWaypointMode(Before, /*bSave=*/false);
+	};
+	UWorld* World = Rig.World.GetTestWorld();
+	AHollowExtractionZone* Zone = SpawnPlaying<AHollowExtractionZone>(World, ZoneClass, FTransform(FVector(ZoneBehind, 0.0, 0.0)));
+	AHollowAetherCore* Core = SpawnPlaying<AHollowAetherCore>(World, CoreClass, FTransform(FVector(CoreAhead, 0.0, 0.0)));
+	UHollowWaypointLayerWidget* Layer = MakeLayer(*this, World, Rig.Context);
+	const UHollowVisorStyle* Style = Rig.Context->GetStyle();
+	if (!TestTrue(TEXT("The zone, the core, the layer, the style"), Zone && Core && Layer && Style))
+	{
+		return false;
+	}
+	TestTrue(TEXT("DA_VisorStyle: immersive waypoints show 5 s"), FMath::IsNearlyEqual(Style->WaypointRevealSeconds, 5.f));
+	TestFalse(TEXT("DA_VisorStyle: the cheat sheet's immersive title"), Style->ControlsTitleImmersiveFormat.IsEmpty());
+	auto Wait = [&Rig](const float Seconds) { Advance(Rig.World, Seconds); };
+	const float Reveal = Style->WaypointRevealSeconds;
+
+	Settings->SetWaypointMode(EHollowWaypointMode::Immersive, /*bSave=*/false);
+	TestFalse(TEXT("No raid: not immersive (the hub shows its waypoints)"), Layer->IsImmersive());
+	Layer->Reveal();
+	TestFalse(TEXT("...the controls key does nothing there"), Layer->IsHiddenByImmersion());
+
+	UHollowRaidStateComponent* Raid = Rig.GameState->GetRaidState();
+	FHollowRaidNetState Net;
+	Net.RaidId = FGuid::NewGuid();
+	Net.Phase = EHollowRaidPhase::InRaid;
+	Raid->SetState(Net);
+	TestEqual(TEXT("In the raid: find the core"), Rig.Objective->GetObjective().Step, S::FindCore);
+	TestTrue(TEXT("A new objective: shown at once"), Layer->IsImmersive() && !Layer->IsHiddenByImmersion() && Layer->IsUpdating()
+		&& Find(*Layer, EHollowWaypointKind::Vault) && Layer->Describe().Contains(TEXT("immersive: revealed")));
+	Wait(Reveal + 0.5f);
+	TestTrue(TEXT("...hidden after its seconds"), Layer->IsHiddenByImmersion() && !Layer->IsUpdating() && Layer->GetShown().IsEmpty()
+		&& Layer->Describe().Contains(TEXT("immersive: hidden")));
+
+	Layer->Reveal();
+	TestTrue(TEXT("The controls key: shown again"), !Layer->IsHiddenByImmersion() && Layer->IsUpdating() && Find(*Layer, EHollowWaypointKind::Vault));
+	Wait(Reveal + 0.5f);
+	TestTrue(TEXT("...and hidden after its seconds"), Layer->IsHiddenByImmersion() && Layer->GetShown().IsEmpty());
+
+	Core->Interact(Rig.Character);
+	TestEqual(TEXT("Lifted: deliver the core"), Rig.Objective->GetObjective().Step, S::DeliverCore);
+	TestTrue(TEXT("...a new objective shows the way"), !Layer->IsHiddenByImmersion() && Find(*Layer, EHollowWaypointKind::Extraction));
+	Wait(Reveal + 0.5f);
+	TestTrue(TEXT("...for its seconds"), Layer->IsHiddenByImmersion());
+
+	Settings->SetWaypointMode(EHollowWaypointMode::Full, /*bSave=*/false);
+	TestTrue(TEXT("Full waypoints: shown at once, for good"), !Layer->IsImmersive() && Layer->IsUpdating() && Find(*Layer, EHollowWaypointKind::Extraction));
+	Wait(Reveal + 0.5f);
+	TestTrue(TEXT("...still shown"), Layer->IsUpdating() && Find(*Layer, EHollowWaypointKind::Extraction));
+	Settings->SetWaypointMode(EHollowWaypointMode::Immersive, /*bSave=*/false);
+	TestTrue(TEXT("Immersive again: hidden at once (no new objective)"), Layer->IsHiddenByImmersion() && Layer->GetShown().IsEmpty());
+
 	Layer->SetContext(nullptr);
 	Rig.Context->Deinitialize();
 	return true;

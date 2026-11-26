@@ -51,7 +51,11 @@ public:
 	// Facts: perception reports them (tests may report directly).
 	void ReportSeen(APawn* SeenPawn);
 	void ReportLost(APawn* LostPawn, const FVector& LastSeenLocation);
-	void ReportHeard(const FVector& Location);
+	/**
+	 * A noise at Location. Made by NoiseInstigator with NoiseTag (hearing; a blow has neither): when it wakes the brain,
+	 * it may answer (POLISH-01, AnswerNoise).
+	 */
+	void ReportHeard(const FVector& Location, AActor* NoiseInstigator = nullptr, const FGameplayTag& NoiseTag = FGameplayTag());
 	/** Path following reached a nav link whose structural owner does not let it through (UHollowPathFollowingComponent). */
 	void ReportObstacle(AActor* InObstacle);
 
@@ -156,6 +160,8 @@ private:
 	void StartPatrol();
 	void StartChase();
 	void StartInvestigate();
+	/** It woke to a player's noise (POLISH-01, ADR-0053): it calls out if the noise's rule and its definition say so. */
+	void AnswerNoise(AActor* NoiseInstigator, const FGameplayTag& NoiseTag);
 	void StartAttack();
 	void StartBreach();
 	void StepBreach();

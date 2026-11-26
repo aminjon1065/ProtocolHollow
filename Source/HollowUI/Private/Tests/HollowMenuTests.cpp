@@ -115,6 +115,8 @@ bool FHollowMenuWidgetsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...gamepad focus on Host co-op"), Main->GetDesiredFocusTarget() == Main->GetHostButton());
 		TestTrue(TEXT("...its version line shows the project's version"), Main->GetVersionText()
 			&& Main->GetVersionText()->GetText().ToString().Contains(GetDefault<UGeneralProjectSettings>()->ProjectVersion));
+		const UTextBlock* Slogan = Cast<UTextBlock>(Main->WidgetTree->FindWidget(TEXT("Slogan")));
+		TestTrue(TEXT("POLISH-01: the slogan under the logo"), Slogan && Slogan->GetText().ToString() == TEXT("The ship hears you."));
 		Main->DeactivateWidget();
 	}
 

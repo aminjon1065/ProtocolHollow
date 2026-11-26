@@ -71,6 +71,13 @@ void AHollowPlayerController::SyncClassWithProfile()
 	}
 }
 
+void AHollowPlayerController::Client_AcousticAlert_Implementation(const FGameplayTag& NoiseTag)
+{
+	++AcousticAlerts;
+	UE_LOG(LogHollowGame, Log, TEXT("%s: acoustic alert, its %s answered"), *GetName(), *NoiseTag.ToString());
+	OnAcousticAlert.Broadcast(NoiseTag);
+}
+
 void AHollowPlayerController::Server_SelectClass_Implementation(const FPrimaryAssetId& Class)
 {
 	UHollowClassComponent* ClassComponent = UHollowClassComponent::Get(PlayerState);

@@ -63,6 +63,14 @@ public:
 	/** Server: it has just come out of a vent without going in (the director's spawn): the grille, here and wherever it appears. */
 	void EmergeFromVent();
 
+	/**
+	 * Server (POLISH-01, ADR-0053): it woke to a player's noise and answers it. Its definition's AcousticAlertSound plays
+	 * where it is on every machine (unreliable: a lost one is only a sound missed).
+	 */
+	void AnswerNoise();
+	/** Answers heard on this machine (tests, Hollow.AI.Dump). */
+	int32 GetAnswersHeard() const { return AnswersHeard; }
+
 protected:
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
@@ -107,6 +115,9 @@ private:
 	/** Server: stamps the exit (its first bunch tells late machines) and rattles the grille. */
 	void MarkVentExit();
 
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_AcousticAlert();
+
 	UFUNCTION()
 	void OnRep_Dead();
 
@@ -129,6 +140,7 @@ private:
 	FHollowAbilitySetHandles GrantedAbilities;
 	/** Server only (SetSpawnSeed). */
 	int32 SpawnSeed = 0;
+	int32 AnswersHeard = 0;
 	FDelegateHandle OutOfHealthHandle;
 	FTimerHandle VentHideTimer;
 };
