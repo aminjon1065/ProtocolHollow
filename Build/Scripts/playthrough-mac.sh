@@ -128,7 +128,12 @@
 #          a fresh one wakes to the client's shout: the client's visor only; in English the host's shotgun wakes another,
 #          and one more at once calls out with the host's visor quiet (its cooldown); the Echo-Stalker the director brings
 #          hears a shotgun blast. Then immersive waypoints: hidden in the raid, shown 5 s on H (Alert_* shots, RU and EN).
-# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story|fab|fabaltar|ui|alert> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
+#   chars  CHAR-01 characters (ADR-0055): host + 1 headless client, Docks raid of a fixed sector (--seed, default
+#          1624260639: the one the A/B baseline was measured in; the sector's AI removed, everyone invulnerable). The host is shown each body without its AI (Hollow.Art.Showcase): the ExoFrame in the airlock, the
+#          Echo-Stalker in the core vault, its own first-person hands and then the Iron Pilgrim in the hangar, then all three
+#          there (CHAR01_* shots); with the three in view it records 20 s of frames at Low (Hollow.Perf.Capture CHAR01_Group:
+#          the same scene before and after an art change is its FPS A/B), then everyone extracts.
+# Usage: Build/Scripts/playthrough-mac.sh <solo|coop|soak|carry|carrysolo|loadout|economy|hub|screens|classes|lantern|ward|relics|cathedral|altar|biomes|guide|weapons|loot|swarm|loc|story|fab|fabaltar|ui|alert|chars> [--app PATH] [--minutes N] [--seed N] [--net 150|bad]
 #   --app  the packaged game (default Packages/Mac/Development/ProtocolHollow.app, Build/Scripts/package-mac.sh)
 #   --net  the clients' network: 0 = none, 150 = 150 ms (-PktLag=150, the carry and loadout modes' default), bad = Network Emulation
 #          Bad (100-200 ms each way, 5 % loss)
@@ -137,11 +142,11 @@ set -euo pipefail
 source "$(dirname "$0")/hollow-common.sh"
 
 MODE="${1:-}"
-[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar || "$MODE" == ui || "$MODE" == alert ]] || { sed -n '2,135p' "$0"; exit 2; }
+[[ "$MODE" == solo || "$MODE" == coop || "$MODE" == soak || "$MODE" == carry || "$MODE" == carrysolo || "$MODE" == loadout || "$MODE" == economy || "$MODE" == hub || "$MODE" == screens || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar || "$MODE" == ui || "$MODE" == alert || "$MODE" == chars ]] || { sed -n '2,140p' "$0"; exit 2; }
 shift
 APP="$HOLLOW_PROJECT_ROOT/Packages/Mac/Development/ProtocolHollow.app"
 MINUTES=20
-SEED=7
+SEED=        # the raid's sector seed where a mode pins it (chars); empty: the mode's own
 NET=none
 CLIENT_FPS=30
 while [[ $# -gt 0 ]]; do
@@ -806,6 +811,29 @@ case "$MODE" in
 		CLIENT_OPEN="Hollow.Dev.RunAfter 40 open 127.0.0.1"   # the host hosts after its menu shots (31 s): an open at once times out (UI2-1)
 		END='Hollow[.]Profile[.]Dump: [0-9]'
 		;;
+	chars)
+		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
+		h "Hollow.Dev.RunAfter 30 Hollow.Raid.Start ${SEED:-1624260639}"              # the selected contract, a fixed sector (A/B)
+		h "Hollow.Dev.RunInRaid 2 Hollow.AI.Kill"; h "Hollow.Dev.RunInRaid 2.2 Hollow.Dev.Invulnerable All"
+		h "Hollow.Dev.RunInRaid 2.5 Hollow.Graphics.Dump"
+		EXO=/Game/Hollow/Characters/ExoFrame/BP_ExoFrame.BP_ExoFrame_C
+		PILGRIM=/Game/Hollow/Characters/Enemies/IronPilgrim/BP_IronPilgrim.BP_IronPilgrim_C
+		STALKER=/Game/Hollow/Characters/Enemies/EchoStalker/BP_EchoStalker.BP_EchoStalker_C
+		# Each body alone, without its AI (room-local spots of the fab mode, hollow_fab_layout.py).
+		h "Hollow.Dev.RunInRaid 3 Hollow.Dev.GoToRoom Spawn 230 300 40 -6"; h "Hollow.Dev.RunInRaid 4 Hollow.Art.Showcase $EXO 240 0"
+		h "Hollow.Dev.RunInRaid 6.5 Hollow.Art.Dump"; h "Hollow.Dev.RunInRaid 7 Hollow.UI.Shot CHAR01_ExoFrame"
+		h "Hollow.Dev.RunInRaid 8 Hollow.Dev.GoToRoom CoreVault 160 420 0 -4"; h "Hollow.Dev.RunInRaid 9 Hollow.Art.Showcase $STALKER 340 0"
+		h "Hollow.Dev.RunInRaid 11.5 Hollow.UI.Shot CHAR01_Stalker"
+		h "Hollow.Dev.RunInRaid 13 Hollow.Dev.GoToRoom Hangar 900 820 215 -6"; h "Hollow.Dev.RunInRaid 14.5 Hollow.UI.Shot CHAR01_FirstPerson"
+		h "Hollow.Dev.RunInRaid 15 Hollow.Art.Showcase $PILGRIM 520 0"; h "Hollow.Dev.RunInRaid 17.5 Hollow.UI.Shot CHAR01_Pilgrim"
+		# All three in view: the shot, then the frames (the FPS A/B scene).
+		h "Hollow.Dev.RunInRaid 18 Hollow.Art.Showcase $STALKER 470 -260"; h "Hollow.Dev.RunInRaid 18.5 Hollow.Art.Showcase $EXO 400 240"
+		h "Hollow.Dev.RunInRaid 21 Hollow.UI.Shot CHAR01_Group"; h "Hollow.Dev.RunInRaid 21.5 Hollow.Art.Dump"
+		h "Hollow.Dev.RunInRaid 22 Hollow.Perf.Capture CHAR01_Group 20 2"
+		h "Hollow.Dev.RunInRaid 48 Hollow.Dev.GoToExtraction All"
+		h "Hollow.Dev.RunInRaid 90 Hollow.Profile.Dump"; C+=("Hollow.Dev.RunInRaid 91 Hollow.Profile.Dump")
+		END='Hollow[.]Profile[.]Dump: [0-9]'
+		;;
 	alert)
 		HOST_ARGS=(-culture=ru)                                                       # the host in Russian, this run only
 		h "$(key 6 $PRESS)"                                                           # main menu: Host co-op -> the Skiff
@@ -1064,7 +1092,7 @@ else
 	# "Control listening on port 1985" matched at the same moment; the game's driver listens a menu press later (RG-1).
 	wait_for "$OUT/Host.log" 'UI up for .*[(]main menu[)]' 240 || { echo "the host's menu never came up"; exit 1; }
 	CLIENTS=3
-	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar || "$MODE" == ui || "$MODE" == alert ]] && CLIENTS=1
+	[[ "$MODE" == carry* || "$MODE" == loadout || "$MODE" == hub || "$MODE" == classes || "$MODE" == lantern || "$MODE" == ward || "$MODE" == relics || "$MODE" == cathedral || "$MODE" == altar || "$MODE" == biomes || "$MODE" == guide || "$MODE" == weapons || "$MODE" == loot || "$MODE" == swarm || "$MODE" == loc || "$MODE" == story || "$MODE" == fab || "$MODE" == fabaltar || "$MODE" == ui || "$MODE" == alert || "$MODE" == chars ]] && CLIENTS=1
 	for ((i = 1; i <= CLIENTS; i++)); do
 		CMDS=("t.MaxFPS $CLIENT_FPS" "p.NetShowCorrections 1" "$CLIENT_OPEN" ${C[@]+"${C[@]}"})
 		[[ "$i" == 1 ]] && CMDS+=(${C1[@]+"${C1[@]}"})
@@ -1098,7 +1126,7 @@ SUMMARY_LINES=160
 strip() { sed 's/^\[[^]]*\]\[[^]]*\]//' | sed -E 's/Log[A-Za-z]+: (Display: )?//' | cut -c1-260; }
 for log in "$OUT"/*.log; do
 	echo "===== $(basename "$log" .log)"
-	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role |Hollow.UI.Dump: (objective|tracker|waypoints|controls)|Objective of |Controls cheat sheet |Hollow.Art.Dump: |Hollow.Weapon.Dump: |Hollow.Feel.Dump: |in hand|carries DA_Weapon|reloads [0-9]|strikes |staggered|Hollow.Loot.Dump: |broken open|picks up|finds [0-9]|FaceNearest(Crate|Pickup): |GoToNearestCrate|found |Hollow.AI.(Swarm|Nest): |flinches in|a brood of|leaves [0-9]+ x|Swarm: |Hollow.UI.Language: |Language (English|Russian)|Hollow.UI.Dump: (radio|subtitle|lore notice)|Radio of |Radio: cue|Hollow.Radio.(Fire|Reset)|Hollow.Lore.(Dump|Reset)|crew log|Crew log|datapad|Datapad|acoustic alert|Acoustic alert|answers Hollow.Noise|Hollow.AI.Noise: |Hollow.UI.Waypoints: |Hollow.AI.Director: |hears a noise|Solo drone: |Hollow.Drone.Dump: |FaceDrone: |hands it to |takes it back from |drone goes dark" "$log" | grep -v "Command Line\|commandline\|metalmap" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
+	grep -hE "UI up for|Session: State|Raid .*: .* -> |result (Extracted|KilledInAction|MissingInAction|SignalLost|Abandoned)|every hash matches|debrief|Hollow.Profile.Dump: [0-9]|Carry.Dump: |Hollow.Perf: Soak|Hollow.UI.Dump: layer|Hollow.Dev.RunAfter: Hollow.UI|Voice: .*(Shout|Speech|Whisper)|Hollow.Voice.Dump|Hollow.Lamp.Dump|helmet lamp|Hollow.UI.Dump: (glass|resonance|voice|lamp)|WalkRoute: |FollowCarry: |OpenDoors: |carrier corrected|Client: Error for|client-authoritative|server-authoritative again|lets go|joins .* \\(Coop|tether breaks|sanity check|its moves show|lifted by|dropped by|ForcePositionUpdate|Inventory.Dump: |takes |uses [0-9]|lays |refuels|asks .* for the loadout|loadout of|Profile: loadout|Hollow.UI.Dump: supplies|Profile.SetSlot|Hollow.Shop.(Buy|Sell|Insure|Dump): |Hollow.Craft.(Make|Dump): |Hollow.Profile.(Equip|Unequip): |resolved as|Hub: |Hollow.Hub.Dump: |GoToTerminal: |Hollow.UI.Shot: |Shop.BuyUpgrade: |Raid: travelling|contract |Hollow.UI.Dump: (hub|input|class)|_C_[0-9]+: |shows W_|Hollow.Class.(Dump|Select): | plays DA_Class|Class: |Aether light|Lantern light|Exposed glow|speed x[0-9]|Hollow.AI.Dump: (enemy|brain)|Hollow.AI.Spawn: |Hollow.Resonance.Dump: player|Hollow.Tool.Info: |FaceNearestEnemy: |GoToNearestEnemy| burns at | goes out |: inside [0-9]|Hollow.Gadget.Dump: |lays BP_|takes back|Hollow.Gear.Dump: |Hollow.Profile.Credits: |cut down|Hollow.Sector.(Info|Status): |Hollow.Nav.Path [A-Za-z]+: |Hollow.AI.Dump: |Hollow.(Altar|Arc).Dump: |lays .* on the altar|ritual is over|: toll [0-9]|strikes |power (on|off)|turned (on|off) by|counts as |held by a fixture|free to lift|Hollow.AI.Heat: |Raid contract |Sector (activated|deactivated): |hub role |Hollow.UI.Dump: (objective|tracker|waypoints|controls)|Objective of |Controls cheat sheet |Hollow.Art.Dump: |Hollow.Weapon.Dump: |Hollow.Feel.Dump: |in hand|carries DA_Weapon|reloads [0-9]|strikes |staggered|Hollow.Loot.Dump: |broken open|picks up|finds [0-9]|FaceNearest(Crate|Pickup): |GoToNearestCrate|found |Hollow.AI.(Swarm|Nest): |flinches in|a brood of|leaves [0-9]+ x|Swarm: |Hollow.UI.Language: |Language (English|Russian)|Hollow.UI.Dump: (radio|subtitle|lore notice)|Radio of |Radio: cue|Hollow.Radio.(Fire|Reset)|Hollow.Lore.(Dump|Reset)|crew log|Crew log|datapad|Datapad|acoustic alert|Acoustic alert|answers Hollow.Noise|Hollow.AI.Noise: |Hollow.UI.Waypoints: |Hollow.AI.Director: |hears a noise|Solo drone: |Hollow.Drone.Dump: |FaceDrone: |hands it to |takes it back from |drone goes dark|Hollow.Perf: |Hollow.Art.Showcase: |Hollow.Graphics.Dump: " "$log" | grep -v "Command Line\|commandline\|metalmap" | strip | awk -v n="$SUMMARY_LINES" 'NR <= n'
 done
 if [[ "$MODE" == lantern ]]; then
 	# Every player's Resonance in the host's four dumps (by name and pawn: local processes share a name): the carrier

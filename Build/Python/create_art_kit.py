@@ -2,24 +2,24 @@
 
   /Game/Hollow/Art/Kit/SM_*            static meshes built by Blender in the background from Build/Blender/hollow_kit.py
                                        (tools with a Muzzle socket, the Aether core's container, the door leaf with its
-                                       weld seam, hub dressing, armour of the ExoFrame, the Iron Pilgrim, the Echo-Stalker)
+                                       weld seam, hub dressing; CHAR-01, ADR-0055: the characters wear their own Paragon
+                                       meshes, so the armour parts of the placeholder skeleton are retired)
   /Game/Hollow/Art/Materials/M_Kit_*   procedural masters (no textures): surfaces, glow with a slow pulse (reduced
                                        flashes hold it steady), a tool's glow while it runs (custom primitive data), the
                                        visor in the class's colour (custom primitive data), the red-hot weld seam that cools
                                        by itself, hazard stripes, screens; MI_Kit_* their looks (Docs/Art bible palette)
   /Game/Hollow/Art/Textures/T_*        CC0 textures of Poly Haven at 1K (Build/Art/cc0_textures.json, fetched by
                                        Build/Scripts/fetch-cc0-textures.sh into Intermediate; their SHA-256 is checked)
-  /Game/Hollow/Art/Parts/DA_Parts_*    UHollowCosmeticPartSet: the armour on the placeholder skeleton's bones
   /Game/Hollow/FX/NS_Tool_BeamSparks   the beam's sparks (AK-8): the engine's Fountain emitter with its Collision module, built
                                        by UHollowNiagaraAuthoring; M_Kit_Spark their additive streak
 Bindings (only fields the base scripts set once at creation, never again):
-  DA_Tool_PlasmaCutter/Welder/AetherLantern   HeldMesh, HeldTransform, MuzzleSocket
+  DA_Tool_PlasmaCutter/Welder/AetherLantern   HeldMesh, HeldTransform (the grip at the hands' ToolMount socket), MuzzleSocket
   DA_Class_Engineer/Occultist                 HeldTool (the class's tool in hand)
   BP_AetherCore                                its visual: the container, the crystal on slot 0 (the item's look)
   BP_Door                                      the leaf with its seam slot and parameters
   BP_HubTerminal                               the console as its cabinet
+  BP_ExoFrame                                  its tool mount: the owner's tool rides the camera (no first-person arms)
   GCN_Tool_Beam                                the sparks
-  BP_ExoFrame, BP_IronPilgrim, BP_EchoStalker  their part sets and the body's materials
 Every asset keeps a hash of its spec (metadata "HollowSpec") and is rebuilt only when it changes: every save is a new
 LFS object. Blender runs only when a mesh's spec changed; a machine without Blender keeps the meshes it has.
 Run after the other create_* scripts:  Build/Scripts/run-editor-python.sh Build/Python/create_art_kit.py
@@ -130,20 +130,6 @@ MESHES = {
     "SM_Hub_PilotSeat": {"kind": "pilot_seat"},
     "SM_Hub_Crate": {"kind": "crate"},
     "SM_Hub_PipeRun": {"kind": "pipe_run"},
-    "SM_Exo_Helmet": {"kind": "exo_helmet"},
-    "SM_Exo_Chest": {"kind": "exo_chest"},
-    "SM_Exo_Pack": {"kind": "exo_pack"},
-    "SM_Exo_Pauldron": {"kind": "exo_pauldron"},
-    "SM_Exo_Bracer": {"kind": "exo_bracer"},
-    "SM_Exo_Shin": {"kind": "exo_shin"},
-    "SM_Pilgrim_Pauldron": {"kind": "pilgrim_pauldron"},
-    "SM_Pilgrim_Chest": {"kind": "pilgrim_chest"},
-    "SM_Pilgrim_Helm": {"kind": "pilgrim_helm"},
-    "SM_Pilgrim_Gauntlet": {"kind": "pilgrim_gauntlet"},
-    "SM_Stalker_Crest": {"kind": "stalker_crest"},
-    "SM_Stalker_Spines": {"kind": "stalker_spines"},
-    "SM_Stalker_Eyes": {"kind": "stalker_eyes"},
-    "SM_Stalker_Blade": {"kind": "stalker_blade"},
     # GP-01 (ADR-0044): the weapons, muzzles along +X, the tools' grip.
     "SM_Weapon_Nailgun": {"kind": "nailgun", "script": "combat"},
     "SM_Weapon_Shotgun": {"kind": "shotgun", "script": "combat"},
@@ -181,18 +167,12 @@ MATERIALS = {
     "MI_Kit_AmberPaint": (SURFACE_MASTER, {"Color": (0.86, 0.13, 0.035), "Metallic": 0.15, "Roughness": 0.55}),
     "MI_Kit_Gilt": (SURFACE_MASTER, {"Color": (0.46, 0.32, 0.1), "Metallic": 1.0, "Roughness": 0.28}),
     "MI_Kit_Glass": (SURFACE_MASTER, {"Color": (0.01, 0.014, 0.018), "Metallic": 0.0, "Roughness": 0.05}),
-    "MI_Kit_PilgrimIron": (SURFACE_MASTER, {"Color": (0.05, 0.042, 0.036), "Metallic": 0.9, "Roughness": 0.62}),
-    "MI_Kit_Obsidian": (SURFACE_MASTER, {"Color": (0.004, 0.004, 0.006), "Metallic": 0.0, "Roughness": 0.34}),
-    "MI_Kit_ExoArmour": (SURFACE_MASTER, {"Color": (0.045, 0.05, 0.055), "Metallic": 0.6, "Roughness": 0.5}),
     "MI_Kit_DoorLeaf": (SURFACE_MASTER, {"Color": (0.16, 0.17, 0.18), "Metallic": 0.7, "Roughness": 0.48}),
     "MI_Kit_AetherGlow": (GLOW_MASTER, {"GlowColor": (0.32, 0.85, 0.84), "Strength": 4.0, "PulseHz": 0.5, "PulseDepth": 0.3}),
     "MI_Kit_Runes": (GLOW_MASTER, {"GlowColor": (0.46, 0.28, 0.78), "GlowColorB": (0.71, 0.6, 0.35), "SwapHz": 0.25, "Strength": 9.0,
                                    "PulseHz": 0.6, "PulseDepth": 0.55}),
-    "MI_Kit_Furnace": (GLOW_MASTER, {"GlowColor": (1.0, 0.3, 0.04), "Strength": 4.0, "PulseHz": 0.7, "PulseDepth": 0.4}),
-    "MI_Kit_StalkerEyes": (GLOW_MASTER, {"GlowColor": (0.75, 0.04, 0.02), "Strength": 2.5, "PulseHz": 0.3, "PulseDepth": 0.5}),
     "MI_Kit_LanternGlow": (GLOW_MASTER, {"GlowColor": (0.35, 0.9, 0.85), "Strength": 6.0, "PulseHz": 0.4, "PulseDepth": 0.2}),
     "MI_Kit_ConsoleKeys": (GLOW_MASTER, {"GlowColor": (1.0, 0.55, 0.15), "Strength": 3.0, "PulseHz": 0.0, "PulseDepth": 0.0}),
-    "MI_Kit_StatusGlow": (GLOW_MASTER, {"GlowColor": (0.3, 0.9, 0.5), "Strength": 4.0, "PulseHz": 0.5, "PulseDepth": 0.4}),
     "MI_Kit_CutterGlow": (TOOL_GLOW_MASTER, {"GlowColor": (1.0, 0.42, 0.12), "Idle": 0.4, "Firing": 30.0}),
     "MI_Kit_WelderGlow": (TOOL_GLOW_MASTER, {"GlowColor": (0.45, 0.7, 1.0), "Idle": 0.3, "Firing": 35.0}),
     "MI_Kit_LanternFlame": (TOOL_GLOW_MASTER, {"GlowColor": (0.35, 0.9, 0.85), "Idle": 4.0, "Firing": 28.0}),   # AK-8: bright while it runs
@@ -225,20 +205,6 @@ MESH_SLOTS = {   # per mesh, slot -> material where it differs from SLOT_MATERIA
     "SM_Door_Leaf": {"Body": "MI_Kit_DoorLeaf", "Trim": "MI_Kit_Hazard"},
     "SM_Hub_Console": {"Glow": "MI_Kit_ConsoleKeys", "Trim": "MI_Kit_Hazard"},
     "SM_Hub_PilotSeat": {"Body": "MI_Kit_Rubber"},
-    "SM_Exo_Helmet": {"Body": "MI_Kit_ExoArmour", "Glow": "MI_Kit_StatusGlow"},
-    "SM_Exo_Chest": {"Body": "MI_Kit_ExoArmour", "Glow": "MI_Kit_StatusGlow"},
-    "SM_Exo_Pack": {"Body": "MI_Kit_ExoArmour"},
-    "SM_Exo_Pauldron": {"Body": "MI_Kit_ExoArmour"},
-    "SM_Exo_Bracer": {"Body": "MI_Kit_ExoArmour", "Glow": "MI_Kit_StatusGlow"},
-    "SM_Exo_Shin": {"Body": "MI_Kit_ExoArmour"},
-    "SM_Pilgrim_Pauldron": {"Body": "MI_Kit_PilgrimIron"},
-    "SM_Pilgrim_Chest": {"Body": "MI_Kit_PilgrimIron", "Glow": "MI_Kit_Furnace"},
-    "SM_Pilgrim_Helm": {"Body": "MI_Kit_PilgrimIron", "Glow": "MI_Kit_Furnace"},
-    "SM_Pilgrim_Gauntlet": {"Body": "MI_Kit_PilgrimIron"},
-    "SM_Stalker_Crest": {"Body": "MI_Kit_Obsidian"},
-    "SM_Stalker_Spines": {"Body": "MI_Kit_Obsidian"},
-    "SM_Stalker_Eyes": {"Glow": "MI_Kit_StalkerEyes"},
-    "SM_Stalker_Blade": {"Body": "MI_Kit_Obsidian"},
     "SM_Whisperer_Body": {"Shell": "MI_Kit_WhispererShell", "Legs": "MI_Kit_WhispererLegs", "Eyes": "MI_Kit_WhispererEyes"},
     "SM_Whisperer_Nest": {"Shell": "MI_Kit_NestFlesh", "Pods": "MI_Kit_NestPods"},
 }
@@ -778,111 +744,31 @@ def ensure_sparks():
     return sparks
 
 
-# ---------------------------------------------------------------- parts on the placeholder skeleton (ADR-0011)
+# ---------------------------------------------------------------- retired (CHAR-01, ADR-0055)
 
-PLACEHOLDER = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
-BONES = ["head", "spine_05", "spine_03", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "calf_l", "calf_r",
-         "foot_l", "foot_r", "index_01_r", "middle_01_r", "pinky_01_r"]
-# Each part where it sits in the mannequin's component space (cm; +Y is its front, +X its left, +Z up): bone, location,
-# rotation (pitch, yaw, roll), scale, mesh (the right side mirrors the left with a scale of -1 across X).
-FORE = "fore"   # the location is the middle of the forearm, the part along it
-SHIN = "shin"
-EXO_PARTS = [
-    ("SM_Exo_Helmet", "Body", "head", (0.0, 1.5, 170.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Exo_Chest", "Body", "spine_05", (0.0, 4.0, 131.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Exo_Pack", "Body", "spine_05", (0.0, -4.0, 128.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Exo_Pauldron", "Body", "upperarm_l", (21.0, -1.0, 146.0), (0.0, 0.0, -20.0), (1.0, 1.0, 1.0)),
-    ("SM_Exo_Pauldron", "Body", "upperarm_r", (-21.0, -1.0, 146.0), (0.0, 0.0, 20.0), (-1.0, 1.0, 1.0)),
-    ("SM_Exo_Bracer", "Body", "lowerarm_l", FORE, None, (1.0, 1.0, 1.0)),
-    ("SM_Exo_Bracer", "Body", "lowerarm_r", FORE, None, (1.0, 1.0, 1.0)),
-    ("SM_Exo_Bracer", "FirstPerson", "lowerarm_l", FORE, None, (1.0, 1.0, 1.0)),
-    ("SM_Exo_Bracer", "FirstPerson", "lowerarm_r", FORE, None, (1.0, 1.0, 1.0)),
-    ("SM_Exo_Shin", "Body", "calf_l", SHIN, None, (1.0, 1.0, 1.0)),
-    ("SM_Exo_Shin", "Body", "calf_r", SHIN, None, (1.0, 1.0, 1.0)),
-]
-PILGRIM_PARTS = [
-    ("SM_Pilgrim_Helm", "Body", "head", (0.0, 2.0, 171.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Pilgrim_Chest", "Body", "spine_05", (0.0, 5.0, 132.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Pilgrim_Pauldron", "Body", "upperarm_l", (22.0, -1.0, 149.0), (0.0, 0.0, -15.0), (1.0, 1.0, 1.0)),
-    ("SM_Pilgrim_Pauldron", "Body", "upperarm_r", (-22.0, -1.0, 149.0), (0.0, 0.0, 15.0), (-1.0, 1.0, 1.0)),
-    ("SM_Pilgrim_Gauntlet", "Body", "lowerarm_l", FORE, None, (1.0, 1.0, 1.0)),
-    ("SM_Pilgrim_Gauntlet", "Body", "lowerarm_r", FORE, None, (1.0, 1.0, 1.0)),
-]
-STALKER_PARTS = [
-    ("SM_Stalker_Crest", "Body", "head", (0.0, -2.0, 174.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Stalker_Eyes", "Body", "head", (0.0, 0.7, 167.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Stalker_Spines", "Body", "spine_05", (0.0, -10.0, 128.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-    ("SM_Stalker_Blade", "Body", "lowerarm_l", FORE, None, (1.0, 1.0, 1.0)),
-    ("SM_Stalker_Blade", "Body", "lowerarm_r", FORE, None, (1.0, 1.0, 1.0)),
-]
-PART_SETS = {"DA_Parts_ExoFrame": EXO_PARTS, "DA_Parts_IronPilgrim": PILGRIM_PARTS, "DA_Parts_EchoStalker": STALKER_PARTS}
-CHARACTERS = {   # blueprint, its part set, the body's materials per slot (the placeholder has two)
-    "/Game/Hollow/Characters/ExoFrame/BP_ExoFrame": ("DA_Parts_ExoFrame", ["MI_Kit_Rubber", "MI_Kit_ExoArmour"]),
-    "/Game/Hollow/Characters/Enemies/IronPilgrim/BP_IronPilgrim": ("DA_Parts_IronPilgrim", ["MI_Kit_PilgrimIron", "MI_Kit_PilgrimIron"]),
-    "/Game/Hollow/Characters/Enemies/EchoStalker/BP_EchoStalker": ("DA_Parts_EchoStalker", ["MI_Kit_Obsidian", "MI_Kit_Obsidian"]),
-}
+# The armour parts of the placeholder skeleton, their sets and the materials only they wore: the characters wear their
+# own Paragon meshes now (create_character_assets.py). Deleted where they are still found; nothing references them.
+RETIRED = ([PARTS_DIR + "/DA_Parts_" + n for n in ("ExoFrame", "IronPilgrim", "EchoStalker")]
+           + [KIT_DIR + "/SM_Exo_" + n for n in ("Helmet", "Chest", "Pack", "Pauldron", "Bracer", "Shin")]
+           + [KIT_DIR + "/SM_Pilgrim_" + n for n in ("Pauldron", "Chest", "Helm", "Gauntlet")]
+           + [KIT_DIR + "/SM_Stalker_" + n for n in ("Crest", "Spines", "Eyes", "Blade")]
+           + [MAT_DIR + "/MI_Kit_" + n for n in ("PilgrimIron", "Obsidian", "ExoArmour", "Furnace", "StalkerEyes", "StatusGlow")])
 
 
-def bone_frames():
-    """Component-space transforms of BONES in the placeholder's reference pose (a mesh actor in the editor's world)."""
-    mesh = unreal.load_asset(PLACEHOLDER)
-    if mesh is None:
-        raise RuntimeError("The placeholder mannequin is missing: run Build/Scripts/import-placeholders.sh (ADR-0011)")
-    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-    actor = actors.spawn_actor_from_class(unreal.SkeletalMeshActor, unreal.Vector(0.0, 0.0, 0.0))
-    component = actor.get_editor_property("skeletal_mesh_component")
-    component.set_skinned_asset_and_update(mesh)
-    frames = {b: component.get_socket_transform(b, unreal.RelativeTransformSpace.RTS_COMPONENT) for b in BONES}
-    actors.destroy_actor(actor)
-    return frames
-
-
-def vec(t):
-    return unreal.Vector(t[0], t[1], t[2])
-
-
-def part_transform(frames, bone, location, rotation, scale):
-    """The part's transform relative to its bone, from where it sits in component space."""
-    if location == FORE:
-        side = bone[-1]
-        start, end = frames["lowerarm_" + side].translation, frames["hand_" + side].translation
-        middle = (start + end) * 0.5
-        component = unreal.Transform(middle, unreal.MathLibrary.make_rot_from_x(end - start), vec(scale))
-    elif location == SHIN:
-        side = bone[-1]
-        start, end = frames["calf_" + side].translation, frames["foot_" + side].translation
-        middle = (start + end) * 0.5 + unreal.Vector(0.0, 3.0, 0.0)
-        component = unreal.Transform(middle, unreal.Rotator(0.0, 0.0, 0.0), vec(scale))
-    else:
-        component = unreal.Transform(vec(location), unreal.Rotator(rotation[2], rotation[0], rotation[1]), vec(scale))
-    return unreal.MathLibrary.make_relative_transform(component, frames[bone])
-
-
-def ensure_part_sets(frames_cache):
-    sets = {}
-    for name, parts in sorted(PART_SETS.items()):
-        path = PARTS_DIR + "/" + name
-        factory = unreal.DataAssetFactory()
-        factory.set_editor_property("data_asset_class", unreal.HollowCosmeticPartSet)
-        part_set, created = existing_or_new(path, unreal.HollowCosmeticPartSet, factory)
-        # Only its own meshes' slots: a mesh added to the kit later (GP-02) leaves the set as it is.
-        spec_hash = digest(KIT_VERSION, parts, {mesh: MESH_SLOTS.get(mesh, {}) for mesh, _, _, _, _, _ in parts}, SLOT_MATERIALS)
-        if created or not up_to_date(part_set, spec_hash):
-            if not frames_cache:
-                frames_cache.update(bone_frames())
-            entries = []
-            for mesh, on, bone, location, rotation, scale in parts:
-                entry = unreal.HollowCosmeticPart()
-                entry.set_editor_property("mesh", load(KIT_DIR + "/" + mesh))
-                entry.set_editor_property("on", unreal.HollowPartMesh.FIRST_PERSON if on == "FirstPerson" else unreal.HollowPartMesh.BODY)
-                entry.set_editor_property("bone", bone)
-                entry.set_editor_property("offset", part_transform(frames_cache, bone, location, rotation, scale))
-                entries.append(entry)
-            part_set.set_editor_property("parts", entries)
-            stamp(part_set, spec_hash)
-            log("%s ready (%d parts)" % (name, len(entries)))
-        sets[name] = part_set
-    return sets
+def retire():
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    content = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir())
+    present = [path for path in RETIRED if assets.does_asset_exist(path)]
+    for path in present:
+        outside = [str(r) for r in registry.get_referencers(path, unreal.AssetRegistryDependencyOptions()) or [] if str(r) not in RETIRED]
+        check(not outside, "%s is still used by %s" % (path, ", ".join(outside[:4])))
+    for path in present:
+        check(assets.delete_asset(path), path + " deleted")
+        stem = os.path.join(content, path[len("/Game/"):])
+        for leftover in [stem + ext for ext in (".uasset", ".uexp", ".ubulk") if os.path.isfile(stem + ext)]:
+            os.remove(leftover)   # what the editor left of it on disk
+    if present:
+        log("retired %d assets of the placeholder's armour" % len(present))
 
 
 # ---------------------------------------------------------------- bindings
@@ -909,24 +795,17 @@ CLASS_TOOLS = {"/Game/Hollow/Classes/DA_Class_Engineer": "/Game/Hollow/Tools/Pla
 CORE_BP = "/Game/Hollow/Items/AetherCore/BP_AetherCore"
 DOOR_BP = "/Game/Hollow/World/Kit/Doors/BP_Door"
 TERMINAL_BP = "/Game/Hollow/Hub/BP_HubTerminal"
+EXOFRAME_BP = "/Game/Hollow/Characters/ExoFrame/BP_ExoFrame"
 BEAM_CUE = "/Game/Hollow/GAS/Cues/GCN_Tool_Beam"
 SEAM = {"seam_slot": "Seam", "seam_weld_parameter": "Weld", "seam_heat_parameter": "HeatTime"}
 # The first-person tool in the camera's space: forward, right, down; turned a little in, toward the crosshair.
 VIEW_OFFSET = unreal.Transform(unreal.Vector(52.0, 17.0, -20.0), unreal.Rotator(0.0, 3.0, -4.0), unreal.Vector(0.85, 0.85, 0.85))
 
 
-def held_transform(frames):
-    """A natural pistol grip: the barrel along the fingers, the grip across the palm, the grip at the palm's middle."""
-    hand = frames["hand_r"]
-    fingers = (frames["middle_01_r"].translation - hand.translation)
-    across = (frames["index_01_r"].translation - frames["pinky_01_r"].translation)
-    forward = fingers.normal()
-    up = (across - forward * across.dot(forward)).normal()
-    rotation = unreal.MathLibrary.make_rot_from_xz(forward, up)
-    palm = hand.translation + fingers * 0.5
-    grip = unreal.MathLibrary.greater_greater_vector_rotator(vec(GRIP), rotation)   # the grip rotated into component space
-    component = unreal.Transform(palm - grip, rotation, unreal.Vector(1.0, 1.0, 1.0))
-    return unreal.MathLibrary.make_relative_transform(component, hand)
+def held_transform():
+    """CHAR-01: the hands' ToolMount socket is the grip (X along the barrel, Z up: create_character_assets.py), so a held
+    mesh only moves its own grip onto it."""
+    return unreal.Transform(unreal.Vector(-GRIP[0], -GRIP[1], -GRIP[2]), unreal.Rotator(0.0, 0.0, 0.0), unreal.Vector(1.0, 1.0, 1.0))
 
 
 def same_transform(a, b, tolerance=0.01):
@@ -934,10 +813,8 @@ def same_transform(a, b, tolerance=0.01):
             and abs(abs(a.rotation.x * b.rotation.x + a.rotation.y * b.rotation.y + a.rotation.z * b.rotation.z + a.rotation.w * b.rotation.w) - 1.0) <= 1e-5)
 
 
-def ensure_tools(frames_cache):
-    if not frames_cache:
-        frames_cache.update(bone_frames())
-    held = held_transform(frames_cache)
+def ensure_tools():
+    held = held_transform()
     for path, mesh_name in sorted(TOOLS.items()):
         tool = load(path)
         mesh = load(KIT_DIR + "/" + mesh_name)
@@ -979,10 +856,8 @@ def ensure_weapon_fx():
     return systems
 
 
-def ensure_weapons(frames_cache, systems):
-    if not frames_cache:
-        frames_cache.update(bone_frames())
-    held = held_transform(frames_cache)
+def ensure_weapons(systems):
+    held = held_transform()
     for path, mesh_name in sorted(WEAPONS.items()):
         weapon = load(path)
         mesh = load(KIT_DIR + "/" + mesh_name)
@@ -1038,7 +913,7 @@ def kit_materials(mesh_name):
     return [m.get_editor_property("material_interface") for m in mesh.get_editor_property("static_materials")]
 
 
-def ensure_blueprints(sets, sparks):
+def ensure_blueprints(sparks):
     # The Aether core: the container round its body; slot 0 (the crystal) keeps the item's look the actor sets.
     core_bp = load(CORE_BP)
     core = unreal.get_default_object(core_bp.generated_class())
@@ -1070,6 +945,14 @@ def ensure_blueprints(sets, sparks):
     if changed:
         save(terminal_bp)
         log("BP_HubTerminal: the console")
+    # The owner's tool rides the camera (Wraith has no first-person arms, CHAR-01 AK-4): in view, lower right.
+    exo_bp = load(EXOFRAME_BP)
+    mount = unreal.get_default_object(exo_bp.generated_class()).get_editor_property("tool_mount")
+    if not mount.get_editor_property("first_person_on_camera") or not same_transform(mount.get_editor_property("first_person_view_offset"), VIEW_OFFSET):
+        mount.set_editor_property("first_person_on_camera", True)
+        mount.set_editor_property("first_person_view_offset", VIEW_OFFSET)
+        save(exo_bp)
+        log("BP_ExoFrame: the owner's tool on the camera")
     # The beam's sparks.
     cue_bp = load(BEAM_CUE)
     cue = unreal.get_default_object(cue_bp.generated_class())
@@ -1085,36 +968,6 @@ def ensure_blueprints(sets, sparks):
             lantern.set_editor_property(name, value)
         save(lantern_bp)
         log("GCN_Tool_Lantern: flares x%.1f over %.2f s" % (LANTERN_FLASH["flash_intensity_scale"], LANTERN_FLASH["flash_seconds"]))
-    # The characters: their part sets and body materials (the placeholder skeleton stays, ADR-0011).
-    for path, (set_name, body_materials) in sorted(CHARACTERS.items()):
-        blueprint = load(path)
-        character = unreal.get_default_object(blueprint.generated_class())
-        changed = False
-        parts = character.get_editor_property("cosmetic_parts")
-        if parts.get_editor_property("part_set") != sets[set_name]:
-            parts.set_editor_property("part_set", sets[set_name])
-            changed = True
-        meshes_to_dress = [character.get_editor_property("mesh")]
-        if path.endswith("BP_ExoFrame"):
-            meshes_to_dress.append(character.get_editor_property("first_person_mesh"))
-            # The first-person tool rides the camera (the placeholder arms hold nothing up): in view, lower right.
-            mount = character.get_editor_property("tool_mount")
-            if not mount.get_editor_property("first_person_on_camera") \
-                    or not same_transform(mount.get_editor_property("first_person_view_offset"), VIEW_OFFSET):
-                mount.set_editor_property("first_person_on_camera", True)
-                mount.set_editor_property("first_person_view_offset", VIEW_OFFSET)
-                changed = True
-        for skeletal in meshes_to_dress:
-            asset = skeletal.get_editor_property("skeletal_mesh_asset")
-            slots = len(asset.get_editor_property("materials")) if asset else 0   # a template component has no render state to ask
-            for index, name in enumerate(body_materials[:slots]):
-                material = load(MAT_DIR + "/" + name)
-                if skeletal.get_material(index) != material:
-                    skeletal.set_material(index, material)
-                    changed = True
-        if changed:
-            save(blueprint)
-            log("%s: %s and its body's materials" % (path.rsplit("/", 1)[1], set_name))
 
 
 # ---------------------------------------------------------------- the hub's dressing (L_Hub_Skiff, create_hub_assets.py)
@@ -1216,12 +1069,11 @@ def main():
     ensure_meshes()
     ensure_textures()
     sparks = ensure_sparks()
-    frames = {}
-    sets = ensure_part_sets(frames)
-    ensure_tools(frames)
-    ensure_weapons(frames, ensure_weapon_fx())
+    retire()
+    ensure_tools()
+    ensure_weapons(ensure_weapon_fx())
     ensure_pickups()
-    ensure_blueprints(sets, sparks)
+    ensure_blueprints(sparks)
     ensure_hub_dressing()
     validate()
     unreal.log(SUCCESS_MARKER)

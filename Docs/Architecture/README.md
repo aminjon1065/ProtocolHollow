@@ -294,3 +294,19 @@ ADR: [`Docs/ADR/`](../ADR/) — 0001…0039, все в статусе *Accepted*
     - игрок остаётся носителем: алтарь и эвакуация засчитывают ядро;
     - при гибели ядро падает из-под дрона, а дрон гаснет.
   - **Тесты:** `Hollow.Physics.Carry.DroneClaim`, `Hollow.Game.Drone.{Spawn, Follow, Carry}`; расширены `Hollow.Game.Fab.Content` и `Hollow.Game.Audio.*`; смоуки `playthrough-mac.sh solo` (дрон) и `coop` (без дрона).
+- **CHAR-01 «Персонажи Paragon»** ([ADR-0055](../ADR/ADR-0055-paragon-characters.md)):
+  - **Модели:** ExoFrame — Paragon Wraith, Железный Пилигрим — Riktor, Эхо-Хищник — Sevarog. Родные скелеты, без ретаргета. Масштаб подогнан под прежние капсулы; накладки `DA_Parts_*` удалены.
+  - **Анимация:**
+    - `UHollowCharacterAnimInstance` (HollowCore): скорость, направление, наклон взгляда;
+    - `ABP_*`: BlendSpace → aim offset (у тела ExoFrame) → `Slot DefaultSlot`;
+    - монтажи врагов с секцией `Impact` (ADR-0027) — `create_character_assets.py`;
+    - графы собирает headless `UBlueprintGraphEditor`, BlendSpace и монтажи — `UHollowAnimationAuthoring` (HollowEditor).
+  - **ExoFrame:**
+    - камера на голове тела;
+    - цвет класса — в `DeepEmissiveColor` материалов Wraith (`UHollowCosmeticPartsComponent::TintParameters`);
+    - инструмент тела в сокете `ToolMount`, инструмент владельца по-прежнему на камере (рук от первого лица нет, AK-4).
+  - **Fab:**
+    - паки `lean` и `"prepare": "kept"`: копируются только жёсткие ссылки;
+    - `hidden_slots`, потолки по папкам, `HOLLOW_FAB_ONLY`;
+    - сжатие по размеру исходника.
+  - **Тесты:** `Hollow.Core.Animation.Locomotion`, `Hollow.Game.Characters.Look`. Обновлены `Hollow.Game.Enemy.Montages` (отгружаемые монтажи), `Hollow.Game.Art.*`, `Hollow.Game.Fab.Content` (450 МБ, потолки текстур, без root motion, скрытые слоты), `Hollow.Game.ExoFrame.Composition`, `Hollow.Game.Stalker.AmbushInHottestRoom`. Смоук `playthrough-mac.sh chars` (снимки и FPS).

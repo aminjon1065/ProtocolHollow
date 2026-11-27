@@ -9,7 +9,8 @@
       DA_AbilitySet_IronPilgrim                                both attacks + the init effect
       ST_IronPilgrim                                           StateTree (AI component schema) from TREE below
       DA_Enemy_IronPilgrim                                     UHollowEnemyDefinition (movement, senses, behaviour)
-      BP_IronPilgrim                                           AHollowEnemyCharacter: Heavy capsule, placeholder Manny scaled up
+      BP_IronPilgrim                                           AHollowEnemyCharacter: Heavy capsule (its mesh and animation:
+                                                               create_character_assets.py, CHAR-01)
   DA_Door_Standard structure numbers, BP_Door damaged tint, DA_Biome_Docks rule EnemySpawn -> one BP_IronPilgrim
 
 Creates or fills only what is missing or differs, then validates.
@@ -42,18 +43,13 @@ DOOR_BP = "/Game/Hollow/World/Kit/Doors/BP_Door"
 BIOME_PATH = "/HollowSector_Docks/Data/DA_Biome_Docks"
 ENEMY_SOCKET = "Hollow.Socket.EnemySpawn"
 
-PLACEHOLDER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"   # ADR-0011: imported per machine
-PLACEHOLDER_ANIM = "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"
 ATTRIBUTE_MODULE = "/Script/HollowGAS"
 EFFECT_LEVEL = 1.0
 
-# Body: the Heavy nav agent (Docs/Architecture/03 sec. 3.7: radius 80, height 280); Manny (192 tall) scaled to fit.
+# Body: the Heavy nav agent (Docs/Architecture/03 sec. 3.7: radius 80, height 280); the Paragon Riktor mesh is fitted to
+# it by create_character_assets.py (CHAR-01, ADR-0055).
 CAPSULE_RADIUS = 80.0
 CAPSULE_HALF_HEIGHT = 140.0
-MANNY_HEIGHT = 192.0
-MESH_SCALE = 2.0 * CAPSULE_HALF_HEIGHT / MANNY_HEIGHT
-MESH_LOCATION = unreal.Vector(0.0, 0.0, -CAPSULE_HALF_HEIGHT)
-MESH_ROTATION = unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0)
 
 # Attributes (data): players cannot hurt it yet (S3-04 clarification 6); the numbers wait for S4 weapons.
 PILGRIM_ATTRIBUTES = [("HollowHealthSet", "MaxHealth", 2000.0), ("HollowHealthSet", "Health", 2000.0), ("HollowHealthSet", "Armor", 100.0)]
@@ -327,13 +323,6 @@ def ensure_pawn(definition):
         changed = True
     capsule = pawn.get_editor_property("capsule_component")
     changed = apply_values(capsule, {"capsule_radius": CAPSULE_RADIUS, "capsule_half_height": CAPSULE_HALF_HEIGHT}) or changed
-    mesh = pawn.get_editor_property("mesh")
-    if mesh.get_editor_property("skeletal_mesh_asset") is None:
-        mesh.set_editor_property("skeletal_mesh_asset", load(PLACEHOLDER_MESH))
-        mesh.set_editor_property("anim_class", load(PLACEHOLDER_ANIM).generated_class())
-        changed = True
-    changed = apply_values(mesh, {"relative_location": MESH_LOCATION, "relative_rotation": MESH_ROTATION,
-                                  "relative_scale3d": unreal.Vector(MESH_SCALE, MESH_SCALE, MESH_SCALE)}) or changed
     if changed:
         save(pawn_bp)
         log("BP_IronPilgrim ready")

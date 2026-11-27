@@ -57,8 +57,9 @@ bool FHollowExoFrameCompositionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Body is the world-space representation"),
 		Character->GetMesh()->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::WorldSpaceRepresentation);
 
-	TestTrue(TEXT("Camera follows the arms' head socket"),
-		Camera->GetAttachParent() == FirstPersonMesh && Camera->GetAttachSocketName() == AHollowExoFrameCharacter::CameraSocketName);
+	TestTrue(TEXT("Camera follows the body's head socket (CHAR-01)"),
+		Camera->GetAttachParent() == Character->GetMesh() && Camera->GetAttachSocketName() == AHollowExoFrameCharacter::CameraSocketName);
+	TestTrue(TEXT("...first-person arms ride the camera, the body casts the shadow"), FirstPersonMesh->GetAttachParent() == Camera && !FirstPersonMesh->CastShadow);
 	TestTrue(TEXT("Camera uses the control rotation"), Camera->bUsePawnControlRotation);
 	TestTrue(TEXT("First-person FOV is enabled"), Camera->bEnableFirstPersonFieldOfView);
 	TestTrue(TEXT("First-person scale is enabled"), Camera->bEnableFirstPersonScale);

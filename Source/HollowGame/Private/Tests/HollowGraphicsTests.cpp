@@ -78,7 +78,9 @@ bool FHollowGraphicsPresetsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...with Lumen GI still on"), CVarInt(TEXT("r.Lumen.DiffuseIndirect.Allow")), 1);
 	TestEqual(TEXT("...volumetric fog kept (the project's override of level 1)"), CVarInt(TEXT("r.VolumetricFog")), 1);
 	const int32 LowFogCell = CVarInt(TEXT("r.VolumetricFog.GridPixelSize"));
+	TestEqual(TEXT("...characters one LOD coarser (CHAR-01: the project's override of level 1)"), CVarInt(TEXT("r.SkeletalMeshLODBias")), 2);
 	TestTrue(TEXT("High applied"), UHollowGameUserSettings::ApplyScalability(*High));
+	TestEqual(TEXT("High: characters at their full LOD"), CVarInt(TEXT("r.SkeletalMeshLODBias")), 0);
 	TestEqual(TEXT("High: Screen Probe Gather"), CVarInt(TEXT("r.Lumen.FinalGatherMethod")), ScreenProbes);
 	TestTrue(TEXT("Low's fog grid is coarser than High's"), LowFogCell > CVarInt(TEXT("r.VolumetricFog.GridPixelSize")));
 	Scalability::SetQualityLevels(Before, /*bForce=*/true);

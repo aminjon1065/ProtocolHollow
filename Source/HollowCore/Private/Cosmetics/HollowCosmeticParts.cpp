@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/Actor.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -189,6 +190,49 @@ void UHollowCosmeticPartsComponent::SetTint(const FLinearColor& InTint)
 		if (Part)
 		{
 			Part->SetCustomPrimitiveDataVector4(TintDataIndex, FVector4(Tint));
+		}
+	}
+	TintMeshes();
+}
+
+bool UHollowCosmeticPartsComponent::HasTintParameter(const UMaterialInterface& Material) const
+{
+	FLinearColor Unused;
+	return TintParameters.ContainsByPredicate([&Material, &Unused](const FHollowTintParameter& Tinted)
+	{
+		return Material.GetVectorParameterValue(FHashedMaterialParameterInfo(Tinted.Parameter), Unused);
+	});
+}
+
+void UHollowCosmeticPartsComponent::TintMeshes()
+{
+	if (TintParameters.IsEmpty())
+	{
+		return;
+	}
+	for (USkeletalMeshComponent* Mesh : {FindBody(), FirstPerson.Get()})
+	{
+		if (!Mesh || !Mesh->GetSkinnedAsset())
+		{
+			continue;
+		}
+		for (int32 Slot = 0; Slot < Mesh->GetNumMaterials(); ++Slot)
+		{
+			UMaterialInterface* Material = Mesh->GetMaterial(Slot);
+			UMaterialInstanceDynamic* Tinted = Cast<UMaterialInstanceDynamic>(Material);
+			if (!Tinted || !TintedMaterials.Contains(Tinted))
+			{
+				if (!Material || !HasTintParameter(*Material))
+				{
+					continue;   // a slot without the colour (the hidden weapon, plain armour)
+				}
+				Tinted = Mesh->CreateDynamicMaterialInstance(Slot, Material);
+				TintedMaterials.Add(Tinted);
+			}
+			for (const FHollowTintParameter& Parameter : TintParameters)
+			{
+				Tinted->SetVectorParameterValue(Parameter.Parameter, Tint * Parameter.Intensity);
+			}
 		}
 	}
 }

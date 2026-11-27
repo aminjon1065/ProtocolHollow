@@ -5,6 +5,7 @@
 
 #include "HollowCosmeticParts.generated.h"
 
+class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class USkeletalMeshComponent;
 class UStaticMesh;
@@ -46,7 +47,10 @@ struct FHollowCosmeticPart
 	TArray<TSoftObjectPtr<UMaterialInterface>> Materials;
 };
 
-/** A character's cosmetic parts (DA_Parts_*): what turns a placeholder skeleton into an ExoFrame, a Pilgrim, a Stalker. */
+/**
+ * Cosmetic parts of a character (Art-01): what armoured a placeholder skeleton. CHAR-01 (ADR-0055): the characters wear
+ * their own meshes, so none ships a set; a set stays possible for an armoured variant.
+ */
 UCLASS(BlueprintType)
 class HOLLOWCORE_API UHollowCosmeticPartSet : public UDataAsset
 {
@@ -61,11 +65,28 @@ public:
 	TArray<FHollowCosmeticPart> Parts;
 };
 
+/** One colour parameter of a character's own materials the tint drives (CHAR-01: the ExoFrame's visor glow). */
+USTRUCT(BlueprintType)
+struct FHollowTintParameter
+{
+	GENERATED_BODY()
+
+	/** A vector parameter of the body's (and the first-person hands') materials. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tint")
+	FName Parameter;
+
+	/** The tint times this (an emissive's brightness: the material's own colour is HDR). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tint", meta = (ClampMin = "0"))
+	float Intensity = 1.f;
+};
+
 /**
  * Puts a part set on a character's skeletal meshes (Art-01, ADR-0043): loads it asynchronously at BeginPlay and
  * attaches one static mesh component per part to its bone, without collision or navigation, seen as its mesh is
  * seen (first-person rendering). Every machine does it locally; nothing replicates. A tint goes to the parts' custom
- * primitive data (index 0..3, RGBA): the materials that read it glow in the class's colour. Never ticks.
+ * primitive data (index 0..3, RGBA): the materials that read it glow in the class's colour. CHAR-01 (ADR-0055): it
+ * also goes to TintParameters of the body's and the hands' own materials (a dynamic instance per slot that has one).
+ * Never ticks.
  */
 UCLASS(ClassGroup = Hollow, meta = (BlueprintSpawnableComponent))
 class HOLLOWCORE_API UHollowCosmeticPartsComponent : public UActorComponent
@@ -87,6 +108,9 @@ public:
 	void SetTint(const FLinearColor& InTint);
 	const FLinearColor& GetTint() const { return Tint; }
 
+	/** The body's and hands' material instances the tint drives (tests, Hollow.Art.Dump). */
+	const TArray<TObjectPtr<UMaterialInstanceDynamic>>& GetTintedMaterials() const { return TintedMaterials; }
+
 	/** The parts attached so far (tests, Hollow.Art.Dump). */
 	const TArray<TObjectPtr<UStaticMeshComponent>>& GetPartComponents() const { return Parts; }
 	bool IsLoading() const;
@@ -101,13 +125,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Art")
 	TSoftObjectPtr<UHollowCosmeticPartSet> PartSet;
 
+	/** CHAR-01: the colour parameters of the body's and the hands' own materials the tint drives too. */
+	UPROPERTY(EditDefaultsOnly, Category = "Hollow|Art")
+	TArray<FHollowTintParameter> TintParameters;
+
 private:
 	void Clear();
 	void Attach(const UHollowCosmeticPartSet& Set);
 	USkeletalMeshComponent* FindBody() const;
+	/** The tint on TintParameters of the body's and the hands' materials (a dynamic instance per slot, made once). */
+	void TintMeshes();
+	bool HasTintParameter(const UMaterialInterface& Material) const;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> TintedMaterials;
 
 	TWeakObjectPtr<USkeletalMeshComponent> Body;
 	TWeakObjectPtr<USkeletalMeshComponent> FirstPerson;

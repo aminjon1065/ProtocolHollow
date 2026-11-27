@@ -37,7 +37,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHollowCharacterDied, class AHollowExoFram
 
 /**
  * Player character (ExoFrame). First-person arms and the third-person body use the engine first-person rendering
- * (ADR-0011): the owner sees FirstPersonMesh with its own FOV, everyone else sees the character mesh.
+ * (ADR-0011): the owner sees FirstPersonMesh with its own FOV, everyone else sees the character mesh. CHAR-01
+ * (ADR-0055): the body is Paragon Wraith and the camera follows its head; first-person arms, when the character has
+ * them, ride the camera (Wraith has no first-person poses: the owner's tool rides the camera, KnownIssues AK-4).
  * Movement is UHollowCharacterMovementComponent; all tuning, meshes and offsets are data (BP_ExoFrame).
  * The ability system lives on AHollowPlayerState; this pawn becomes its avatar while possessed, and the server grants
  * AbilitySets for exactly that time (attributes re-initialize on every spawn).
@@ -94,7 +96,7 @@ public:
 	 */
 	void Die();
 
-	/** Skeleton socket the first-person camera follows (head bob comes from the animation). */
+	/** Socket of the body the first-person camera follows (head bob comes from the body's animation). */
 	static const FName CameraSocketName;
 
 protected:
@@ -157,6 +159,7 @@ private:
 	TWeakObjectPtr<UHollowClassComponent> LookClass;
 	FDelegateHandle LookClassHandle;
 
+	/** First-person arms on the camera, only the owner sees them (CHAR-01: none for Wraith, AK-4). */
 	UPROPERTY(VisibleAnywhere, Category = "Hollow|Character")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonMesh;
 

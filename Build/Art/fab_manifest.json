@@ -1,5 +1,5 @@
 {
- "about": "Art-01 (ADR-0043), FAB-01 (ADR-0051): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Kept paths are under /Game/Fab/<Pack> in the staging; a pack still at the staging's root (staged_at) is moved there first. texture_source_max: the migrated textures' sources are downsized to it (hero_texture_source_max: a hero mesh's own textures to more). DRONE-01 (ADR-0054): only the Legacy drone's static mesh (and its two materials and four textures) of AdvancedCompanionDroneSystem.",
+ "about": "Art-01 (ADR-0043), FAB-01 (ADR-0051): what Build/Python/prepare_fab_assets.py migrates from the Fab staging into Content/Fab, and the swaps it applies in the game. Kept paths are under /Game/Fab/<Pack> in the staging; a pack still at the staging's root (staged_at) is moved there first. texture_source_max: the migrated textures' sources are downsized to it (hero_texture_source_max: a hero mesh's own textures to more). DRONE-01 (ADR-0054): only the Legacy drone's static mesh (and its two materials and four textures) of AdvancedCompanionDroneSystem. CHAR-01 (ADR-0055): three Paragon characters (ParagonWraith -> the ExoFrame, ParagonRiktor -> the Iron Pilgrim, ParagonSevarog -> the Echo-Stalker): each its skeletal mesh (its skeleton, physics, materials and textures come with it) and the few animations its animation assets use; a character's own textures to texture_source_max_by_folder, its material layers' tiles to texture_source_max; lean (Riktor, Sevarog: never moved in the staging) or prepare kept (Wraith): only what the kept assets need to run is prepared and copied (hard references only), hidden_slots (Wraith's rifle, Riktor's long hook chain that stands out straight in his idle) change only the staging copy before.",
  "budget_mb": 2000,
  "packs": [
   {
@@ -48,6 +48,74 @@
    "keep": [
     "/Game/Fab/AdvancedCompanionDroneSystem/Mesh/Drone/Legacy/SM_LegacyDrone"
    ]
+  },
+  {
+   "name": "ParagonWraith",
+   "staged_at": "/Game/ParagonWraith",
+   "texture_source_max": 512,
+   "texture_source_max_by_folder": {
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith": 2048
+   },
+   "keep": [
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith",
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/Idle_Combat",
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/Jog_Fwd_Combat",
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/Jog_Bwd_Combat",
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/Jog_Left_Combat",
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/Jog_Right_Combat",
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/AO/Idle_AO_Combat"
+   ],
+   "hidden_slots": {
+    "/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith": [
+     "M03_weapon"
+    ]
+   },
+   "prepare": "kept"
+  },
+  {
+   "name": "ParagonRiktor",
+   "staged_at": "/Game/ParagonRiktor",
+   "texture_source_max": 512,
+   "texture_source_max_by_folder": {
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor": 1024
+   },
+   "keep": [
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Meshes/Riktor",
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Animations/Idle_Combat",
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Animations/Jog_Fwd",
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Animations/PrimaryAttack_C_Slow",
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Animations/Ability_Lockdown",
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Animations/Stun_Start",
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Animations/Stun_Loop"
+   ],
+   "lean": true,
+   "hidden_slots": {
+    "/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Meshes/Riktor": [
+     "M06_chain_r_long",
+     "M12_long_chain_r_fx_wide",
+     "M13_long_chain_r_fx_thin"
+    ]
+   }
+  },
+  {
+   "name": "ParagonSevarog",
+   "staged_at": "/Game/ParagonSevarog",
+   "texture_source_max": 512,
+   "texture_source_max_by_folder": {
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog": 1024
+   },
+   "keep": [
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Meshes/Sevarog",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Idle",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Walk_Fwd",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Sprint_Fwd",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Swing1_Medium",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Stun_Start",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Stun_Loop",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Speedburst",
+    "/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/Animations/LevelStart"
+   ],
+   "lean": true
   }
  ],
  "swaps": []

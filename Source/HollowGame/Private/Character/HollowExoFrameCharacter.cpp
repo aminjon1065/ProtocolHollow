@@ -59,19 +59,21 @@ AHollowExoFrameCharacter::AHollowExoFrameCharacter(const FObjectInitializer& Obj
 	// Everyone else sees the body; its owner only gets its shadow (also implies bOwnerNoSee).
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
 
-	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonMesh"));
-	FirstPersonMesh->SetupAttachment(GetMesh());
-	FirstPersonMesh->SetOnlyOwnerSee(true);
-	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
-	FirstPersonMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	CosmeticParts->Setup(GetMesh(), FirstPersonMesh);   // Art-01: bracers on the first-person hands too
-
-	// Offsets, field of view and first-person scale are data (BP_ExoFrame).
+	// CHAR-01 (ADR-0055): the camera at the body's head; offsets, field of view and first-person scale are data (BP_ExoFrame).
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	FirstPersonCamera->SetupAttachment(FirstPersonMesh, CameraSocketName);
+	FirstPersonCamera->SetupAttachment(GetMesh(), CameraSocketName);
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->bEnableFirstPersonFieldOfView = true;
 	FirstPersonCamera->bEnableFirstPersonScale = true;
+
+	// First-person arms, when the character has them, ride the camera (Wraith has none: AK-4).
+	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonMesh"));
+	FirstPersonMesh->SetupAttachment(FirstPersonCamera);
+	FirstPersonMesh->SetOnlyOwnerSee(true);
+	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+	FirstPersonMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	FirstPersonMesh->SetCastShadow(false);   // the body casts the owner's shadow
+	CosmeticParts->Setup(GetMesh(), FirstPersonMesh);   // Art-01: parts on the first-person arms too
 
 	HelmetLight = CreateDefaultSubobject<USpotLightComponent>(TEXT("HelmetLight"));
 	HelmetLight->SetupAttachment(FirstPersonCamera);

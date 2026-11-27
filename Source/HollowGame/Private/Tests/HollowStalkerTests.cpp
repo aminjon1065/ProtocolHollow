@@ -554,7 +554,9 @@ bool FHollowStalkerAmbushInHottestRoomTest::RunTest(const FString& Parameters)
 	Advance(Scene.TestWorld, StepSeconds * 0.3f, [Director] { return Director->GetMode() == EHollowThreatMode::Retreat; });
 	TestTrue(TEXT("Struck: back on the leash"), Director->GetMode() == EHollowThreatMode::Retreat);
 	Advance(Scene.TestWorld, StepSeconds * 2.f, [Stalker] { return Stalker->IsInVent(); });
-	TestTrue(TEXT("...into the vents: hidden, out of reach"), Stalker->IsInVent() && Stalker->IsHidden() && !Stalker->GetActorEnableCollision());
+	TestTrue(TEXT("...into the vents: out of reach"), Stalker->IsInVent() && !Stalker->GetActorEnableCollision());
+	Advance(Scene.TestWorld, StepSeconds * 0.3f, [Stalker] { return Stalker->IsHidden(); });   // CHAR-01: seen going in (VentEnter)
+	TestTrue(TEXT("...hidden once it has gone in"), Stalker->IsInVent() && Stalker->IsHidden());
 	TestTrue(TEXT("...its brain retreating"), Brain->GetActivity() == EHollowAIActivity::Retreat);
 	return true;
 }

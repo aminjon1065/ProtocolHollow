@@ -15,6 +15,7 @@
 #include "Data/HollowWeaponDefinition.h"
 #include "Doors/HollowDoor.h"
 #include "Doors/HollowDoorStateComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/Texture2D.h"
@@ -43,6 +44,11 @@ namespace HollowArtTests
 	const TCHAR* const LanternPath = TEXT("/Game/Hollow/Tools/AetherLantern/DA_Tool_AetherLantern.DA_Tool_AetherLantern");
 	const TCHAR* const CoreLook = TEXT("/Game/Hollow/Items/AetherCore/MI_AetherCore.MI_AetherCore");
 	const FName KitPath(TEXT("/Game/Hollow/Art/Kit"));
+	/** CHAR-01 (create_character_assets.py, ADR-0055): the characters' own meshes, the tool socket, a glow the tint drives. */
+	const TCHAR* const FabCharacters = TEXT("/Game/Fab/Paragon");
+	const FName ToolSocket(TEXT("ToolMount"));
+	const FName GlowParameter(TEXT("DeepEmissiveColor"));
+	const TCHAR* const TestPartMesh = TEXT("/Engine/BasicShapes/Cube.Cube");
 	const FName TexturePath(TEXT("/Game/Hollow/Art/Textures"));
 	const FPrimaryAssetId Engineer(UHollowClassDefinition::AssetType, TEXT("DA_Class_Engineer"));
 	const FPrimaryAssetId Occultist(UHollowClassDefinition::AssetType, TEXT("DA_Class_Occultist"));
@@ -50,7 +56,8 @@ namespace HollowArtTests
 	/** Budget (create_art_kit.py MAX_TRIANGLES, TEXTURE_MAX_SIZE). */
 	constexpr int32 MaxTriangles = 6000;
 	constexpr int32 MaxTextureSize = 1024;
-	constexpr int32 KitMeshes = 33;   // GP-01: the two weapons and five pickups; GP-02: the Whisperer and its nest; NAR-01b: the datapad
+	constexpr int32 KitMeshes = 19;   // GP-01: the two weapons and five pickups; GP-02: the Whisperer and its nest; NAR-01b: the datapad;
+	                                  // CHAR-01: the 14 armour parts retired (the characters wear their own meshes)
 	constexpr int32 CcTextures = 18;
 	/** Test data. */
 	constexpr float TickSeconds = 1.f / 30.f;
@@ -65,34 +72,6 @@ namespace HollowArtTests
 		{
 			++GFrameCounter;
 			World.TickTestWorld(TickSeconds);
-		}
-	}
-
-	/** Waits for the parts' asynchronous load (frames tick the streamable manager's callbacks). */
-	bool WaitForParts(FTestWorldWrapper& World, const UHollowCosmeticPartsComponent& Parts)
-	{
-		for (int32 Frame = 0; Frame < LoadFrames && (Parts.IsLoading() || Parts.GetPartComponents().IsEmpty()); ++Frame)
-		{
-			FlushAsyncLoading();
-			Tick(World, 1);
-		}
-		return !Parts.IsLoading() && !Parts.GetPartComponents().IsEmpty();
-	}
-
-	/** Loads the kit's meshes and materials the characters' part sets use. */
-	void PreloadParts()
-	{
-		for (const TCHAR* Name : {TEXT("DA_Parts_ExoFrame"), TEXT("DA_Parts_IronPilgrim"), TEXT("DA_Parts_EchoStalker")})
-		{
-			const UHollowCosmeticPartSet* Set = LoadObject<UHollowCosmeticPartSet>(nullptr, *FString::Printf(TEXT("/Game/Hollow/Art/Parts/%s.%s"), Name, Name));
-			for (const FHollowCosmeticPart& Part : Set ? Set->Parts : TArray<FHollowCosmeticPart>())
-			{
-				Part.Mesh.LoadSynchronous();
-				for (const TSoftObjectPtr<UMaterialInterface>& Material : Part.Materials)
-				{
-					Material.LoadSynchronous();
-				}
-			}
 		}
 	}
 
@@ -114,46 +93,70 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowArtCosmeticPartsTest, "Hollow.Game.Art.C
 
 bool FHollowArtCosmeticPartsTest::RunTest(const FString& Parameters)
 {
-	// Art-01 (ADR-0043): BP_ExoFrame wears DA_Parts_ExoFrame on the placeholder skeleton: body parts on the body's bones,
-	// seen as the body is (the owner sees only their shadow), bracers on the first-person hands only the owner sees;
-	// no part collides or touches navigation; a tint reaches every part. The enemies wear their own sets.
+	// CHAR-01 (ADR-0055): the characters wear their own Paragon meshes, no part set; the class's colour reaches the
+	// ExoFrame's own glow (UHollowCosmeticPartsComponent::TintParameters: a dynamic instance per slot that has it). A part
+	// set still puts its parts on the body's bones (Art-01, ADR-0043), seen as the body is (the owner sees only their
+	// shadow), no collision or navigation, the tint in their custom primitive data.
 	using namespace HollowArtTests;
 	FTestWorldWrapper TestWorld;
 	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
-	PreloadParts();   // the parts attach at BeginPlay when their meshes are in memory (else a frame later)
 	AHollowExoFrameCharacter* Character = World ? SpawnPlaying<AHollowExoFrameCharacter>(World, ExoFrameClass) : nullptr;
 	UHollowCosmeticPartsComponent* Parts = Character ? Character->GetCosmeticParts() : nullptr;
-	if (!TestNotNull(TEXT("BP_ExoFrame and its parts"), Parts) || !TestTrue(TEXT("...loaded and attached"), WaitForParts(TestWorld, *Parts)))
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TestPartMesh);
+	if (!TestNotNull(TEXT("BP_ExoFrame and its parts component"), Parts) || !TestNotNull(TEXT("The engine's cube"), Cube))
 	{
 		return false;
 	}
-	int32 FirstPerson = 0;
-	for (const UStaticMeshComponent* Part : Parts->GetPartComponents())
-	{
-		const bool bOnHands = Part->GetAttachParent() == Character->GetFirstPersonMesh();
-		FirstPerson += bOnHands ? 1 : 0;
-		TestTrue(FString::Printf(TEXT("%s: on a mesh's bone"), *GetNameSafe(Part->GetStaticMesh())), (bOnHands || Part->GetAttachParent() == Character->GetMesh())
-			&& !Part->GetAttachSocketName().IsNone() && Cast<USkinnedMeshComponent>(Part->GetAttachParent())->DoesSocketExist(Part->GetAttachSocketName()));
-		TestTrue(TEXT("...no collision, no navigation"), Part->GetCollisionEnabled() == ECollisionEnabled::NoCollision && !Part->CanEverAffectNavigation());
-		TestTrue(TEXT("...seen as its mesh is"), bOnHands ? Part->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson && Part->bOnlyOwnerSee
-			: Part->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::WorldSpaceRepresentation);
-	}
-	TestTrue(FString::Printf(TEXT("Helmet, chest, pack, pauldrons, bracers, shins (%d), two bracers on the hands"), Parts->GetPartComponents().Num()),
-		Parts->GetPartComponents().Num() >= 9 && FirstPerson == 2);
+	TestTrue(TEXT("No parts: its own mesh"), Parts->GetPartComponents().IsEmpty() && Character->GetMesh()->GetSkeletalMeshAsset()
+		&& Character->GetMesh()->GetSkeletalMeshAsset()->GetPathName().StartsWith(FabCharacters));
 	const FLinearColor Tint(0.2f, 0.9f, 0.4f, 1.f);
 	Parts->SetTint(Tint);
-	const TArray<float>& Data = Parts->GetPartComponents()[0]->GetCustomPrimitiveData().Data;
-	TestTrue(TEXT("The tint reaches the parts (custom primitive data 0..3)"), Data.Num() >= 4 && FMath::IsNearlyEqual(Data[0], Tint.R)
-		&& FMath::IsNearlyEqual(Data[1], Tint.G) && FMath::IsNearlyEqual(Data[2], Tint.B));
+	int32 OnBody = 0;
+	for (UMaterialInstanceDynamic* Glow : Parts->GetTintedMaterials())
+	{
+		for (int32 Slot = 0; Slot < Character->GetMesh()->GetNumMaterials(); ++Slot)
+		{
+			OnBody += Character->GetMesh()->GetMaterial(Slot) == Glow ? 1 : 0;
+		}
+		FLinearColor Value;
+		TestTrue(FString::Printf(TEXT("%s: the class's colour, brighter"), *Glow->GetName()), Glow->GetVectorParameterValue(FHashedMaterialParameterInfo(GlowParameter), Value)
+			&& Value.G > 0.f && FMath::IsNearlyEqual(Value.R / Value.G, Tint.R / Tint.G, 0.01f) && FMath::IsNearlyEqual(Value.B / Value.G, Tint.B / Tint.G, 0.01f));
+	}
+	TestTrue(FString::Printf(TEXT("The tint glows on the body (%d slots)"), OnBody), OnBody > 0 && OnBody == Parts->GetTintedMaterials().Num());
 
-	// The enemies: their own sets, their bodies out of the placeholder's materials.
+	// A part set (Art-01): a cube on the body's head, another on its right hand.
+	UHollowCosmeticPartSet* Set = NewObject<UHollowCosmeticPartSet>(GetTransientPackage());
+	FHollowCosmeticPart Helmet;
+	Helmet.Mesh = Cube;
+	Helmet.Bone = TEXT("head");
+	FHollowCosmeticPart Glove = Helmet;
+	Glove.Bone = TEXT("hand_r");
+	Set->Parts = {Helmet, Glove};
+	Parts->ApplySet(Set);   // its mesh is in memory: attached at once
+	for (const UStaticMeshComponent* Part : Parts->GetPartComponents())
+	{
+		TestTrue(TEXT("A part: on the body's bone"), Part->GetAttachParent() == Character->GetMesh()
+			&& Character->GetMesh()->DoesSocketExist(Part->GetAttachSocketName()));
+		TestTrue(TEXT("...no collision, no navigation"), Part->GetCollisionEnabled() == ECollisionEnabled::NoCollision && !Part->CanEverAffectNavigation());
+		TestTrue(TEXT("...seen as the body is"), Part->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::WorldSpaceRepresentation);
+		const TArray<float>& Data = Part->GetCustomPrimitiveData().Data;
+		TestTrue(TEXT("...the tint in its custom primitive data (0..3)"), Data.Num() >= 4 && FMath::IsNearlyEqual(Data[0], Tint.R)
+			&& FMath::IsNearlyEqual(Data[1], Tint.G) && FMath::IsNearlyEqual(Data[2], Tint.B));
+	}
+	TestEqual(TEXT("Two parts"), Parts->GetPartComponents().Num(), 2);
+	Parts->ApplySet(nullptr);
+	TestTrue(TEXT("...taken off"), Parts->GetPartComponents().IsEmpty());
+
+	// The enemies: their own meshes and materials, no part set.
 	for (const TCHAR* Path : {PilgrimClass, StalkerClass})
 	{
 		const UClass* Class = LoadClass<ACharacter>(nullptr, Path);
 		const ACharacter* Enemy = Class ? Class->GetDefaultObject<ACharacter>() : nullptr;
-		const UHollowCosmeticPartsComponent* EnemyParts = Enemy ? UHollowCosmeticPartsComponent::Get(Enemy) : nullptr;
-		TestTrue(FString::Printf(TEXT("%s: a part set and a body material of the kit"), Path), EnemyParts && Enemy->GetMesh()->GetMaterial(0)
-			&& Enemy->GetMesh()->GetMaterial(0)->GetPathName().StartsWith(TEXT("/Game/Hollow/Art/")));
+		const USkeletalMeshComponent* Body = Enemy ? Enemy->GetMesh() : nullptr;
+		const USkeletalMesh* Mesh = Body ? Body->GetSkeletalMeshAsset() : nullptr;
+		const UMaterialInterface* First = Mesh && !Mesh->GetMaterials().IsEmpty() ? Mesh->GetMaterials()[0].MaterialInterface.Get() : nullptr;
+		TestTrue(FString::Printf(TEXT("%s: its own Paragon mesh and materials, none of the kit over them (%s)"), Path, *GetPathNameSafe(First)), Mesh
+			&& Mesh->GetPathName().StartsWith(FabCharacters) && First && First->GetPathName().StartsWith(FabCharacters) && Body->OverrideMaterials.IsEmpty());
 	}
 	return true;
 }
@@ -163,12 +166,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHollowArtToolInHandTest, "Hollow.Game.Art.Tool
 
 bool FHollowArtToolInHandTest::RunTest(const FString& Parameters)
 {
-	// Art-01: the owner's tool rides the camera (the placeholder arms hold nothing up), the body holds it in its hand;
-	// the class's tool is in hand until another is used; a running tool glows (custom primitive data 0).
+	// Art-01: the owner's tool rides the camera (no first-person arms hold it: CHAR-01, AK-4); CHAR-01 (ADR-0055): the
+	// body holds it in its ToolMount socket (where Wraith's rifle sat). The class's tool is in hand until another is used;
+	// a running tool glows (custom primitive data 0).
 	using namespace HollowArtTests;
 	FTestWorldWrapper TestWorld;
 	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
-	PreloadParts();
 	AHollowExoFrameCharacter* Character = World ? SpawnPlaying<AHollowExoFrameCharacter>(World, ExoFrameClass) : nullptr;
 	UHollowToolMountComponent* Mount = Character ? UHollowToolMountComponent::Get(Character) : nullptr;
 	const UHollowToolDefinition* Cutter = LoadObject<UHollowToolDefinition>(nullptr, CutterPath);
@@ -184,7 +187,8 @@ bool FHollowArtToolInHandTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: a held mesh with its muzzle"), *Tool->GetName()), Mesh && Mesh->FindSocket(Tool->MuzzleSocket) != nullptr);
 	}
 	TestTrue(TEXT("The owner's tool rides the camera"), Mount->GetFirstPersonMesh()->GetAttachParent() == Character->GetFirstPersonCamera());
-	TestTrue(TEXT("...the body's in its hand"), Mount->GetThirdPersonMesh()->GetAttachParent() == Character->GetMesh());
+	TestTrue(TEXT("...the body's in its ToolMount"), Mount->GetThirdPersonMesh()->GetAttachParent() == Character->GetMesh()
+		&& Mount->GetThirdPersonMesh()->GetAttachSocketName() == ToolSocket && Character->GetMesh()->DoesSocketExist(ToolSocket));
 	TestTrue(TEXT("The cutter by default"), Mount->GetShownTool() == Cutter);
 	Mount->SetClassTool(Lantern);
 	TestTrue(TEXT("An Occultist holds the lantern"), Mount->GetShownTool() == Lantern);
@@ -217,7 +221,6 @@ bool FHollowArtWeaponInHandTest::RunTest(const FString& Parameters)
 	using namespace HollowArtTests;
 	FTestWorldWrapper TestWorld;
 	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
-	PreloadParts();
 	AHollowExoFrameCharacter* Character = World ? SpawnPlaying<AHollowExoFrameCharacter>(World, ExoFrameClass) : nullptr;
 	UHollowToolMountComponent* Mount = Character ? UHollowToolMountComponent::Get(Character) : nullptr;
 	const UHollowWeaponDefinition* Weapons[] = {
@@ -263,7 +266,6 @@ bool FHollowArtLanternFlashTest::RunTest(const FString& Parameters)
 	using namespace HollowArtTests;
 	FTestWorldWrapper TestWorld;
 	UWorld* World = HollowGameTests::CreateWorld(*this, TestWorld);
-	PreloadParts();
 	AHollowExoFrameCharacter* Character = World ? SpawnPlaying<AHollowExoFrameCharacter>(World, ExoFrameClass) : nullptr;
 	UHollowToolMountComponent* Mount = Character ? UHollowToolMountComponent::Get(Character) : nullptr;
 	const UHollowLanternDefinition* Lantern = LoadObject<UHollowLanternDefinition>(nullptr, LanternPath);

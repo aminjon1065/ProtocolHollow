@@ -40,20 +40,14 @@ STALKER_BP = STALKER_DIR + "/BP_EchoStalker"
 STANDARD_FILTER = "/Game/Hollow/AI/Nav/NAV_Filter_Standard"
 THREAT_CONFIG = "/Game/Hollow/AI/DA_ThreatConfig"
 
-PLACEHOLDER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"   # ADR-0011: imported per machine (Quinn has no materials yet)
-PLACEHOLDER_ANIM = "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"
-MANNEQUINS = "/Game/Characters/Mannequins/"
 ATTRIBUTE_MODULE = "/Script/HollowGAS"
 EFFECT_LEVEL = 1.0
 
-# Body: the Standard nav agent (radius 45, height 220, DefaultEngine.ini); Manny (192 tall) scaled to fill it.
+# Body: the Standard nav agent (radius 45, height 220, DefaultEngine.ini); the Paragon Sevarog mesh is fitted to it by
+# create_character_assets.py (CHAR-01, ADR-0055).
 CAPSULE_RADIUS = 45.0
 CAPSULE_HALF_HEIGHT = 110.0
-MANNY_HEIGHT = 192.0
-MESH_SCALE = 2.0 * CAPSULE_HALF_HEIGHT / MANNY_HEIGHT
-MESH_LOCATION = unreal.Vector(0.0, 0.0, -CAPSULE_HALF_HEIGHT)
 PAWN_RESPONSE = unreal.CollisionResponseType.ECR_OVERLAP
-MESH_ROTATION = unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0)
 
 # Attributes (data): kinetic weapons do nothing (traits); the health is there for the occult tools of later sprints.
 STALKER_ATTRIBUTES = [("HollowHealthSet", "MaxHealth", 1000.0), ("HollowHealthSet", "Health", 1000.0), ("HollowHealthSet", "Armor", 0.0)]
@@ -354,15 +348,6 @@ def ensure_pawn(definition):
     if capsule.get_collision_response_to_channel(unreal.CollisionChannel.ECC_PAWN) != PAWN_RESPONSE:
         capsule.set_collision_response_to_channel(unreal.CollisionChannel.ECC_PAWN, PAWN_RESPONSE)
         changed = True
-    mesh = pawn.get_editor_property("mesh")
-    current = mesh.get_editor_property("skeletal_mesh_asset")
-    # Another placeholder mannequin gives way to ours; a real mesh set in the editor stays.
-    if current is None or (current.get_path_name().startswith(MANNEQUINS) and current != load(PLACEHOLDER_MESH)):
-        mesh.set_editor_property("skeletal_mesh_asset", load(PLACEHOLDER_MESH))
-        mesh.set_editor_property("anim_class", load(PLACEHOLDER_ANIM).generated_class())
-        changed = True
-    changed = apply_values(mesh, {"relative_location": MESH_LOCATION, "relative_rotation": MESH_ROTATION,
-                                  "relative_scale3d": unreal.Vector(MESH_SCALE, MESH_SCALE, MESH_SCALE)}) or changed
     if changed:
         save(pawn_bp)
         log("BP_EchoStalker ready")

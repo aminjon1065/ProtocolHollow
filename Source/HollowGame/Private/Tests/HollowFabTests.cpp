@@ -2,17 +2,22 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Animation/AnimSequence.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Components/LightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Level.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/Paths.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 
 namespace HollowFabTests
 {
@@ -20,7 +25,7 @@ namespace HollowFabTests
 	const TCHAR* const FabRoot = TEXT("/Game/Fab");
 	const TCHAR* const ForbiddenClasses[] = {TEXT("SoundWave"), TEXT("SoundCue"), TEXT("SoundAttenuation"), TEXT("SoundClass"), TEXT("MetaSoundSource"),
 		TEXT("World"), TEXT("Blueprint"), TEXT("WidgetBlueprint"), TEXT("LevelSequence"), TEXT("InputAction"), TEXT("InputMappingContext"),
-		TEXT("UserDefinedStruct"), TEXT("UserDefinedEnum"), TEXT("DataTable")};
+		TEXT("UserDefinedStruct"), TEXT("UserDefinedEnum"), TEXT("DataTable"), TEXT("AnimBlueprint"), TEXT("ParticleSystem")};
 	constexpr int32 NiagaraSystems = 3;    // Teal, Purple, Yellow
 	constexpr int32 PropMeshes = 19;       // OvergrownFactoryENV's kept props
 	constexpr int32 EffectMeshes = 1;      // the absorption's own core mesh
@@ -29,7 +34,34 @@ namespace HollowFabTests
 	constexpr int32 DroneMeshes = 1;
 	constexpr int32 DroneTextures = 4;
 	constexpr int32 DroneTextureMax = 1024;
-	constexpr int64 TargetMegabytes = 300; // the task's ceiling for Content/Fab (its budget_mb is GitHub's, 2000)
+	constexpr int64 TargetMegabytes = 450; // the ceiling for Content/Fab (CHAR-01: 300 + the three characters; budget_mb is GitHub's, 2000)
+	// CHAR-01 (ADR-0055): three Paragon characters, each its own textures at most its cap, its material layers' at 512.
+	constexpr int32 CharacterMeshes = 3;
+	struct FCharacterPack
+	{
+		const TCHAR* Root;
+		const TCHAR* Own;   // the character's own folder
+		int32 OwnTextureMax;
+	};
+	const FCharacterPack CharacterPacks[] = {
+		{TEXT("/Game/Fab/ParagonWraith/"), TEXT("/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/"), 2048},
+		{TEXT("/Game/Fab/ParagonRiktor/"), TEXT("/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/"), 1024},
+		{TEXT("/Game/Fab/ParagonSevarog/"), TEXT("/Game/Fab/ParagonSevarog/Characters/Heroes/Sevarog/"), 1024},
+	};
+	constexpr int32 LayerTextureMax = 512;
+	/** What the packs' characters held, hidden (fab_manifest.json hidden_slots): Wraith's rifle, Riktor's long hook chain. */
+	struct FHiddenSlot
+	{
+		const TCHAR* Mesh;
+		const TCHAR* Slot;
+	};
+	const FHiddenSlot HiddenSlots[] = {
+		{TEXT("/Game/Fab/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith.Wraith"), TEXT("M03_weapon")},
+		{TEXT("/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Meshes/Riktor.Riktor"), TEXT("M06_chain_r_long")},
+		{TEXT("/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Meshes/Riktor.Riktor"), TEXT("M12_long_chain_r_fx_wide")},
+		{TEXT("/Game/Fab/ParagonRiktor/Characters/Heroes/Riktor/Meshes/Riktor.Riktor"), TEXT("M13_long_chain_r_fx_thin")},
+	};
+	const TCHAR* const HiddenMaterial = TEXT("M_Hollow_Hidden");
 	const FName PropTag(TEXT("HollowFab"));
 	struct FDressed
 	{
@@ -64,10 +96,28 @@ bool FHollowFabContentTest::RunTest(const FString& Parameters)
 	Registry.GetAssets(Filter, Assets);
 	int32 Systems = 0;
 	int32 Meshes = 0;
+	int32 SkeletalMeshes = 0;
 	int32 DroneTextureCount = 0;
 	for (const FAssetData& Asset : Assets)
 	{
 		const FString Class = Asset.AssetClassPath.GetAssetName().ToString();
+		const FString Package = Asset.PackageName.ToString();
+		for (const FCharacterPack& Pack : CharacterPacks)
+		{
+			if (Package.StartsWith(Pack.Root) && Class == TEXT("Texture2D"))
+			{
+				const int32 Max = Package.StartsWith(Pack.Own) ? Pack.OwnTextureMax : LayerTextureMax;
+				const UTexture2D* Texture = Cast<UTexture2D>(Asset.GetAsset());
+				const FIntPoint Size = Texture ? Texture->GetImportedSize() : FIntPoint::ZeroValue;
+				TestTrue(FString::Printf(TEXT("%s: its source is at most %d (%dx%d)"), *Package, Max, Size.X, Size.Y), Size.X > 0 && Size.X <= Max && Size.Y <= Max);
+			}
+		}
+		if (Class == TEXT("AnimSequence"))
+		{
+			const UAnimSequence* Sequence = Cast<UAnimSequence>(Asset.GetAsset());
+			TestTrue(Package + TEXT(": no root motion (the server moves the bodies)"), Sequence && !Sequence->bEnableRootMotion);
+		}
+		SkeletalMeshes += Class == TEXT("SkeletalMesh") ? 1 : 0;
 		if (Asset.PackageName.ToString().StartsWith(DronePack) && Class == TEXT("Texture2D"))
 		{
 			++DroneTextureCount;
@@ -89,6 +139,37 @@ bool FHollowFabContentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The three absorption colours"), Systems, NiagaraSystems);
 	TestEqual(TEXT("The chosen props, the effect's core mesh and the drone"), Meshes, PropMeshes + EffectMeshes + DroneMeshes);
 	TestEqual(TEXT("The drone's four textures"), DroneTextureCount, DroneTextures);
+	TestEqual(TEXT("The three characters' meshes (CHAR-01)"), SkeletalMeshes, CharacterMeshes);
+	for (const FHiddenSlot& Hidden : HiddenSlots)
+	{
+		const USkeletalMesh* Mesh = LoadObject<USkeletalMesh>(nullptr, Hidden.Mesh);
+		const FName SlotName(Hidden.Slot);
+		const FSkeletalMaterial* Slot = Mesh ? Mesh->GetMaterials().FindByPredicate([&SlotName](const FSkeletalMaterial& Each) { return Each.MaterialSlotName == SlotName; }) : nullptr;
+		TestTrue(FString::Printf(TEXT("%s %s: hidden (the empty material of its pack)"), Hidden.Mesh, Hidden.Slot), Slot && Slot->MaterialInterface
+			&& Slot->MaterialInterface->GetName() == HiddenMaterial);
+		// ...and not drawn at all: its sections are off in every LOD (create_character_assets.py; an empty material still
+		// costs depth and shadow).
+		const int32 SlotIndex = Mesh ? Mesh->GetMaterials().IndexOfByPredicate([&SlotName](const FSkeletalMaterial& Each) { return Each.MaterialSlotName == SlotName; }) : INDEX_NONE;
+		const FSkeletalMeshRenderData* RenderData = Mesh ? Mesh->GetResourceForRendering() : nullptr;
+		int32 Sections = 0;
+		int32 Off = 0;
+		for (int32 Lod = 0; RenderData && Lod < RenderData->LODRenderData.Num(); ++Lod)
+		{
+			const FSkeletalMeshLODInfo* Info = Mesh->GetLODInfo(Lod);
+			const TArray<FSkelMeshRenderSection>& RenderSections = RenderData->LODRenderData[Lod].RenderSections;
+			for (int32 Index = 0; Index < RenderSections.Num(); ++Index)
+			{
+				const int32 Material = Info && Info->LODMaterialMap.IsValidIndex(Index) && Info->LODMaterialMap[Index] != INDEX_NONE
+					? Info->LODMaterialMap[Index] : RenderSections[Index].MaterialIndex;
+				if (Material == SlotIndex)
+				{
+					++Sections;
+					Off += RenderSections[Index].bDisabled ? 1 : 0;
+				}
+			}
+		}
+		TestTrue(FString::Printf(TEXT("%s %s: its %d sections are off (%d)"), Hidden.Mesh, Hidden.Slot, Sections, Off), Sections > 0 && Off == Sections);
+	}
 
 	int64 Bytes = 0;
 	IFileManager::Get().IterateDirectoryStatRecursively(*(FPaths::ProjectContentDir() / TEXT("Fab")), [&Bytes](const TCHAR*, const FFileStatData& Stat)

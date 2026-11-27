@@ -1,13 +1,14 @@
 """Creates the S1-04 ExoFrame content (idempotent, ADR-0010, ADR-0011).
 
 Creates only missing assets (never overwrites tuning done in the editor), then validates every asset.
-Requires the placeholder characters: Build/Scripts/import-placeholders.sh
+The body's mesh, its animation, the first-person rig and the camera's place are create_character_assets.py's (CHAR-01,
+ADR-0055: Paragon Wraith); run it after this script.
 
   /Game/Hollow/Core/Input/Actions/IA_Move|IA_Look|IA_Jump|IA_Crouch|IA_Sprint
   /Game/Hollow/Core/Input/IMC_Raid                         keyboard/mouse + gamepad (UI-02: the look takes the player's settings)
   /Game/Hollow/Core/Input/DA_InputConfig_Raid              Hollow.Input.* -> input action
   /Game/Hollow/Characters/ExoFrame/DA_MovementTuning_ExoFrame
-  /Game/Hollow/Characters/ExoFrame/BP_ExoFrame             meshes, anims, camera, tuning, input
+  /Game/Hollow/Characters/ExoFrame/BP_ExoFrame             capsule, camera's view, tuning, input
   /Game/Hollow/Core/Framework/BP_GameMode_Hub              default pawn = BP_ExoFrame
 
 Run: Build/Scripts/run-editor-python.sh Build/Python/create_exoframe_assets.py
@@ -29,10 +30,6 @@ TUNING_PATH = EXOFRAME_DIR + "/DA_MovementTuning_ExoFrame"
 EXOFRAME_BP_PATH = EXOFRAME_DIR + "/BP_ExoFrame"
 GAME_MODE_BP_PATH = FRAMEWORK_DIR + "/BP_GameMode_Hub"
 
-# Placeholders (ADR-0011): imported from the engine templates, not committed.
-PLACEHOLDER_MESH = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
-PLACEHOLDER_BODY_ANIM = "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"
-PLACEHOLDER_ARMS_ANIM = "/Game/FirstPerson/Anims/ABP_FP_Copy"
 
 # name -> (value type, input tag)
 ACTIONS = {
@@ -50,13 +47,9 @@ TUNING = {
     "max_acceleration": 1800.0, "braking_deceleration": 2000.0, "ground_friction": 8.0,
     "jump_z_velocity": 420.0, "air_control": 0.3, "braking_deceleration_falling": 1500.0,
 }
-# Character layout of the UE5 mannequin, as in the engine first-person template.
+# Character layout of the engine first-person template (the body inside it: create_character_assets.py).
 CAPSULE_RADIUS = 34.0
 CAPSULE_HALF_HEIGHT = 96.0
-BODY_LOCATION = unreal.Vector(0.0, 0.0, -CAPSULE_HALF_HEIGHT)
-BODY_ROTATION = unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0)
-CAMERA_LOCATION = unreal.Vector(-2.8, 5.89, 0.0)
-CAMERA_ROTATION = unreal.Rotator(roll=-90.0, pitch=0.0, yaw=90.0)
 FIRST_PERSON_FOV = 70.0
 FIRST_PERSON_SCALE = 0.6
 
@@ -235,7 +228,6 @@ def build_blueprint(parent_class):
 
 
 def configure_exoframe(blueprint):
-    mesh = load(PLACEHOLDER_MESH)
     character = unreal.get_default_object(blueprint.generated_class())
     character.set_editor_property("input_config", load(INPUT_CONFIG_PATH))
     character.set_editor_property("default_mapping_context", load(IMC_PATH))
@@ -245,19 +237,7 @@ def configure_exoframe(blueprint):
     capsule.set_editor_property("capsule_radius", CAPSULE_RADIUS)
     capsule.set_editor_property("capsule_half_height", CAPSULE_HALF_HEIGHT)
 
-    body = character.get_editor_property("mesh")
-    body.set_editor_property("skeletal_mesh_asset", mesh)
-    body.set_editor_property("anim_class", load(PLACEHOLDER_BODY_ANIM).generated_class())
-    body.set_editor_property("relative_location", BODY_LOCATION)
-    body.set_editor_property("relative_rotation", BODY_ROTATION)
-
-    arms = character.get_editor_property("first_person_mesh")
-    arms.set_editor_property("skeletal_mesh_asset", mesh)
-    arms.set_editor_property("anim_class", load(PLACEHOLDER_ARMS_ANIM).generated_class())
-
     camera = character.get_editor_property("first_person_camera")
-    camera.set_editor_property("relative_location", CAMERA_LOCATION)
-    camera.set_editor_property("relative_rotation", CAMERA_ROTATION)
     camera.set_editor_property("first_person_field_of_view", FIRST_PERSON_FOV)
     camera.set_editor_property("first_person_scale", FIRST_PERSON_SCALE)
     return blueprint
@@ -306,10 +286,6 @@ def validate():
     check(character.get_editor_property("input_config") is not None, "BP_ExoFrame input config")
     check(character.get_editor_property("default_mapping_context") is not None, "BP_ExoFrame mapping context")
     check(character.get_editor_property("character_movement").get_editor_property("tuning") is not None, "BP_ExoFrame tuning")
-    for component in ("mesh", "first_person_mesh"):
-        skeletal = character.get_editor_property(component)
-        check(skeletal.get_editor_property("skeletal_mesh_asset") is not None, "BP_ExoFrame %s mesh" % component)
-        check(skeletal.get_editor_property("anim_class") is not None, "BP_ExoFrame %s anim class" % component)
 
     game_mode = unreal.get_default_object(load(GAME_MODE_BP_PATH).generated_class())
     check(game_mode.get_editor_property("default_pawn_class") == load(EXOFRAME_BP_PATH).generated_class(), "hub default pawn")
@@ -317,10 +293,6 @@ def validate():
 
 
 def main():
-    for path in (PLACEHOLDER_MESH, PLACEHOLDER_BODY_ANIM, PLACEHOLDER_ARMS_ANIM):
-        if not assets.does_asset_exist(path):
-            raise RuntimeError("Placeholder %s missing: run Build/Scripts/import-placeholders.sh" % path)
-
     for action_name, (value_type, _) in ACTIONS.items():
         ensure(ACTIONS_DIR + "/" + action_name, build_action(value_type))
     ensure(IMC_PATH, build_mapping_context)
